@@ -5,25 +5,29 @@ from app.db import get_db
 from app.models import User
 from app.security.tokens import TokenError, decode_token
 
-_UNAUTHORIZED = HTTPException(
-    status_code=status.HTTP_401_UNAUTHORIZED,
-    detail="Authentification requise",
-    headers={"WWW-Authenticate": "Bearer"},
-)
+
+def _unauthorized() -> HTTPException:
+    """A fresh exception per call -- a shared instance would have its __cause__
+    rewritten by concurrent requests."""
+    return HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Authentification requise",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
 
 
 def get_current_user(request: Request, db: Session = Depends(get_db)) -> User:
     header = request.headers.get("Authorization", "")
     scheme, _, token = header.partition(" ")
     if scheme.lower() != "bearer" or not token:
-        raise _UNAUTHORIZED
+        raise _unauthorized()
     try:
         user_id = decode_token(token, expected_type="access")
     except TokenError as exc:
-        raise _UNAUTHORIZED from exc
+        raise _unauthorized() from exc
     user = db.get(User, user_id)
     if user is None or not user.is_active:
-        raise _UNAUTHORIZED
+        raise _unauthorized()
     return user
 
 

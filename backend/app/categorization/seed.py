@@ -1,6 +1,7 @@
 from sqlalchemy.orm import Session
 
 from app.models import Category
+from app.models.rule import CategoryRule
 
 # (slug, name, kind, color, icon, [(child_slug, child_name), ...])
 CATEGORY_TREE: list[tuple[str, str, str, str, str, list[tuple[str, str]]]] = [
@@ -114,3 +115,128 @@ def seed_categories(db: Session, user_id: int) -> dict[str, Category]:
 
     db.commit()
     return index
+
+
+# (category slug, direction, [patterns])
+BUILTIN_RULES: list[tuple[str, str, list[str]]] = [
+    ("alimentation-courses", "debit", [
+        "carrefour", "leclerc", "intermarche", "auchan", "lidl", "aldi", "monoprix",
+        "franprix", "casino", "super u", "hyper u", "cora", "grand frais", "picard",
+        "biocoop", "naturalia", "g20", "spar", "netto", "match", "colruyt",
+    ]),
+    ("alimentation-restaurant", "debit", [
+        "restaurant", "brasserie", "pizzeria", "mcdonald", "burger king", "kfc",
+        "subway", "quick", "sushi", "bistrot", "creperie", "traiteur",
+    ]),
+    ("alimentation-livraison", "debit", [
+        "uber eats", "deliveroo", "just eat", "frichti",
+    ]),
+    ("alimentation-cafe", "debit", ["starbucks", "columbus cafe", "bar tabac"]),
+    ("logement-loyer", "debit", ["loyer", "quittance"]),
+    ("logement-energie", "debit", [
+        "edf", "engie", "total energies gaz", "eni gas", "veolia", "suez",
+        "saur", "primeo energie", "vattenfall",
+    ]),
+    ("logement-internet", "debit", [
+        "free mobile", "free haut debit", "orange", "sfr", "bouygues telecom",
+        "sosh", "red by sfr", "bouygues",
+    ]),
+    ("logement-assurance", "debit", [
+        "maif", "macif", "matmut", "gmf", "axa habitation", "allianz habitation",
+    ]),
+    ("logement-charges", "debit", ["syndic", "copropriete", "charges locatives"]),
+    ("transport-carburant", "debit", [
+        "totalenergies", "total access", "esso", "bp france", "shell", "avia",
+        "station service", "carrefour station",
+    ]),
+    ("transport-peage", "debit", [
+        "vinci autoroutes", "sanef", "aprr", "escota", "cofiroute", "peage",
+        "parking", "indigo park", "effia",
+    ]),
+    ("transport-commun", "debit", [
+        "ratp", "navigo", "tcl", "tisseo", "transpole", "keolis", "bibus",
+    ]),
+    ("transport-voyage", "debit", [
+        "sncf", "ouigo", "trainline", "blablacar", "flixbus", "air france",
+        "easyjet", "ryanair", "transavia", "booking com", "airbnb",
+    ]),
+    ("transport-entretien", "debit", [
+        "norauto", "feu vert", "midas", "speedy", "euromaster", "controle technique",
+    ]),
+    ("transport-assurance", "debit", ["assurance auto", "direct assurance"]),
+    ("sante-pharmacie", "debit", ["pharmacie", "parapharmacie"]),
+    ("sante-medecin", "debit", [
+        "cabinet medical", "docteur", "dr ", "laboratoire", "biogroup", "cerballiance",
+        "kinesitherapeute", "hopital", "clinique",
+    ]),
+    ("sante-mutuelle", "debit", [
+        "mutuelle", "harmonie mutuelle", "malakoff", "alan sante", "mgen",
+    ]),
+    ("sante-optique", "debit", ["optic", "krys", "afflelou", "grand optical", "dentaire"]),
+    ("abonnements-streaming", "debit", [
+        "netflix", "spotify", "deezer", "disney plus", "canal", "prime video",
+        "apple tv", "youtube premium", "max com",
+    ]),
+    ("abonnements-logiciels", "debit", [
+        "google one", "google storage", "icloud", "dropbox", "adobe", "microsoft 365",
+        "openai", "anthropic", "github", "notion", "figma",
+    ]),
+    ("abonnements-salle", "debit", [
+        "basic fit", "fitness park", "keep cool", "neoness", "on air",
+    ]),
+    ("abonnements-presse", "debit", ["le monde", "mediapart", "telerama", "les echos"]),
+    ("achats-equipement", "debit", [
+        "fnac", "darty", "boulanger", "ldlc", "materiel net", "apple store",
+        "cdiscount", "back market",
+    ]),
+    ("achats-vetements", "debit", [
+        "zara", "h m", "uniqlo", "decathlon", "kiabi", "celio", "jules",
+        "vinted", "zalando", "asos",
+    ]),
+    ("achats-maison", "debit", [
+        "ikea", "leroy merlin", "castorama", "bricorama", "maisons du monde",
+        "conforama", "but ",
+    ]),
+    ("achats-cadeaux", "debit", ["amazon", "etsy", "aliexpress", "temu"]),
+    ("famille-animaux", "debit", ["veterinaire", "maxi zoo", "animalis"]),
+    ("impots-revenu", "debit", ["dgfip impot", "impots gouv", "prelevement a la source"]),
+    ("impots-fonciere", "debit", ["taxe fonciere"]),
+    ("impots-habitation", "debit", ["taxe habitation", "redevance audiovisuel"]),
+    ("frais-tenue", "debit", ["frais tenue de compte", "cotisation compte"]),
+    ("frais-agios", "debit", ["agios", "commission intervention", "frais incident"]),
+    ("frais-carte", "debit", ["cotisation carte", "cotisation visa", "cotisation mastercard"]),
+    ("epargne-livret", "any", ["vir livret", "versement livret", "livret a"]),
+    ("epargne-bourse", "any", ["trade republic", "boursorama pea", "degiro", "saxo"]),
+    ("epargne-assurance-vie", "any", ["linxea", "assurance vie", "spirica", "suravenir"]),
+    ("revenus-salaire", "credit", ["salaire", "paie", "remuneration", "vir sepa employeur"]),
+    ("revenus-allocations", "credit", ["caf ", "pole emploi", "france travail", "apl"]),
+    ("revenus-remboursements", "credit", [
+        "cpam", "ameli", "remboursement", "secu", "assurance maladie",
+    ]),
+    ("revenus-loyers", "credit", ["loyer percu", "vir locataire"]),
+    ("virement-interne", "any", ["virement interne", "vir compte a compte"]),
+]
+
+
+def seed_rules(db: Session, user_id: int, categories: dict[str, Category]) -> int:
+    """Install the built-in French rule library. Returns how many rules were created."""
+    existing = {
+        (r.pattern, r.category_id)
+        for r in db.query(CategoryRule).filter(CategoryRule.user_id == user_id).all()
+    }
+    created = 0
+    for slug, direction, patterns in BUILTIN_RULES:
+        category = categories.get(slug)
+        if category is None:
+            continue
+        for pattern in patterns:
+            if (pattern, category.id) in existing:
+                continue
+            db.add(CategoryRule(
+                user_id=user_id, pattern=pattern, is_regex=False,
+                category_id=category.id, priority=100, origin="builtin",
+                direction=direction,
+            ))
+            created += 1
+    db.commit()
+    return created

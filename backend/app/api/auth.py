@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
-from app.categorization.seed import seed_categories
+from app.categorization.seed import seed_categories, seed_rules
 from app.config import settings
 from app.db import get_db
 from app.models import User
@@ -75,7 +75,8 @@ def register(payload: RegisterIn, response: Response, db: Session = Depends(get_
         raise
 
     db.refresh(user)
-    seed_categories(db, user.id)
+    categories = seed_categories(db, user.id)
+    seed_rules(db, user.id, categories)
 
     _set_refresh_cookie(response, user.id)
     return TokenOut(access_token=create_access_token(user.id), user=UserOut.model_validate(user))

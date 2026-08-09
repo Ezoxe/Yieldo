@@ -3026,14 +3026,28 @@ _LEARNED_PRIORITY = 200
 def extract_pattern(label_clean: str) -> str | None:
     """Reduce a normalized label to a reusable merchant core.
 
-    Returns None when nothing specific enough survives — a rule made of generic
+    Stopwords are trimmed from the EDGES only, never from the middle. compile_rules
+    matches a literal pattern with re.escape + search, so the pattern has to stay a
+    contiguous substring of the label. Dropping an interior word would turn
+    "restaurant de la gare" into "restaurant gare", which no longer matches the very
+    transaction the rule was learned from — a rule that silently never fires.
+
+    Returns None when nothing specific enough survives: a rule made of generic
     payment words would match unrelated transactions, so refusing is the right
     outcome, not a fallback.
     """
-    words = [w for w in (label_clean or "").split() if w not in STOPWORDS and not w.isdigit()]
-    if not words:
+    words = (label_clean or "").split()
+    start, end = 0, len(words)
+    while start < end and (words[start] in STOPWORDS or words[start].isdigit()):
+        start += 1
+    while end > start and (words[end - 1] in STOPWORDS or words[end - 1].isdigit()):
+        end -= 1
+
+    core_words = words[start:end]
+    if not core_words:
         return None
-    core = " ".join(words[:_MAX_PATTERN_WORDS])
+    # Taking a prefix keeps the result contiguous.
+    core = " ".join(core_words[:_MAX_PATTERN_WORDS])
     if len(core) < _MIN_PATTERN_LENGTH:
         return None
     return core

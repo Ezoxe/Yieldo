@@ -1,5 +1,5 @@
 from argon2 import PasswordHasher
-from argon2.exceptions import InvalidHashError, VerifyMismatchError
+from argon2.exceptions import InvalidHashError, VerificationError
 
 # Tuned for interactive login on a modest self-hosted machine: ~64 MiB, ~50 ms.
 _hasher = PasswordHasher(time_cost=2, memory_cost=65536, parallelism=2)
@@ -10,9 +10,15 @@ def hash_password(plain: str) -> str:
 
 
 def verify_password(plain: str, hashed: str) -> bool:
+    """Return False for a wrong password and for an unusable stored hash alike.
+
+    VerificationError covers VerifyMismatchError plus the generic failures argon2
+    raises when a hash has a valid prefix but a damaged body — truncation in the
+    database, an encoding accident. Those must refuse the login, not raise a 500.
+    """
     try:
         return _hasher.verify(hashed, plain)
-    except (VerifyMismatchError, InvalidHashError):
+    except (VerificationError, InvalidHashError):
         return False
 
 

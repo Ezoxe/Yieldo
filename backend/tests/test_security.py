@@ -18,6 +18,17 @@ def test_password_hash_is_salted_per_call():
     assert hash_password("same") != hash_password("same")
 
 
+def test_verify_password_returns_false_for_corrupted_hash_body():
+    """A hash with a valid $argon2id$ prefix but a damaged body (e.g. truncated by
+    the database) must refuse the login, not raise — argon2-cffi surfaces this as
+    the generic VerificationError rather than VerifyMismatchError or InvalidHashError.
+    """
+    hashed = hash_password("correct horse battery staple")
+    corrupted = hashed[:-5]
+    assert corrupted.startswith("$argon2id$")
+    assert verify_password("correct horse battery staple", corrupted) is False
+
+
 def test_access_token_round_trips_user_id():
     token = create_access_token(42)
     assert decode_token(token, expected_type="access") == 42

@@ -1,0 +1,37 @@
+# Environnement
+.env
+.env.local
+
+# Données applicatives — jamais versionnées
+data/
+*.db
+*.db-wal
+*.db-shm
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+htmlcov/
+.coverage
+coverage.xml
+
+# Node
+node_modules/
+dist/
+.vite/
+*.tsbuildinfo
+
+# Éditeurs
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# Tests bout en bout
+playwright-report/
+test-results/

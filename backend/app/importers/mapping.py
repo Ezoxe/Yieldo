@@ -27,9 +27,14 @@ SINGLE_USE_ROLES = frozenset(COLUMN_ROLES) - {"ignore"}
 
 # Ordered: the first pattern that matches a header wins, so put the most
 # specific ones first (value date before date, debit before amount).
+# "Date de comptabilisation" is the booking date, i.e. the operation date — not
+# the value date. Several French banks ship both columns, so putting
+# "comptabilis" on the wrong pattern swaps the two roles silently.
 _HEADER_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
-    ("value_date", re.compile(r"date\s*(de\s*)?val|dateval|value\s*date|comptabilis")),
-    ("date", re.compile(r"^date|dateop|date\s*op|operation\s*date|transaction\s*date|jour")),
+    ("value_date", re.compile(r"date\s*(de\s*)?val|dateval|value\s*date")),
+    ("date", re.compile(
+        r"^date|dateop|date\s*op|operation\s*date|transaction\s*date|jour|comptabilis"
+    )),
     ("debit", re.compile(r"debit|sortie|retrait|withdrawal")),
     ("credit", re.compile(r"credit|entree|depot|deposit")),
     ("amount", re.compile(r"montant|amount|somme|valeur|mouvement")),

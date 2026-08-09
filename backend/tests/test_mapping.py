@@ -20,6 +20,20 @@ def test_unknown_headers_default_to_ignore():
     assert suggest_mapping(["date", "colonne mystère"])[1] == "ignore"
 
 
+def test_booking_date_is_not_confused_with_value_date():
+    mapping = suggest_mapping(
+        ["Date de comptabilisation", "Date de valeur", "Libellé", "Montant"]
+    )
+    assert mapping == {0: "date", 1: "value_date", 2: "label", 3: "amount"}
+
+
+def test_booking_date_is_not_confused_with_value_date_when_order_is_reversed():
+    mapping = suggest_mapping(
+        ["Date de valeur", "Date de comptabilisation", "Libellé", "Montant"]
+    )
+    assert mapping == {0: "value_date", 1: "date", 2: "label", 3: "amount"}
+
+
 def test_validation_accepts_date_label_amount():
     assert validate_mapping({0: "date", 1: "label", 2: "amount"}, 3) == []
 

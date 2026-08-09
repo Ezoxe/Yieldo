@@ -1,0 +1,8 @@
+Exportation des opérations du compte
+Compte courant - 00012345678
+
+dateOp;dateVal;label;category;amount
+01/03/2025;03/03/2025;CARREFOUR MARKET CB 01/03;Alimentation;-47,32
+03/03/2025;03/03/2025;VIR SALAIRE ACME SAS;Revenus;2450,00
+05/03/2025;05/03/2025;PRLV NETFLIX.COM;Loisirs;-13,49
+07/03/2025;07/03/2025;TOTALENERGIES ACCESS 4589;Transport;-68,10

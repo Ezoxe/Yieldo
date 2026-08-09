@@ -3383,15 +3383,31 @@ def _load_categorizer(db: Session, user_id: int):
 def _resolve_category(
     candidate: CandidateRow, compiled, by_name: dict[str, Category]
 ) -> tuple[int | None, str]:
-    """CSV category column first, then the rule library. Neither is a guess dressed up
-    as fact: the source is recorded alongside the category."""
+    """Precise hint, then rules, then coarse hint. Never discard information.
+
+    A CSV category naming a leaf is as specific as anything a rule could infer, so it
+    wins outright. A CSV category naming a parent bucket is coarser than a rule match,
+    so the rule wins there — but when no rule fires, the bucket still beats leaving
+    the row uncategorized. That last branch is not hypothetical: the seeded Loisirs
+    subtree carries no built-in rules at all, so a bank-tagged leisure expense would
+    otherwise always land uncategorized despite the file naming its category.
+
+    Neither source is a guess dressed up as fact: the origin travels with the result.
+    """
+    hinted = None
     if candidate.category_hint:
-        matched = by_name.get(candidate.category_hint.strip().casefold())
-        if matched is not None:
-            return matched.id, "csv"
+        hinted = by_name.get(candidate.category_hint.strip().casefold())
+
+    # parent_id set means the hint names a leaf.
+    if hinted is not None and hinted.parent_id is not None:
+        return hinted.id, "csv"
+
     match = classify(candidate.label_clean, candidate.amount_cents or 0, compiled)
     if match is not None:
         return match.category_id, match.source
+
+    if hinted is not None:
+        return hinted.id, "csv"
     return None, "uncategorized"
 
 
@@ -3527,9 +3543,13 @@ def commit_import(
             duplicate += 1
             continue
         if fingerprint in seen:
-            # Forced through by the user: make the fingerprint unique so the
-            # database constraint does not reject a deliberate duplicate.
-            fingerprint = f"{fingerprint}:{candidate.row_number}"
+            # Forced through by the user: find a free suffix so a deliberate duplicate
+            # cannot trip the (user_id, dedup_hash) constraint — including when the
+            # same row is forced through again in a later import.
+            suffix = candidate.row_number
+            while f"{fingerprint}:{suffix}" in seen:
+                suffix += 1
+            fingerprint = f"{fingerprint}:{suffix}"
 
         override = overrides.get(candidate.row_number)
         if override is not None:

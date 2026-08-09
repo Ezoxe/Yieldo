@@ -2486,7 +2486,10 @@ def test_builtin_rules_classify_common_french_merchants(db, user_with_categories
     compiled = compile_rules(db.query(CategoryRule).filter(
         CategoryRule.user_id == user.id).all())
 
-    cases = {
+    # Amount sign matters: a rule carrying direction="credit" must not match a debit,
+    # so the income case is asserted with a positive amount. Asserting them all with
+    # one negative amount would contradict test_income_rules_only_match_positive_amounts.
+    debit_cases = {
         "carrefour market": "alimentation-courses",
         "leclerc drive": "alimentation-courses",
         "netflix com": "abonnements-streaming",
@@ -2495,10 +2498,16 @@ def test_builtin_rules_classify_common_french_merchants(db, user_with_categories
         "pharmacie du centre": "sante-pharmacie",
         "edf clients": "logement-energie",
         "free mobile": "logement-internet",
+    }
+    credit_cases = {
         "vir salaire acme sas": "revenus-salaire",
     }
-    for label, expected_slug in cases.items():
+    for label, expected_slug in debit_cases.items():
         match = classify(label, -1000, compiled)
+        assert match is not None, f"aucune règle pour {label!r}"
+        assert match.category_id == categories[expected_slug].id, label
+    for label, expected_slug in credit_cases.items():
+        match = classify(label, 245000, compiled)
         assert match is not None, f"aucune règle pour {label!r}"
         assert match.category_id == categories[expected_slug].id, label
 
@@ -2715,7 +2724,11 @@ BUILTIN_RULES: list[tuple[str, str, list[str]]] = [
     ("alimentation-cafe", "debit", ["starbucks", "columbus cafe", "bar tabac"]),
     ("logement-loyer", "debit", ["loyer", "quittance"]),
     ("logement-energie", "debit", [
-        "edf", "engie", "total energies gaz", "eni gas", "veolia", "suez",
+        # One word, no space: normalize_label strips punctuation but never inserts
+        # separators, so the brand arrives as "totalenergies". Written with a space
+        # this pattern can never match, and gas bills fall through to the fuel rule.
+        # Longer pattern wins at equal priority, so this beats plain "totalenergies".
+        "edf", "engie", "totalenergies gaz", "eni gas", "veolia", "suez",
         "saur", "primeo energie", "vattenfall",
     ]),
     ("logement-internet", "debit", [

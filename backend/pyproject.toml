@@ -30,3 +30,11 @@ target-version = "py312"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.ruff.lint.per-file-ignores]
+# Alembic writes these; hand-editing generated migrations to satisfy a linter
+# risks breaking a schema change for cosmetics.
+"alembic/versions/*.py" = ["E501", "I001", "UP035", "UP007"]
+# FastAPI's dependency injection is expressed through call defaults by design.
+"app/api/*.py" = ["B008"]
+"app/security/deps.py" = ["B008"]

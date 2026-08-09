@@ -6,7 +6,12 @@ from datetime import date
 # Bank statement labels carry noise that is not part of the transaction's identity:
 # embedded dates, card numbers, terminal ids. Stripping them keeps re-imports idempotent.
 _DATE_FRAGMENT = re.compile(r"\b\d{1,2}[/.-]\d{1,2}(?:[/.-]\d{2,4})?\b")
-_LONG_DIGITS = re.compile(r"\b\d{3,}\b")
+# Six digits and up: transaction references, IBAN fragments, terminal ids — the
+# volatile parts that would otherwise make a re-import look like a new row. The
+# threshold deliberately spares shorter runs that carry merchant identity
+# ("PHARMACIE 2000", "STATION 24", numbered branches); collapsing those would let
+# two genuinely different merchants share a fingerprint.
+_LONG_DIGITS = re.compile(r"\b\d{6,}\b")
 _CARD_MARKER = re.compile(r"\bcarte\s*\d*\b")
 _NON_ALNUM = re.compile(r"[^a-z0-9]+")
 _SPACES = re.compile(r"\s+")

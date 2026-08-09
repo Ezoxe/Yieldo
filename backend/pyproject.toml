@@ -14,7 +14,6 @@ dependencies = [
     "pyjwt>=2.10",
     "cryptography>=44.0",
     "python-multipart>=0.0.20",
-    "charset-normalizer>=3.4",
 ]
 
 [project.optional-dependencies]

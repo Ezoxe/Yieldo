@@ -134,7 +134,11 @@ BUILTIN_RULES: list[tuple[str, str, list[str]]] = [
     ("alimentation-cafe", "debit", ["starbucks", "columbus cafe", "bar tabac"]),
     ("logement-loyer", "debit", ["loyer", "quittance"]),
     ("logement-energie", "debit", [
-        "edf", "engie", "total energies gaz", "eni gas", "veolia", "suez",
+        # One word, no space: normalize_label strips punctuation but never inserts
+        # separators, so the brand arrives as "totalenergies". Written with a space
+        # this pattern can never match, and gas bills fall through to the fuel rule.
+        # Longer pattern wins at equal priority, so this beats plain "totalenergies".
+        "edf", "engie", "totalenergies gaz", "eni gas", "veolia", "suez",
         "saur", "primeo energie", "vattenfall",
     ]),
     ("logement-internet", "debit", [

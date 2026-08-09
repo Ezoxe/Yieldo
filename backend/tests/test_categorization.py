@@ -118,3 +118,21 @@ def test_income_rules_only_match_positive_amounts(db, user_with_categories):
     assert classify("vir salaire acme sas", 245000, compiled) is not None
     # A debit that happens to contain "salaire" must not be booked as income.
     assert classify("vir salaire acme sas", -245000, compiled) is None
+
+
+def test_totalenergies_gas_bill_is_not_booked_as_fuel(db, user_with_categories):
+    # normalize_label never inserts separators, so the brand always arrives as the
+    # single token "totalenergies" -- a pattern written "total energies gaz" can
+    # never match, and a home gas bill falls through to the fuel rule instead.
+    user, categories = user_with_categories
+    seed_rules(db, user.id, categories)
+    compiled = compile_rules(db.query(CategoryRule).filter(
+        CategoryRule.user_id == user.id).all())
+
+    gas_match = classify("totalenergies gaz prlv", -8500, compiled)
+    assert gas_match is not None
+    assert gas_match.category_id == categories["logement-energie"].id
+
+    fuel_match = classify("totalenergies access", -6810, compiled)
+    assert fuel_match is not None
+    assert fuel_match.category_id == categories["transport-carburant"].id

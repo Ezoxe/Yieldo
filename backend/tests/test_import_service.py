@@ -51,6 +51,40 @@ def test_preview_categorizes_using_the_rule_library(db, account_ready):
     assert by_row[4].category_id == categories["transport-carburant"].id
 
 
+def test_bucket_hint_used_when_no_rule_matches(db, account_ready):
+    # The seeded Loisirs subtree carries no built-in rules at all, so a
+    # bank-tagged leisure expense must fall back to the CSV bucket hint
+    # rather than land uncategorized despite the file naming its category.
+    user, account, categories = account_ready
+    raw = (
+        b"dateOp;dateVal;label;category;amount\r\n"
+        b"01/03/2025;01/03/2025;CINEMA PATHE;Loisirs;-12,50\r\n"
+    )
+    dialect = detect_dialect(raw)
+    mapping = suggest_mapping(dialect.sample_headers)
+    preview = build_preview(db, user.id, account.id, raw, dialect, mapping)
+    row = preview.rows[0]
+    assert row.category_id == categories["loisirs"].id
+    assert row.category_source == "csv"
+
+
+def test_leaf_hint_wins_over_a_conflicting_rule(db, account_ready):
+    # "carrefour" would normally match the alimentation-courses rule, but a
+    # CSV hint naming a specific leaf category is at least as precise as any
+    # rule, so it must win outright.
+    user, account, categories = account_ready
+    raw = (
+        b"dateOp;dateVal;label;category;amount\r\n"
+        b"01/03/2025;01/03/2025;CARREFOUR MARKET CB 01/03;Cadeaux;-47,32\r\n"
+    )
+    dialect = detect_dialect(raw)
+    mapping = suggest_mapping(dialect.sample_headers)
+    preview = build_preview(db, user.id, account.id, raw, dialect, mapping)
+    row = preview.rows[0]
+    assert row.category_id == categories["achats-cadeaux"].id
+    assert row.category_source == "csv"
+
+
 def test_preview_does_not_write_anything(db, account_ready):
     user, account, _ = account_ready
     build_preview(db, user.id, account.id, _boursorama(), None, None)
@@ -103,6 +137,30 @@ def test_user_can_force_a_flagged_duplicate_through(db, account_ready):
     second = commit_import(db, user.id, account.id, raw, "b.csv", dialect, mapping, {}, [1])
     assert second.rows_imported == 1
     assert db.query(Transaction).count() == 5
+
+
+def test_forcing_the_same_duplicate_through_repeatedly_does_not_collide(db, account_ready):
+    # A naive "hash:row_number" suffix is not enough: forcing the same row through
+    # twice would try to reuse the same suffixed fingerprint and trip the
+    # (user_id, dedup_hash) unique constraint. The suffix search must skip any
+    # value already on record, including ones created by an earlier forced import.
+    user, account, _ = account_ready
+    raw = _boursorama()
+    dialect = detect_dialect(raw)
+    mapping = suggest_mapping(dialect.sample_headers)
+
+    first = commit_import(db, user.id, account.id, raw, "b.csv", dialect, mapping, {}, [])
+    assert first.rows_imported == 4
+
+    second = commit_import(db, user.id, account.id, raw, "b.csv", dialect, mapping, {}, [1])
+    assert second.rows_imported == 1
+    assert second.rows_duplicate == 3
+
+    third = commit_import(db, user.id, account.id, raw, "b.csv", dialect, mapping, {}, [1])
+    assert third.rows_imported == 1
+    assert third.rows_duplicate == 3
+
+    assert db.query(Transaction).count() == 6
 
 
 def test_category_override_wins_over_rules(db, account_ready):

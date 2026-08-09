@@ -1,7 +1,9 @@
 from fastapi import APIRouter, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.api import accounts as account_routes
 from app.api import auth as auth_routes
+from app.api import imports as import_routes
 from app.config import settings
 
 app = FastAPI(title="Yieldo", version=settings.version, docs_url="/api/docs",
@@ -24,5 +26,7 @@ def health() -> dict[str, str]:
 
 
 api.include_router(auth_routes.router)
+api.include_router(account_routes.router)
+api.include_router(import_routes.router)
 
 app.include_router(api)

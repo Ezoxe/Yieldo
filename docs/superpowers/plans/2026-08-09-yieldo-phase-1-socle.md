@@ -14,7 +14,7 @@
 - **Montants** : stockés en **entiers de centimes** (`amount_cents: int`). Jamais de `float` sur une valeur monétaire, à aucun étage. La conversion en `Decimal` se fait uniquement à la frontière d'affichage.
 - **Dates** : `datetime.date` en base, ISO-8601 (`YYYY-MM-DD`) dans tout JSON.
 - **Isolation** : chaque requête sur une table métier filtre sur `user_id` via la dépendance `get_current_user`. Aucune route ne lit sans ce filtre.
-- **Moteurs purs** : tout ce qui vit sous `app/engines/` et `app/importers/` est constitué de fonctions pures — ni session de base de données, ni appel réseau, ni horloge implicite. La date courante est toujours un paramètre.
+- **Moteurs purs** : `app/engines/` et les modules d'analyse de fichier `app/importers/{dialect,mapping,parser,dedup}.py` sont constitués de fonctions pures — ni session de base de données, ni appel réseau, ni horloge implicite ; la date courante est toujours un paramètre. **Seule exception, explicite :** `app/importers/service.py` et `app/categorization/{seed,learning}.py` sont des couches d'orchestration et reçoivent une `Session`. Elles ne portent aucune règle de calcul : elles assemblent des fonctions pures et persistent le résultat.
 - **Aucun échec silencieux** : pas de `except: pass`, pas de valeur de repli qui se ferait passer pour une donnée réelle.
 - **Couleurs Abysse** : accent `#7ee2d6`, positif `#4fd6a8`, info `#3b82f6`, alerte `#f4a261`, négatif `#e5606b`.
 - **Commits** : un par tâche, format Conventional Commits, en anglais.
@@ -3393,11 +3393,12 @@ def commit_import(
     keep_duplicates: list[int],
 ) -> ImportBatch:
     """Write the import in a single transaction. Either all of it lands, or none."""
-    errors = validate_mapping(mapping, len(dialect.sample_headers) or 99)
+    headers, rows = read_rows(raw, dialect)
+
+    errors = validate_mapping(mapping, len(headers))
     if errors:
         raise MappingError(" ".join(errors))
 
-    headers, rows = read_rows(raw, dialect)
     compiled, _categories, by_name = _load_categorizer(db, user_id)
     seen = _existing_hashes(db, user_id)
     forced = set(keep_duplicates)
@@ -4593,15 +4594,43 @@ def test_marking_a_transaction_as_transfer_removes_it_from_spending(client, impo
     assert summary["outflow_cents"] == -11542
 ```
 
+**Déplacer d'abord la fixture `imported` dans `backend/tests/conftest.py`** — une
+fixture importée d'un module de test à l'autre est fragile sous pytest. Retirer la
+fixture locale de `test_transactions_api.py` et l'ajouter à `conftest.py` :
+
+```python
+from pathlib import Path
+
+FIXTURES = Path(__file__).parent / "fixtures"
+
+
+@pytest.fixture
+def imported(client):
+    """A registered user with one account and the Boursorama sample already imported."""
+    registered = client.post("/api/auth/register", json={
+        "name": "Max", "email": "max@example.com", "password": "motdepasse123"}).json()
+    headers = {"Authorization": f"Bearer {registered['access_token']}"}
+    account = client.post("/api/accounts", headers=headers,
+                          json={"name": "Courant", "kind": "checking"}).json()
+    with (FIXTURES / "boursorama.csv").open("rb") as handle:
+        preview = client.post("/api/imports/analyze", headers=headers,
+                              files={"file": ("b.csv", handle, "text/csv")},
+                              data={"account_id": str(account["id"])}).json()
+    client.post("/api/imports/commit", headers=headers, json={
+        "upload_token": preview["upload_token"], "account_id": account["id"],
+        "dialect": preview["dialect"], "mapping": preview["suggested_mapping"],
+        "overrides": {}, "keep_duplicates": [],
+    })
+    return headers, account["id"]
+```
+
 Créer `backend/tests/test_analytics_api.py` :
 
 ```python
 import pytest
 
-from tests.test_transactions_api import imported  # noqa: F401 — reuse the import fixture
 
-
-def test_monthly_series_is_gap_filled(client, imported):  # noqa: F811
+def test_monthly_series_is_gap_filled(client, imported):
     headers, _ = imported
     body = client.get(
         "/api/analytics/series?granularity=month&date_from=2025-01-01&date_to=2025-04-30",
@@ -4612,7 +4641,7 @@ def test_monthly_series_is_gap_filled(client, imported):  # noqa: F811
     assert march["outflow_cents"] == -12891
 
 
-def test_daily_granularity_is_supported(client, imported):  # noqa: F811
+def test_daily_granularity_is_supported(client, imported):
     headers, _ = imported
     body = client.get(
         "/api/analytics/series?granularity=day&date_from=2025-03-01&date_to=2025-03-07",
@@ -4621,13 +4650,13 @@ def test_daily_granularity_is_supported(client, imported):  # noqa: F811
     assert body[0]["outflow_cents"] == -4732
 
 
-def test_unknown_granularity_is_rejected(client, imported):  # noqa: F811
+def test_unknown_granularity_is_rejected(client, imported):
     headers, _ = imported
     assert client.get("/api/analytics/series?granularity=fortnight",
                       headers=headers).status_code == 422
 
 
-def test_category_breakdown_carries_names_and_colors(client, imported):  # noqa: F811
+def test_category_breakdown_carries_names_and_colors(client, imported):
     headers, _ = imported
     body = client.get("/api/analytics/categories?date_from=2025-01-01&date_to=2025-12-31",
                       headers=headers).json()
@@ -4638,7 +4667,7 @@ def test_category_breakdown_carries_names_and_colors(client, imported):  # noqa:
     assert 0 < top["share"] <= 1
 
 
-def test_summary_reports_savings_rate(client, imported):  # noqa: F811
+def test_summary_reports_savings_rate(client, imported):
     headers, _ = imported
     body = client.get("/api/analytics/summary?date_from=2025-03-01&date_to=2025-03-31",
                       headers=headers).json()
@@ -4648,7 +4677,7 @@ def test_summary_reports_savings_rate(client, imported):  # noqa: F811
     assert body["savings_rate"] == pytest.approx(232109 / 245000)
 
 
-def test_summary_savings_rate_is_null_without_income(client, imported):  # noqa: F811
+def test_summary_savings_rate_is_null_without_income(client, imported):
     headers, _ = imported
     body = client.get("/api/analytics/summary?date_from=2025-03-05&date_to=2025-03-07",
                       headers=headers).json()
@@ -4656,7 +4685,7 @@ def test_summary_savings_rate_is_null_without_income(client, imported):  # noqa:
     assert body["savings_rate"] is None
 
 
-def test_summary_compares_with_the_preceding_period(client, imported):  # noqa: F811
+def test_summary_compares_with_the_preceding_period(client, imported):
     headers, _ = imported
     body = client.get("/api/analytics/summary?date_from=2025-03-01&date_to=2025-03-31",
                       headers=headers).json()
@@ -4664,7 +4693,7 @@ def test_summary_compares_with_the_preceding_period(client, imported):  # noqa: 
     assert body["comparison"]["delta_cents"] == 232109
 
 
-def test_calendar_returns_one_point_per_day_with_activity(client, imported):  # noqa: F811
+def test_calendar_returns_one_point_per_day_with_activity(client, imported):
     headers, _ = imported
     body = client.get("/api/analytics/calendar?year=2025", headers=headers).json()
     by_day = {point["date"]: point for point in body}
@@ -7664,10 +7693,16 @@ require_docker() {
 ensure_env() {
   mkdir -p "$DATA_DIR" "$BACKUP_DIR"
 
-  local port secret
+  # Read every value we intend to preserve BEFORE writing: the heredoc below
+  # truncates $ENV_FILE, so any read inside it would come back empty.
+  local port secret registration
+  registration=true
   if [ -f "$ENV_FILE" ]; then
     port="$(read_env_value "$ENV_FILE" YIELDO_PORT)"
     secret="$(read_env_value "$ENV_FILE" YIELDO_SECRET_KEY)"
+    local stored_registration
+    stored_registration="$(read_env_value "$ENV_FILE" YIELDO_REGISTRATION_OPEN)"
+    [ -n "$stored_registration" ] && registration="$stored_registration"
   fi
 
   if [ -z "${port:-}" ]; then
@@ -7690,7 +7725,7 @@ ensure_env() {
 # Généré par install.sh — ne pas versionner
 YIELDO_PORT=$port
 YIELDO_SECRET_KEY=$secret
-YIELDO_REGISTRATION_OPEN=$(read_env_value "$ENV_FILE" YIELDO_REGISTRATION_OPEN || echo true)
+YIELDO_REGISTRATION_OPEN=$registration
 YIELDO_ACCESS_TOKEN_MINUTES=30
 YIELDO_REFRESH_TOKEN_DAYS=30
 YIELDO_CONTAINER_NAME=yieldo

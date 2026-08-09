@@ -1,7 +1,9 @@
+from datetime import date
+
 import pytest
 from sqlalchemy.exc import IntegrityError
 
-from app.models import Account, Category, User
+from app.models import Account, Category, Transaction, User
 
 
 def test_user_email_is_unique_case_insensitively(db):
@@ -57,3 +59,27 @@ def test_category_slug_is_unique_per_user_not_globally(db):
     db.add(Category(user_id=first.id, name="Loyer", slug="loyer", kind="expense"))
     db.add(Category(user_id=second.id, name="Loyer", slug="loyer", kind="expense"))
     db.commit()  # must not raise — slugs are scoped to a user
+
+
+def test_account_transactions_relationship_is_bidirectional(db):
+    """Guards against a regression of the Account.transactions relationship.
+
+    Task 4 originally omitted this relationship because Transaction did not exist
+    yet — a string-based relationship to an undefined class breaks configure_mappers()
+    for every test. Task 6 restored it; this test ensures it cannot silently disappear
+    again.
+    """
+    user = User(email="a@b.c", name="A", password_hash="x")
+    db.add(user)
+    db.commit()
+    account = Account(user_id=user.id, name="Courant", kind="checking")
+    db.add(account)
+    db.commit()
+    transaction = Transaction(user_id=user.id, account_id=account.id, date=date(2025, 1, 1),
+                              amount_cents=-100, label_raw="X", label_clean="x",
+                              dedup_hash="abc")
+    db.add(transaction)
+    db.commit()
+    db.refresh(account)
+    assert account.transactions == [transaction]
+    assert transaction.account is account

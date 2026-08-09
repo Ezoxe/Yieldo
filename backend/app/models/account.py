@@ -26,3 +26,5 @@ class Account(Base):
     archived: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
     user = relationship("User", back_populates="accounts")
+    transactions = relationship("Transaction", back_populates="account",
+                               cascade="all, delete-orphan")

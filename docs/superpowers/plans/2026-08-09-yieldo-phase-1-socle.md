@@ -1853,6 +1853,7 @@ Expected: FAIL — `ModuleNotFoundError: No module named 'app.importers.dialect'
 - [ ] **Step 4: Écrire `backend/app/importers/dialect.py`**
 
 ```python
+import codecs
 import csv
 import io
 import re
@@ -1860,8 +1861,6 @@ from collections import Counter
 from dataclasses import dataclass, field
 from datetime import date, datetime
 from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
-
-from charset_normalizer import from_bytes
 
 DATE_FORMATS = ("%d/%m/%Y", "%d/%m/%y", "%Y-%m-%d", "%m/%d/%Y", "%d-%m-%Y", "%d.%m.%Y")
 _CANDIDATE_DELIMITERS = (";", ",", "\t", "|")
@@ -1883,11 +1882,30 @@ class CsvDialect:
     sample_headers: list[str] = field(default_factory=list)
 
 
+# Ordered by how likely a French bank export is to use them. Tried strictly, in
+# order, so the choice is reproducible.
+_CANDIDATE_ENCODINGS = ("utf-8-sig", "cp1252", "latin-1")
+
+
 def _decode(raw: bytes) -> tuple[str, str]:
-    best = from_bytes(raw).best()
-    if best is None:
-        return raw.decode("utf-8", errors="replace"), "utf-8"
-    return str(best), best.encoding
+    """Decode a statement with an explicit candidate list, not a statistical guess.
+
+    Statistical detection is unsafe here: on a short French statement it reports
+    cp1250, which agrees with cp1252 on e-acute but turns 0xE0, 0xE8, 0xEA, 0xF9 and
+    0xFB into Central European letters — so "Prelevement" with its grave accent comes
+    back mangled. Neither codepage ever raises, because both map all 256 bytes, so the
+    corruption is silent. And the label is exactly what gets hashed for deduplication
+    and shown to the user. The user can still override the encoding in the wizard.
+    """
+    if raw.startswith((codecs.BOM_UTF16_LE, codecs.BOM_UTF16_BE)):
+        return raw.decode("utf-16"), "utf-16"
+    for encoding in _CANDIDATE_ENCODINGS:
+        try:
+            return raw.decode(encoding), encoding
+        except UnicodeDecodeError:
+            continue
+    # latin-1 maps every byte, so the loop above always returns before here.
+    return raw.decode("latin-1", errors="replace"), "latin-1"
 
 
 def _pick_delimiter(lines: list[str]) -> str:
@@ -1988,13 +2006,18 @@ def read_rows(raw: bytes, dialect: CsvDialect) -> tuple[list[str], list[list[str
 
 
 def parse_date(text: str, date_format: str) -> date:
+    """Parse strictly against the chosen format — no fallback to other formats.
+
+    Falling back would silently swap day and month whenever both are 12 or under:
+    01/03/2025 read as US format becomes 3 January instead of 1 March, with nothing
+    to signal it. A row that does not match belongs in the preview's error list,
+    where the user can see it and correct the format in step 1.
+    """
     stripped = (text or "").strip()
-    for fmt in (date_format, *DATE_FORMATS):
-        try:
-            return datetime.strptime(stripped, fmt).date()
-        except ValueError:
-            continue
-    raise ValueError(f"Date illisible : {text!r}")
+    try:
+        return datetime.strptime(stripped, date_format).date()
+    except ValueError as exc:
+        raise ValueError(f"Date illisible : {text!r}") from exc
 
 
 def parse_amount(text: str, decimal_separator: str) -> int:

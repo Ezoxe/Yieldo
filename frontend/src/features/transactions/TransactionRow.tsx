@@ -1,0 +1,111 @@
+import { motion } from "motion/react";
+
+import { fadeInUp } from "../../design/motion/variants";
+import { useReducedMotion } from "../../design/motion/useReducedMotion";
+import { formatCents } from "../../design/theme";
+import type { Category, Transaction } from "../../lib/types";
+
+// Mirrors TRANSACTION_CATEGORY_SOURCES in backend/app/models/transaction.py.
+const SOURCE_HINTS: Record<string, string> = {
+  builtin: "Catégorie déduite d'une règle intégrée",
+  rule: "Catégorie déduite d'une règle intégrée",
+  learned: "Catégorie déduite d'une règle apprise de vos corrections",
+  manual: "Catégorie choisie par vous",
+  csv: "Catégorie fournie par le fichier importé",
+  uncategorized: "Aucune catégorie",
+};
+
+const SOURCE_BADGES: Record<string, string> = {
+  builtin: "règle",
+  rule: "règle",
+  learned: "apprise",
+  manual: "manuelle",
+  csv: "CSV",
+  uncategorized: "—",
+};
+
+interface TransactionRowProps {
+  transaction: Transaction;
+  categories: Category[];
+  onRecategorize: (transactionId: number, categoryId: number) => void;
+}
+
+export function TransactionRow({ transaction, categories, onRecategorize }: TransactionRowProps) {
+  const reducedMotion = useReducedMotion();
+  const category = categories.find((candidate) => candidate.id === transaction.category_id);
+  const isCredit = transaction.amount_cents > 0;
+  const parents = categories.filter((candidate) => candidate.parent_id === null);
+  const sourceHint = SOURCE_HINTS[transaction.category_source] ?? transaction.category_source;
+  const sourceBadge = SOURCE_BADGES[transaction.category_source] ?? transaction.category_source;
+
+  const cells = (
+    <>
+      <td className="yd-num yd-transactions__cell yd-transactions__cell--date">
+        {new Date(transaction.date).toLocaleDateString("fr-FR")}
+      </td>
+      <td className="yd-transactions__cell yd-transactions__cell--label">
+        {/* label_raw, never label_clean: the user must recognize the line
+            exactly as it reads on their own bank statement. */}
+        <span>{transaction.label_raw}</span>
+      </td>
+      <td className="yd-transactions__cell yd-transactions__cell--category">
+        <label className="sr-only" htmlFor={`category-${transaction.id}`}>
+          Catégorie
+        </label>
+        <div className="yd-transactions__category">
+          <span
+            aria-hidden="true"
+            className="yd-transactions__dot"
+            style={{ background: category?.color ?? "var(--yd-text-muted)" }}
+          />
+          <select
+            id={`category-${transaction.id}`}
+            aria-label="Catégorie"
+            value={transaction.category_id ?? ""}
+            onChange={(event) => onRecategorize(transaction.id, Number(event.target.value))}
+            className="yd-transactions__select"
+          >
+            <option value="">Non catégorisé</option>
+            {parents.map((parent) => (
+              <optgroup key={parent.id} label={parent.name}>
+                <option value={parent.id}>{parent.name}</option>
+                {categories
+                  .filter((child) => child.parent_id === parent.id)
+                  .map((child) => (
+                    <option key={child.id} value={child.id}>
+                      {child.name}
+                    </option>
+                  ))}
+              </optgroup>
+            ))}
+          </select>
+          <span className="yd-transactions__badge" title={sourceHint}>
+            {sourceBadge}
+          </span>
+        </div>
+      </td>
+      <td className="yd-transactions__cell yd-transactions__cell--amount">
+        {/* A credit reads in the positive tone; a debit stays the default text
+            colour -- red is reserved for anomalies, not every expense. */}
+        <span
+          className={`yd-num ${isCredit ? "yd-amount--positive" : "yd-amount--negative"}`}
+          style={{ color: isCredit ? "var(--yd-positive)" : "var(--yd-text)" }}
+        >
+          {formatCents(transaction.amount_cents)}
+        </span>
+      </td>
+    </>
+  );
+
+  // The staggered entrance (see TransactionsPage's staggerChildren tbody) needs
+  // each row to carry its own fadeInUp variant; reduced motion keeps the row a
+  // plain <tr> instead of mounting motion's runtime for a transition nobody wants.
+  if (reducedMotion) {
+    return <tr className="yd-transactions__row">{cells}</tr>;
+  }
+  return (
+    <motion.tr className="yd-transactions__row" variants={fadeInUp}>
+      {cells}
+    </motion.tr>
+  );
+}

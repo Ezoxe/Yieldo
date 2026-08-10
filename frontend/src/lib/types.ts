@@ -54,6 +54,14 @@ export interface TransactionPage {
   offset: number;
 }
 
+// PATCH /api/transactions/{id}'s response: the updated transaction plus what the
+// backend did as a side effect of a category change -- a rule learned from the
+// correction (if any) and how many other rows it silently backfilled.
+export interface TransactionPatchResult extends Transaction {
+  learned_rule_id: number | null;
+  backfilled: number;
+}
+
 export const COLUMN_ROLES = [
   "date",
   "value_date",

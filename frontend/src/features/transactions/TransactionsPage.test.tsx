@@ -170,6 +170,90 @@ describe("TransactionsPage", () => {
     await waitFor(() => expect(screen.queryByRole("status")).not.toBeInTheDocument());
   });
 
+  it("reports the undo's own backfill instead of silently discarding it", async () => {
+    setupFetch({
+      patch: (id, body) =>
+        jsonResponse({ ...txCarrefour, id, category_id: body.category_id, category_source: "manual", learned_rule_id: 99, backfilled: 4 }),
+    });
+    const user = userEvent.setup();
+    renderPage();
+    await screen.findByText("CARREFOUR MARKET CB 01/03");
+
+    await user.selectOptions(screen.getAllByLabelText("Catégorie")[0], "3");
+    const correctionBanner = await screen.findByRole("status");
+    const undoButton = within(correctionBanner).getByRole("button", { name: "Annuler" });
+
+    // The undo is itself a category change, so the backend can run its own
+    // learn-and-backfill on it (see patch_transaction in
+    // backend/app/api/transactions.py) -- distinct from the 4 backfilled by
+    // the original correction above.
+    fetchMock.mockClear();
+    setupFetch({
+      patch: (id, body) =>
+        jsonResponse({ ...txCarrefour, id, category_id: body.category_id, category_source: "manual", learned_rule_id: 77, backfilled: 3 }),
+    });
+    await user.click(undoButton);
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining("/api/transactions/10"),
+      expect.objectContaining({ method: "PATCH", body: JSON.stringify({ category_id: 2 }) }),
+    ));
+
+    const undoBanner = await screen.findByRole("status");
+    expect(undoBanner).toHaveTextContent("3 autres transactions similaires");
+    // Informational only -- chaining into another Annuler risks an endless
+    // learn/backfill ping-pong on the same rule (see the module doc comment
+    // in TransactionsPage.tsx).
+    expect(within(undoBanner).queryByRole("button", { name: "Annuler" })).not.toBeInTheDocument();
+  });
+
+  it("clears the notice once the undo itself has nothing further to report", async () => {
+    setupFetch({
+      patch: (id, body) =>
+        jsonResponse({ ...txCarrefour, id, category_id: body.category_id, category_source: "manual", learned_rule_id: 99, backfilled: 4 }),
+    });
+    const user = userEvent.setup();
+    renderPage();
+    await screen.findByText("CARREFOUR MARKET CB 01/03");
+
+    await user.selectOptions(screen.getAllByLabelText("Catégorie")[0], "3");
+    const correctionBanner = await screen.findByRole("status");
+    const undoButton = within(correctionBanner).getByRole("button", { name: "Annuler" });
+
+    fetchMock.mockClear();
+    setupFetch({
+      patch: (id, body) =>
+        jsonResponse({ ...txCarrefour, id, category_id: body.category_id, category_source: "manual", learned_rule_id: null, backfilled: 0 }),
+    });
+    await user.click(undoButton);
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining("/api/transactions/10"),
+      expect.objectContaining({ method: "PATCH" }),
+    ));
+    await waitFor(() => expect(screen.queryByRole("status")).not.toBeInTheDocument());
+  });
+
+  it("surfaces a failed undo instead of failing silently", async () => {
+    setupFetch({
+      patch: (id, body) =>
+        jsonResponse({ ...txCarrefour, id, category_id: body.category_id, category_source: "manual", learned_rule_id: 99, backfilled: 4 }),
+    });
+    const user = userEvent.setup();
+    renderPage();
+    await screen.findByText("CARREFOUR MARKET CB 01/03");
+
+    await user.selectOptions(screen.getAllByLabelText("Catégorie")[0], "3");
+    const correctionBanner = await screen.findByRole("status");
+    const undoButton = within(correctionBanner).getByRole("button", { name: "Annuler" });
+
+    fetchMock.mockClear();
+    setupFetch({ patch: () => jsonResponse({ detail: "Impossible d'annuler cette modification." }, 409) });
+    await user.click(undoButton);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Impossible d'annuler cette modification.");
+  });
+
   it("explains that undo is unavailable when the transaction had no prior category", async () => {
     setupFetch({
       patch: (id, body) =>

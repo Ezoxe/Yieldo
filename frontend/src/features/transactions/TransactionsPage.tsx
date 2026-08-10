@@ -29,14 +29,17 @@ function plural(count: number, singular: string, pluralForm: string): string {
   return count > 1 ? pluralForm : singular;
 }
 
-// What just happened after a recategorization that taught the categorizer a
-// rule and backfilled other rows. `previousCategoryId` is what makes Undo
-// possible at all -- see the component doc comment below for what it can and
-// cannot actually undo, given the API this view has to work with.
+// What just happened after a category change that taught the categorizer a
+// rule and backfilled other rows. `origin` distinguishes the original
+// correction (which can offer an Annuler) from a notice raised by the undo
+// itself (which cannot -- see the module doc comment below). `previousCategoryId`
+// is only meaningful for a "correction" notice: it is what makes Undo possible
+// at all.
 interface BackfillNotice {
   transactionId: number;
   previousCategoryId: number | null;
   count: number;
+  origin: "correction" | "undo";
 }
 
 // Honesty note (see task-19 brief, "Careful points" #3): PATCH /transactions/{id}
@@ -52,6 +55,27 @@ interface BackfillNotice {
 // explicit `category_id: null` (see backend/app/api/transactions.py), so there
 // is no request this UI can send that clears a category back out. The banner
 // says so plainly instead of offering a button that would silently do nothing.
+//
+// The undo itself is *also* a category change, so the backend runs the exact
+// same learn-and-backfill side effect on it (see patch_transaction in
+// backend/app/api/transactions.py, which does not special-case "this PATCH
+// happens to be an undo"). Reusing the "Règle apprise" notice for that result
+// would be actively misleading -- the user pressed Annuler, not Corriger, so
+// a second learn/backfill announcement in the same wording reads as a leftover
+// from the correction they just reverted, not a new event. handleUndo reports
+// it as its own, differently-worded, purely informational notice instead of
+// discarding it (the fix-round-1 finding this addresses) or reusing the
+// correction wording (which would misattribute it).
+//
+// That notice deliberately does NOT chain into its own Annuler. Doing so is
+// possible in principle -- the row's pre-undo category is knowable -- but a
+// learned rule's category is stored per pattern and overwritten wholesale by
+// learn_from_correction on every correction (see backend/app/categorization/
+// learning.py), not versioned. Undoing the undo would flip that single shared
+// rule's category back again and could itself backfill and re-announce,
+// forever as long as the user keeps clicking -- an oscillation with no natural
+// end, not a bounded undo. An informational banner the user can only dismiss
+// by moving on is safer than a button that invites exactly that loop.
 export function TransactionsPage() {
   const period = usePeriod();
   const reducedMotion = useReducedMotion();
@@ -169,7 +193,7 @@ export function TransactionsPage() {
       setPatchError(null);
       setNotice(
         updated.backfilled > 0
-          ? { transactionId, previousCategoryId, count: updated.backfilled }
+          ? { transactionId, previousCategoryId, count: updated.backfilled, origin: "correction" }
           : null,
       );
     } catch (err) {
@@ -186,7 +210,20 @@ export function TransactionsPage() {
       );
       setItems((current) => current.map((t) => (t.id === notice.transactionId ? updated : t)));
       setPatchError(null);
-      setNotice(null);
+      // The undo is its own category change, so it can trigger its own learn
+      // + backfill (see the module doc comment above) -- report that instead
+      // of discarding it. Deliberately a distinct, Annuler-less notice: see
+      // the doc comment for why this one doesn't chain into another undo.
+      setNotice(
+        updated.backfilled > 0
+          ? {
+              transactionId: notice.transactionId,
+              previousCategoryId: null,
+              count: updated.backfilled,
+              origin: "undo",
+            }
+          : null,
+      );
     } catch (err) {
       setPatchError(messageFor(err));
     }
@@ -229,7 +266,7 @@ export function TransactionsPage() {
         </p>
       ) : null}
 
-      {notice ? (
+      {notice?.origin === "correction" ? (
         <div role="status" className="yd-transactions__notice">
           <p>
             Règle apprise — {notice.count} {plural(notice.count, "autre transaction similaire a été", "autres transactions similaires ont été")} reclassée{notice.count > 1 ? "s" : ""}.
@@ -251,6 +288,19 @@ export function TransactionsPage() {
               être annulée.
             </p>
           )}
+        </div>
+      ) : null}
+
+      {notice?.origin === "undo" ? (
+        <div role="status" className="yd-transactions__notice">
+          <p>
+            Annulation effectuée — restaurer la catégorie précédente a aussi appris une règle qui a
+            reclassé automatiquement {notice.count}{" "}
+            {plural(notice.count, "autre transaction similaire", "autres transactions similaires")}.
+          </p>
+          <p className="yd-transactions__notice-hint">
+            Cette reclassification automatique ne peut pas être annulée depuis cet écran.
+          </p>
         </div>
       ) : null}
 

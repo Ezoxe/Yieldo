@@ -1,3 +1,5 @@
+import type { User } from "./types";
+
 export class ApiError extends Error {
   constructor(
     readonly status: number,
@@ -10,8 +12,17 @@ export class ApiError extends Error {
 
 type QueryValue = string | number | boolean | undefined | null;
 
+// The shape POST /api/auth/refresh resolves to — same fields as login/register,
+// so whoever consumes onTokenRefreshed can apply it through the exact same
+// code path those two use.
+export interface RefreshedSession {
+  access_token: string;
+  user: User;
+}
+
 let accessToken: string | null = null;
 let onSessionLost: (() => void) | null = null;
+let onSessionRefreshed: ((session: RefreshedSession) => void) | null = null;
 
 export function setAccessToken(token: string | null): void {
   accessToken = token;
@@ -19,6 +30,15 @@ export function setAccessToken(token: string | null): void {
 
 export function onUnauthorized(handler: () => void): void {
   onSessionLost = handler;
+}
+
+// Registered by the session store so a *silent* refresh (triggered internally
+// below, on a 401 from some unrelated request) updates useSession() the same
+// way login/register/hydrate do. Without this, the module-scope accessToken
+// here and useSession.getState().accessToken can disagree after a refresh —
+// the store never hears about it.
+export function onTokenRefreshed(handler: (session: RefreshedSession) => void): void {
+  onSessionRefreshed = handler;
 }
 
 function buildUrl(path: string, params?: Record<string, QueryValue>): string {
@@ -55,8 +75,9 @@ async function refreshSession(): Promise<boolean> {
     credentials: "include",
   });
   if (!response.ok) return false;
-  const body = (await response.json()) as { access_token: string };
-  accessToken = body.access_token;
+  const body = (await response.json()) as RefreshedSession;
+  setAccessToken(body.access_token);
+  onSessionRefreshed?.(body);
   return true;
 }
 

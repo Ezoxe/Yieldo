@@ -4,8 +4,9 @@ import { createRoot } from "react-dom/client";
 import { RouterProvider } from "react-router";
 
 import { router } from "./app/routes";
+import { DensityProvider } from "./app/DensityProvider";
 import { ThemeProvider } from "./app/ThemeProvider";
-import { readStoredTheme, resolveTheme } from "./design/theme";
+import { readStoredDensity, readStoredTheme, resolveTheme } from "./design/theme";
 import { useSession } from "./features/auth/session";
 import "./index.css";
 
@@ -21,6 +22,10 @@ applyResolvedTheme();
 window
   .matchMedia("(prefers-color-scheme: dark)")
   .addEventListener("change", applyResolvedTheme);
+
+// Same reasoning as the theme above: apply the stored density before the
+// first paint so there is no flash of the wrong spacing scale.
+document.documentElement.dataset.density = readStoredDensity();
 
 const queryClient = new QueryClient();
 
@@ -40,7 +45,9 @@ createRoot(container).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
-        <RouterProvider router={router} />
+        <DensityProvider>
+          <RouterProvider router={router} />
+        </DensityProvider>
       </ThemeProvider>
     </QueryClientProvider>
   </StrictMode>,

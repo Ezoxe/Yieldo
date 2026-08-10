@@ -74,6 +74,23 @@ describe("api client", () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
+  it("never attempts a refresh for a 401 coming from an /auth/* endpoint itself", async () => {
+    // A failed login must not trigger the refresh dance — refresh is itself
+    // an /auth/* call, so retrying it here would recurse into another 401
+    // forever. This is the guard at the top of `request()`
+    // (`!path.startsWith("/auth/")`); assert on the recorded call list, not
+    // just on the rejection, so a deleted guard fails this test even though
+    // the thrown ApiError alone would look identical either way.
+    fetchMock.mockResolvedValue(jsonResponse({ detail: "Identifiants invalides" }, 401));
+
+    await expect(
+      api.post("/auth/login", { email: "max@example.com", password: "wrong" }),
+    ).rejects.toMatchObject({ status: 401, detail: "Identifiants invalides" });
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock.mock.calls.map(([url]) => url)).not.toContain("/api/auth/refresh");
+  });
+
   it("returns undefined for a 204 rather than choking on an empty body", async () => {
     fetchMock.mockResolvedValue(new Response(null, { status: 204 }));
     await expect(api.delete("/transactions/1")).resolves.toBeUndefined();

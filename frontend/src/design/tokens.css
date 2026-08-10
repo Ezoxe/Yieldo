@@ -24,6 +24,24 @@
   /* Overlay behind the mobile drawer. A token, not an inline rgba, so a theme can
      tune it — a 40% black scrim is too heavy over the light theme. */
   --yd-scrim: rgba(4, 14, 22, 0.52);
+
+  /* Density axis — spacing only, never colour. "comfortable" is the default;
+     :root[data-density="compact"] below tightens every step. */
+  --yd-space-2xs: 4px;
+  --yd-space-xs: 8px;
+  --yd-space-sm: 12px;
+  --yd-space-md: 16px;
+  --yd-space-lg: 24px;
+  --yd-space-xl: 32px;
+}
+
+:root[data-density="compact"] {
+  --yd-space-2xs: 2px;
+  --yd-space-xs: 4px;
+  --yd-space-sm: 8px;
+  --yd-space-md: 10px;
+  --yd-space-lg: 16px;
+  --yd-space-xl: 20px;
 }
 
 :root,

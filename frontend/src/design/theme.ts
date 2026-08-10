@@ -1,7 +1,10 @@
 export type ThemePreference = "light" | "dark" | "system";
 export type ResolvedTheme = "light" | "dark";
+export type DensityPreference = "comfortable" | "compact";
 
 const STORAGE_KEY = "yieldo.theme";
+const DENSITY_STORAGE_KEY = "yieldo.density";
+const MOTION_DISABLED_STORAGE_KEY = "yieldo.motion-disabled";
 const NARROW_NBSP = " "; // French thousands separator, non-breaking
 const NBSP = " ";
 const MINUS = "−"; // typographic minus, aligns with digit width
@@ -27,6 +30,42 @@ export function storeTheme(preference: ThemePreference): void {
 export function resolveTheme(preference: ThemePreference, prefersDark: boolean): ResolvedTheme {
   if (preference === "system") return prefersDark ? "dark" : "light";
   return preference;
+}
+
+export function readStoredDensity(): DensityPreference {
+  try {
+    const stored = localStorage.getItem(DENSITY_STORAGE_KEY);
+    if (stored === "comfortable" || stored === "compact") return stored;
+  } catch {
+    // Private browsing can deny localStorage entirely.
+  }
+  return "comfortable";
+}
+
+export function storeDensity(density: DensityPreference): void {
+  try {
+    localStorage.setItem(DENSITY_STORAGE_KEY, density);
+  } catch {
+    // Persisting a preference is a convenience, not a requirement.
+  }
+}
+
+// The Reglages "Animations" switch: an explicit user override that disables
+// motion regardless of what the OS-level prefers-reduced-motion reports.
+export function readStoredMotionDisabled(): boolean {
+  try {
+    return localStorage.getItem(MOTION_DISABLED_STORAGE_KEY) === "true";
+  } catch {
+    return false;
+  }
+}
+
+export function storeMotionDisabled(disabled: boolean): void {
+  try {
+    localStorage.setItem(MOTION_DISABLED_STORAGE_KEY, disabled ? "true" : "false");
+  } catch {
+    // Persisting a preference is a convenience, not a requirement.
+  }
 }
 
 interface FormatOptions {

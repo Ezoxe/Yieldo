@@ -4611,7 +4611,7 @@ git commit -m "feat(engines): add time and category aggregation engine"
   - `GET /api/transactions` — filtres `date_from`, `date_to`, `category_id`, `account_id`, `search`, `uncategorized_only`, `min_cents`, `max_cents` ; pagination `limit` (défaut 50, max 500) et `offset` ; renvoie `{items, total, limit, offset}`
   - `PATCH /api/transactions/{id}` — corps `{category_id?, notes?, is_transfer?, tags?}` ; un changement de catégorie déclenche l'apprentissage et renvoie `learned_rule_id` et `backfilled`
   - `DELETE /api/transactions/{id}`
-  - `GET /api/categories` — arbre avec totaux facultatifs
+  - `GET /api/categories` — liste plate ordonnée parents d'abord ; le frontend reconstruit l'arbre à deux niveaux depuis `parent_id`, ce dont `CategoryPicker` et `TransactionRow` ont besoin de toute façon. Pas de totaux ici : `GET /api/analytics/categories` les fournit déjà.
   - `POST /api/categories`, `PATCH /api/categories/{id}`, `DELETE /api/categories/{id}`
   - `GET /api/analytics/series?granularity=&date_from=&date_to=&account_id=` → seaux remplis
   - `GET /api/analytics/categories?date_from=&date_to=` → totaux et parts, avec nom et couleur
@@ -5142,11 +5142,24 @@ def patch_category(category_id: int, payload: CategoryPatch,
 @router.delete("/{category_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_category(category_id: int, user: User = Depends(get_current_user),
                     db: Session = Depends(get_db)) -> None:
-    """Transactions are never deleted with their category — they become uncategorized."""
+    """Transactions are never deleted with their category — they become uncategorized.
+
+    Deleting a parent cascades to its children, so the transactions filed under
+    those children have to be uncategorized too. Leaving them to the database's
+    ON DELETE SET NULL would null category_id while leaving category_source saying
+    "manual" — a row claiming a hand-picked category it no longer has.
+    """
     category = _owned_category(db, user, category_id)
+
+    doomed = [category.id] + [
+        child.id
+        for child in db.query(Category)
+        .filter(Category.user_id == user.id, Category.parent_id == category.id)
+        .all()
+    ]
     (
         db.query(Transaction)
-        .filter(Transaction.user_id == user.id, Transaction.category_id == category.id)
+        .filter(Transaction.user_id == user.id, Transaction.category_id.in_(doomed))
         .update({"category_id": None, "category_source": "uncategorized"},
                 synchronize_session=False)
     )

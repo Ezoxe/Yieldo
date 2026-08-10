@@ -1,6 +1,7 @@
 import json
-import re
+import logging
 import secrets
+import time
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
@@ -14,16 +15,15 @@ from app.models import Account, ColumnProfile, ImportBatch, User
 from app.schemas.imports import BatchOut, CommitIn, PreviewOut, ProfileIn, ProfileOut
 from app.security.deps import get_current_user
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter(prefix="/imports", tags=["imports"])
 
 MAX_UPLOAD_BYTES = 20 * 1024 * 1024
+UPLOAD_CHUNK_BYTES = 64 * 1024
 ALLOWED_SUFFIXES = {".csv", ".txt", ".tsv"}
-# Separates the random prefix from the recovered original filename in a token.
-# secrets.token_urlsafe only ever emits [A-Za-z0-9_-], so this character can
-# never appear in the random part, and the first occurrence unambiguously
-# marks the boundary.
-_TOKEN_SEPARATOR = "~"
-_UNSAFE_NAME_CHARS = re.compile(r"[^A-Za-z0-9._-]+")
+# A pending upload not committed within this window is considered abandoned.
+PENDING_MAX_AGE_SECONDS = 24 * 60 * 60
 
 
 def _require_account(db: Session, user: User, account_id: int) -> Account:
@@ -37,44 +37,69 @@ def _require_account(db: Session, user: User, account_id: int) -> Account:
     return account
 
 
-def _upload_path(token: str) -> Path:
-    """Resolve a token to a path inside the uploads directory, and nowhere else.
+def _pending_dir(user_id: int) -> Path:
+    """Where this user's not-yet-committed uploads live. Derived from the
+    authenticated user, never from client input."""
+    directory = settings.uploads_dir / "pending" / str(user_id)
+    directory.mkdir(parents=True, exist_ok=True)
+    return directory
 
-    The token travels straight from the request body (the commit step reads it
-    from JSON supplied by the client), so it can never be trusted to name a path
-    segment: '..' or an embedded separator could otherwise walk the lookup
-    outside uploads_dir. Requiring the resolved candidate's parent to be exactly
-    uploads_dir rejects both.
+
+def _archive_dir(user_id: int) -> Path:
+    """Where a user's committed batches are archived. Outside the pending
+    tree, so no upload token -- however crafted -- can ever resolve here."""
+    directory = settings.uploads_dir / "archive" / str(user_id)
+    directory.mkdir(parents=True, exist_ok=True)
+    return directory
+
+
+def _upload_path(user_id: int, token: str) -> Path:
+    """Resolve a token inside this user's pending directory, and nowhere else.
+
+    The user segment comes from the session, so a token cannot reach another
+    user's uploads however it is crafted. The containment check then catches
+    traversal within the segment itself.
     """
-    candidate = (settings.uploads_dir / token).resolve()
-    if candidate.parent != settings.uploads_dir.resolve():
+    if not token or "\x00" in token:
+        raise HTTPException(status_code=400, detail="Jeton de téléversement invalide")
+    base = _pending_dir(user_id).resolve()
+    candidate = (base / token).resolve()
+    if candidate.parent != base:
         raise HTTPException(status_code=400, detail="Jeton de téléversement invalide")
     return candidate
 
 
-def _safe_original_name(filename: str | None) -> str:
-    """Keep only the final path component, restricted to a safe filename charset.
+def _clean_filename(name: str | None) -> str:
+    """A friendly display name for the batch. Never used to build a path --
+    the pending/archive filenames are always a random token or a batch id."""
+    cleaned = Path(name or "").name.strip()
+    return cleaned[:255] or "import.csv"
 
-    Path(...).name already drops any directory components (whether '/' or '\\'
-    separated), so this cannot be used to smuggle a path back out through the
-    filename half of an upload token.
+
+def _purge_stale_pending_uploads() -> None:
+    """Delete pending uploads older than 24h.
+
+    There is no scheduler in this deployment, so this runs opportunistically at
+    the start of `analyze`: any active user's request is enough to keep the
+    directory from growing forever. A delete failure must not fail the
+    request that triggered the sweep, but it must not vanish silently either.
     """
-    name = Path(filename or "").name or "import.csv"
-    cleaned = _UNSAFE_NAME_CHARS.sub("_", name).strip("._")
-    return cleaned[:80] or "import.csv"
-
-
-def _build_upload_token(original_name: str) -> str:
-    """A random prefix keeps the token unguessable; the suffix lets the commit
-    step recover the client's original filename without the client resending
-    it -- CommitIn carries no filename field. The full token is still
-    re-validated by _upload_path before it ever touches the filesystem."""
-    return f"{secrets.token_urlsafe(24)}{_TOKEN_SEPARATOR}{original_name}"
-
-
-def _token_original_name(token: str) -> str:
-    _, _, name = token.partition(_TOKEN_SEPARATOR)
-    return name or token
+    pending_root = settings.uploads_dir / "pending"
+    if not pending_root.is_dir():
+        return
+    cutoff = time.time() - PENDING_MAX_AGE_SECONDS
+    removed = 0
+    for path in pending_root.rglob("*"):
+        if not path.is_file():
+            continue
+        try:
+            if path.stat().st_mtime < cutoff:
+                path.unlink()
+                removed += 1
+        except OSError as exc:
+            logger.warning("Failed to purge stale upload %s: %s", path, exc)
+    if removed:
+        logger.debug("Purged %d stale pending upload(s)", removed)
 
 
 def _int_keys(mapping: dict[str, str]) -> dict[int, str]:
@@ -94,6 +119,7 @@ async def analyze(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> PreviewOut:
+    _purge_stale_pending_uploads()
     _require_account(db, user, account_id)
 
     suffix = Path(file.filename or "").suffix.lower()
@@ -101,10 +127,18 @@ async def analyze(
         raise HTTPException(status_code=400,
                             detail="Format non pris en charge : déposez un fichier CSV.")
 
-    raw = await file.read()
-    if len(raw) > MAX_UPLOAD_BYTES:
-        raise HTTPException(status_code=413,
-                            detail="Fichier trop volumineux (20 Mo maximum).")
+    # Read in chunks and stop at the cap. Reading the whole body first and checking
+    # its length afterwards lets an authenticated client exhaust memory before the
+    # limit is ever consulted.
+    chunks: list[bytes] = []
+    received = 0
+    while chunk := await file.read(UPLOAD_CHUNK_BYTES):
+        received += len(chunk)
+        if received > MAX_UPLOAD_BYTES:
+            raise HTTPException(status_code=413,
+                                detail="Fichier trop volumineux (20 Mo maximum).")
+        chunks.append(chunk)
+    raw = b"".join(chunks)
     if not raw.strip():
         raise HTTPException(status_code=400, detail="Le fichier est vide.")
 
@@ -113,11 +147,12 @@ async def analyze(
 
     preview = build_preview(db, user.id, account_id, raw, parsed_dialect, parsed_mapping)
 
-    token = _build_upload_token(_safe_original_name(file.filename))
-    _upload_path(token).write_bytes(raw)
+    token = secrets.token_urlsafe(24)
+    _upload_path(user.id, token).write_bytes(raw)
 
     return PreviewOut(
         upload_token=token,
+        original_filename=_clean_filename(file.filename),
         dialect=preview.dialect.__dict__,
         headers=preview.headers,
         sample_rows=preview.sample_rows,
@@ -132,7 +167,7 @@ def commit(payload: CommitIn, user: User = Depends(get_current_user),
            db: Session = Depends(get_db)) -> ImportBatch:
     _require_account(db, user, payload.account_id)
 
-    path = _upload_path(payload.upload_token)
+    path = _upload_path(user.id, payload.upload_token)
     if not path.is_file():
         raise HTTPException(status_code=410,
                             detail="Le fichier téléversé a expiré. Recommencez l'import.")
@@ -140,7 +175,7 @@ def commit(payload: CommitIn, user: User = Depends(get_current_user),
     try:
         batch = commit_import(
             db, user.id, payload.account_id, path.read_bytes(),
-            filename=_token_original_name(payload.upload_token),
+            filename=_clean_filename(payload.original_filename),
             dialect=CsvDialect(**payload.dialect.model_dump()),
             mapping=_int_keys(payload.mapping),
             overrides={int(k): v for k, v in payload.overrides.items()},
@@ -150,13 +185,16 @@ def commit(payload: CommitIn, user: User = Depends(get_current_user),
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
     # Keep the original file next to the batch so an import can be replayed later.
-    # .replace() (not .rename()) is used deliberately: Path.rename() raises on
-    # Windows when the target already exists but silently overwrites on POSIX --
-    # an inconsistency worth removing outright. batch.id is monotonic for the
-    # life of the database, so a live deployment never actually hits this path;
-    # .replace() just makes the (already here-to-stay) fallback behavior explicit
-    # and identical on every platform instead of OS-dependent.
-    archived = settings.uploads_dir / f"batch-{batch.id}.csv"
+    # Archived under this user's own subtree, outside pending/ -- _upload_path
+    # never looks there, so no upload token can ever address another user's
+    # archive. .replace() (not .rename()) is used deliberately: Path.rename()
+    # raises on Windows when the target already exists but silently overwrites
+    # on POSIX -- an inconsistency worth removing outright. batch.id is
+    # monotonic for the life of the database, so a live deployment never
+    # actually hits this path; .replace() just makes the (already here-to-stay)
+    # fallback behavior explicit and identical on every platform instead of
+    # OS-dependent.
+    archived = _archive_dir(user.id) / f"batch-{batch.id}.csv"
     path.replace(archived)
     batch.stored_path = str(archived)
     db.commit()

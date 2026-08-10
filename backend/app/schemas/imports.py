@@ -28,6 +28,7 @@ class PreviewRowOut(BaseModel):
 
 class PreviewOut(BaseModel):
     upload_token: str
+    original_filename: str
     dialect: DialectOut
     headers: list[str]
     sample_rows: list[list[str]]
@@ -41,6 +42,7 @@ class CommitIn(BaseModel):
     account_id: int
     dialect: DialectOut
     mapping: dict[str, str]
+    original_filename: str | None = None
     overrides: dict[str, int] = Field(default_factory=dict)
     keep_duplicates: list[int] = Field(default_factory=list)
 

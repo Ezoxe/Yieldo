@@ -1,3 +1,5 @@
+import os
+import time
 from pathlib import Path
 
 import pytest
@@ -106,6 +108,7 @@ def test_commit_flow_creates_transactions(client, auth, account_id):
         "account_id": account_id,
         "dialect": preview["dialect"],
         "mapping": preview["suggested_mapping"],
+        "original_filename": preview["original_filename"],
         "overrides": {},
         "keep_duplicates": [],
     })
@@ -127,6 +130,7 @@ def test_commit_rejects_a_mapping_without_a_date_column(client, auth, account_id
     response = client.post("/api/imports/commit", headers=auth, json={
         "upload_token": preview["upload_token"], "account_id": account_id,
         "dialect": preview["dialect"], "mapping": broken,
+        "original_filename": preview["original_filename"],
         "overrides": {}, "keep_duplicates": [],
     })
     assert response.status_code == 422
@@ -141,6 +145,7 @@ def test_delete_batch_rolls_back_its_transactions(client, auth, account_id):
     batch = client.post("/api/imports/commit", headers=auth, json={
         "upload_token": preview["upload_token"], "account_id": account_id,
         "dialect": preview["dialect"], "mapping": preview["suggested_mapping"],
+        "original_filename": preview["original_filename"],
         "overrides": {}, "keep_duplicates": [],
     }).json()
 
@@ -158,6 +163,7 @@ def test_delete_batch_owned_by_someone_else_returns_404(client, auth, account_id
     batch = client.post("/api/imports/commit", headers=auth, json={
         "upload_token": preview["upload_token"], "account_id": account_id,
         "dialect": preview["dialect"], "mapping": preview["suggested_mapping"],
+        "original_filename": preview["original_filename"],
         "overrides": {}, "keep_duplicates": [],
     }).json()
 
@@ -175,8 +181,8 @@ def test_delete_batch_unknown_id_returns_404(client, auth):
 
 def test_commit_rejects_a_path_traversal_upload_token(client, auth, account_id):
     """The upload token reaches _upload_path straight from the request body: it
-    must reject a token trying to climb out of the uploads directory, whether via
-    '..' or via an embedded path separator."""
+    must reject a token trying to climb out of the user's pending directory,
+    whether via '..' or via an embedded path separator."""
     for bad_token in ("../evil.csv", "..\\evil.csv", "sub/evil.csv", "sub\\evil.csv"):
         response = client.post("/api/imports/commit", headers=auth, json={
             "upload_token": bad_token, "account_id": account_id,
@@ -185,6 +191,83 @@ def test_commit_rejects_a_path_traversal_upload_token(client, auth, account_id):
         })
         assert response.status_code == 400, bad_token
         assert "invalide" in response.json()["detail"]
+
+
+def test_commit_rejects_a_token_containing_a_null_byte(client, auth, account_id):
+    """An embedded null byte would make os-level path resolution raise a bare
+    ValueError if not caught explicitly -- that must surface as a controlled
+    400, never as an unhandled 500."""
+    response = client.post("/api/imports/commit", headers=auth, json={
+        "upload_token": "abc\x00def", "account_id": account_id,
+        "dialect": FULL_DIALECT, "mapping": {"0": "date"},
+        "overrides": {}, "keep_duplicates": [],
+    })
+    assert response.status_code == 400
+    assert "invalide" in response.json()["detail"]
+
+
+def test_cross_tenant_upload_token_cannot_be_committed(client, auth, account_id):
+    """Ownership of an upload must be structural, not just a path-shape check.
+
+    Neither guessing the archive-style filename nor replaying another user's
+    real token may let a second user commit -- and reach -- the first user's
+    bank statement. Both attempts must fail, must import nothing for the
+    attacker, and must leave the victim's own batch and archived file intact.
+    """
+    with (FIXTURES / "boursorama.csv").open("rb") as handle:
+        preview = client.post("/api/imports/analyze", headers=auth,
+                              files={"file": ("b.csv", handle, "text/csv")},
+                              data={"account_id": str(account_id)}).json()
+    victim_batch = client.post("/api/imports/commit", headers=auth, json={
+        "upload_token": preview["upload_token"], "account_id": account_id,
+        "dialect": preview["dialect"], "mapping": preview["suggested_mapping"],
+        "original_filename": preview["original_filename"],
+        "overrides": {}, "keep_duplicates": [],
+    }).json()
+    assert victim_batch["id"] == 1
+
+    attacker = client.post("/api/auth/register", json={
+        "name": "Lea", "email": "lea5@example.com", "password": "motdepasse123"}).json()
+    attacker_headers = {"Authorization": f"Bearer {attacker['access_token']}"}
+    attacker_account = client.post("/api/accounts", headers=attacker_headers,
+                                   json={"name": "Compte", "kind": "checking"}).json()["id"]
+
+    for bad_token in ("batch-1.csv", preview["upload_token"]):
+        response = client.post("/api/imports/commit", headers=attacker_headers, json={
+            "upload_token": bad_token, "account_id": attacker_account,
+            "dialect": preview["dialect"], "mapping": preview["suggested_mapping"],
+            "overrides": {}, "keep_duplicates": [],
+        })
+        assert response.status_code in (400, 410), bad_token
+
+    assert client.get("/api/imports", headers=attacker_headers).json() == []
+
+    victim_batches = client.get("/api/imports", headers=auth).json()
+    assert len(victim_batches) == 1
+    assert victim_batches[0]["rows_imported"] == 4
+
+    archived_files = list((settings.uploads_dir / "archive").rglob("batch-1.csv"))
+    assert len(archived_files) == 1
+
+
+def test_stale_pending_uploads_are_purged_after_24h():
+    """The 24h sweep must delete only what has actually expired."""
+    from app.api.imports import _purge_stale_pending_uploads
+
+    pending_dir = settings.uploads_dir / "pending" / "999"
+    pending_dir.mkdir(parents=True, exist_ok=True)
+    stale = pending_dir / "old-upload"
+    fresh = pending_dir / "new-upload"
+    stale.write_bytes(b"old")
+    fresh.write_bytes(b"new")
+
+    stale_time = time.time() - 25 * 3600
+    os.utime(stale, (stale_time, stale_time))
+
+    _purge_stale_pending_uploads()
+
+    assert not stale.exists()
+    assert fresh.exists()
 
 
 def test_analyze_rejects_a_file_over_20mb(client, auth, account_id):

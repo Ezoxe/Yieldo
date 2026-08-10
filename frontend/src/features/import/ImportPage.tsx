@@ -29,6 +29,24 @@ interface StepProps {
   wizard: UseImportWizardResult;
 }
 
+// Shared by every step that can fail after the fact (commit, cancelImport): the
+// backend's own French `detail` rendered verbatim in a role="alert", never
+// silently dropped. FileStep and MappingStep already had their own copy of this
+// block (MappingStep's lives inside ColumnTagger); this one covers PreviewStep
+// and DoneStep, the two screens that write to (or undo) the user's ledger.
+function ErrorAlert({ errors }: { errors: string[] }) {
+  if (errors.length === 0) return null;
+  return (
+    <div role="alert" className="yd-import__alert">
+      <ul>
+        {errors.map((error) => (
+          <li key={error}>{error}</li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 function FileStep({ wizard, accounts }: StepProps & { accounts: Account[] }) {
   const { accountId, isBusy, errors, file, actions } = wizard;
 
@@ -59,15 +77,7 @@ function FileStep({ wizard, accounts }: StepProps & { accounts: Account[] }) {
 
       {isBusy ? <p className="yd-import__hint">Analyse du fichier…</p> : null}
 
-      {errors.length > 0 ? (
-        <div role="alert" className="yd-import__alert">
-          <ul>
-            {errors.map((error) => (
-              <li key={error}>{error}</li>
-            ))}
-          </ul>
-        </div>
-      ) : null}
+      <ErrorAlert errors={errors} />
     </GlassCard>
   );
 }
@@ -119,7 +129,7 @@ function MappingStep({ wizard }: StepProps) {
 }
 
 function PreviewStep({ wizard, categories }: StepProps & { categories: Category[] }) {
-  const { preview, overrides, keepDuplicates, canCommit, isBusy, actions } = wizard;
+  const { preview, overrides, keepDuplicates, canCommit, isBusy, errors, actions } = wizard;
   if (!preview) return null;
 
   return (
@@ -134,6 +144,11 @@ function PreviewStep({ wizard, categories }: StepProps & { categories: Category[
         onOverrideCategory={actions.overrideCategory}
         onToggleKeepDuplicate={actions.toggleKeepDuplicate}
       />
+
+      {/* A failed commit (expired upload, invalid mapping caught server-side,
+          unknown account...) must leave the user here, with their overrides and
+          duplicate choices intact, and tell them why in the backend's own words. */}
+      <ErrorAlert errors={errors} />
 
       <div className="yd-import__actions">
         <button type="button" className="yd-import__back" onClick={actions.backToMapping} disabled={isBusy}>
@@ -155,7 +170,7 @@ function PreviewStep({ wizard, categories }: StepProps & { categories: Category[
 }
 
 function DoneStep({ wizard }: StepProps) {
-  const { batch, isBusy, actions } = wizard;
+  const { batch, isBusy, errors, actions } = wizard;
 
   return (
     <div className="yd-import__panel">
@@ -167,6 +182,12 @@ function DoneStep({ wizard }: StepProps) {
           void actions.cancelImport();
         }}
       />
+
+      {/* A failed rollback (batch already gone, network error...) must not be
+          swallowed -- the user just clicked "Annuler cet import" and needs to know
+          it did not happen. */}
+      <ErrorAlert errors={errors} />
+
       <button type="button" className="yd-import__restart" onClick={actions.reset}>
         Importer un autre fichier
       </button>

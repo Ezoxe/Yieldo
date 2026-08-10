@@ -60,6 +60,8 @@ interface WizardSnapshot {
   overrides: Record<number, number>;
   keepDuplicates: number[];
   batch: ImportBatch | null;
+  errors: string[];
+  isPreviewStale: boolean;
 }
 
 export interface UseImportWizardResult {
@@ -123,8 +125,21 @@ export function useImportWizard(): UseImportWizardResult {
     overrides: {},
     keepDuplicates: [],
     batch: null,
+    errors: [],
+    isPreviewStale: false,
   });
-  snapshot.current = { file, accountId, dialect, mapping, preview, overrides, keepDuplicates, batch };
+  snapshot.current = {
+    file,
+    accountId,
+    dialect,
+    mapping,
+    preview,
+    overrides,
+    keepDuplicates,
+    batch,
+    errors,
+    isPreviewStale,
+  };
 
   async function runAnalyze(
     targetFile: File,
@@ -276,6 +291,17 @@ export function useImportWizard(): UseImportWizardResult {
   const commit = useCallback(async () => {
     const current = snapshot.current;
     if (!current.preview || !current.dialect || current.accountId === null) return;
+    // The invariant this app is built around: never send a mapping to the backend
+    // that differs from the one the preview on screen was computed under. The
+    // "Valider l'import" button's `disabled` attribute is a convenience, not the
+    // enforcement -- this check is, since commit() can be (and, in a test, is)
+    // called directly. Fails loudly: an error the user can see, not a silent no-op.
+    if (current.isPreviewStale || current.errors.length > 0) {
+      setErrors([
+        "L'aperçu ne correspond plus au tagging actuel : relancez l'analyse avant de valider l'import.",
+      ]);
+      return;
+    }
     setIsBusy(true);
     try {
       const created = await api.post<ImportBatch>("/imports/commit", {

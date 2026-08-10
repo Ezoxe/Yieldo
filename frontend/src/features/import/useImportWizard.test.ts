@@ -74,6 +74,32 @@ describe("useImportWizard", () => {
     expect(result.current.isPreviewStale).toBe(true);
   });
 
+  it("refuses to commit a stale preview even when commit() is called directly", async () => {
+    fetchMock.mockResolvedValue(jsonResponse(previewBody));
+    const { result } = renderHook(() => useImportWizard());
+    act(() => result.current.actions.selectAccount(1));
+    await act(async () => {
+      await result.current.actions.selectFile(new File(["x"], "b.csv", { type: "text/csv" }));
+    });
+
+    // Retagging leaves the mapping valid (still has date/label/debit) but stale:
+    // the fetched preview above was computed under the old mapping. canCommit
+    // already reflects this via the disabled button; commit() itself must also
+    // refuse, since the button being disabled is markup, not enforcement.
+    act(() => result.current.actions.setRole(2, "debit"));
+    expect(result.current.isPreviewStale).toBe(true);
+    expect(result.current.errors).toEqual([]);
+
+    const callsBeforeCommit = fetchMock.mock.calls.length;
+    await act(async () => {
+      await result.current.actions.commit();
+    });
+
+    expect(fetchMock.mock.calls.length).toBe(callsBeforeCommit);
+    expect(result.current.step).not.toBe("done");
+    expect(result.current.errors.length).toBeGreaterThan(0);
+  });
+
   it("blocks the commit while the mapping is invalid", async () => {
     fetchMock.mockResolvedValue(jsonResponse(previewBody));
     const { result } = renderHook(() => useImportWizard());

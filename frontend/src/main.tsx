@@ -1,7 +1,12 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
+import { RouterProvider } from "react-router";
 
+import { router } from "./app/routes";
+import { ThemeProvider } from "./app/ThemeProvider";
 import { readStoredTheme, resolveTheme } from "./design/theme";
+import { useSession } from "./features/auth/session";
 import "./index.css";
 
 // Resolve and apply the theme before the first paint so there is no flash
@@ -17,15 +22,14 @@ window
   .matchMedia("(prefers-color-scheme: dark)")
   .addEventListener("change", applyResolvedTheme);
 
-function App() {
-  return (
-    <main style={{ display: "grid", placeItems: "center", minHeight: "100%" }}>
-      <p className="yd-num" style={{ color: "var(--yd-text-muted)" }}>
-        Yieldo — squelette frontend
-      </p>
-    </main>
-  );
-}
+const queryClient = new QueryClient();
+
+// The access token lives in memory only (never localStorage), so it is gone
+// on every reload. Kicking this off here, before the router mounts, trades
+// the HttpOnly refresh cookie (which does survive a reload) for a fresh
+// token — RequireAuth shows a loading state until this settles, so it never
+// races the router into bouncing an already-authenticated user to /connexion.
+void useSession.getState().hydrate();
 
 const container = document.getElementById("root");
 if (!container) {
@@ -34,6 +38,10 @@ if (!container) {
 
 createRoot(container).render(
   <StrictMode>
-    <App />
+    <QueryClientProvider client={queryClient}>
+      <ThemeProvider>
+        <RouterProvider router={router} />
+      </ThemeProvider>
+    </QueryClientProvider>
   </StrictMode>,
 );

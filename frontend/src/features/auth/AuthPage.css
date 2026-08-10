@@ -1,0 +1,143 @@
+.yd-auth {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+
+.yd-auth__wrap {
+  width: 100%;
+  max-width: 380px;
+}
+
+.yd-auth__card {
+  width: 100%;
+  padding: 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.yd-auth__card h1 {
+  margin: 0;
+  font-size: 1.5rem;
+  color: var(--yd-text);
+}
+
+.yd-auth__form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.yd-auth__field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.yd-auth__field label {
+  font-size: 0.85rem;
+  color: var(--yd-text-muted);
+}
+
+.yd-auth__field input {
+  background: var(--yd-surface);
+  border: 1px solid var(--yd-border);
+  border-radius: var(--yd-radius-sm);
+  padding: 10px 12px;
+  color: var(--yd-text);
+  font: inherit;
+  transition: border-color var(--yd-motion-fast) var(--yd-ease);
+}
+
+.yd-auth__field input:focus-visible {
+  outline: 2px solid var(--yd-accent);
+  outline-offset: 1px;
+}
+
+.yd-auth__strength {
+  display: flex;
+  gap: 4px;
+  margin-top: 2px;
+}
+
+.yd-auth__strength-bar {
+  flex: 1;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--yd-border);
+}
+
+.yd-auth__strength-bar--filled {
+  background: var(--yd-accent);
+}
+
+.yd-auth__strength-label {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--yd-text-muted);
+}
+
+.yd-auth__alert {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: var(--yd-radius-sm);
+  background: color-mix(in srgb, var(--yd-negative) 16%, transparent);
+  border: 1px solid var(--yd-negative);
+  color: var(--yd-negative);
+  font-size: 0.9rem;
+}
+
+.yd-auth__notice {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: var(--yd-radius-sm);
+  background: color-mix(in srgb, var(--yd-accent) 14%, transparent);
+  border: 1px solid var(--yd-border-strong);
+  color: var(--yd-text-muted);
+  font-size: 0.85rem;
+}
+
+.yd-auth__submit {
+  margin-top: 4px;
+  border: none;
+  border-radius: var(--yd-radius-sm);
+  padding: 11px 16px;
+  background: var(--yd-accent);
+  color: var(--yd-bg);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity var(--yd-motion-fast) var(--yd-ease);
+}
+
+.yd-auth__submit:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.yd-auth__footer {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--yd-text-muted);
+  text-align: center;
+}
+
+.yd-auth__footer a {
+  color: var(--yd-accent);
+}
+
+.yd-auth-loading {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  color: var(--yd-text-muted);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .yd-auth__field input,
+  .yd-auth__submit {
+    transition: none;
+  }
+}

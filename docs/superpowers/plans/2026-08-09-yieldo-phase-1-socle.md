@@ -5570,6 +5570,10 @@ export function formatCompactCents(cents: number, currency = "€"): string {
   --yd-font: "Geist", ui-sans-serif, system-ui, sans-serif;
   --yd-font-mono: "Geist Mono", ui-monospace, "SF Mono", monospace;
 
+  /* Overlay behind the mobile drawer. A token, not an inline rgba, so a theme can
+     tune it — a 40% black scrim is too heavy over the light theme. */
+  --yd-scrim: rgba(4, 14, 22, 0.52);
+
   --yd-motion-fast: 140ms;
   --yd-motion-base: 260ms;
   --yd-motion-slow: 520ms;
@@ -6148,6 +6152,8 @@ export function useTheme(): ThemeContextValue {
 ```
 
 `AppShell.tsx` rend une barre latérale avec les liens **Vue d'ensemble**, **Transactions**, **Catégories**, **Import**, **Réglages**, un en-tête portant le nom de l'utilisateur, un sélecteur de thème, et `<Outlet />` de React Router dans une zone `<main>`. Le lien actif porte `aria-current="page"`. Sur mobile, la barre latérale devient un tiroir animé avec `slideOver`.
+
+Le tiroir est animé en JavaScript, donc la mise à zéro des durées CSS ne l'atteint pas : il doit consulter `useReducedMotion()` lui-même et sauter la transition. Il se ferme à la touche Échap comme au clic sur le voile, le voile utilise `--yd-scrim`, et le contenu masqué derrière lui reçoit `inert` pour ne pas rester accessible au clavier.
 
 - [ ] **Step 8: Lancer les tests**
 

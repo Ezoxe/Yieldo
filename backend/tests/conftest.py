@@ -1,11 +1,16 @@
+from pathlib import Path
+
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
+from app.config import settings
 from app.db import Base, get_db
 from app.main import app
+
+FIXTURES = Path(__file__).parent / "fixtures"
 
 
 @pytest.fixture
@@ -39,3 +44,31 @@ def client(db) -> TestClient:
     with TestClient(app) as test_client:
         yield test_client
     app.dependency_overrides.clear()
+
+
+@pytest.fixture
+def imported(client, tmp_path, monkeypatch):
+    """A registered user with one account and the Boursorama sample already imported.
+
+    Redirects settings.data_dir to a throwaway directory first: the import commit
+    flow writes the uploaded file to disk, and tests must never touch the real
+    backend/data/uploads directory.
+    """
+    monkeypatch.setattr(settings, "data_dir", tmp_path)
+    settings.uploads_dir.mkdir(parents=True, exist_ok=True)
+
+    registered = client.post("/api/auth/register", json={
+        "name": "Max", "email": "max@example.com", "password": "motdepasse123"}).json()
+    headers = {"Authorization": f"Bearer {registered['access_token']}"}
+    account = client.post("/api/accounts", headers=headers,
+                          json={"name": "Courant", "kind": "checking"}).json()
+    with (FIXTURES / "boursorama.csv").open("rb") as handle:
+        preview = client.post("/api/imports/analyze", headers=headers,
+                              files={"file": ("b.csv", handle, "text/csv")},
+                              data={"account_id": str(account["id"])}).json()
+    client.post("/api/imports/commit", headers=headers, json={
+        "upload_token": preview["upload_token"], "account_id": account["id"],
+        "dialect": preview["dialect"], "mapping": preview["suggested_mapping"],
+        "overrides": {}, "keep_duplicates": [],
+    })
+    return headers, account["id"]

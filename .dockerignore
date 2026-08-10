@@ -1,0 +1,13 @@
+# Bare patterns in .dockerignore only match at the build-context root (unlike
+# .gitignore), so directories nested one level down — backend/.venv,
+# frontend/node_modules, backend/data — need an explicit **/ prefix to be
+# excluded. Without it they get sent to the daemon and copied into the image.
+**/data/
+.env
+**/node_modules/
+**/.venv/
+**/docs/
+.git/
+**/__pycache__/
+**/.pytest_cache/
+frontend/dist/

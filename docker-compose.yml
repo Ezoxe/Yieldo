@@ -1,0 +1,17 @@
+services:
+  yieldo:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    container_name: ${YIELDO_CONTAINER_NAME:-yieldo}
+    restart: unless-stopped
+    ports:
+      - "${YIELDO_PORT:-8080}:8000"
+    environment:
+      YIELDO_SECRET_KEY: ${YIELDO_SECRET_KEY:?SECRET_KEY manquant — lancez ./install.sh install}
+      YIELDO_REGISTRATION_OPEN: ${YIELDO_REGISTRATION_OPEN:-true}
+      YIELDO_ACCESS_TOKEN_MINUTES: ${YIELDO_ACCESS_TOKEN_MINUTES:-30}
+      YIELDO_REFRESH_TOKEN_DAYS: ${YIELDO_REFRESH_TOKEN_DAYS:-30}
+      YIELDO_CORS_ORIGINS: ${YIELDO_CORS_ORIGINS:-[]}
+    volumes:
+      - ./data:/app/data

@@ -4324,7 +4324,8 @@ def test_series_is_sorted_chronologically():
 
 
 def test_yearly_and_quarterly_rollups():
-    assert aggregate_series(_points(), "year")[0].net_cents == 595500
+    # Q1 (595500) + Q2 (-500). The yearly total must equal the sum of the quarters.
+    assert aggregate_series(_points(), "year")[0].net_cents == 595000
     quarters = {b.key: b for b in aggregate_series(_points(), "quarter")}
     assert quarters["2025-Q1"].net_cents == 595500
     assert quarters["2025-Q2"].net_cents == -500

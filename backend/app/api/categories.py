@@ -84,11 +84,24 @@ def patch_category(
 def delete_category(
     category_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)
 ) -> None:
-    """Transactions are never deleted with their category -- they become uncategorized."""
+    """Transactions are never deleted with their category -- they become uncategorized.
+
+    Deleting a parent cascades to its children, so the transactions filed under
+    those children have to be uncategorized too. Leaving them to the database's
+    ON DELETE SET NULL would null category_id while leaving category_source saying
+    "manual" -- a row claiming a hand-picked category it no longer has.
+    """
     category = _owned_category(db, user, category_id)
+
+    doomed = [category.id] + [
+        child.id
+        for child in db.query(Category)
+        .filter(Category.user_id == user.id, Category.parent_id == category.id)
+        .all()
+    ]
     (
         db.query(Transaction)
-        .filter(Transaction.user_id == user.id, Transaction.category_id == category.id)
+        .filter(Transaction.user_id == user.id, Transaction.category_id.in_(doomed))
         .update({"category_id": None, "category_source": "uncategorized"},
                 synchronize_session=False)
     )

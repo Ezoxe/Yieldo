@@ -83,6 +83,35 @@ def test_delete_category_uncategorizes_its_transactions_instead_of_deleting_them
     assert surviving["category_source"] == "uncategorized"
 
 
+def test_deleting_a_parent_uncategorizes_transactions_filed_under_its_children(
+    client, imported
+):
+    """Deleting a parent cascades to its children (Category.children carries
+    cascade="all, delete-orphan"). A transaction filed under a child must not be
+    left claiming a "manual" category_source once its category is gone."""
+    headers, _ = imported
+    parent = client.post("/api/categories", headers=headers,
+                         json={"name": "Loisirs perso"}).json()
+    child = client.post("/api/categories", headers=headers,
+                        json={"name": "Jeux video", "parent_id": parent["id"]}).json()
+
+    transaction_id = client.get("/api/transactions?search=netflix",
+                                headers=headers).json()["items"][0]["id"]
+    patched = client.patch(f"/api/transactions/{transaction_id}", headers=headers,
+                           json={"category_id": child["id"]})
+    assert patched.json()["category_id"] == child["id"]
+    assert patched.json()["category_source"] == "manual"
+
+    response = client.delete(f"/api/categories/{parent['id']}", headers=headers)
+    assert response.status_code == 204
+
+    transactions = client.get("/api/transactions", headers=headers).json()["items"]
+    assert len(transactions) == 4
+    surviving = next(t for t in transactions if t["id"] == transaction_id)
+    assert surviving["category_id"] is None
+    assert surviving["category_source"] == "uncategorized"
+
+
 def test_delete_someone_elses_category_returns_404(client, imported):
     headers, _ = imported
     other = client.post("/api/auth/register", json={

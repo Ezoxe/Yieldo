@@ -51,11 +51,16 @@
   --yd-border-strong: rgba(15, 60, 74, 0.26);
   --yd-text: #0d2029;
   --yd-text-muted: #557184;
-  --yd-accent: #12897d;
-  --yd-accent-strong: #0d6f65;
-  --yd-positive: #17916c;
-  --yd-negative: #c8353f;
-  --yd-warning: #b3660f;
+  /* Darkened until each clears 4.5:1 against --yd-bg. The dark theme's teals and
+     ambers look right on light backgrounds but sit near 3.5:1, which is not
+     readable for the figures this app exists to show. --yd-info needs its own
+     value here too: the :root default is tuned for a dark background. */
+  --yd-accent: #0b6d63;
+  --yd-accent-strong: #085951;
+  --yd-positive: #0e7150;
+  --yd-negative: #b3232d;
+  --yd-warning: #8a4d08;
+  --yd-info: #1d4ed8;
   --yd-shadow: 0 10px 30px rgba(13, 45, 60, 0.12);
   --yd-sheen: linear-gradient(160deg, rgba(255, 255, 255, 0.8), rgba(255, 255, 255, 0) 46%);
 }

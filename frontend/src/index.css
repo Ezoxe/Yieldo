@@ -1,0 +1,56 @@
+@import "tailwindcss";
+@import "./design/tokens.css";
+
+@theme {
+  --color-accent: var(--yd-accent);
+  --color-positive: var(--yd-positive);
+  --color-negative: var(--yd-negative);
+  --font-sans: var(--yd-font);
+  --font-mono: var(--yd-font-mono);
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--yd-bg);
+  color: var(--yd-text);
+  font-family: var(--yd-font);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Slow mesh gradient behind everything — the only always-on animation. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: -20%;
+  z-index: -1;
+  background:
+    radial-gradient(45% 40% at 18% 12%, var(--yd-bg-mesh-a) 0%, transparent 70%),
+    radial-gradient(40% 45% at 82% 78%, var(--yd-bg-mesh-b) 0%, transparent 72%);
+  animation: yd-drift 34s var(--yd-ease) infinite alternate;
+  pointer-events: none;
+}
+
+@keyframes yd-drift {
+  to {
+    transform: translate3d(2.5%, -2%, 0) scale(1.06);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body::before {
+    animation: none;
+  }
+}
+
+/* Money always uses tabular figures so columns line up. */
+.yd-num {
+  font-family: var(--yd-font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}

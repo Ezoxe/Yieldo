@@ -1,0 +1,69 @@
+/* Abysse — deep navy, teal accent. Both themes carry the same token names so
+   every component stays theme-agnostic. */
+:root {
+  --yd-radius: 14px;
+  --yd-radius-sm: 9px;
+  --yd-glass-blur: 18px;
+  --yd-glass-saturate: 155%;
+
+  --yd-accent: #7ee2d6;
+  --yd-accent-strong: #4dc9ba;
+  --yd-positive: #4fd6a8;
+  --yd-negative: #e5606b;
+  --yd-warning: #f4a261;
+  --yd-info: #3b82f6;
+
+  --yd-font: "Geist", ui-sans-serif, system-ui, sans-serif;
+  --yd-font-mono: "Geist Mono", ui-monospace, "SF Mono", monospace;
+
+  --yd-motion-fast: 140ms;
+  --yd-motion-base: 260ms;
+  --yd-motion-slow: 520ms;
+  --yd-ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+:root,
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --yd-bg: #060d15;
+  --yd-bg-mesh-a: #123044;
+  --yd-bg-mesh-b: #0a1622;
+  --yd-surface: rgba(24, 58, 79, 0.38);
+  --yd-surface-strong: #0f1c28;
+  --yd-surface-raised: rgba(30, 70, 94, 0.5);
+  --yd-border: rgba(126, 226, 214, 0.18);
+  --yd-border-strong: rgba(126, 226, 214, 0.34);
+  --yd-text: #eef6f8;
+  --yd-text-muted: #93a9b8;
+  --yd-shadow: 0 10px 34px rgba(0, 0, 0, 0.45);
+  --yd-sheen: linear-gradient(160deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0) 44%);
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+  --yd-bg: #f2f7f9;
+  --yd-bg-mesh-a: #d8eef0;
+  --yd-bg-mesh-b: #eaf3f6;
+  --yd-surface: rgba(255, 255, 255, 0.66);
+  --yd-surface-strong: #ffffff;
+  --yd-surface-raised: rgba(255, 255, 255, 0.86);
+  --yd-border: rgba(15, 60, 74, 0.14);
+  --yd-border-strong: rgba(15, 60, 74, 0.26);
+  --yd-text: #0d2029;
+  --yd-text-muted: #557184;
+  --yd-accent: #12897d;
+  --yd-accent-strong: #0d6f65;
+  --yd-positive: #17916c;
+  --yd-negative: #c8353f;
+  --yd-warning: #b3660f;
+  --yd-shadow: 0 10px 30px rgba(13, 45, 60, 0.12);
+  --yd-sheen: linear-gradient(160deg, rgba(255, 255, 255, 0.8), rgba(255, 255, 255, 0) 46%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --yd-motion-fast: 0ms;
+    --yd-motion-base: 0ms;
+    --yd-motion-slow: 0ms;
+  }
+}

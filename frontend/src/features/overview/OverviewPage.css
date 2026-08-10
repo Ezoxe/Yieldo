@@ -1,0 +1,124 @@
+.yd-overview {
+  max-width: 1280px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-lg);
+}
+
+.yd-overview h1 {
+  margin: 0;
+  font-size: 1.4rem;
+  color: var(--yd-text);
+}
+
+.yd-overview__alert {
+  margin: 0;
+  padding: var(--yd-space-sm) var(--yd-space-md);
+  border-radius: var(--yd-radius-sm);
+  background: color-mix(in srgb, var(--yd-negative) 14%, transparent);
+  border: 1px solid var(--yd-negative);
+  color: var(--yd-negative);
+  font-size: 0.9rem;
+}
+
+.yd-overview__stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--yd-space-md);
+}
+
+.yd-overview__charts {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--yd-space-lg);
+}
+
+.yd-overview__chart-card {
+  padding: var(--yd-space-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-sm);
+}
+
+.yd-overview__chart-card h2 {
+  margin: 0;
+  font-size: 1rem;
+  color: var(--yd-text);
+}
+
+@media (min-width: 960px) {
+  .yd-overview__charts {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .yd-overview__charts > :first-child {
+    grid-column: 1 / -1;
+  }
+}
+
+.yd-overview__empty {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--yd-space-sm);
+  padding: var(--yd-space-xl);
+}
+
+.yd-overview__empty p {
+  margin: 0;
+  color: var(--yd-text-muted);
+}
+
+.yd-overview__empty-cta {
+  color: var(--yd-accent);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.yd-overview__empty-cta:hover {
+  text-decoration: underline;
+}
+
+/* Skeletons ------------------------------------------------------------- */
+
+.yd-skeleton {
+  position: relative;
+  overflow: hidden;
+  background: var(--yd-surface-raised);
+}
+
+.yd-skeleton--tile {
+  height: 108px;
+}
+
+.yd-skeleton--chart {
+  height: 340px;
+}
+
+.yd-skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    100deg,
+    transparent 30%,
+    color-mix(in srgb, var(--yd-text) 8%, transparent) 50%,
+    transparent 70%
+  );
+  animation: yd-skeleton-shimmer 1.6s ease-in-out infinite;
+}
+
+@keyframes yd-skeleton-shimmer {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .yd-skeleton::after {
+    animation: none;
+  }
+}

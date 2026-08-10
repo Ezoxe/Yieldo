@@ -161,6 +161,8 @@ export interface ColumnProfile {
   created_at: string;
 }
 
+export type Granularity = "day" | "week" | "month" | "quarter" | "year";
+
 export interface SeriesBucket {
   key: string;
   start: string;

@@ -5,18 +5,15 @@ import { RegisterPage } from "../features/auth/RegisterPage";
 import { RequireAuth } from "../features/auth/RequireAuth";
 import { useSession } from "../features/auth/session";
 import { ImportPage } from "../features/import/ImportPage";
+import { OverviewPage } from "../features/overview/OverviewPage";
 import { SettingsPage } from "../features/settings/SettingsPage";
 import { TransactionsPage } from "../features/transactions/TransactionsPage";
 import { AppShell } from "./AppShell";
 
-// Placeholder screens for the routes whose real implementation lands in a
-// later task (20: overview dashboard). /transactions, /reglages and /import
-// are real screens — see features/transactions/TransactionsPage.tsx,
+// Placeholder screen for the one route whose real implementation is still
+// pending. /, /transactions, /reglages and /import are real screens — see
+// features/overview/OverviewPage.tsx, features/transactions/TransactionsPage.tsx,
 // features/settings/SettingsPage.tsx and features/import/ImportPage.tsx.
-function OverviewPlaceholder() {
-  return <p>Vue d'ensemble — à venir.</p>;
-}
-
 function CategoriesPlaceholder() {
   return <p>Catégories — à venir.</p>;
 }
@@ -35,7 +32,7 @@ export const router = createBrowserRouter([
       {
         element: <AppShellRoute />,
         children: [
-          { index: true, element: <OverviewPlaceholder /> },
+          { index: true, element: <OverviewPage /> },
           { path: "transactions", element: <TransactionsPage /> },
           { path: "categories", element: <CategoriesPlaceholder /> },
           { path: "import", element: <ImportPage /> },

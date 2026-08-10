@@ -1,9 +1,30 @@
-import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MemoryRouter, Route, Routes } from "react-router";
 
 import { AppShell } from "./AppShell";
 import { ThemeProvider } from "./ThemeProvider";
+
+const NAV_LABEL = "Navigation principale";
+
+function mockReducedMotion(reduced: boolean) {
+  Object.defineProperty(window, "matchMedia", {
+    writable: true,
+    value: vi.fn().mockImplementation((query: string) => ({
+      matches: reduced && query.includes("reduced-motion"),
+      media: query,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      // Motion's own internal reduced-motion detection still calls the
+      // legacy MediaQueryList methods (deprecated in browsers but present
+      // alongside addEventListener/removeEventListener), so a mock missing
+      // them throws as soon as a motion.* component mounts.
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+    })),
+  });
+}
 
 function renderShell(initialPath: string) {
   return render(
@@ -58,5 +79,118 @@ describe("AppShell", () => {
     renderShell("/");
 
     expect(screen.getByText("Maxime")).toBeInTheDocument();
+  });
+
+  describe("mobile drawer", () => {
+    // The static sidebar (`.yd-shell__sidebar--static`) is always mounted and
+    // only hidden by a CSS media query, which jsdom does not apply (no CSS
+    // engine here — see vitest.config.ts). So once the drawer opens, its own
+    // identically-labeled <nav> makes TWO "Navigation principale" landmarks
+    // queryable at once. Every assertion below accounts for that instead of
+    // assuming a single nav exists while the drawer is open.
+
+    beforeEach(() => {
+      // The drawer's slide-in and the scrim's fade run through Motion in JS
+      // (see AppShell.tsx / variants.ts), and jsdom has no real animation
+      // clock, so an unmount driven by an exit animation would not be
+      // synchronous here. Forcing the reduced-motion branch keeps these
+      // assertions deterministic while still exercising real component
+      // logic — AppShell renders plain elements (no motion.* wrapper) in
+      // that branch, but the same drawerOpen state, handlers, and markup.
+      mockReducedMotion(true);
+    });
+
+    function getToggle() {
+      return screen.getByRole("button", { name: "Menu" });
+    }
+
+    function getNavs() {
+      return screen.getAllByRole("navigation", { name: NAV_LABEL });
+    }
+
+    it("opens from the toggle button and closes again", async () => {
+      const user = userEvent.setup();
+      renderShell("/");
+
+      expect(getNavs()).toHaveLength(1);
+
+      await user.click(getToggle());
+      expect(getNavs()).toHaveLength(2);
+
+      await user.click(getToggle());
+      expect(getNavs()).toHaveLength(1);
+    });
+
+    it("tracks the open state with aria-expanded on the toggle", async () => {
+      const user = userEvent.setup();
+      renderShell("/");
+      const toggle = getToggle();
+
+      expect(toggle).toHaveAttribute("aria-expanded", "false");
+
+      await user.click(toggle);
+      expect(toggle).toHaveAttribute("aria-expanded", "true");
+
+      await user.click(toggle);
+      expect(toggle).toHaveAttribute("aria-expanded", "false");
+    });
+
+    it("closes on Escape", async () => {
+      const user = userEvent.setup();
+      renderShell("/");
+
+      await user.click(getToggle());
+      expect(getNavs()).toHaveLength(2);
+
+      await user.keyboard("{Escape}");
+      expect(getNavs()).toHaveLength(1);
+      expect(getToggle()).toHaveAttribute("aria-expanded", "false");
+    });
+
+    it("closes when the scrim is clicked", async () => {
+      const user = userEvent.setup();
+      const { container } = renderShell("/");
+
+      await user.click(getToggle());
+      const scrim = container.querySelector(".yd-shell__scrim");
+      expect(scrim).not.toBeNull();
+
+      await user.click(scrim as Element);
+      expect(getNavs()).toHaveLength(1);
+      expect(getToggle()).toHaveAttribute("aria-expanded", "false");
+    });
+
+    it("keeps navigation reachable while the drawer is open", async () => {
+      const user = userEvent.setup();
+      renderShell("/transactions");
+
+      await user.click(getToggle());
+      const [, drawerNav] = getNavs();
+
+      // The drawer's own copy of the active link should reflect the route,
+      // and clicking it should both navigate and close the drawer (the
+      // drawer's onNavigate wires to closeDrawer).
+      expect(within(drawerNav).getByRole("link", { name: "Transactions" })).toHaveAttribute(
+        "aria-current",
+        "page",
+      );
+
+      await user.click(within(drawerNav).getByRole("link", { name: "Vue d'ensemble" }));
+
+      expect(screen.getByRole("main")).toHaveTextContent("Écran vue d'ensemble");
+      expect(getNavs()).toHaveLength(1);
+    });
+
+    it("also opens via the toggle when motion is not reduced", async () => {
+      // Mounting is synchronous regardless of the Motion animation applied
+      // to it (only the visual transition is deferred), so this exercises
+      // the animated branch without waiting on an exit animation.
+      mockReducedMotion(false);
+      const user = userEvent.setup();
+      renderShell("/");
+
+      await user.click(getToggle());
+      expect(getNavs()).toHaveLength(2);
+    });
   });
 });

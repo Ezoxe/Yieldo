@@ -74,7 +74,7 @@
   position: fixed;
   inset: 0;
   z-index: 35;
-  background: rgba(0, 0, 0, 0.4);
+  background: var(--yd-scrim);
 }
 
 .yd-shell__body {

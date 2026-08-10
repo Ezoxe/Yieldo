@@ -20,6 +20,10 @@
   --yd-motion-base: 260ms;
   --yd-motion-slow: 520ms;
   --yd-ease: cubic-bezier(0.22, 1, 0.36, 1);
+
+  /* Overlay behind the mobile drawer. A token, not an inline rgba, so a theme can
+     tune it — a 40% black scrim is too heavy over the light theme. */
+  --yd-scrim: rgba(4, 14, 22, 0.52);
 }
 
 :root,
@@ -63,6 +67,9 @@
   --yd-info: #1d4ed8;
   --yd-shadow: 0 10px 30px rgba(13, 45, 60, 0.12);
   --yd-sheen: linear-gradient(160deg, rgba(255, 255, 255, 0.8), rgba(255, 255, 255, 0) 46%);
+  /* The dark-theme scrim's 52% near-black reads as a heavy smear over the light
+     theme's near-white surfaces — lighter opacity keeps the same dimming effect. */
+  --yd-scrim: rgba(13, 32, 41, 0.32);
 }
 
 @media (prefers-reduced-motion: reduce) {

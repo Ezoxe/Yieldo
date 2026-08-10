@@ -3627,7 +3627,10 @@ git commit -m "feat(importers): add preview, atomic commit, and rollback for CSV
   - `GET /api/imports` — historique des lots
   - `DELETE /api/imports/{batch_id}` — annulation
   - `GET /api/imports/profiles`, `POST /api/imports/profiles`, `DELETE /api/imports/profiles/{id}`
-- Le fichier téléversé est écrit dans `settings.uploads_dir` sous un nom aléatoire ; `upload_token` est ce nom. Cela évite de renvoyer le contenu du CSV au navigateur entre les deux appels. Un fichier non validé est purgé au bout de 24 h.
+- Le fichier téléversé est écrit sous `settings.uploads_dir / "pending" / <user_id> / <token>`, où `<token>` est aléatoire. **Le répertoire porte l'identifiant de l'utilisateur, et `_upload_path` le reconstruit à partir de l'utilisateur authentifié — jamais à partir d'une valeur fournie par le client.** Un jeton ne peut donc désigner que le propre dépôt de son émetteur, quoi qu'il contienne.
+- À la validation, le fichier est déplacé vers `settings.uploads_dir / "archive" / <user_id> / batch-<id>.csv`. **L'archive n'est jamais adressable par un jeton** : `_upload_path` ne regarde que `pending/`. Sans cette séparation, `batch-<id>.csv` — dont l'identifiant est un auto-incrément global — se devine, et un utilisateur peut réimporter le relevé d'un autre puis déplacer son fichier.
+- Le nom d'origine du fichier voyage dans un champ dédié (`original_filename` renvoyé par `analyze`, réémis par le client dans `CommitIn`), jamais encodé dans le jeton : rien de contrôlé par le client ne doit se retrouver dans un composant de chemin.
+- Un dépôt non validé est purgé au bout de 24 h. Le balayage tourne au début de chaque `analyze` — pas de tâche planifiée à maintenir, et un utilisateur actif suffit à nettoyer.
 - Limite de téléversement : 20 Mo. Au-delà, 413 avec un message français.
 
 - [ ] **Step 1: Écrire les tests qui échouent**
@@ -4014,10 +4017,26 @@ def _require_account(db: Session, user: User, account_id: int) -> Account:
     return account
 
 
-def _upload_path(token: str) -> Path:
-    """Resolve a token to a path inside the uploads directory, and nowhere else."""
-    candidate = (settings.uploads_dir / token).resolve()
-    if candidate.parent != settings.uploads_dir.resolve():
+def _pending_dir(user_id: int) -> Path:
+    """Where this user's not-yet-committed uploads live. Derived from the
+    authenticated user, never from client input."""
+    directory = settings.uploads_dir / "pending" / str(user_id)
+    directory.mkdir(parents=True, exist_ok=True)
+    return directory
+
+
+def _upload_path(user_id: int, token: str) -> Path:
+    """Resolve a token inside this user's pending directory, and nowhere else.
+
+    The user segment comes from the session, so a token cannot reach another user's
+    uploads however it is crafted. The containment check then catches traversal
+    within the segment itself.
+    """
+    if not token or " " in token:
+        raise HTTPException(status_code=400, detail="Jeton de téléversement invalide")
+    base = _pending_dir(user_id).resolve()
+    candidate = (base / token).resolve()
+    if candidate.parent != base:
         raise HTTPException(status_code=400, detail="Jeton de téléversement invalide")
     return candidate
 
@@ -4046,10 +4065,18 @@ async def analyze(
         raise HTTPException(status_code=400,
                             detail="Format non pris en charge : déposez un fichier CSV.")
 
-    raw = await file.read()
-    if len(raw) > MAX_UPLOAD_BYTES:
-        raise HTTPException(status_code=413,
-                            detail="Fichier trop volumineux (20 Mo maximum).")
+    # Read in chunks and stop at the cap. Reading the whole body first and checking
+    # its length afterwards lets an authenticated client exhaust memory before the
+    # limit is ever consulted.
+    chunks: list[bytes] = []
+    received = 0
+    while chunk := await file.read(64 * 1024):
+        received += len(chunk)
+        if received > MAX_UPLOAD_BYTES:
+            raise HTTPException(status_code=413,
+                                detail="Fichier trop volumineux (20 Mo maximum).")
+        chunks.append(chunk)
+    raw = b"".join(chunks)
     if not raw.strip():
         raise HTTPException(status_code=400, detail="Le fichier est vide.")
 

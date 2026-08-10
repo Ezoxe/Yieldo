@@ -5359,7 +5359,7 @@ git commit -m "feat(api): add transaction, category, and analytics endpoints"
 
 **Interfaces:**
 - Produces:
-  - `useTheme() -> { theme: "light" | "dark" | "system", resolved: "light" | "dark", setTheme(next) }` — persiste dans `localStorage` sous `yieldo.theme`, suit `prefers-color-scheme` en mode `system`
+  - `readStoredTheme()`, `storeTheme(preference)`, `resolveTheme(preference, prefersDark)` — la préférence est persistée dans `localStorage` sous `yieldo.theme`, et `system` suit `prefers-color-scheme`. Le hook React `useTheme()` qui les enveloppe appartient au `ThemeProvider` de la tâche 16, pas à celle-ci.
   - `formatCents(cents: number, options?) -> string` — `-4732` devient `−47,32 €` avec un signe moins typographique et des espaces insécables
   - `formatCompactCents(cents: number) -> string` — `184320000` devient `1,8 M€`
   - Jetons CSS : `--yd-bg`, `--yd-surface`, `--yd-surface-strong`, `--yd-border`, `--yd-text`, `--yd-text-muted`, `--yd-accent`, `--yd-positive`, `--yd-negative`, `--yd-warning`, `--yd-info`, `--yd-glass-blur`, `--yd-radius`, `--yd-shadow`
@@ -5605,11 +5605,16 @@ export function formatCompactCents(cents: number, currency = "€"): string {
   --yd-border-strong: rgba(15, 60, 74, 0.26);
   --yd-text: #0d2029;
   --yd-text-muted: #557184;
-  --yd-accent: #12897d;
-  --yd-accent-strong: #0d6f65;
-  --yd-positive: #17916c;
-  --yd-negative: #c8353f;
-  --yd-warning: #b3660f;
+  /* Darkened until each clears 4.5:1 against --yd-bg. The dark theme's teals and
+     ambers look right on light backgrounds but sit near 3.5:1, which is not
+     readable for the figures this app exists to show. --yd-info needs its own
+     value here too: the :root default is tuned for a dark background. */
+  --yd-accent: #0b6d63;
+  --yd-accent-strong: #085951;
+  --yd-positive: #0e7150;
+  --yd-negative: #b3232d;
+  --yd-warning: #8a4d08;
+  --yd-info: #1d4ed8;
   --yd-shadow: 0 10px 30px rgba(13, 45, 60, 0.12);
   --yd-sheen: linear-gradient(160deg, rgba(255, 255, 255, 0.8), rgba(255, 255, 255, 0) 46%);
 }

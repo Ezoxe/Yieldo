@@ -111,6 +111,18 @@ export interface PreviewRow {
   error: string | null;
 }
 
+export interface ImportSummary {
+  total: number;
+  importable: number;
+  duplicates: number;
+  failed: number;
+  date_from: string | null;
+  date_to: string | null;
+  inflow_cents: number;
+  outflow_cents: number;
+  mapping_errors: string[];
+}
+
 export interface ImportPreview {
   upload_token: string;
   original_filename: string;
@@ -119,7 +131,7 @@ export interface ImportPreview {
   sample_rows: string[][];
   suggested_mapping: Record<string, string>;
   rows: PreviewRow[];
-  summary: Record<string, unknown>;
+  summary: ImportSummary;
 }
 
 export interface ImportBatch {

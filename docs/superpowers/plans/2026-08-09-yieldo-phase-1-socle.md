@@ -33,11 +33,15 @@ au lot D, et figer leur balisage ici le contredirait. Le contrat que ces
 composants doivent honorer est celui de leurs tests, qui sont, eux, écrits en
 entier.
 
-**Écran Réglages en phase 1.** La route `/reglages` existe dès la tâche 17 mais
-ne contient que le strict nécessaire : changement de thème, densité
-d'affichage, bascule des animations, déconnexion, et — pour un administrateur —
-l'ouverture ou la fermeture des inscriptions. La gestion des clés API arrive en
-phase 3, avec les intégrations de marché qu'elles servent.
+**Écran Réglages en phase 1.** La route `/reglages` est construite par la tâche 17
+et ne contient que le strict nécessaire : changement de thème, densité
+d'affichage, bascule des animations, et déconnexion. Rien d'autre.
+
+L'ouverture ou la fermeture des inscriptions n'en fait pas partie : `registration_open`
+est une variable d'environnement lue au démarrage, sans endpoint pour la modifier.
+L'exposer supposerait une table de réglages persistés côté serveur, ce qui appartient
+à la phase 3 en même temps que la gestion des clés API — les deux ont besoin du même
+mécanisme.
 
 **Ordre d'exécution.** Les tâches 1 à 14 forment une chaîne : chacune consomme
 la précédente. Les tâches 15 à 20 dépendent du backend mais peuvent démarrer dès

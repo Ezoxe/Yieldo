@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Link } from "react-router";
 
 import { CashflowChart } from "../../charts/CashflowChart";
@@ -11,7 +11,20 @@ import { ApiError, api } from "../../lib/api";
 import type { CalendarPoint, Category, CategoryBreakdown, Granularity, SeriesBucket, Summary } from "../../lib/types";
 import { StatTile } from "./StatTile";
 import "./OverviewPage.css";
-import { usePeriod } from "../transactions/usePeriod";
+import { PeriodSelector } from "../transactions/PeriodSelector";
+import { usePeriod, type UsePeriodResult } from "../transactions/usePeriod";
+
+// Both screens read/write the same ?periode=&du=&au= query parameters
+// through usePeriod(), but each route still carries its own independent URL
+// -- landing on /transactions fresh does not inherit whatever period was
+// selected on the dashboard. What *is* shared: the parsing/formatting logic
+// (one usePeriod, one PeriodSelector) and this link, which carries the
+// dashboard's current period across explicitly so following it never resets
+// the reader back to the transactions view's own default.
+function transactionsHrefFor(period: UsePeriodResult): string {
+  const params = new URLSearchParams({ periode: period.preset, du: period.from, au: period.to });
+  return `/transactions?${params.toString()}`;
+}
 
 const GENERIC_ERROR = "Une erreur inattendue est survenue.";
 
@@ -145,10 +158,16 @@ export function OverviewPage() {
     </>
   );
 
+  // A period with nothing in it renders one clear, actionable empty state
+  // instead of four chart cards that would each independently render their
+  // own "no data" message -- the dashboard is empty as a whole, not chart by
+  // chart, so it reads that way.
+  const isEmptyPeriod = summary !== null && summary.transaction_count === 0 && errorMessages.length === 0;
+
+  let body: ReactNode;
   if (isLoading) {
-    return (
-      <section className="yd-overview">
-        <h1>Vue d'ensemble</h1>
+    body = (
+      <>
         <div className="yd-overview__stats">
           <StatTileSkeleton />
           <StatTileSkeleton />
@@ -160,76 +179,77 @@ export function OverviewPage() {
           <ChartSkeleton />
           <ChartSkeleton />
         </div>
-      </section>
+      </>
+    );
+  } else if (isEmptyPeriod) {
+    body = (
+      <GlassCard tone="solid" className="yd-overview__empty">
+        <p>Aucune transaction sur cette période.</p>
+        <Link to="/import" className="yd-overview__empty-cta">
+          Importer un relevé
+        </Link>
+      </GlassCard>
+    );
+  } else {
+    const treemapItems = buildCategoryTreemapItems(categoryBreakdown, categories, resolved);
+    body = (
+      <>
+        <div className="yd-overview__stats">
+          <StatTile label="Entrées" valueCents={summary?.inflow_cents ?? null} />
+          <StatTile label="Sorties" valueCents={summary?.outflow_cents ?? null} />
+          <StatTile
+            label="Solde net"
+            valueCents={summary?.net_cents ?? null}
+            deltaCents={summary?.comparison.delta_cents}
+          />
+          <StatTile
+            label="Taux d'épargne"
+            valueCents={summary?.savings_rate ?? null}
+            format={formatPercent}
+          />
+        </div>
+
+        <div className="yd-overview__charts">
+          <GlassCard tone="solid" className="yd-overview__chart-card">
+            <h2>Flux de trésorerie</h2>
+            <CashflowChart buckets={series} granularity={granularity} />
+          </GlassCard>
+
+          <GlassCard tone="solid" className="yd-overview__chart-card">
+            <h2>Répartition des dépenses</h2>
+            <CategoryTreemap items={treemapItems} />
+          </GlassCard>
+
+          <GlassCard tone="solid" className="yd-overview__chart-card">
+            <h2>Calendrier des dépenses</h2>
+            <SpendingCalendar points={calendarPoints} year={year} />
+          </GlassCard>
+
+          {summary ? (
+            <GlassCard tone="solid" className="yd-overview__chart-card">
+              <h2>Revenus, dépenses et épargne</h2>
+              <WaterfallChart summary={summary} categories={categoryBreakdown} />
+            </GlassCard>
+          ) : null}
+        </div>
+      </>
     );
   }
-
-  // A period with nothing in it renders one clear, actionable empty state
-  // instead of four chart cards that would each independently render their
-  // own "no data" message -- the dashboard is empty as a whole, not chart by
-  // chart, so it reads that way.
-  const isEmptyPeriod = summary !== null && summary.transaction_count === 0 && errorMessages.length === 0;
-
-  if (isEmptyPeriod) {
-    return (
-      <section className="yd-overview">
-        <h1>Vue d'ensemble</h1>
-        {errorBanner}
-        <GlassCard tone="solid" className="yd-overview__empty">
-          <p>Aucune transaction sur cette période.</p>
-          <Link to="/import" className="yd-overview__empty-cta">
-            Importer un relevé
-          </Link>
-        </GlassCard>
-      </section>
-    );
-  }
-
-  const treemapItems = buildCategoryTreemapItems(categoryBreakdown, categories, resolved);
 
   return (
     <section className="yd-overview">
-      <h1>Vue d'ensemble</h1>
+      <div className="yd-overview__header">
+        <h1>Vue d'ensemble</h1>
+        <Link to={transactionsHrefFor(period)} className="yd-overview__transactions-link">
+          Voir les transactions de cette période
+        </Link>
+      </div>
+
+      <PeriodSelector period={period} />
+
       {errorBanner}
 
-      <div className="yd-overview__stats">
-        <StatTile label="Entrées" valueCents={summary?.inflow_cents ?? null} />
-        <StatTile label="Sorties" valueCents={summary?.outflow_cents ?? null} />
-        <StatTile
-          label="Solde net"
-          valueCents={summary?.net_cents ?? null}
-          deltaCents={summary?.comparison.delta_cents}
-        />
-        <StatTile
-          label="Taux d'épargne"
-          valueCents={summary?.savings_rate ?? null}
-          format={formatPercent}
-        />
-      </div>
-
-      <div className="yd-overview__charts">
-        <GlassCard tone="solid" className="yd-overview__chart-card">
-          <h2>Flux de trésorerie</h2>
-          <CashflowChart buckets={series} granularity={granularity} />
-        </GlassCard>
-
-        <GlassCard tone="solid" className="yd-overview__chart-card">
-          <h2>Répartition des dépenses</h2>
-          <CategoryTreemap items={treemapItems} />
-        </GlassCard>
-
-        <GlassCard tone="solid" className="yd-overview__chart-card">
-          <h2>Calendrier des dépenses</h2>
-          <SpendingCalendar points={calendarPoints} year={year} />
-        </GlassCard>
-
-        {summary ? (
-          <GlassCard tone="solid" className="yd-overview__chart-card">
-            <h2>Revenus, dépenses et épargne</h2>
-            <WaterfallChart summary={summary} categories={categoryBreakdown} />
-          </GlassCard>
-        ) : null}
-      </div>
+      {body}
     </section>
   );
 }

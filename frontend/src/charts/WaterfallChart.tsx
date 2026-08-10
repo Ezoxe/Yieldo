@@ -4,7 +4,7 @@ import { useTheme } from "../app/ThemeProvider";
 import { formatCents } from "../design/theme";
 import type { CategoryBreakdown, Summary } from "../lib/types";
 import { Chart, type ChartExportRow } from "./Chart";
-import { type ChartTokens, chartTokens, seriesColors } from "./theme";
+import { type ChartTokens, type Resolved, chartTokens, seriesColors } from "./theme";
 
 interface WaterfallChartProps {
   summary: Summary;
@@ -40,13 +40,18 @@ export function buildWaterfallOption(
   summary: Summary,
   categories: CategoryBreakdown[],
   tokens: ChartTokens,
+  resolved: Resolved = "dark",
 ): WaterfallOptionResult {
   const sorted = [...categories].sort((a, b) => Math.abs(b.total_cents) - Math.abs(a.total_cents));
   const shown = sorted.slice(0, MAX_CATEGORY_STEPS);
   const rest = sorted.slice(MAX_CATEGORY_STEPS);
   const restTotal = rest.reduce((sum, category) => sum + category.total_cents, 0);
 
-  const palette = seriesColors("dark");
+  // Matches the theme actually rendering -- CategoryTreemap threads the same
+  // `resolved` through for its own categorical fallback; a hardcoded "dark"
+  // here meant the light theme's fallback segments (an uncolored category)
+  // came out in dark-theme hues.
+  const palette = seriesColors(resolved);
   const steps: WaterfallStep[] = [
     { name: "Revenus", delta: summary.inflow_cents, color: tokens.positive },
     ...shown.map((category, index) => ({
@@ -144,7 +149,7 @@ export function WaterfallChart({ summary, categories }: WaterfallChartProps) {
     return <p className="yd-chart-empty">Aucune activité sur cette période.</p>;
   }
 
-  const { option, steps, ariaLabel } = buildWaterfallOption(summary, categories, chartTokens(resolved));
+  const { option, steps, ariaLabel } = buildWaterfallOption(summary, categories, chartTokens(resolved), resolved);
 
   return (
     <Chart

@@ -5,10 +5,29 @@
   gap: var(--yd-space-lg);
 }
 
+.yd-overview__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--yd-space-sm);
+}
+
 .yd-overview h1 {
   margin: 0;
   font-size: 1.4rem;
   color: var(--yd-text);
+}
+
+.yd-overview__transactions-link {
+  color: var(--yd-accent);
+  font-weight: 600;
+  font-size: 0.85rem;
+  text-decoration: none;
+}
+
+.yd-overview__transactions-link:hover {
+  text-decoration: underline;
 }
 
 .yd-overview__alert {

@@ -1,9 +1,36 @@
 import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ThemeProvider } from "../../app/ThemeProvider";
 import { OverviewPage } from "./OverviewPage";
+
+// OverviewPage's own responsibility is fetching, period selection, error
+// surfacing and empty states -- each chart's rendering is already covered by
+// its own dedicated test file against the real echarts instance. Stubbing
+// the chart components here also sidesteps a jsdom-only artifact: a period
+// change unmounts the loaded charts (back to the skeleton) and remounts them
+// once the refetch resolves, and echarts' internal requestAnimationFrame
+// ticker can fire against an already-disposed jsdom canvas mid-transition
+// (a real browser's canvas does not hit this). Real chart lifecycle
+// (init/dispose/animation) is exercised by charts/Chart.test.tsx instead.
+vi.mock("../../charts/CashflowChart", () => ({
+  CashflowChart: () => <div role="img" aria-label="Flux de trésorerie (stub)" />,
+}));
+vi.mock("../../charts/CategoryTreemap", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../charts/CategoryTreemap")>();
+  return {
+    ...actual,
+    CategoryTreemap: () => <div role="img" aria-label="Répartition des dépenses (stub)" />,
+  };
+});
+vi.mock("../../charts/SpendingCalendar", () => ({
+  SpendingCalendar: () => <div role="img" aria-label="Calendrier des dépenses (stub)" />,
+}));
+vi.mock("../../charts/WaterfallChart", () => ({
+  WaterfallChart: () => <div role="img" aria-label="Cascade (stub)" />,
+}));
 
 const fetchMock = vi.fn();
 
@@ -89,6 +116,11 @@ beforeEach(() => {
       media: query,
       addEventListener: vi.fn(),
       removeEventListener: vi.fn(),
+      // Legacy aliases -- framer-motion's own reduced-motion detection
+      // (mounted by PeriodSelector's tab-indicator `motion.span`) still
+      // calls these instead of the modern EventTarget methods.
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
     })),
   });
 });
@@ -170,5 +202,52 @@ describe("OverviewPage", () => {
     renderPage();
 
     await waitFor(() => expect(screen.getAllByRole("img").length).toBeGreaterThanOrEqual(3));
+  });
+
+  it("renders the shared period selector, defaulting to the current month", async () => {
+    setupFetch();
+    renderPage();
+
+    await screen.findByText("Entrées");
+    expect(screen.getByRole("tablist", { name: "Période" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Mois" })).toHaveAttribute("aria-selected", "true");
+  });
+
+  it("re-fetches every panel against the new date range when the period preset changes", async () => {
+    setupFetch();
+    const user = userEvent.setup();
+    renderPage();
+    await screen.findByText("Entrées");
+
+    fetchMock.mockClear();
+    await user.click(screen.getByRole("tab", { name: "Année" }));
+
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(
+        expect.stringContaining("/api/analytics/summary"),
+        expect.anything(),
+      ),
+    );
+    const summaryCall = fetchMock.mock.calls.find((call: unknown[]) =>
+      String(call[0]).includes("/analytics/summary"),
+    );
+    expect(summaryCall).toBeDefined();
+    const calledUrl = new URL(String(summaryCall?.[0]), "http://localhost");
+    const currentYear = new Date().getUTCFullYear();
+    expect(calledUrl.searchParams.get("date_from")).toBe(`${currentYear}-01-01`);
+  });
+
+  it("carries the currently selected period across when linking to the transactions view", async () => {
+    setupFetch();
+    renderPage();
+    await screen.findByText("Entrées");
+
+    const link = screen.getByRole("link", { name: /transactions de cette période/i });
+    const href = link.getAttribute("href") ?? "";
+    expect(href).toMatch(/^\/transactions\?/);
+    const params = new URL(href, "http://localhost").searchParams;
+    expect(params.get("periode")).toBe("month");
+    expect(params.get("du")).toBeTruthy();
+    expect(params.get("au")).toBeTruthy();
   });
 });

@@ -3,7 +3,7 @@ import { beforeAll, describe, expect, it, vi } from "vitest";
 
 import { ThemeProvider } from "../app/ThemeProvider";
 import type { CategoryBreakdown, Summary } from "../lib/types";
-import { chartTokens } from "./theme";
+import { chartTokens, seriesColors } from "./theme";
 import { buildWaterfallOption, WaterfallChart } from "./WaterfallChart";
 
 beforeAll(() => {
@@ -78,6 +78,33 @@ describe("buildWaterfallOption", () => {
     const { steps } = buildWaterfallOption(deficitSummary, categories, tokens);
     const last = steps[steps.length - 1];
     expect(last.color).toBe(tokens.negative);
+  });
+
+  it("picks the fallback categorical color from the theme actually being rendered, not a fixed dark palette", () => {
+    // No `color` on the category -- this is the one case that falls back to
+    // the categorical ramp rather than the category's own backend color.
+    const uncolored: CategoryBreakdown[] = [
+      { category_id: 5, name: "Divers", color: "", total_cents: -30000, count: 4, share: 1 },
+    ];
+
+    const darkResult = buildWaterfallOption(summary, uncolored, chartTokens("dark"), "dark");
+    const lightResult = buildWaterfallOption(summary, uncolored, chartTokens("light"), "light");
+
+    const darkFallback = darkResult.steps.find((s) => s.name === "Divers")?.color;
+    const lightFallback = lightResult.steps.find((s) => s.name === "Divers")?.color;
+
+    expect(darkFallback).toBeDefined();
+    expect(lightFallback).toBeDefined();
+    expect(darkFallback).not.toBe(lightFallback);
+  });
+
+  it("defaults the fallback palette to dark when no theme is specified, for backward compatibility", () => {
+    const uncolored: CategoryBreakdown[] = [
+      { category_id: 5, name: "Divers", color: "", total_cents: -30000, count: 4, share: 1 },
+    ];
+    const { steps } = buildWaterfallOption(summary, uncolored, tokens);
+    const fallback = steps.find((s) => s.name === "Divers")?.color;
+    expect(fallback).toBe(seriesColors("dark")[0]);
   });
 });
 

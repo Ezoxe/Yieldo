@@ -1,4 +1,5 @@
 import type { EChartsOption } from "echarts";
+import { useCallback, useMemo } from "react";
 import { useNavigate } from "react-router";
 
 import { useTheme } from "../app/ThemeProvider";
@@ -90,6 +91,20 @@ export function SpendingCalendar({ points, year }: SpendingCalendarProps) {
   const { resolved } = useTheme();
   const navigate = useNavigate();
 
+  // Stable across renders -- an inline object here would make Chart.tsx's
+  // onEvents effect see a new identity every render and unbind/rebind the
+  // click handler on every single re-render (theme change, prop tick, etc.)
+  // instead of only when the navigation target logic actually changes.
+  const handleDayClick = useCallback(
+    (params: unknown) => {
+      const point = params as { data?: [string, number] };
+      const date = point.data?.[0];
+      if (date) navigate(`/transactions?periode=custom&du=${date}&au=${date}`);
+    },
+    [navigate],
+  );
+  const onEvents = useMemo(() => ({ click: handleDayClick }), [handleDayClick]);
+
   if (points.length === 0) {
     return <p className="yd-chart-empty">Aucune dépense enregistrée en {year}.</p>;
   }
@@ -106,13 +121,7 @@ export function SpendingCalendar({ points, year }: SpendingCalendarProps) {
       option={option}
       height={220}
       ariaLabel={`Calendrier des dépenses pour ${year}, un jour plus foncé signifie plus de dépenses.`}
-      onEvents={{
-        click: (params) => {
-          const point = params as { data?: [string, number] };
-          const date = point.data?.[0];
-          if (date) navigate(`/transactions?periode=custom&du=${date}&au=${date}`);
-        },
-      }}
+      onEvents={onEvents}
       dataForExport={{
         filename: `calendrier-depenses-${year}`,
         headers: ["Date", "Dépensé", "Entrées", "Solde net"],

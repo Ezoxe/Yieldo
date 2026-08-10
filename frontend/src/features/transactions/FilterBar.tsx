@@ -1,20 +1,10 @@
-import { motion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 
 import { GlassCard } from "../../design/glass/GlassCard";
-import { useReducedMotion } from "../../design/motion/useReducedMotion";
 import type { Account, Category } from "../../lib/types";
 import { CategoryPicker } from "./CategoryPicker";
-import type { PeriodPreset, UsePeriodResult } from "./usePeriod";
-
-const PRESET_OPTIONS: { value: PeriodPreset; label: string }[] = [
-  { value: "month", label: "Mois" },
-  { value: "quarter", label: "Trimestre" },
-  { value: "year", label: "Année" },
-  { value: "ytd", label: "Depuis janvier" },
-  { value: "all", label: "Tout" },
-  { value: "custom", label: "Personnalisé" },
-];
+import { PeriodSelector } from "./PeriodSelector";
+import type { UsePeriodResult } from "./usePeriod";
 
 const SEARCH_DEBOUNCE_MS = 250;
 
@@ -45,7 +35,6 @@ export function FilterBar({
   uncategorizedCount,
   onSearchChange,
 }: FilterBarProps) {
-  const reducedMotion = useReducedMotion();
   const [searchInput, setSearchInput] = useState("");
 
   // The latest callback lives in a ref so the debounce effect below only ever
@@ -63,53 +52,7 @@ export function FilterBar({
 
   return (
     <GlassCard tone="raised" as="div" className="yd-filterbar">
-      <div className="yd-filterbar__tabs" role="tablist" aria-label="Période">
-        {PRESET_OPTIONS.map((option) => {
-          const active = period.preset === option.value;
-          return (
-            <button
-              key={option.value}
-              type="button"
-              role="tab"
-              aria-selected={active}
-              className="yd-filterbar__tab"
-              onClick={() => period.setPreset(option.value)}
-            >
-              {active && !reducedMotion ? (
-                <motion.span
-                  layoutId="yd-filterbar-indicator"
-                  className="yd-filterbar__tab-indicator"
-                  transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
-                />
-              ) : active ? (
-                <span className="yd-filterbar__tab-indicator" />
-              ) : null}
-              <span className="yd-filterbar__tab-label">{option.label}</span>
-            </button>
-          );
-        })}
-      </div>
-
-      {period.preset === "custom" ? (
-        <div className="yd-filterbar__range">
-          <label className="yd-filterbar__field">
-            <span>Du</span>
-            <input
-              type="date"
-              value={period.from}
-              onChange={(event) => period.setRange(event.target.value, period.to)}
-            />
-          </label>
-          <label className="yd-filterbar__field">
-            <span>Au</span>
-            <input
-              type="date"
-              value={period.to}
-              onChange={(event) => period.setRange(period.from, event.target.value)}
-            />
-          </label>
-        </div>
-      ) : null}
+      <PeriodSelector period={period} />
 
       <div className="yd-filterbar__row">
         <label className="yd-filterbar__field yd-filterbar__field--search">

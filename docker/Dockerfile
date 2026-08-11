@@ -15,7 +15,7 @@ ENV PYTHONUNBUFFERED=1 \
     YIELDO_STATIC_DIR=/app/static
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends curl \
+    && apt-get install -y --no-install-recommends curl gosu \
     && rm -rf /var/lib/apt/lists/* \
     && useradd --uid 1000 --create-home --shell /usr/sbin/nologin yieldo
 
@@ -28,7 +28,11 @@ COPY --from=frontend /build/dist ./static
 COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh && mkdir -p /app/data && chown -R yieldo:yieldo /app
 
-USER yieldo
+# No USER directive here: the container must start as root so entrypoint.sh
+# can fix ownership of the ./data bind mount (Docker creates a missing bind
+# source as root, which shadows the chown above) before it drops to yieldo
+# via gosu. Everything the app actually runs under is unprivileged — see
+# entrypoint.sh.
 EXPOSE 8000
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \

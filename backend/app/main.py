@@ -61,7 +61,13 @@ def serve_spa(full_path: str) -> FileResponse:
         )
 
     root = STATIC_DIR.resolve()
-    candidate = (root / full_path).resolve()
+    try:
+        candidate = (root / full_path).resolve()
+    except ValueError:
+        # A null byte (e.g. from a "%00"-encoded request path) makes os.stat
+        # raise ValueError during resolve() instead of a filesystem error —
+        # treat it the same as any other disallowed path, not a server crash.
+        raise HTTPException(status_code=403, detail="Chemin non autorisé") from None
     if not candidate.is_relative_to(root):
         raise HTTPException(status_code=403, detail="Chemin non autorisé")
 

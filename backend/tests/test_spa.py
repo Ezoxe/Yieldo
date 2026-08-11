@@ -31,6 +31,20 @@ def test_path_traversal_is_refused(client, tmp_path, monkeypatch):
     assert client.get("/..%2f..%2fetc/passwd").status_code in (400, 403, 404)
 
 
+def test_embedded_null_byte_is_refused_not_a_server_error(client, tmp_path, monkeypatch):
+    from app import main
+
+    (tmp_path / "index.html").write_text("ok")
+    monkeypatch.setattr(main, "STATIC_DIR", tmp_path)
+
+    # A "%00"-encoded path decodes to a literal null character, which makes
+    # os.stat() raise ValueError inside Path.resolve() — this must surface as
+    # the same clean 403 as any other disallowed path, never an unhandled 500.
+    response = client.get("/foo%00bar")
+    assert response.status_code == 403
+    assert "autoris" in response.json()["detail"].lower()
+
+
 def test_a_clear_message_when_the_frontend_is_not_built(client, tmp_path, monkeypatch):
     from app import main
 

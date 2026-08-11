@@ -11,8 +11,8 @@ votre argent — mois par mois, année par année.
   propre machine ;
 - un outil de lecture de vos relevés bancaires : vous les exportez vous-même
   depuis le site de votre banque, puis les déposez dans Yieldo ;
-- multi-utilisateurs : chaque personne a ses propres comptes, catégories et
-  transactions, strictement isolés des autres.
+- multi-utilisateurs : chaque personne a ses propres comptes bancaires,
+  catégories et transactions, strictement isolés des autres.
 
 **Yieldo n'est pas :**
 - un agrégateur bancaire — aucune connexion directe à votre banque, aucun
@@ -48,8 +48,12 @@ cd yieldo
 4. attend que `/api/health` réponde, jusqu'à deux minutes.
 
 À la fin, le script affiche l'adresse (`http://localhost:<port>`). Ouvrez-la
-et créez votre compte : **le tout premier compte créé sur une instance
-devient automatiquement administrateur.**
+et créez votre compte utilisateur (nom, email, mot de passe) : **le tout
+premier compte utilisateur créé sur une instance devient automatiquement
+administrateur.** L'écran d'import vous invite ensuite à créer votre premier
+compte bancaire — voir « Format CSV attendu et taggage des colonnes »
+ci-dessous ; c'est une notion distincte du compte utilisateur que vous venez
+de créer.
 
 ## Mise à jour
 
@@ -85,8 +89,8 @@ toujours** le dossier `data/`.
 Tout est dans `./data/`, à la racine du dépôt, monté dans le conteneur en
 volume :
 
-- `data/yieldo.db` — la base SQLite : utilisateurs, comptes, catégories,
-  transactions, règles apprises ;
+- `data/yieldo.db` — la base SQLite : comptes utilisateurs, comptes
+  bancaires, catégories, transactions, règles apprises ;
 - `data/uploads/` — les fichiers CSV en cours d'analyse, purgés après 24 h ;
 - `data/backups/` — les sauvegardes horodatées.
 
@@ -105,6 +109,15 @@ défaut ; brancher un LLM externe restera un choix explicite de votre part,
 jamais un comportement par défaut.
 
 ## Format CSV attendu et taggage des colonnes
+
+**Créer un compte bancaire.** Avant de pouvoir déposer un premier relevé,
+l'écran d'import (`/import`) vous invite à créer un compte bancaire — nom et
+type (compte courant, livret d'épargne, PEA, assurance-vie…). Ce compte
+bancaire est une notion distincte du compte utilisateur créé à
+l'inscription : un même utilisateur peut avoir plusieurs comptes bancaires
+(un compte courant, un livret, un compte-titres…), chacun avec son propre
+historique de transactions. Une fois ce premier compte bancaire créé, il est
+sélectionné automatiquement et vous pouvez déposer votre fichier.
 
 Yieldo accepte un fichier `.csv`, `.txt` ou `.tsv` de 20 Mo maximum. Il n'y a
 pas de format imposé : au dépôt du fichier, Yieldo détecte automatiquement
@@ -125,9 +138,9 @@ Un relevé doit fournir au minimum :
 - une colonne **Libellé** (le texte brut de la transaction, jamais modifié) ;
 - soit une colonne **Montant** signée, soit un couple **Débit** / **Crédit**.
 
-Les lignes déjà importées (même compte, même date, même montant, même
-libellé) sont détectées comme doublons et exclues par défaut — vous pouvez
-choisir de les importer quand même, ligne par ligne.
+Les lignes déjà importées (même compte bancaire, même date, même montant,
+même libellé) sont détectées comme doublons et exclues par défaut — vous
+pouvez choisir de les importer quand même, ligne par ligne.
 
 ## Dépannage
 
@@ -188,8 +201,9 @@ développement**. Concrètement, à ce stade :
    /app/data`) — un dossier `data/` pré-existant appartenant à un autre
    utilisateur sur l'hôte est le cas que l'entrypoint corrige automatiquement
    au démarrage ; vérifiez que la correction a bien eu lieu.
-4. La création de compte, l'import d'un CSV et le tableau de bord
-   fonctionnent de bout en bout dans un navigateur.
+4. Le parcours complet fonctionne de bout en bout dans un navigateur :
+   inscription (compte utilisateur), création d'un compte bancaire depuis
+   l'écran d'import, import d'un CSV, et lecture du tableau de bord.
 5. `cd e2e && npm install && npx playwright install chromium && npx
    playwright test` passe contre cette instance (`YIELDO_URL` pointant
    dessus si elle n'écoute pas sur `8080`).
@@ -240,5 +254,5 @@ cd e2e && npm install && npx playwright install chromium && npx playwright test
 ```
 
 État courant : 210 tests backend (couverture 95 % globale, ≥ 93 % sur
-`app/engines` et `app/importers`), 210 tests frontend, build TypeScript sans
+`app/engines` et `app/importers`), 213 tests frontend, build TypeScript sans
 erreur, 14 vérifications `install.sh` au vert.

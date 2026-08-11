@@ -33,39 +33,32 @@ test("first run: register, import a CSV, read the dashboard, recategorize a tran
 }, testInfo) => {
   const email = `max-${Date.now()}@example.com`;
 
-  // --- Registration --------------------------------------------------
+  // --- Registration (creates the user account) ------------------------
   await page.goto("/inscription");
   await page.getByLabel("Nom").fill("Max");
   await page.getByLabel("Adresse email").fill(email);
   await page.getByLabel("Mot de passe", { exact: true }).fill("motdepasse123");
   await page.getByLabel("Confirmer le mot de passe").fill("motdepasse123");
-
-  // ImportPage's account dropdown (see frontend/src/features/import/ImportPage.tsx,
-  // FileStep) is the only place an account can be picked FROM -- phase 1 has
-  // no "create account" screen anywhere in the frontend (checked
-  // ImportPage.tsx, DropZone.tsx and SettingsPage.tsx). The backend does
-  // expose POST /accounts (backend/app/api/accounts.py); this is that
-  // endpoint called directly with the token the register response just
-  // handed back, exactly as an operator would have to before such a screen
-  // exists.
-  const [registerResponse] = await Promise.all([
-    page.waitForResponse(
-      (response) => response.url().endsWith("/api/auth/register") && response.status() === 201,
-    ),
-    page.getByRole("button", { name: "Créer mon compte" }).click(),
-  ]);
+  await page.getByRole("button", { name: "Créer mon compte" }).click();
   await expect(page).toHaveURL(/\/$/);
 
-  const { access_token: accessToken } = (await registerResponse.json()) as { access_token: string };
-  const accountResponse = await page.request.post("/api/accounts", {
-    headers: { Authorization: `Bearer ${accessToken}` },
-    data: { name: "Compte courant", kind: "checking" },
-  });
-  expect(accountResponse.ok()).toBe(true);
+  // --- Bank account (a distinct "compte" from the one above) -----------
+  // A freshly registered user has no bank account yet: GET /accounts comes
+  // back empty, and FileStep (frontend/src/features/import/ImportPage.tsx)
+  // shows its creation form directly in place of the account dropdown --
+  // there is nothing else to pick from. "checking" ("Compte courant") is
+  // the form's own default, so only the name needs filling in.
+  await page.getByRole("link", { name: "Import" }).click();
+  await expect(page.getByText(/pas encore de compte/)).toBeVisible();
+  await page.getByLabel("Nom du compte").fill("Compte courant");
+  await page.getByRole("button", { name: "Créer" }).click();
+
+  // Creating the account selects it immediately (handleCreateAccount in
+  // ImportPage.tsx calls actions.selectAccount) -- the select now shows it
+  // pre-chosen, with no second interaction needed before dropping a file.
+  await expect(page.getByLabel("Compte")).toHaveValue(/^\d+$/);
 
   // --- Import: drop the file, check the proposed tagging, commit -----
-  await page.getByRole("link", { name: "Import" }).click();
-  await page.getByLabel("Compte").selectOption({ label: "Compte courant" });
   await page.setInputFiles('input[type="file"]', CSV);
 
   // The column tagger must appear with preselected -- but editable -- roles.

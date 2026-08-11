@@ -95,6 +95,85 @@
   font: inherit;
 }
 
+.yd-import__account-row {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--yd-space-md);
+  flex-wrap: wrap;
+}
+
+.yd-import__new-account-toggle {
+  border: 1px solid var(--yd-border-strong);
+  border-radius: var(--yd-radius-sm);
+  padding: var(--yd-space-xs) var(--yd-space-md);
+  background: transparent;
+  color: var(--yd-accent);
+  font: inherit;
+  cursor: pointer;
+}
+
+.yd-import__empty-accounts {
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-md);
+}
+
+.yd-import__new-account {
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-sm);
+  padding: var(--yd-space-md);
+  border: 1px solid var(--yd-border);
+  border-radius: var(--yd-radius-sm);
+  background: var(--yd-surface-raised);
+}
+
+.yd-import__new-account-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: var(--yd-space-sm);
+}
+
+.yd-import__new-account-fields label {
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-2xs);
+  font-size: 0.85rem;
+  color: var(--yd-text-muted);
+}
+
+.yd-import__new-account-fields input,
+.yd-import__new-account-fields select {
+  background: var(--yd-surface);
+  border: 1px solid var(--yd-border);
+  border-radius: var(--yd-radius-sm);
+  padding: var(--yd-space-xs) var(--yd-space-sm);
+  color: var(--yd-text);
+  font: inherit;
+}
+
+.yd-import__new-account-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--yd-space-md);
+}
+
+.yd-import__new-account-actions button[type="submit"] {
+  border: none;
+  border-radius: var(--yd-radius-sm);
+  padding: var(--yd-space-xs) var(--yd-space-lg);
+  background: var(--yd-accent);
+  color: var(--yd-bg);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.yd-import__new-account-actions button[type="submit"]:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .yd-import__actions {
   display: flex;
   align-items: center;

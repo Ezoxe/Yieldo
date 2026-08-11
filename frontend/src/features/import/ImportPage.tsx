@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from "motion/react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 
 import { GlassCard } from "../../design/glass/GlassCard";
 import { fadeInUp } from "../../design/motion/variants";
@@ -20,6 +20,108 @@ const STEPS: { key: WizardStep; label: string }[] = [
   { key: "preview", label: "Aperçu" },
   { key: "done", label: "Terminé" },
 ];
+
+// Mirrors the backend's ACCOUNT_KINDS (backend/app/models/account.py). "checking"
+// is first and the form's default: the realistic case for a phase-1 user's very
+// first bank account.
+const ACCOUNT_KIND_OPTIONS: { value: string; label: string }[] = [
+  { value: "checking", label: "Compte courant" },
+  { value: "savings", label: "Livret d'épargne" },
+  { value: "pea", label: "PEA" },
+  { value: "life_insurance", label: "Assurance-vie" },
+  { value: "per", label: "PER" },
+  { value: "brokerage", label: "Compte-titres" },
+  { value: "crypto", label: "Cryptomonnaies" },
+  { value: "real_estate", label: "Immobilier" },
+  { value: "loan", label: "Prêt" },
+  { value: "cash", label: "Espèces" },
+];
+
+interface NewAccountInput {
+  name: string;
+  kind: string;
+}
+
+interface NewAccountFormProps {
+  onCreate: (input: NewAccountInput) => Promise<void>;
+  onCancel?: () => void;
+}
+
+// The bank account (Account) created here is distinct from the user account
+// created at /inscription -- this form only ever exists on the import screen,
+// scoped to that meaning of "compte". Wired to the existing POST /api/accounts
+// (backend/app/api/accounts.py); nothing else in the app ever called it before.
+function NewAccountForm({ onCreate, onCancel }: NewAccountFormProps) {
+  const [name, setName] = useState("");
+  const [kind, setKind] = useState<string>(ACCOUNT_KIND_OPTIONS[0].value);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const trimmedName = name.trim();
+    if (!trimmedName) return;
+
+    setError(null);
+    setSubmitting(true);
+    try {
+      await onCreate({ name: trimmedName, kind });
+      setName("");
+      setKind(ACCOUNT_KIND_OPTIONS[0].value);
+    } catch (err) {
+      // The backend's own French detail (e.g. a 422 on an unknown kind) is
+      // shown verbatim -- never a silent failure on the one form standing
+      // between a new user and the rest of the app.
+      setError(err instanceof ApiError ? err.detail : "Une erreur inattendue est survenue.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <form className="yd-import__new-account" onSubmit={handleSubmit} noValidate>
+      <div className="yd-import__new-account-fields">
+        <label>
+          <span>Nom du compte</span>
+          <input
+            type="text"
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            maxLength={120}
+            required
+          />
+        </label>
+        <label>
+          <span>Type de compte</span>
+          <select value={kind} onChange={(event) => setKind(event.target.value)}>
+            {ACCOUNT_KIND_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+
+      {error ? (
+        <p role="alert" className="yd-import__alert">
+          {error}
+        </p>
+      ) : null}
+
+      <div className="yd-import__new-account-actions">
+        <button type="submit" disabled={submitting || name.trim().length === 0}>
+          {submitting ? "Création…" : "Créer"}
+        </button>
+        {onCancel ? (
+          <button type="button" className="yd-dialect__cancel" onClick={onCancel} disabled={submitting}>
+            Annuler
+          </button>
+        ) : null}
+      </div>
+    </form>
+  );
+}
 
 function stepIndex(step: WizardStep): number {
   return STEPS.findIndex((item) => item.key === step);
@@ -47,27 +149,70 @@ function ErrorAlert({ errors }: { errors: string[] }) {
   );
 }
 
-function FileStep({ wizard, accounts }: StepProps & { accounts: Account[] }) {
+interface FileStepProps extends StepProps {
+  accounts: Account[];
+  onCreateAccount: (input: NewAccountInput) => Promise<void>;
+}
+
+function FileStep({ wizard, accounts, onCreateAccount }: FileStepProps) {
   const { accountId, isBusy, errors, file, actions } = wizard;
+  const [showNewAccountForm, setShowNewAccountForm] = useState(false);
+
+  // A freshly registered user has no bank account yet, and nothing else in
+  // the app can create one -- a disabled select with nothing in it would be a
+  // dead end. Show the creation form directly instead of a select with a
+  // single unusable placeholder option.
+  if (accounts.length === 0) {
+    return (
+      <GlassCard tone="solid" className="yd-import__panel">
+        <div className="yd-import__empty-accounts">
+          <p className="yd-import__hint">
+            Vous n'avez pas encore de compte bancaire dans Yieldo. Créez-en un pour commencer à
+            importer vos relevés.
+          </p>
+          <NewAccountForm onCreate={onCreateAccount} />
+        </div>
+      </GlassCard>
+    );
+  }
 
   return (
     <GlassCard tone="solid" className="yd-import__panel">
-      <label className="yd-import__account">
-        <span>Compte</span>
-        <select
-          value={accountId ?? ""}
-          onChange={(event) => actions.selectAccount(Number(event.target.value))}
-        >
-          <option value="" disabled>
-            Choisir un compte…
-          </option>
-          {accounts.map((account) => (
-            <option key={account.id} value={account.id}>
-              {account.name}
+      <div className="yd-import__account-row">
+        <label className="yd-import__account">
+          <span>Compte</span>
+          <select
+            value={accountId ?? ""}
+            onChange={(event) => actions.selectAccount(Number(event.target.value))}
+          >
+            <option value="" disabled>
+              Choisir un compte…
             </option>
-          ))}
-        </select>
-      </label>
+            {accounts.map((account) => (
+              <option key={account.id} value={account.id}>
+                {account.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <button
+          type="button"
+          className="yd-import__new-account-toggle"
+          onClick={() => setShowNewAccountForm((open) => !open)}
+        >
+          {showNewAccountForm ? "Annuler" : "Nouveau compte"}
+        </button>
+      </div>
+
+      {showNewAccountForm ? (
+        <NewAccountForm
+          onCreate={async (input) => {
+            await onCreateAccount(input);
+            setShowNewAccountForm(false);
+          }}
+          onCancel={() => setShowNewAccountForm(false)}
+        />
+      ) : null}
 
       <DropZone
         onFileSelected={actions.selectFile}
@@ -236,6 +381,16 @@ export function ImportPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // The only place in the app that calls POST /api/accounts. Appends to the
+  // in-memory list rather than refetching -- the wizard only needs the new
+  // account to exist locally -- and selects it immediately so the user lands
+  // straight on the drop zone instead of having to find it in the dropdown.
+  async function handleCreateAccount(input: NewAccountInput): Promise<void> {
+    const created = await api.post<Account>("/accounts", input);
+    setAccounts((current) => [...current, created]);
+    actions.selectAccount(created.id);
+  }
+
   const activeIndex = stepIndex(step);
 
   return (
@@ -276,7 +431,9 @@ export function ImportPage() {
           animate="visible"
           className="yd-import__stage"
         >
-          {step === "file" ? <FileStep wizard={wizard} accounts={accounts} /> : null}
+          {step === "file" ? (
+            <FileStep wizard={wizard} accounts={accounts} onCreateAccount={handleCreateAccount} />
+          ) : null}
           {step === "mapping" ? <MappingStep wizard={wizard} /> : null}
           {step === "preview" ? <PreviewStep wizard={wizard} categories={categories} /> : null}
           {step === "done" ? <DoneStep wizard={wizard} /> : null}

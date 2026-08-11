@@ -105,6 +105,89 @@ async function driveToPreviewStep() {
   await screen.findByText("Aperçu des lignes");
 }
 
+describe("ImportPage — creating a bank account", () => {
+  // There is no way for a freshly registered user to reach the import wizard
+  // without this: GET /accounts starts empty, and nothing else in the app
+  // ever POSTs to /api/accounts.
+  function setupEmptyAccountsFetch(overrides: { createAccount?: () => Response } = {}) {
+    fetchMock.mockImplementation((input: string, init?: RequestInit) => {
+      const url = typeof input === "string" ? input : String(input);
+      const method = init?.method ?? "GET";
+
+      if (url === "/api/accounts" && method === "GET") return Promise.resolve(jsonResponse([]));
+      if (url === "/api/accounts" && method === "POST") {
+        return Promise.resolve(
+          overrides.createAccount ? overrides.createAccount() : jsonResponse(account, 201),
+        );
+      }
+      if (url === "/api/categories") return Promise.resolve(jsonResponse([]));
+      if (url === "/api/imports/profiles" && method === "GET") return Promise.resolve(jsonResponse([]));
+      throw new Error(`Unhandled fetch in test: ${method} ${url}`);
+    });
+  }
+
+  it("invites the user to create an account when none exist, instead of a bare disabled select", async () => {
+    setupEmptyAccountsFetch();
+    render(<ImportPage />);
+
+    await screen.findByText(/pas encore de compte/i);
+    expect(screen.queryByLabelText("Compte")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Nom du compte")).toBeInTheDocument();
+    expect(screen.getByLabelText("Type de compte")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Créer" })).toBeInTheDocument();
+  });
+
+  it("submitting the form POSTs the expected payload and selects the created account", async () => {
+    const user = userEvent.setup();
+    const created = { ...account, id: 7, name: "Livret A", kind: "savings" };
+    setupEmptyAccountsFetch({
+      createAccount: () => {
+        return jsonResponse(created, 201);
+      },
+    });
+    render(<ImportPage />);
+
+    await screen.findByText(/pas encore de compte/i);
+    await user.type(screen.getByLabelText("Nom du compte"), "Livret A");
+    await user.selectOptions(screen.getByLabelText("Type de compte"), "savings");
+    await user.click(screen.getByRole("button", { name: "Créer" }));
+
+    // The dropdown only exists once at least one account exists -- its
+    // appearance, already selecting the new account, IS the assertion that
+    // the wizard moved on instead of leaving the user stuck on an empty list.
+    await expect(screen.findByLabelText("Compte")).resolves.toHaveValue(String(created.id));
+
+    const postCall = fetchMock.mock.calls.find(
+      ([input, init]) =>
+        (typeof input === "string" ? input : String(input)) === "/api/accounts" &&
+        (init?.method ?? "GET") === "POST",
+    );
+    expect(postCall).toBeDefined();
+    expect(JSON.parse(postCall![1]!.body as string)).toEqual({ name: "Livret A", kind: "savings" });
+
+    const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+    expect(fileInput).not.toBeDisabled();
+  });
+
+  it("shows the backend's French message when account creation fails, and keeps the form", async () => {
+    const user = userEvent.setup();
+    setupEmptyAccountsFetch({
+      createAccount: () => jsonResponse({ detail: "Type de compte inconnu : savings" }, 422),
+    });
+    render(<ImportPage />);
+
+    await screen.findByText(/pas encore de compte/i);
+    await user.type(screen.getByLabelText("Nom du compte"), "Compte test");
+    await user.click(screen.getByRole("button", { name: "Créer" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Type de compte inconnu : savings");
+    // Still on the empty state with the form intact -- a failed creation
+    // must not silently reset what the user typed, nor pretend it worked.
+    expect(screen.getByLabelText("Nom du compte")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Compte")).not.toBeInTheDocument();
+  });
+});
+
 describe("ImportPage — surfacing commit/cancel failures", () => {
   it("shows the backend's message on the preview step when commit fails, and keeps the user there", async () => {
     setupFetch({ commit: () => jsonResponse({ detail: "Mapping de colonnes invalide" }, 422) });

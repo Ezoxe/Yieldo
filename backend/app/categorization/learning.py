@@ -2,7 +2,7 @@ from sqlalchemy.orm import Session
 
 from app.categorization.engine import compile_rules
 from app.models import Transaction
-from app.models.rule import CategoryRule
+from app.models.rule import RULE_PRIORITIES, CategoryRule
 
 # Words that appear on nearly every French bank line: on their own they identify
 # nothing, so a rule built from them would mislabel unrelated transactions.
@@ -15,7 +15,6 @@ STOPWORDS = frozenset({
 
 _MAX_PATTERN_WORDS = 4
 _MIN_PATTERN_LENGTH = 3
-_LEARNED_PRIORITY = 200
 
 
 def extract_pattern(label_clean: str) -> str | None:
@@ -70,7 +69,8 @@ def learn_from_correction(
     if rule is None:
         rule = CategoryRule(
             user_id=user_id, pattern=pattern, is_regex=False, category_id=category_id,
-            priority=_LEARNED_PRIORITY, origin="learned", direction=direction, hit_count=1,
+            priority=RULE_PRIORITIES["learned"], origin="learned", direction=direction,
+            hit_count=1,
         )
         db.add(rule)
     else:

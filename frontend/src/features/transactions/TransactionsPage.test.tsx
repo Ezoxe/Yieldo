@@ -141,6 +141,25 @@ describe("TransactionsPage", () => {
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
   });
 
+  it("sends null when Non catégorisé is chosen and the row shows as uncategorized", async () => {
+    setupFetch({
+      patch: (id, body) =>
+        jsonResponse({ ...txCarrefour, id, category_id: body.category_id, category_source: "uncategorized", learned_rule_id: null, backfilled: 0 }),
+    });
+    const user = userEvent.setup();
+    renderPage();
+    await screen.findByText("CARREFOUR MARKET CB 01/03");
+
+    const select = screen.getAllByLabelText("Catégorie")[0] as HTMLSelectElement;
+    await user.selectOptions(select, "");
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining("/api/transactions/10"),
+      expect.objectContaining({ method: "PATCH", body: JSON.stringify({ category_id: null }) }),
+    ));
+    await waitFor(() => expect(select.value).toBe(""));
+  });
+
   it("announces the learned rule and lets the user undo just this transaction", async () => {
     setupFetch({
       patch: (id, body) =>

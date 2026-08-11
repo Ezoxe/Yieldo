@@ -27,7 +27,7 @@ const SOURCE_BADGES: Record<string, string> = {
 interface TransactionRowProps {
   transaction: Transaction;
   categories: Category[];
-  onRecategorize: (transactionId: number, categoryId: number) => void;
+  onRecategorize: (transactionId: number, categoryId: number | null) => void;
 }
 
 export function TransactionRow({ transaction, categories, onRecategorize }: TransactionRowProps) {
@@ -62,7 +62,14 @@ export function TransactionRow({ transaction, categories, onRecategorize }: Tran
             id={`category-${transaction.id}`}
             aria-label="Catégorie"
             value={transaction.category_id ?? ""}
-            onChange={(event) => onRecategorize(transaction.id, Number(event.target.value))}
+            onChange={(event) => {
+              // The empty option is "Non catégorisé": Number("") coerces to 0, which
+              // the backend would read as a real (nonexistent) category id and reject
+              // with a 404. Send null explicitly so the backend clears the category
+              // instead.
+              const raw = event.target.value;
+              onRecategorize(transaction.id, raw === "" ? null : Number(raw));
+            }}
             className="yd-transactions__select"
           >
             <option value="">Non catégorisé</option>

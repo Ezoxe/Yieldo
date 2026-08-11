@@ -6,6 +6,7 @@ from app.categorization.engine import classify, compile_rules
 from app.categorization.learning import apply_learned_rule, extract_pattern, learn_from_correction
 from app.categorization.seed import seed_categories
 from app.models import Account, CategoryRule, Transaction, User
+from app.models.rule import RULE_PRIORITIES
 
 
 @pytest.fixture
@@ -60,6 +61,19 @@ def test_learning_creates_a_rule_with_learned_priority(db, fixture_user):
     assert rule.origin == "learned"
     assert rule.priority == 200
     assert rule.direction == "debit"
+
+
+def test_learned_rule_priority_matches_the_shared_constant(db, fixture_user):
+    # Guards against the learned-rule priority drifting away from
+    # RULE_PRIORITIES["learned"] in app/models/rule.py: if it ever did, learned
+    # rules would stop reliably outranking broad built-in patterns (e.g. "casino",
+    # "orange"), and a user's correction would silently stop sticking.
+    user, account, categories = fixture_user
+    transaction = _transaction(db, user, account, "boulangerie du coin")
+    rule = learn_from_correction(db, user.id, transaction,
+                                 categories["alimentation-courses"].id)
+    assert rule is not None
+    assert rule.priority == RULE_PRIORITIES["learned"]
 
 
 def test_learning_twice_reinforces_instead_of_duplicating(db, fixture_user):

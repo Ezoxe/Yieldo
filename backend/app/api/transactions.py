@@ -80,8 +80,14 @@ def patch_transaction(
     db: Session = Depends(get_db),
 ) -> TransactionPatchOut:
     transaction = _owned_transaction(db, user, transaction_id)
+    # model_dump(exclude_unset=True) distinguishes "field not provided" from "field
+    # explicitly set to null": Pydantic v2 only excludes keys that never appeared in
+    # the request body, so an explicit `{"category_id": null}` still shows up here
+    # with value None, while an omitted `category_id` does not appear at all.
     changes = payload.model_dump(exclude_unset=True)
-    recategorizing = "category_id" in changes and changes["category_id"] is not None
+    category_id_provided = "category_id" in changes
+    recategorizing = category_id_provided and changes["category_id"] is not None
+    clearing_category = category_id_provided and changes["category_id"] is None
 
     if recategorizing:
         category = (
@@ -93,6 +99,11 @@ def patch_transaction(
             raise HTTPException(status_code=404, detail="Catégorie introuvable")
         transaction.category_id = category.id
         transaction.category_source = "manual"
+    elif clearing_category:
+        # An explicit null clears the category outright. There is no category left
+        # to learn a rule from, so this path must never reach learn_from_correction.
+        transaction.category_id = None
+        transaction.category_source = "uncategorized"
 
     for field in ("notes", "is_transfer", "tags"):
         if field in changes:

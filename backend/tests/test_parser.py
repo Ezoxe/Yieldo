@@ -46,6 +46,35 @@ def test_row_with_both_debit_and_credit_empty_is_flagged():
     assert "montant" in candidate.error.lower()
 
 
+def test_row_with_both_debit_and_credit_populated_is_flagged_as_ambiguous():
+    # Real French bank exports sometimes carry both on refund/reversal rows. Rather
+    # than guess which column was meant (the old behaviour silently kept the debit
+    # and dropped the credit), this is treated as an unreadable row so the user sees
+    # it in the preview's failed list and can fix their column mapping.
+    rows = [
+        ["01/03/2025", "REMBOURSEMENT", "12,40", "45,00"],
+        ["02/03/2025", "VIREMENT", "", "20,00"],
+    ]
+    mapping = {0: "date", 1: "label", 2: "debit", 3: "credit"}
+    candidates = parse_rows(rows, mapping, _dialect())
+    assert candidates[0].error is not None
+    assert "débit" in candidates[0].error.lower()
+    assert "crédit" in candidates[0].error.lower()
+    # The batch continues past the ambiguous row instead of aborting.
+    assert candidates[1].error is None
+    assert candidates[1].amount_cents == 2000
+
+
+def test_zero_in_one_column_does_not_count_as_populated():
+    # "0,00" in the unused column is a formatting placeholder, not a real value: it
+    # should not trigger the both-populated ambiguity error above.
+    rows = [["01/03/2025", "REMBOURSEMENT", "0,00", "45,00"]]
+    mapping = {0: "date", 1: "label", 2: "debit", 3: "credit"}
+    candidate = parse_rows(rows, mapping, _dialect())[0]
+    assert candidate.error is None
+    assert candidate.amount_cents == 4500
+
+
 def test_unparseable_date_is_reported_without_stopping_the_batch():
     rows = [["pas une date", "X", "-10,00"], ["02/03/2025", "Y", "-20,00"]]
     mapping = {0: "date", 1: "label", 2: "amount"}

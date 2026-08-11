@@ -33,17 +33,33 @@ def _cell(row: list[str], mapping: dict[int, str], role: str) -> str | None:
 
 
 def _resolve_amount(row: list[str], mapping: dict[int, str], dialect: CsvDialect) -> int:
-    """Single signed column, or a debit/credit pair. Debits are always stored negative."""
+    """Single signed column, or a debit/credit pair. Debits are always stored negative.
+
+    A column only counts as "populated" once it parses to a non-zero amount: a "0,00"
+    left in the unused column by the bank's export format is a placeholder, not a real
+    value, and must not trigger the ambiguity check below. When both columns carry a
+    genuine non-zero amount -- which happens on real refund/reversal rows -- there is
+    no safe way to guess which one was meant, so the row is rejected with an error
+    instead of silently keeping one value and dropping the other.
+    """
     single = _cell(row, mapping, "amount")
     if single is not None and single != "":
         return parse_amount(single, dialect.decimal_separator)
 
     debit = _cell(row, mapping, "debit")
     credit = _cell(row, mapping, "credit")
-    if debit:
-        return -abs(parse_amount(debit, dialect.decimal_separator))
-    if credit:
-        return abs(parse_amount(credit, dialect.decimal_separator))
+    debit_cents = parse_amount(debit, dialect.decimal_separator) if debit else 0
+    credit_cents = parse_amount(credit, dialect.decimal_separator) if credit else 0
+
+    if debit_cents != 0 and credit_cents != 0:
+        raise ValueError(
+            "Montant ambigu : débit et crédit sont tous deux renseignés pour cette "
+            "ligne, impossible de déterminer le montant à importer"
+        )
+    if debit_cents != 0:
+        return -abs(debit_cents)
+    if credit_cents != 0:
+        return abs(credit_cents)
     raise ValueError("Montant absent : ni montant, ni débit, ni crédit renseigné")
 
 

@@ -50,11 +50,15 @@ interface BackfillNotice {
 // siblings; doing that would need a bulk-revert endpoint that does not exist
 // (learning a rule off the *reverted* category would apply going forward, not
 // retroactively to what the first rule already touched). When the edited row
-// itself had no previous category (it was uncategorized before), even that
-// single-row undo is impossible: the backend's PATCH silently ignores an
-// explicit `category_id: null` (see backend/app/api/transactions.py), so there
-// is no request this UI can send that clears a category back out. The banner
-// says so plainly instead of offering a button that would silently do nothing.
+// itself had no previous category (it was uncategorized before), single-row
+// undo is still not offered here: the backend's PATCH does accept an explicit
+// `category_id: null` to clear a category (see backend/app/api/transactions.py),
+// but that path deliberately skips learn_from_correction -- there is no category
+// left to learn a rule from -- so an undo-to-uncategorized could never carry its
+// own "Règle apprise" notice the way every other undo here does. Rather than
+// special-case that one asymmetric branch, the banner says plainly that undo
+// is unavailable for this row instead of offering a button with a different
+// side-effect profile from the rest.
 //
 // The undo itself is *also* a category change, so the backend runs the exact
 // same learn-and-backfill side effect on it (see patch_transaction in
@@ -182,7 +186,7 @@ export function TransactionsPage() {
     }
   }
 
-  async function handleRecategorize(transactionId: number, categoryId: number) {
+  async function handleRecategorize(transactionId: number, categoryId: number | null) {
     const before = itemsRef.current.find((candidate) => candidate.id === transactionId);
     const previousCategoryId = before?.category_id ?? null;
     try {

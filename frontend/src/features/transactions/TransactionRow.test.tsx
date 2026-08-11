@@ -52,6 +52,14 @@ describe("TransactionRow", () => {
     expect(onRecategorize).toHaveBeenCalledWith(10, 1);
   });
 
+  it("sends null -- not a coerced zero -- when Non catégorisé is chosen", async () => {
+    const onRecategorize = vi.fn();
+    render(<TransactionRow transaction={transaction} categories={categories}
+                           onRecategorize={onRecategorize} />);
+    await userEvent.selectOptions(screen.getByLabelText("Catégorie"), "");
+    expect(onRecategorize).toHaveBeenCalledWith(10, null);
+  });
+
   it("renders a credit with the positive tone", () => {
     render(<TransactionRow transaction={{ ...transaction, amount_cents: 245000 }}
                            categories={categories} onRecategorize={vi.fn()} />);

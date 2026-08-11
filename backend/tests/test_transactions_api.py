@@ -58,6 +58,41 @@ def test_recategorizing_creates_a_learned_rule(client, imported):
     assert response.json()["learned_rule_id"] is not None
 
 
+def test_clearing_category_with_explicit_null_sets_uncategorized(client, imported):
+    headers, _ = imported
+    listed = client.get("/api/transactions?search=netflix", headers=headers).json()
+    transaction_id = listed["items"][0]["id"]
+    categories = client.get("/api/categories", headers=headers).json()
+    target = next(c for c in categories if c["slug"] == "abonnements-logiciels")
+    client.patch(f"/api/transactions/{transaction_id}", headers=headers,
+                json={"category_id": target["id"]})
+
+    response = client.patch(f"/api/transactions/{transaction_id}", headers=headers,
+                            json={"category_id": None})
+    assert response.status_code == 200
+    body = response.json()
+    assert body["category_id"] is None
+    assert body["category_source"] == "uncategorized"
+    assert body["learned_rule_id"] is None
+
+
+def test_patch_omitting_category_id_leaves_it_untouched(client, imported):
+    headers, _ = imported
+    listed = client.get("/api/transactions?search=netflix", headers=headers).json()
+    transaction_id = listed["items"][0]["id"]
+    categories = client.get("/api/categories", headers=headers).json()
+    target = next(c for c in categories if c["slug"] == "abonnements-logiciels")
+    client.patch(f"/api/transactions/{transaction_id}", headers=headers,
+                json={"category_id": target["id"]})
+
+    response = client.patch(f"/api/transactions/{transaction_id}", headers=headers,
+                            json={"notes": "vu"})
+    assert response.status_code == 200
+    body = response.json()
+    assert body["category_id"] == target["id"]
+    assert body["category_source"] == "manual"
+
+
 def test_patching_someone_elses_transaction_returns_404(client, imported):
     headers, _ = imported
     transaction_id = client.get("/api/transactions", headers=headers).json()["items"][0]["id"]

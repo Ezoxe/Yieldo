@@ -17,6 +17,16 @@ class MappingError(ValueError):
     """Raised when a column mapping cannot produce transactions."""
 
 
+class UnknownCategoryError(ValueError):
+    """Raised when a category override names a category the caller cannot see.
+
+    A category id that does not exist at all and one that exists but belongs to
+    another user are indistinguishable from here -- both are simply absent from
+    this user's own category map -- so a single error covers both cases and
+    never reveals which one it was.
+    """
+
+
 @dataclass
 class PreviewRow:
     row_number: int
@@ -78,6 +88,20 @@ def _resolve_category(
     if hinted is not None:
         return hinted.id, "csv"
     return None, "uncategorized"
+
+
+def _validate_overrides(overrides: dict[int, int], categories: dict[int, Category]) -> None:
+    """Reject any override naming a category the caller does not own.
+
+    `categories` is already scoped to the calling user (see `_load_categorizer`),
+    so a foreign or nonexistent id is simply missing from it -- SQLite's foreign
+    key only confirms the row exists somewhere in the database, for anyone, which
+    is not the check that matters here. This must run before anything is written:
+    a rejected override must leave no batch and no transaction behind.
+    """
+    unknown = set(overrides.values()) - set(categories)
+    if unknown:
+        raise UnknownCategoryError("Catégorie introuvable")
 
 
 def _existing_hashes(db: Session, user_id: int) -> set[str]:
@@ -186,7 +210,8 @@ def commit_import(
     if errors:
         raise MappingError(" ".join(errors))
 
-    compiled, _categories, by_name = _load_categorizer(db, user_id)
+    compiled, categories, by_name = _load_categorizer(db, user_id)
+    _validate_overrides(overrides, categories)
     seen = _existing_hashes(db, user_id)
     forced = set(keep_duplicates)
 

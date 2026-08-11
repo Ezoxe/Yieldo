@@ -5,8 +5,13 @@ import pytest
 from app.categorization.seed import seed_categories, seed_rules
 from app.importers.dialect import detect_dialect
 from app.importers.mapping import suggest_mapping
-from app.importers.service import build_preview, commit_import, rollback_import
-from app.models import Account, Transaction, User
+from app.importers.service import (
+    UnknownCategoryError,
+    build_preview,
+    commit_import,
+    rollback_import,
+)
+from app.models import Account, ImportBatch, Transaction, User
 
 FIXTURES = Path(__file__).parent / "fixtures"
 
@@ -174,6 +179,45 @@ def test_category_override_wins_over_rules(db, account_ready):
         Transaction.label_raw.like("CARREFOUR%")).one()
     assert transaction.category_id == categories["achats-cadeaux"].id
     assert transaction.category_source == "manual"
+
+
+def test_commit_rejects_an_override_naming_another_users_category(db, account_ready):
+    """The override dict in CommitIn comes straight from the client and is written
+    as category_id with no check that the category belongs to the calling user.
+    A foreign category id must be rejected before anything is written -- not just
+    left to the database's foreign key, which only confirms the row exists
+    somewhere, not that it is the caller's."""
+    user, account, _ = account_ready
+    intruder = User(email="intruder@example.com", name="Intruder", password_hash="x")
+    db.add(intruder)
+    db.commit()
+    intruder_categories = seed_categories(db, intruder.id)
+
+    raw = _boursorama()
+    dialect = detect_dialect(raw)
+    mapping = suggest_mapping(dialect.sample_headers)
+
+    with pytest.raises(UnknownCategoryError):
+        commit_import(db, user.id, account.id, raw, "b.csv", dialect, mapping,
+                      {1: intruder_categories["achats-cadeaux"].id}, [])
+
+    assert db.query(ImportBatch).count() == 0
+    assert db.query(Transaction).filter(Transaction.user_id == user.id).count() == 0
+    assert db.query(Transaction).filter(Transaction.user_id == intruder.id).count() == 0
+
+
+def test_commit_rejects_an_override_naming_a_nonexistent_category(db, account_ready):
+    user, account, _ = account_ready
+    raw = _boursorama()
+    dialect = detect_dialect(raw)
+    mapping = suggest_mapping(dialect.sample_headers)
+
+    with pytest.raises(UnknownCategoryError):
+        commit_import(db, user.id, account.id, raw, "b.csv", dialect, mapping,
+                      {1: 999999}, [])
+
+    assert db.query(ImportBatch).count() == 0
+    assert db.query(Transaction).count() == 0
 
 
 def test_rollback_removes_exactly_that_batch(db, account_ready):

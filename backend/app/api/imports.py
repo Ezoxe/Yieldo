@@ -10,7 +10,13 @@ from sqlalchemy.orm import Session
 from app.config import settings
 from app.db import get_db
 from app.importers.dialect import CsvDialect
-from app.importers.service import MappingError, build_preview, commit_import, rollback_import
+from app.importers.service import (
+    MappingError,
+    UnknownCategoryError,
+    build_preview,
+    commit_import,
+    rollback_import,
+)
 from app.models import Account, ColumnProfile, ImportBatch, User
 from app.schemas.imports import BatchOut, CommitIn, PreviewOut, ProfileIn, ProfileOut
 from app.security.deps import get_current_user
@@ -183,6 +189,10 @@ def commit(payload: CommitIn, user: User = Depends(get_current_user),
         )
     except MappingError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except UnknownCategoryError as exc:
+        # 404, not 403: whether the category simply doesn't exist or belongs to
+        # another user is not information this endpoint may disclose either way.
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
 
     # Keep the original file next to the batch so an import can be replayed later.
     # Archived under this user's own subtree, outside pending/ -- _upload_path

@@ -137,6 +137,80 @@ def test_commit_rejects_a_mapping_without_a_date_column(client, auth, account_id
     assert "Date" in response.json()["detail"]
 
 
+def test_commit_rejects_an_override_naming_another_users_category(client, auth, account_id):
+    """CommitIn.overrides values are category ids straight from the client; they
+    must be checked against the caller's own categories before being written as
+    category_id, the same way patch_transaction checks a recategorization
+    target. A foreign category must read as 404, not 403 -- its existence must
+    not be disclosed."""
+    other = client.post("/api/auth/register", json={
+        "name": "Lea", "email": "lea-override1@example.com",
+        "password": "motdepasse123"}).json()
+    other_headers = {"Authorization": f"Bearer {other['access_token']}"}
+    other_category = client.post("/api/categories", headers=other_headers,
+                                 json={"name": "Perso de Lea", "kind": "expense"}).json()
+
+    with (FIXTURES / "boursorama.csv").open("rb") as handle:
+        preview = client.post("/api/imports/analyze", headers=auth,
+                              files={"file": ("b.csv", handle, "text/csv")},
+                              data={"account_id": str(account_id)}).json()
+    response = client.post("/api/imports/commit", headers=auth, json={
+        "upload_token": preview["upload_token"], "account_id": account_id,
+        "dialect": preview["dialect"], "mapping": preview["suggested_mapping"],
+        "original_filename": preview["original_filename"],
+        "overrides": {"1": other_category["id"]}, "keep_duplicates": [],
+    })
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Catégorie introuvable"
+    assert client.get("/api/imports", headers=auth).json() == []
+    assert client.get("/api/transactions", headers=auth).json()["total"] == 0
+    other_category_ids = {c["id"] for c in client.get(
+        "/api/categories", headers=other_headers).json()}
+    assert other_category["id"] in other_category_ids
+
+
+def test_commit_rejects_an_override_naming_a_nonexistent_category(client, auth, account_id):
+    with (FIXTURES / "boursorama.csv").open("rb") as handle:
+        preview = client.post("/api/imports/analyze", headers=auth,
+                              files={"file": ("b.csv", handle, "text/csv")},
+                              data={"account_id": str(account_id)}).json()
+    response = client.post("/api/imports/commit", headers=auth, json={
+        "upload_token": preview["upload_token"], "account_id": account_id,
+        "dialect": preview["dialect"], "mapping": preview["suggested_mapping"],
+        "original_filename": preview["original_filename"],
+        "overrides": {"1": 999999}, "keep_duplicates": [],
+    })
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Catégorie introuvable"
+    assert client.get("/api/transactions", headers=auth).json()["total"] == 0
+
+
+def test_commit_accepts_an_override_naming_the_callers_own_category(client, auth, account_id):
+    """Regression guard: a valid override naming one of the caller's own
+    categories must keep working exactly as before this check was added."""
+    own_category = client.post("/api/categories", headers=auth,
+                               json={"name": "Cadeaux perso", "kind": "expense"}).json()
+
+    with (FIXTURES / "boursorama.csv").open("rb") as handle:
+        preview = client.post("/api/imports/analyze", headers=auth,
+                              files={"file": ("b.csv", handle, "text/csv")},
+                              data={"account_id": str(account_id)}).json()
+    response = client.post("/api/imports/commit", headers=auth, json={
+        "upload_token": preview["upload_token"], "account_id": account_id,
+        "dialect": preview["dialect"], "mapping": preview["suggested_mapping"],
+        "original_filename": preview["original_filename"],
+        "overrides": {"1": own_category["id"]}, "keep_duplicates": [],
+    })
+
+    assert response.status_code == 201
+    assert response.json()["rows_imported"] == 4
+    transactions = client.get("/api/transactions", headers=auth).json()["items"]
+    overridden = next(t for t in transactions if t["category_id"] == own_category["id"])
+    assert overridden["category_source"] == "manual"
+
+
 def test_delete_batch_rolls_back_its_transactions(client, auth, account_id):
     with (FIXTURES / "boursorama.csv").open("rb") as handle:
         preview = client.post("/api/imports/analyze", headers=auth,

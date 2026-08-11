@@ -63,4 +63,67 @@ assert_eq "$(read_env_value "$tmp_env" YIELDO_PORT)" "9123" "reads an existing k
 assert_eq "$(read_env_value "$tmp_env" YIELDO_ABSENT)" "" "returns empty for a missing key"
 rm -f "$tmp_env"
 
+# cmd_backup routes its status chatter to stderr and leaves stdout for the
+# returned archive path alone. This repo's data/ has no yieldo.db during
+# tests (and neither sqlite3 nor Docker are assumed present), so this
+# exercises cmd_backup's "nothing to back up yet" branch — the exact
+# message that used to be silently discarded by the CLI dispatch's
+# `>/dev/null` before info/ok/warn moved off stdout.
+backup_stderr_file="$(mktemp)"
+backup_stdout="$(cmd_backup 2>"$backup_stderr_file")"
+backup_stderr="$(cat "$backup_stderr_file")"
+rm -f "$backup_stderr_file"
+assert_eq "$backup_stdout" "" "cmd_backup prints nothing to stdout when there is no database yet"
+assert_eq "$(printf '%s' "$backup_stderr" | grep -qi "sauvegarder" && echo hasmsg || echo nomsg)" \
+  "hasmsg" "cmd_backup still reports the no-database case, now on stderr"
+
+# restore_db_from_backup — the helper cmd_update's rollback and cmd_restore
+# both use to actually move a backup back into place — reports and does
+# NOT abort when its copy target cannot be written, instead of relying on
+# a bare `&&`/`||` chain that set -e could blow through mid-recovery. A
+# missing parent directory forces cp to fail predictably on any platform;
+# chmod-based read-only directories were avoided here because Windows
+# permission semantics do not reliably map onto POSIX chmod (confirmed
+# while building this harness — see the port-probe notes above for the
+# same class of platform gap).
+saved_db_file="$DB_FILE"
+tmp_archive="$(mktemp)"
+printf 'fake backup contents' > "$tmp_archive"
+
+DB_FILE="$(mktemp -u)/no-such-subdir/yieldo.db"
+restore_status=0
+restore_stderr_file="$(mktemp)"
+restore_stdout="$(restore_db_from_backup "$tmp_archive" 2>"$restore_stderr_file")" || restore_status=$?
+restore_stderr="$(cat "$restore_stderr_file")"
+rm -f "$restore_stderr_file"
+
+assert_eq "$([ "$restore_status" -ne 0 ] && echo nonzero || echo zero)" "nonzero" \
+  "restore_db_from_backup returns a distinguishable non-zero status when the copy target is unwritable"
+assert_eq "$restore_stdout" "" "restore_db_from_backup prints nothing to stdout on failure"
+assert_eq "$(printf '%s' "$restore_stderr" | grep -qi "ÉCHEC" && echo hasmsg || echo nomsg)" "hasmsg" \
+  "restore_db_from_backup reports the failure in French on stderr instead of aborting silently"
+assert_eq "$([ -e "$DB_FILE" ] && echo exists || echo absent)" "absent" \
+  "the unwritable target was never created by the failed copy — nothing was half-written"
+
+# Contrast case: a writable target succeeds, returns 0, and actually
+# contains the backup's content — proving the failure case above exercises
+# a real failure branch rather than always reporting failure regardless of
+# input.
+writable_dir="$(mktemp -d)"
+DB_FILE="$writable_dir/yieldo.db"
+restore_status=0
+restore_db_from_backup "$tmp_archive" >/dev/null 2>/dev/null || restore_status=$?
+assert_eq "$restore_status" "0" "restore_db_from_backup succeeds and returns 0 when the target is writable"
+assert_eq "$(cat "$DB_FILE")" "fake backup contents" "the restored file actually contains the backup's content"
+
+DB_FILE="$saved_db_file"
+rm -f "$tmp_archive"
+rm -rf "$writable_dir"
+
+# NOT covered here, and cannot be without a Docker daemon: cmd_update's and
+# cmd_restore's compose down / compose up -d steps around the recovery
+# (whether the service actually comes back, and the "service did not
+# restart" branches of their reporting) — both require a real `docker
+# compose` to invoke. Read-reviewed only; see the report.
+
 [ "$failures" -eq 0 ] && echo "All install.sh unit checks passed." || exit 1

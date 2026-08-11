@@ -12,9 +12,13 @@ DEFAULT_PORT=8080
 KEEP_BACKUPS=10
 
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[0;33m'; BLUE='\033[0;34m'; NC='\033[0m'
-info()  { printf "${BLUE}▸${NC} %s\n" "$*"; }
-ok()    { printf "${GREEN}✓${NC} %s\n" "$*"; }
-warn()  { printf "${YELLOW}!${NC} %s\n" "$*"; }
+# All four write to stderr. Some commands (backup) return a meaningful
+# value on stdout for scripting/command-substitution — status chatter must
+# never share that channel, or the caller ends up parsing a decorated
+# French sentence instead of the path it asked for.
+info()  { printf "${BLUE}▸${NC} %s\n" "$*" >&2; }
+ok()    { printf "${GREEN}✓${NC} %s\n" "$*" >&2; }
+warn()  { printf "${YELLOW}!${NC} %s\n" "$*" >&2; }
 fail()  { printf "${RED}✗${NC} %s\n" "$*" >&2; exit 1; }
 
 # ── Utilities (sourced by the test harness) ─────────────────────────────
@@ -111,11 +115,6 @@ compose() {
     docker-compose --env-file "$ENV_FILE" "$@"
   fi
 }
-
-# When sourced by tests, stop here: define functions, run nothing.
-if [ "${YIELDO_LIB_ONLY:-0}" = "1" ]; then
-  return 0 2>/dev/null || exit 0
-fi
 
 # ── Preflight ───────────────────────────────────────────────────────────
 
@@ -217,8 +216,14 @@ cmd_backup() {
   if command -v sqlite3 >/dev/null 2>&1; then
     sqlite3 "$DB_FILE" ".backup '$archive'"
   else
-    compose exec -T yieldo sh -c "sqlite3 /app/data/yieldo.db \".backup '/app/data/backups/yieldo-$stamp.db'\"" \
-      || cp "$DB_FILE" "$archive"
+    # Stderr is captured here on purpose: compose/docker-compose can fail
+    # in ways that print a raw English shell error ("docker-compose:
+    # command not found"), and that must not leak past our own French
+    # reporting.
+    if ! compose exec -T yieldo sh -c "sqlite3 /app/data/yieldo.db \".backup '/app/data/backups/yieldo-$stamp.db'\"" 2>/dev/null; then
+      warn "Sauvegarde via sqlite3 dans le conteneur impossible — copie brute du fichier."
+      cp "$DB_FILE" "$archive"
+    fi
   fi
 
   cp "$ENV_FILE" "$BACKUP_DIR/env-$stamp.bak" 2>/dev/null || true
@@ -229,12 +234,33 @@ cmd_backup() {
   printf '%s' "$archive"
 }
 
+# Copies $1 over $DB_FILE and reports the outcome in French. Never aborts
+# its caller and never touches Docker — it is deliberately a pure
+# filesystem step so it can be exercised (including its failure mode)
+# without a Docker daemon. Callers (cmd_update's rollback, cmd_restore)
+# decide what to do next — typically bring the service back up regardless
+# of whether the copy worked — so a copy failure here can never leave the
+# operator without an explanation of where their data actually is.
+restore_db_from_backup() {
+  local archive="$1"
+  if [ -z "$archive" ] || [ ! -f "$archive" ]; then
+    warn "Aucune sauvegarde exploitable — la base actuelle n'a pas été modifiée."
+    return 1
+  fi
+  if cp "$archive" "$DB_FILE" 2>/dev/null; then
+    ok "Base restaurée depuis $archive."
+    return 0
+  fi
+  warn "ÉCHEC de la copie de $archive vers $DB_FILE — la base actuelle n'a PAS été remplacée. La sauvegarde reste intacte à cet emplacement."
+  return 1
+}
+
 cmd_update() {
   require_docker
   [ -f "$ENV_FILE" ] || fail "Yieldo n'est pas installé. Lancez ./install.sh install"
 
   local archive port
-  archive="$(cmd_backup | tail -n1)"
+  archive="$(cmd_backup)"
   port="$(read_env_value "$ENV_FILE" YIELDO_PORT)"
 
   if [ -d "$REPO_ROOT/.git" ]; then
@@ -248,12 +274,29 @@ cmd_update() {
 
   if wait_for_health "$port"; then
     ok "Mise à jour terminée. http://localhost:$port"
+    return 0
+  fi
+
+  # Recovery below is intentionally explicit rather than a && chain: under
+  # set -e, a chained failure (the restore cp, or compose itself) would
+  # exit the script raw, mid-recovery, with the service down and no
+  # message. Every step here is checked so the operator always learns, in
+  # French, exactly what state their data and their service are in.
+  warn "La nouvelle version ne répond pas — restauration de la sauvegarde."
+  compose down || warn "Arrêt du service impossible — poursuite de la restauration malgré tout."
+
+  if restore_db_from_backup "$archive"; then
+    if compose up -d; then
+      fail "Mise à jour annulée. Base restaurée depuis $archive, service relancé avec l'ancienne version. Diagnostic : ./install.sh logs"
+    else
+      fail "Base restaurée depuis $archive, mais le service n'a PAS redémarré. Lancez ./install.sh start puis ./install.sh logs."
+    fi
   else
-    warn "La nouvelle version ne répond pas — restauration de la sauvegarde."
-    compose down
-    [ -n "$archive" ] && [ -f "$archive" ] && cp "$archive" "$DB_FILE"
-    compose up -d
-    fail "Mise à jour annulée, données restaurées. Diagnostic : ./install.sh logs"
+    if compose up -d; then
+      fail "Mise à jour annulée. Service relancé, mais la base N'A PAS été restaurée automatiquement — restaurez-la manuellement avec ./install.sh restore $archive. Diagnostic : ./install.sh logs"
+    else
+      fail "ÉCHEC CRITIQUE : ni la base ni le service n'ont pu être remis en état. Votre sauvegarde est dans $archive. Lancez ./install.sh start puis ./install.sh logs, puis restaurez manuellement si besoin."
+    fi
   fi
 }
 
@@ -265,11 +308,19 @@ cmd_restore() {
   read -r answer
   [ "$answer" = "oui" ] || { info "Annulé."; return 0; }
 
-  cmd_backup >/dev/null
-  compose down
-  cp "$archive" "$DB_FILE"
-  compose up -d
-  ok "Base restaurée."
+  cmd_backup >/dev/null   # safety net: keep the current state even though it is about to be replaced
+  compose down || warn "Arrêt du service impossible — poursuite de la restauration malgré tout."
+
+  if restore_db_from_backup "$archive"; then
+    if compose up -d; then
+      ok "Service relancé."
+    else
+      fail "Base restaurée depuis $archive, mais le service n'a PAS redémarré. Lancez ./install.sh start puis ./install.sh logs."
+    fi
+  else
+    compose up -d || warn "Le service n'a pas redémarré non plus. Lancez ./install.sh start puis ./install.sh logs."
+    fail "Restauration annulée : la base actuelle est conservée telle quelle."
+  fi
 }
 
 cmd_uninstall() {
@@ -277,8 +328,11 @@ cmd_uninstall() {
   printf "Confirmer ? [oui/NON] "
   read -r answer
   [ "$answer" = "oui" ] || { info "Annulé."; return 0; }
-  compose down --rmi local
-  ok "Container supprimé. Vos données restent dans $DATA_DIR"
+  if compose down --rmi local; then
+    ok "Container supprimé. Vos données restent dans $DATA_DIR"
+  else
+    fail "La suppression du container a échoué. Vos données sont intactes dans $DATA_DIR. Diagnostic : docker compose ps"
+  fi
 }
 
 usage() {
@@ -295,6 +349,15 @@ Yieldo — gestion du cycle de vie
   ./install.sh uninstall        Supprime le container, conserve les données
 EOF
 }
+
+# When sourced by tests, stop here: every function above is now defined
+# (including the Docker-free ones the test harness exercises directly —
+# port_in_use, generate_secret, read_env_value, restore_db_from_backup,
+# cmd_backup), but nothing has run yet, so nothing needs a Docker daemon
+# or touches the real environment just from being sourced.
+if [ "${YIELDO_LIB_ONLY:-0}" = "1" ]; then
+  return 0 2>/dev/null || exit 0
+fi
 
 case "${1:-help}" in
   install)   cmd_install ;;

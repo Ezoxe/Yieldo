@@ -1,0 +1,98 @@
+import { readFileSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+import { render } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+import { useMotionPreference } from "../motion/motionPreference";
+import { AtmosphericBackground } from "./AtmosphericBackground";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const CSS_PATH = path.resolve(__dirname, "./AtmosphericBackground.css");
+// Comments are stripped so prose naming a property cannot satisfy an
+// assertion about the declarations.
+const css = readFileSync(CSS_PATH, "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
+
+function mockSystemReducedMotion(reduced: boolean) {
+  Object.defineProperty(window, "matchMedia", {
+    writable: true,
+    value: vi.fn().mockImplementation((query: string) => ({
+      matches: reduced && query.includes("reduced-motion"),
+      media: query,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      // Motion still calls the deprecated pair on mount.
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+    })),
+  });
+}
+
+afterEach(() => {
+  useMotionPreference.setState({ disabled: false });
+});
+
+describe("AtmosphericBackground", () => {
+  it("is decorative: hidden from assistive technology", () => {
+    mockSystemReducedMotion(false);
+    const { getByTestId } = render(<AtmosphericBackground />);
+    expect(getByTestId("yd-atmosphere")).toHaveAttribute("aria-hidden", "true");
+  });
+
+  it("renders the three ambient blobs", () => {
+    mockSystemReducedMotion(false);
+    const { container } = render(<AtmosphericBackground />);
+    expect(container.querySelectorAll(".yd-atmosphere__blob")).toHaveLength(3);
+    expect(container.querySelector(".yd-atmosphere__blob--a")).not.toBeNull();
+    expect(container.querySelector(".yd-atmosphere__blob--b")).not.toBeNull();
+    expect(container.querySelector(".yd-atmosphere__blob--c")).not.toBeNull();
+  });
+
+  it("animates when motion is allowed", () => {
+    mockSystemReducedMotion(false);
+    const { getByTestId } = render(<AtmosphericBackground />);
+    expect(getByTestId("yd-atmosphere")).toHaveClass("yd-atmosphere--animated");
+  });
+
+  it("drops the animation class entirely when the OS asks for reduced motion", () => {
+    mockSystemReducedMotion(true);
+    const { getByTestId } = render(<AtmosphericBackground />);
+    expect(getByTestId("yd-atmosphere")).not.toHaveClass("yd-atmosphere--animated");
+  });
+
+  it("drops it for the in-app Animations switch too", () => {
+    mockSystemReducedMotion(false);
+    useMotionPreference.setState({ disabled: true });
+    const { getByTestId } = render(<AtmosphericBackground />);
+    expect(getByTestId("yd-atmosphere")).not.toHaveClass("yd-atmosphere--animated");
+  });
+});
+
+// jsdom applies no stylesheets, so these read the CSS as text. They exist
+// because each rule below is a defect that is invisible in a mounted test and
+// obvious in a browser.
+describe("AtmosphericBackground.css", () => {
+  it("keeps the layer at z-index 0, never behind the root background", () => {
+    const layer = /\.yd-atmosphere \{([^}]*)\}/.exec(css);
+    expect(layer, ".yd-atmosphere rule not found").not.toBeNull();
+    expect((layer as RegExpExecArray)[1]).toMatch(/z-index:\s*0\s*;/);
+  });
+
+  it("only ever animates transform", () => {
+    const keyframeBodies = css.match(/@keyframes[^{]*\{[\s\S]*?\n\}/g) ?? [];
+    expect(keyframeBodies.length).toBe(3);
+    for (const body of keyframeBodies) {
+      const properties = [...body.matchAll(/^\s{4}([a-z-]+):/gm)].map((match) => match[1]);
+      expect(properties.every((property) => property === "transform")).toBe(true);
+    }
+  });
+
+  it("holds the blobs still under prefers-reduced-motion, before hydration", () => {
+    const start = css.indexOf("@media (prefers-reduced-motion: reduce)");
+    expect(start, "no prefers-reduced-motion block in AtmosphericBackground.css").toBeGreaterThan(
+      -1,
+    );
+    expect(css.slice(start)).toMatch(/animation:\s*none\s*;/);
+  });
+});

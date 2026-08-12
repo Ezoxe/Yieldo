@@ -1,8 +1,8 @@
 /* Abysse — deep navy, teal accent. Both themes carry the same token names so
    every component stays theme-agnostic. */
 :root {
-  --yd-radius: 14px;
-  --yd-radius-sm: 9px;
+  --yd-radius: 16px;
+  --yd-radius-sm: 10px;
   --yd-glass-blur: 18px;
   --yd-glass-saturate: 155%;
 
@@ -19,7 +19,16 @@
   --yd-motion-fast: 140ms;
   --yd-motion-base: 260ms;
   --yd-motion-slow: 520ms;
-  --yd-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  /* Signature easing. Its JS twin is SIGNATURE_EASE in design/motion/variants.ts;
+     the two must stay in step or CSS and Motion animations drift apart. */
+  --yd-ease: cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* Ambient blob geometry — theme-agnostic, so only the tints below are
+     overridden per theme. Sizes are clamped so the blobs never collapse to
+     nothing on a 375px screen. */
+  --yd-blob-a-size: max(46vw, 380px);
+  --yd-blob-b-size: max(38vw, 320px);
+  --yd-blob-c-size: max(30vw, 260px);
 
   /* Overlay behind the mobile drawer. A token, not an inline rgba, so a theme can
      tune it — a 40% black scrim is too heavy over the light theme. */
@@ -59,6 +68,12 @@
   --yd-text-muted: #93a9b8;
   --yd-shadow: 0 10px 34px rgba(0, 0, 0, 0.45);
   --yd-sheen: linear-gradient(160deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0) 44%);
+  /* Atmospheric base. Never pure black: #050c14 is the darkest value allowed,
+     so the ambient blobs still have something to sit on. */
+  --yd-bg-gradient: linear-gradient(155deg, #0a1622 0%, #060f18 48%, #050c14 100%);
+  --yd-blob-a: rgba(126, 226, 214, 0.55);
+  --yd-blob-b: rgba(59, 130, 246, 0.42);
+  --yd-blob-c: rgba(79, 214, 168, 0.4);
 }
 
 :root[data-theme="light"] {
@@ -88,6 +103,13 @@
   /* The dark-theme scrim's 52% near-black reads as a heavy smear over the light
      theme's near-white surfaces — lighter opacity keeps the same dimming effect. */
   --yd-scrim: rgba(13, 32, 41, 0.32);
+  /* Same atmosphere, inverted: a pale wash instead of a deep one. The blob
+     tints are the light theme's own darkened teals, since the dark theme's
+     bright teals vanish against a near-white ground. */
+  --yd-bg-gradient: linear-gradient(155deg, #eef6f8 0%, #f2f7f9 48%, #e9f2f5 100%);
+  --yd-blob-a: rgba(11, 109, 99, 0.3);
+  --yd-blob-b: rgba(29, 78, 216, 0.2);
+  --yd-blob-c: rgba(14, 113, 80, 0.22);
 }
 
 @media (prefers-reduced-motion: reduce) {

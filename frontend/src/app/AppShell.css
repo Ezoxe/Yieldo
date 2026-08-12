@@ -5,6 +5,18 @@
   color: var(--yd-text);
 }
 
+/* AtmosphericBackground paints a fixed layer at z-index 0 over the whole
+   viewport. Anything that must read above it needs its own positioned stacking
+   context — the alternative, pushing the background to a negative z-index,
+   puts it under the shell's own opaque background where nothing can see it.
+   The menu toggle, the drawer and its scrim already carry z-indexes of their
+   own (30/40/35) and are above the layer already. */
+.yd-shell__sidebar--static,
+.yd-shell__body {
+  position: relative;
+  z-index: 1;
+}
+
 .yd-shell__menu-toggle {
   display: none;
   position: fixed;

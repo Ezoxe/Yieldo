@@ -1,0 +1,124 @@
+/* The atmosphere sits at z-index 0, not behind it: a negative z-index puts the
+   layer under the root background, where any opaque ancestor hides it — which
+   is exactly how phase 1's mesh background became invisible. App content is
+   lifted above it with `position: relative; z-index: 1` instead. */
+.yd-atmosphere {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  /* The blurred blobs bleed well past their boxes; clipping here is what keeps
+     them from ever producing a scrollbar. */
+  overflow: hidden;
+  background: var(--yd-bg-gradient);
+}
+
+/* Each blob is two elements: the wrapper carries the blur and the final
+   opacity, the fill carries the tint and the motion. Keeping the blur off the
+   animated element means no keyframe ever touches `filter`. */
+.yd-atmosphere__blob {
+  position: absolute;
+}
+
+/* No border-radius: the radial gradient fades to transparent at 70%, well
+   inside the box, so the shape is the gradient's, not the element's. */
+.yd-atmosphere__blob-fill {
+  position: absolute;
+  inset: 0;
+}
+
+.yd-atmosphere__blob--a {
+  width: var(--yd-blob-a-size);
+  height: var(--yd-blob-a-size);
+  top: -12vh;
+  left: -8vw;
+  filter: blur(40px);
+  opacity: 0.12;
+}
+
+.yd-atmosphere__blob--a .yd-atmosphere__blob-fill {
+  background: radial-gradient(circle, var(--yd-blob-a) 0%, transparent 70%);
+}
+
+.yd-atmosphere__blob--b {
+  width: var(--yd-blob-b-size);
+  height: var(--yd-blob-b-size);
+  top: 34vh;
+  right: -10vw;
+  filter: blur(50px);
+  opacity: 0.09;
+}
+
+.yd-atmosphere__blob--b .yd-atmosphere__blob-fill {
+  background: radial-gradient(circle, var(--yd-blob-b) 0%, transparent 70%);
+}
+
+.yd-atmosphere__blob--c {
+  width: var(--yd-blob-c-size);
+  height: var(--yd-blob-c-size);
+  bottom: -14vh;
+  left: 28vw;
+  filter: blur(30px);
+  opacity: 0.08;
+}
+
+.yd-atmosphere__blob--c .yd-atmosphere__blob-fill {
+  background: radial-gradient(circle, var(--yd-blob-c) 0%, transparent 70%);
+}
+
+/* Ambient, not decorative: the travel is a few percent of the viewport over
+   half a minute, so the eye never gets something to track. Only `transform`
+   is animated, so each blob stays on the compositor. */
+@keyframes yd-blob-drift-a {
+  from {
+    transform: translate3d(0, 0, 0) scale(0.96);
+  }
+  to {
+    transform: translate3d(4vw, 5vh, 0) scale(1.06);
+  }
+}
+
+@keyframes yd-blob-drift-b {
+  from {
+    transform: translate3d(0, 0, 0) scale(1.04);
+  }
+  to {
+    transform: translate3d(-5vw, -4vh, 0) scale(0.94);
+  }
+}
+
+@keyframes yd-blob-drift-c {
+  from {
+    transform: translate3d(0, 0, 0) scale(1.02);
+  }
+  to {
+    transform: translate3d(6vw, -3vh, 0) scale(0.95);
+  }
+}
+
+/* The class is only applied when useReducedMotion() is false. The negative
+   delays start the three blobs mid-cycle and out of phase, so they never sweep
+   in lockstep. `ease-in-out` rather than var(--yd-ease): the signature curve is
+   an entry curve, and under `alternate` its return leg would visibly lurch. */
+.yd-atmosphere--animated .yd-atmosphere__blob--a .yd-atmosphere__blob-fill {
+  animation: yd-blob-drift-a 28s ease-in-out -6s infinite alternate;
+}
+
+.yd-atmosphere--animated .yd-atmosphere__blob--b .yd-atmosphere__blob-fill {
+  animation: yd-blob-drift-b 36s ease-in-out -19s infinite alternate;
+}
+
+.yd-atmosphere--animated .yd-atmosphere__blob--c .yd-atmosphere__blob-fill {
+  animation: yd-blob-drift-c 44s ease-in-out -3s infinite alternate;
+}
+
+/* useReducedMotion() is the real gate, but it only applies once React has
+   hydrated. This holds the blobs still from the very first paint. The selectors
+   are repeated in full because a shorter one would lose on specificity. */
+@media (prefers-reduced-motion: reduce) {
+  .yd-atmosphere--animated .yd-atmosphere__blob--a .yd-atmosphere__blob-fill,
+  .yd-atmosphere--animated .yd-atmosphere__blob--b .yd-atmosphere__blob-fill,
+  .yd-atmosphere--animated .yd-atmosphere__blob--c .yd-atmosphere__blob-fill {
+    animation: none;
+  }
+}

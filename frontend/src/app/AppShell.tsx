@@ -2,6 +2,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { Fragment, useEffect, useState } from "react";
 import { NavLink, Outlet } from "react-router";
 
+import { AtmosphericBackground } from "../design/atmosphere/AtmosphericBackground";
 import { slideOver } from "../design/motion/variants";
 import { useReducedMotion } from "../design/motion/useReducedMotion";
 import { type ThemePreference } from "../design/theme";
@@ -74,6 +75,10 @@ export function AppShell({ userName }: AppShellProps) {
 
   return (
     <div className="yd-shell">
+      {/* A sibling of the content, never an ancestor: the content lifts itself
+          above it with its own stacking context (see AppShell.css). */}
+      <AtmosphericBackground />
+
       <button
         type="button"
         className="yd-shell__menu-toggle"

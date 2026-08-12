@@ -2,6 +2,7 @@ import { animate } from "motion";
 import { useEffect, useRef, useState } from "react";
 
 import { useReducedMotion } from "./motion/useReducedMotion";
+import { SIGNATURE_EASE } from "./motion/variants";
 
 interface CountUpProps {
   value: number;
@@ -23,7 +24,7 @@ export function CountUp({ value, format, duration = 0.9, className = "" }: Count
     }
     const controls = animate(previous.current, value, {
       duration,
-      ease: [0.22, 1, 0.36, 1],
+      ease: SIGNATURE_EASE,
       onUpdate: (latest) => setDisplayed(latest),
       onComplete: () => {
         previous.current = value;

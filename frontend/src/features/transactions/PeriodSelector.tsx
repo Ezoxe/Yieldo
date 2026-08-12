@@ -1,6 +1,7 @@
 import { motion } from "motion/react";
 
 import { useReducedMotion } from "../../design/motion/useReducedMotion";
+import { SIGNATURE_EASE } from "../../design/motion/variants";
 import "./PeriodSelector.css";
 import type { PeriodPreset, UsePeriodResult } from "./usePeriod";
 
@@ -43,7 +44,7 @@ export function PeriodSelector({ period }: PeriodSelectorProps) {
                 <motion.span
                   layoutId="yd-period-selector-indicator"
                   className="yd-period-selector__tab-indicator"
-                  transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+                  transition={{ duration: 0.28, ease: SIGNATURE_EASE }}
                 />
               ) : active ? (
                 <span className="yd-period-selector__tab-indicator" />

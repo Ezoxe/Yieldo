@@ -1,0 +1,87 @@
+/* Bento grid — hierarchy comes from area, not from font weight.
+   Columns: 1 below 768px, 6 from 768px, 12 from 1200px. Each cell declares its
+   span per breakpoint through custom properties, so the media queries below can
+   override it; an inline `grid-column` could not be overridden at all. */
+.yd-bento {
+  display: grid;
+  grid-template-columns: repeat(1, 1fr);
+  gap: var(--yd-space-md);
+  grid-auto-rows: minmax(120px, auto);
+}
+
+.yd-bento__cell {
+  grid-column: span var(--yd-cell-span-base, 1);
+  grid-row: span var(--yd-cell-rows, 1);
+  /* Without this a long unbroken figure sets the track's minimum width and
+     pushes the whole grid past the viewport. */
+  min-width: 0;
+  position: relative;
+  border-radius: var(--yd-radius);
+  border: 1px solid var(--yd-border);
+  /* Opaque: a cell holds data, and figures must not be read through a blur.
+     backdrop-filter is reserved for floating surfaces (drawer, modals). */
+  background: var(--yd-surface-strong);
+  box-shadow: var(--yd-shadow);
+  padding: var(--yd-space-lg);
+  transition:
+    border-color var(--yd-motion-fast) var(--yd-ease),
+    translate var(--yd-motion-fast) var(--yd-ease);
+}
+
+/* Interactive cells are expected to be rendered as a natively focusable
+   element (`as="button"`, or a link) — the focus ring below has nothing to
+   attach to otherwise. These resets undo the browser's button styling. */
+.yd-bento__cell--interactive {
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+  text-align: inherit;
+  appearance: none;
+}
+
+/* A 2px lift, and no scale() — that would nudge the layout and blur the text.
+   The lift uses the independent `translate` property, not `transform`: a cell
+   rendered as a `motion.*` element (which is how every screen renders them)
+   carries an inline `transform: none` that Motion writes when the entry
+   animation settles, and an inline declaration beats this rule. Verified in a
+   browser — with `transform` here the hover did nothing at all. */
+.yd-bento__cell--interactive:hover {
+  translate: 0 -2px;
+  border-color: var(--yd-border-strong);
+}
+
+.yd-bento__cell--interactive:focus-visible {
+  outline: 2px solid var(--yd-accent);
+  outline-offset: 2px;
+}
+
+@media (min-width: 768px) {
+  .yd-bento {
+    grid-template-columns: repeat(6, 1fr);
+  }
+
+  .yd-bento__cell {
+    grid-column: span var(--yd-cell-span-md, 6);
+  }
+}
+
+@media (min-width: 1200px) {
+  .yd-bento {
+    grid-template-columns: repeat(12, 1fr);
+    gap: var(--yd-space-lg);
+  }
+
+  .yd-bento__cell {
+    grid-column: span var(--yd-cell-span-lg, 6);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .yd-bento__cell {
+    transition: none;
+  }
+
+  .yd-bento__cell--interactive:hover {
+    translate: none;
+  }
+}

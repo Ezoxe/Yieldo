@@ -173,7 +173,10 @@ export function buildEchartsTheme(resolved: Resolved): EChartsThemeShape {
   return {
     color: seriesColors(resolved),
     backgroundColor: "transparent",
-    textStyle: { color: tones.text, fontFamily: "Geist, system-ui, sans-serif" },
+    // ECharts draws to canvas and cannot read a CSS custom property, so the
+    // stack is repeated here. It must stay in step with --yd-font /
+    // --yd-font-mono in design/tokens.css.
+    textStyle: { color: tones.text, fontFamily: "Geist Variable, Geist, system-ui, sans-serif" },
     title: { textStyle: { color: tones.text, fontWeight: 600 } },
     categoryAxis: {
       axisLine: { lineStyle: { color: tones.border } },
@@ -187,7 +190,7 @@ export function buildEchartsTheme(resolved: Resolved): EChartsThemeShape {
       axisLabel: {
         color: tones.muted,
         fontSize: 11,
-        fontFamily: "Geist Mono, ui-monospace, monospace",
+        fontFamily: "Geist Mono Variable, Geist Mono, ui-monospace, monospace",
       },
       // Solid hairline, never dashed: a dashed grid reads as a projection or
       // threshold, not a neutral reference (dataviz skill anti-pattern).

@@ -88,6 +88,30 @@ describe("AtmosphericBackground.css", () => {
     }
   });
 
+  // Visible strength is size x tint alpha x element opacity. The plan caps
+  // only the last of the three, so that cap is the one thing a future pass
+  // raising the atmosphere must not quietly step over.
+  it("keeps every blob's element opacity inside the plan's 0.08-0.12 band", () => {
+    const opacities = [...css.matchAll(/opacity:\s*([\d.]+)\s*;/g)].map((match) =>
+      Number(match[1]),
+    );
+    expect(opacities).toHaveLength(3);
+    for (const opacity of opacities) {
+      expect(opacity).toBeGreaterThanOrEqual(0.08);
+      expect(opacity).toBeLessThanOrEqual(0.12);
+    }
+  });
+
+  it("gives each halo a core: the tint falls off well inside its box", () => {
+    const stops = [...css.matchAll(/radial-gradient\(circle,[^)]*\)[^;]*transparent (\d+)%/g)].map(
+      (match) => Number(match[1]),
+    );
+    expect(stops).toHaveLength(3);
+    for (const stop of stops) {
+      expect(stop).toBeLessThanOrEqual(62);
+    }
+  });
+
   it("holds the blobs still under prefers-reduced-motion, before hydration", () => {
     const start = css.indexOf("@media (prefers-reduced-motion: reduce)");
     expect(start, "no prefers-reduced-motion block in AtmosphericBackground.css").toBeGreaterThan(

@@ -20,8 +20,11 @@
   position: absolute;
 }
 
-/* No border-radius: the radial gradient fades to transparent at 70%, well
-   inside the box, so the shape is the gradient's, not the element's. */
+/* No border-radius: the radial gradient fades to transparent at 62%, well
+   inside the box, so the shape is the gradient's, not the element's. The
+   falloff is deliberately short — at 70% the tint dissolved so evenly that
+   the whole screen read as one flat colour instead of light pooling in a
+   corner. A halo needs a core. */
 .yd-atmosphere__blob-fill {
   position: absolute;
   inset: 0;
@@ -37,7 +40,7 @@
 }
 
 .yd-atmosphere__blob--a .yd-atmosphere__blob-fill {
-  background: radial-gradient(circle, var(--yd-blob-a) 0%, transparent 70%);
+  background: radial-gradient(circle, var(--yd-blob-a) 0%, transparent 62%);
 }
 
 .yd-atmosphere__blob--b {
@@ -50,7 +53,7 @@
 }
 
 .yd-atmosphere__blob--b .yd-atmosphere__blob-fill {
-  background: radial-gradient(circle, var(--yd-blob-b) 0%, transparent 70%);
+  background: radial-gradient(circle, var(--yd-blob-b) 0%, transparent 62%);
 }
 
 .yd-atmosphere__blob--c {
@@ -63,7 +66,7 @@
 }
 
 .yd-atmosphere__blob--c .yd-atmosphere__blob-fill {
-  background: radial-gradient(circle, var(--yd-blob-c) 0%, transparent 70%);
+  background: radial-gradient(circle, var(--yd-blob-c) 0%, transparent 62%);
 }
 
 /* Ambient, not decorative: the travel is a few percent of the viewport over

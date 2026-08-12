@@ -13,8 +13,13 @@
   --yd-warning: #f4a261;
   --yd-info: #3b82f6;
 
-  --yd-font: "Geist", ui-sans-serif, system-ui, sans-serif;
-  --yd-font-mono: "Geist Mono", ui-monospace, "SF Mono", monospace;
+  /* Both families are self-hosted, vendored as woff2 by @fontsource-variable
+     and imported in main.tsx — nothing is ever fetched from a CDN, because
+     this app's promise is that no request leaves the machine. The packages
+     register the *Variable* family names; the bare names are kept behind them
+     for anyone who has the static cut installed locally. */
+  --yd-font: "Geist Variable", "Geist", ui-sans-serif, system-ui, sans-serif;
+  --yd-font-mono: "Geist Mono Variable", "Geist Mono", ui-monospace, "SF Mono", monospace;
 
   --yd-motion-fast: 140ms;
   --yd-motion-base: 260ms;
@@ -25,10 +30,13 @@
 
   /* Ambient blob geometry — theme-agnostic, so only the tints below are
      overridden per theme. Sizes are clamped so the blobs never collapse to
-     nothing on a 375px screen. */
-  --yd-blob-a-size: max(46vw, 380px);
-  --yd-blob-b-size: max(38vw, 320px);
-  --yd-blob-c-size: max(30vw, 260px);
+     nothing on a 375px screen. A blob's visible strength is the product of
+     three things: this size, the tint alpha inside the radial gradient, and
+     the element opacity in AtmosphericBackground.css. The element opacity is
+     capped at 0.08–0.12 by the plan, so size and tint carry the weight. */
+  --yd-blob-a-size: max(54vw, 460px);
+  --yd-blob-b-size: max(44vw, 380px);
+  --yd-blob-c-size: max(36vw, 300px);
 
   /* Overlay behind the mobile drawer. A token, not an inline rgba, so a theme can
      tune it — a 40% black scrim is too heavy over the light theme. */
@@ -71,9 +79,9 @@
   /* Atmospheric base. Never pure black: #050c14 is the darkest value allowed,
      so the ambient blobs still have something to sit on. */
   --yd-bg-gradient: linear-gradient(155deg, #0a1622 0%, #060f18 48%, #050c14 100%);
-  --yd-blob-a: rgba(126, 226, 214, 0.55);
-  --yd-blob-b: rgba(59, 130, 246, 0.42);
-  --yd-blob-c: rgba(79, 214, 168, 0.4);
+  --yd-blob-a: rgba(126, 226, 214, 0.95);
+  --yd-blob-b: rgba(59, 130, 246, 0.8);
+  --yd-blob-c: rgba(79, 214, 168, 0.85);
 }
 
 :root[data-theme="light"] {
@@ -107,9 +115,9 @@
      tints are the light theme's own darkened teals, since the dark theme's
      bright teals vanish against a near-white ground. */
   --yd-bg-gradient: linear-gradient(155deg, #eef6f8 0%, #f2f7f9 48%, #e9f2f5 100%);
-  --yd-blob-a: rgba(11, 109, 99, 0.3);
-  --yd-blob-b: rgba(29, 78, 216, 0.2);
-  --yd-blob-c: rgba(14, 113, 80, 0.22);
+  --yd-blob-a: rgba(11, 109, 99, 0.55);
+  --yd-blob-b: rgba(29, 78, 216, 0.4);
+  --yd-blob-c: rgba(14, 113, 80, 0.42);
 }
 
 @media (prefers-reduced-motion: reduce) {

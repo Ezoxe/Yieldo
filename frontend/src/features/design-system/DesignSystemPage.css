@@ -64,11 +64,13 @@
   word-break: break-word;
 }
 
+/* No `margin-top: auto` here. In a two-row cell it pushed the chips to the
+   floor and left a dead band between them and the text they belong to; they
+   read as part of the caption, so they sit directly under it. */
 .yd-ds__swatches {
   display: flex;
   flex-wrap: wrap;
   gap: var(--yd-space-xs);
-  margin-top: auto;
 }
 
 .yd-ds__swatch {

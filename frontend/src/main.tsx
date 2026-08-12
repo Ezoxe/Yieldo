@@ -8,6 +8,13 @@ import { DensityProvider } from "./app/DensityProvider";
 import { ThemeProvider } from "./app/ThemeProvider";
 import { readStoredDensity, readStoredTheme, resolveTheme } from "./design/theme";
 import { useSession } from "./features/auth/session";
+// Self-hosted, bundled by Vite as local woff2. Never a CDN or a Google Fonts
+// <link>: this app promises the operator that nothing leaves the machine, and
+// an external font request would break that on the very first paint. The
+// families they register are "Geist Variable" and "Geist Mono Variable", which
+// is what --yd-font and --yd-font-mono name first.
+import "@fontsource-variable/geist";
+import "@fontsource-variable/geist-mono";
 import "./index.css";
 
 // Resolve and apply the theme before the first paint so there is no flash

@@ -38,7 +38,7 @@ describe("echarts theme", () => {
 
   it("uses the muted text token for axis labels in both themes", () => {
     expect(buildEchartsTheme("dark").categoryAxis.axisLabel.color).toBe("#93a9b8");
-    expect(buildEchartsTheme("light").categoryAxis.axisLabel.color).toBe("#557184");
+    expect(buildEchartsTheme("light").categoryAxis.axisLabel.color).toBe("#4a6577");
   });
 });
 

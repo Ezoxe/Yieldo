@@ -40,6 +40,13 @@ describe("AtmosphericBackground", () => {
     expect(getByTestId("yd-atmosphere")).toHaveAttribute("aria-hidden", "true");
   });
 
+  it("renders the dither above the blobs, so it breaks their contours", () => {
+    mockSystemReducedMotion(false);
+    const { container } = render(<AtmosphericBackground />);
+    const children = [...(container.querySelector(".yd-atmosphere")?.children ?? [])];
+    expect(children.at(-1)).toHaveClass("yd-atmosphere__grain");
+  });
+
   it("renders the three ambient blobs", () => {
     mockSystemReducedMotion(false);
     const { container } = render(<AtmosphericBackground />);
@@ -92,9 +99,11 @@ describe("AtmosphericBackground.css", () => {
   // only the last of the three, so that cap is the one thing a future pass
   // raising the atmosphere must not quietly step over.
   it("keeps every blob's element opacity inside the plan's 0.08-0.12 band", () => {
-    const opacities = [...css.matchAll(/opacity:\s*([\d.]+)\s*;/g)].map((match) =>
-      Number(match[1]),
-    );
+    // Scoped to the blob rules: the dither carries an opacity of its own, and
+    // it is not covered by the plan's band.
+    const opacities = [
+      ...css.matchAll(/\.yd-atmosphere__blob--[abc] \{([^}]*)\}/g),
+    ].map((rule) => Number(/opacity:\s*([\d.]+)\s*;/.exec(rule[1])?.[1]));
     expect(opacities).toHaveLength(3);
     for (const opacity of opacities) {
       expect(opacity).toBeGreaterThanOrEqual(0.08);
@@ -110,6 +119,18 @@ describe("AtmosphericBackground.css", () => {
     for (const stop of stops) {
       expect(stop).toBeLessThanOrEqual(62);
     }
+  });
+
+  it("dithers with an inline data URI, never a fetched asset", () => {
+    const grain = /\.yd-atmosphere__grain \{([^}]*)\}/.exec(css);
+    expect(grain, ".yd-atmosphere__grain rule not found").not.toBeNull();
+    const body = (grain as RegExpExecArray)[1];
+    expect(body).toMatch(/background-image:\s*url\("data:image\/svg\+xml,/);
+    expect(body).toMatch(/feTurbulence/);
+    // Any url() left once the data URI is removed would be a network request
+    // on a layer that must cost none. (The one inside the SVG is its own
+    // filter reference, which never leaves the document.)
+    expect(body.replace(/url\("data:[^"]*"\)/g, "")).not.toMatch(/url\(/);
   });
 
   it("holds the blobs still under prefers-reduced-motion, before hydration", () => {

@@ -95,7 +95,11 @@
   --yd-border: rgba(15, 60, 74, 0.14);
   --yd-border-strong: rgba(15, 60, 74, 0.26);
   --yd-text: #0d2029;
-  --yd-text-muted: #557184;
+  /* Was #557184, which cleared a flat --yd-bg by only 4.76:1 — no margin at all.
+     Measured on screen, the atmosphere's halo darkens the ground enough to drop
+     that pairing to 4.47:1, under AA, and so does the cards' own drop shadow.
+     Darkened until muted text survives the darkest ground it can sit on. */
+  --yd-text-muted: #4a6577;
   /* Darkened until each clears 4.5:1 against --yd-bg. The dark theme's teals and
      ambers look right on light backgrounds but sit near 3.5:1, which is not
      readable for the figures this app exists to show. --yd-info needs its own

@@ -30,11 +30,16 @@
   inset: 0;
 }
 
+/* Offsets place the blob's *box*; its bright core is half a box further in.
+   Blob A used to start at left: -8vw, which put its core at roughly x = 273px
+   on a 1440 screen — under the sidebar and the first cell, so the strongest
+   halo in the composition lit nothing but furniture. All three cores now land
+   inside the content column. */
 .yd-atmosphere__blob--a {
   width: var(--yd-blob-a-size);
   height: var(--yd-blob-a-size);
-  top: -12vh;
-  left: -8vw;
+  top: -20vh;
+  left: 20vw;
   filter: blur(40px);
   opacity: 0.12;
 }
@@ -46,7 +51,7 @@
 .yd-atmosphere__blob--b {
   width: var(--yd-blob-b-size);
   height: var(--yd-blob-b-size);
-  top: 34vh;
+  top: 4vh;
   right: -10vw;
   filter: blur(50px);
   opacity: 0.09;
@@ -60,13 +65,37 @@
   width: var(--yd-blob-c-size);
   height: var(--yd-blob-c-size);
   bottom: -14vh;
-  left: 28vw;
+  left: 38vw;
   filter: blur(30px);
   opacity: 0.08;
 }
 
 .yd-atmosphere__blob--c .yd-atmosphere__blob-fill {
   background: radial-gradient(circle, var(--yd-blob-c) 0%, transparent 62%);
+}
+
+/* Dither, painted over the halos and under the app content. A gradient this
+   shallow quantises into visible contour rings on an 8-bit display — measured
+   at one step per 11-15px across blob A, with one 31px plateau. A single tile
+   of fractal noise breaks those steps into speckle the eye reads as smooth.
+   The tile is a data URI and nothing else: the atmosphere must never cost a
+   network request, and an external asset would break that on first paint.
+   `overlay` keeps it out of the way of the dark end — it scales with the
+   backdrop instead of washing the blacks grey the way plain alpha would. */
+.yd-atmosphere__grain {
+  position: absolute;
+  inset: 0;
+  /* Tuned by measurement, not by eye. `overlay` scales its contribution with
+     the backdrop, so on a near-black ground the usual 0.03 does nothing: at
+     0.05 the longest flat run across blob A was still 86px. At 0.12 it is
+     20px, and the noise itself measures a standard deviation of ~1/255 — one
+     quantisation step, which is what dithers a contour without becoming a
+     texture. */
+  opacity: 0.12;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23g)'/%3E%3C/svg%3E");
+  background-repeat: repeat;
+  background-size: 200px 200px;
 }
 
 /* Ambient, not decorative: the travel is a few percent of the viewport over

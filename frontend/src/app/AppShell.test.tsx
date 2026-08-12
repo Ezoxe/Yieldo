@@ -1,3 +1,7 @@
+import { readFileSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -192,5 +196,49 @@ describe("AppShell", () => {
       await user.click(getToggle());
       expect(getNavs()).toHaveLength(2);
     });
+  });
+});
+
+// jsdom applies no stylesheets, so these read the CSS as text (comments
+// stripped, so prose naming a property cannot satisfy an assertion). The shell
+// is chrome, not data: it has to let the atmosphere through, and an opaque
+// surface here is invisible in a mounted test and obvious on screen.
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const shellCss = readFileSync(path.resolve(__dirname, "./AppShell.css"), "utf8").replace(
+  /\/\*[\s\S]*?\*\//g,
+  "",
+);
+
+function ruleBody(selector: string): string {
+  const match = new RegExp(`${selector.replace(/[.[\]="']/g, "\\$&")}\\s*\\{([^}]*)\\}`).exec(
+    shellCss,
+  );
+  expect(match, `rule not found in AppShell.css: ${selector}`).not.toBeNull();
+  return (match as RegExpExecArray)[1];
+}
+
+describe("AppShell.css", () => {
+  for (const selector of [".yd-shell__sidebar", ".yd-shell__header"]) {
+    it(`${selector} is translucent, so the atmosphere survives behind it`, () => {
+      const body = ruleBody(selector);
+      expect(body).toMatch(/background:\s*var\(--yd-surface\)\s*;/);
+      expect(body).toMatch(/backdrop-filter:\s*blur\(var\(--yd-glass-blur\)\)/);
+      // --yd-surface-strong is opaque in both themes; it is what hid the layer.
+      expect(body).not.toMatch(/--yd-surface-strong/);
+    });
+  }
+
+  it("the active nav pill does not use the same surface as the sidebar it sits on", () => {
+    const sidebar = ruleBody(".yd-shell__sidebar");
+    const active = ruleBody('.yd-shell__sidebar a[aria-current="page"]');
+    const surfaceOf = (body: string) => /background:\s*var\((--yd-[\w-]+)\)/.exec(body)?.[1];
+    expect(surfaceOf(active)).toBeDefined();
+    expect(surfaceOf(active)).not.toBe(surfaceOf(sidebar));
+  });
+
+  it("the drawer stays legible over the scrim with its own raised surface", () => {
+    expect(ruleBody(".yd-shell__sidebar--drawer")).toMatch(
+      /background:\s*var\(--yd-surface-raised\)\s*;/,
+    );
   });
 });

@@ -31,6 +31,12 @@
   font: inherit;
 }
 
+/* Chrome, not data. The plan reserves backdrop-filter for floating surfaces and
+   keeps data surfaces opaque; the sidebar and the header carry navigation, not
+   figures, so they are exactly the floating case. Painting them with the opaque
+   --yd-surface-strong killed the atmosphere behind 232px of the screen and the
+   whole header strip, which is why the background read as a band of colour
+   rather than an environment. */
 .yd-shell__sidebar {
   display: flex;
   flex-direction: column;
@@ -38,7 +44,9 @@
   width: 232px;
   flex-shrink: 0;
   padding: 24px 14px;
-  background: var(--yd-surface-strong);
+  background: var(--yd-surface);
+  backdrop-filter: blur(var(--yd-glass-blur)) saturate(var(--yd-glass-saturate));
+  -webkit-backdrop-filter: blur(var(--yd-glass-blur)) saturate(var(--yd-glass-saturate));
   border-right: 1px solid var(--yd-border);
 }
 
@@ -60,13 +68,15 @@
   transition: background-color var(--yd-motion-fast) var(--yd-ease), color var(--yd-motion-fast) var(--yd-ease);
 }
 
+/* --yd-surface-raised, not --yd-surface: the sidebar itself is now painted with
+   --yd-surface, so the old value made the active pill vanish into it. */
 .yd-shell__sidebar a:hover {
-  background: var(--yd-surface);
+  background: var(--yd-surface-raised);
   color: var(--yd-text);
 }
 
 .yd-shell__sidebar a[aria-current="page"] {
-  background: var(--yd-surface);
+  background: var(--yd-surface-raised);
   color: var(--yd-accent);
   font-weight: 600;
 }
@@ -77,8 +87,12 @@
   z-index: 40;
 }
 
+/* The drawer floats over the page rather than over the atmosphere, so it takes
+   the raised surface instead of the sidebar's: at --yd-surface's alpha the
+   transactions table showed straight through the nav labels. */
 .yd-shell__sidebar--drawer {
   height: 100%;
+  background: var(--yd-surface-raised);
   box-shadow: var(--yd-shadow);
 }
 
@@ -102,6 +116,9 @@
   justify-content: flex-end;
   gap: 16px;
   padding: 14px 24px;
+  background: var(--yd-surface);
+  backdrop-filter: blur(var(--yd-glass-blur)) saturate(var(--yd-glass-saturate));
+  -webkit-backdrop-filter: blur(var(--yd-glass-blur)) saturate(var(--yd-glass-saturate));
   border-bottom: 1px solid var(--yd-border);
 }
 

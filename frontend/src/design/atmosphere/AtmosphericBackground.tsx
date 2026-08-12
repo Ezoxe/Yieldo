@@ -25,6 +25,10 @@ export function AtmosphericBackground() {
           <div className="yd-atmosphere__blob-fill" />
         </div>
       ))}
+      {/* Last, so it dithers the halos rather than sitting under them. Static:
+          animated grain is a texture the eye tracks, which is the opposite of
+          what this layer is for. */}
+      <div className="yd-atmosphere__grain" />
     </div>
   );
 }

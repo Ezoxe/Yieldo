@@ -86,7 +86,13 @@
 
 :root[data-theme="light"] {
   color-scheme: light;
-  --yd-bg: #f2f7f9;
+  /* Deeper than the #f2f7f9 the phase-1.5 brief started from. At that value the
+     white cards had nothing to sit on: measured across the whole screen the
+     ground spanned L 0.856-0.902 while a --yd-surface-strong card sat at 1.0,
+     so the page read as one white form and the halos only ever darkened it.
+     This is the ground the cards are raised off, and it backs the gradient
+     during load. */
+  --yd-bg: #e9f1f3;
   --yd-bg-mesh-a: #d8eef0;
   --yd-bg-mesh-b: #eaf3f6;
   --yd-surface: rgba(255, 255, 255, 0.66);
@@ -95,11 +101,15 @@
   --yd-border: rgba(15, 60, 74, 0.14);
   --yd-border-strong: rgba(15, 60, 74, 0.26);
   --yd-text: #0d2029;
-  /* Was #557184, which cleared a flat --yd-bg by only 4.76:1 — no margin at all.
-     Measured on screen, the atmosphere's halo darkens the ground enough to drop
-     that pairing to 4.47:1, under AA, and so does the cards' own drop shadow.
-     Darkened until muted text survives the darkest ground it can sit on. */
-  --yd-text-muted: #4a6577;
+  /* Darkened twice, both times to survive the ground rather than to look right
+     in isolation. #557184 cleared a flat --yd-bg by only 4.76:1, and the halo
+     plus a card's drop shadow took it to 4.47:1 on screen; #4a6577 fixed that,
+     then deepening the ground took the worst pixel back to 4.46:1. This value
+     clears the darkest ground measured anywhere on any captured screen — the
+     16px gutter at 375 where two cards' drop shadows stack over a halo, L
+     0.6479 — at 4.62:1, so no exposed pixel of the light theme is below AA for
+     muted text, whether or not text could actually land on it. */
+  --yd-text-muted: #435d6c;
   /* Darkened until each clears 4.5:1 against --yd-bg. The dark theme's teals and
      ambers look right on light backgrounds but sit near 3.5:1, which is not
      readable for the figures this app exists to show. --yd-info needs its own
@@ -117,11 +127,13 @@
   --yd-scrim: rgba(13, 32, 41, 0.32);
   /* Same atmosphere, inverted: a pale wash instead of a deep one. The blob
      tints are the light theme's own darkened teals, since the dark theme's
-     bright teals vanish against a near-white ground. */
-  --yd-bg-gradient: linear-gradient(155deg, #eef6f8 0%, #f2f7f9 48%, #e9f2f5 100%);
-  --yd-blob-a: rgba(11, 109, 99, 0.55);
-  --yd-blob-b: rgba(29, 78, 216, 0.4);
-  --yd-blob-c: rgba(14, 113, 80, 0.42);
+     bright teals vanish against a near-white ground — and they are raised now
+     that the ground is deep enough to show them. Figure and ground: the cards
+     are the figure, this is the ground, and the two have to differ. */
+  --yd-bg-gradient: linear-gradient(155deg, #e3eef1 0%, #ecf3f5 46%, #dde9ee 100%);
+  --yd-blob-a: rgba(11, 109, 99, 0.78);
+  --yd-blob-b: rgba(29, 78, 216, 0.55);
+  --yd-blob-c: rgba(14, 113, 80, 0.58);
 }
 
 @media (prefers-reduced-motion: reduce) {

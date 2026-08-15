@@ -7,7 +7,7 @@ import { BentoCell } from "../../design/bento/BentoCell";
 import { BentoGrid } from "../../design/bento/BentoGrid";
 import type { BentoSpan } from "../../design/bento/BentoCell";
 import { useReducedMotion } from "../../design/motion/useReducedMotion";
-import { entryProps, fadeInUp, inViewStaggerProps } from "../../design/motion/variants";
+import { entryProps, fadeInUp, fadeInUpDelayed, inViewStaggerProps } from "../../design/motion/variants";
 import { DashboardPreview } from "./DashboardPreview";
 import {
   BankOffIcon,
@@ -212,10 +212,13 @@ export function LandingPage() {
               {...(reducedMotion
                 ? {}
                 : {
-                    variants: fadeInUp,
+                    // fadeInUpDelayed, not fadeInUp with a `transition` prop: the
+                    // variant's own transition wins once it declares one, so a
+                    // sibling `transition` prop here is silently ignored and the
+                    // 120ms stagger behind the copy never happens.
+                    variants: fadeInUpDelayed,
                     initial: "hidden" as const,
                     animate: "visible" as const,
-                    transition: { delay: 0.12 },
                   })}
             >
               <DashboardPreview />

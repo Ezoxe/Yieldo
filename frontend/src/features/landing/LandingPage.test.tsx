@@ -1,9 +1,37 @@
 import { render, screen, within } from "@testing-library/react";
+import type { ComponentProps } from "react";
 import { MemoryRouter } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { formatCents } from "../../design/theme";
 import { LandingPage } from "./LandingPage";
+
+// Captures the actual props LandingPage passes to each `motion.div`, keyed by
+// its className. A test that only checked for a `transition` prop's presence
+// would pass on the very bug it exists to catch: Motion ignores a component's
+// `transition` prop whenever the resolved variant already declares one, so
+// the only trustworthy read is the resolved variant's own `visible.transition`
+// -- what Motion actually consults, not what merely sits beside it.
+const { capturedMotionDivs } = vi.hoisted(() => ({
+  capturedMotionDivs: [] as Array<Record<string, unknown>>,
+}));
+
+vi.mock("motion/react", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("motion/react")>();
+  const RealDiv = actual.motion.div;
+  return {
+    ...actual,
+    motion: new Proxy(actual.motion, {
+      get(target, prop, receiver) {
+        if (prop !== "div") return Reflect.get(target, prop, receiver);
+        return function CapturingMotionDiv(props: ComponentProps<typeof RealDiv>) {
+          capturedMotionDivs.push({ ...props });
+          return <RealDiv {...props} />;
+        };
+      },
+    }),
+  };
+});
 
 function mockReducedMotion(reduced: boolean) {
   Object.defineProperty(window, "matchMedia", {
@@ -30,6 +58,7 @@ function renderLanding() {
 
 beforeEach(() => {
   mockReducedMotion(true);
+  capturedMotionDivs.length = 0;
 });
 
 describe("LandingPage structure", () => {
@@ -176,5 +205,33 @@ describe("LandingPage product preview", () => {
     for (const row of rows) {
       expect(row.querySelector(".yd-preview__category-value")?.textContent).toMatch(/^−/);
     }
+  });
+});
+
+describe("LandingPage hero stagger", () => {
+  // The brief's "entry stagger on the hero" has to be produced by the resolved
+  // variant Motion actually consults, not by a `transition` prop sitting next
+  // to a variant that already declares its own -- Motion resolves the
+  // variant's transition first and never falls back to the prop in that case.
+  // Reduced motion has to be off here: under it both elements render with no
+  // motion props at all, which would make the stagger vacuously "present".
+  it("gives the preview a resolved delay the copy does not have", () => {
+    mockReducedMotion(false);
+    renderLanding();
+
+    const copy = capturedMotionDivs.find(
+      (props) => props.className === "yd-landing__hero-copy",
+    ) as { variants?: { visible?: { transition?: { delay?: number } } } } | undefined;
+    const preview = capturedMotionDivs.find(
+      (props) => props.className === "yd-landing__hero-preview",
+    ) as { variants?: { visible?: { transition?: { delay?: number } } } } | undefined;
+    expect(copy).toBeDefined();
+    expect(preview).toBeDefined();
+
+    const copyDelay = copy?.variants?.visible?.transition?.delay ?? 0;
+    const previewDelay = preview?.variants?.visible?.transition?.delay ?? 0;
+
+    expect(previewDelay).toBeCloseTo(0.12);
+    expect(previewDelay).toBeGreaterThan(copyDelay);
   });
 });

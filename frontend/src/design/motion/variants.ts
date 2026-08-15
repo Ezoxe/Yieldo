@@ -13,6 +13,25 @@ export const fadeInUp: Variants = {
   visible: { opacity: 1, y: 0, transition: { duration: 0.34, ease: SIGNATURE_EASE } },
 };
 
+/**
+ * {@link fadeInUp}, staggered 120ms behind whatever else uses `fadeInUp` in
+ * the same view (the hero's product preview, arriving just after its copy).
+ *
+ * A `transition` prop on a `motion.*` element does nothing once its variant
+ * already declares one: Motion resolves `resolvedVariant.transition` first
+ * and only falls back to the component's `transition` prop when the variant
+ * has none. `fadeInUp.visible` always carries a transition, so the delay has
+ * to live inside the variant passed to `variants`, not beside it in a prop.
+ */
+export const fadeInUpDelayed: Variants = {
+  hidden: { opacity: 0, y: 14 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.34, ease: SIGNATURE_EASE, delay: 0.12 },
+  },
+};
+
 export const staggerChildren: Variants = {
   hidden: {},
   visible: { transition: { staggerChildren: 0.05, delayChildren: 0.04 } },

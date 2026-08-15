@@ -4,7 +4,16 @@ import { MemoryRouter } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ThemeProvider } from "../../app/ThemeProvider";
-import { OverviewPage } from "./OverviewPage";
+import { formatCents } from "../../design/theme";
+import { coveredRangeLabel, OverviewPage } from "./OverviewPage";
+
+// getByText compares against the DOM's *normalized* text content but does not
+// normalize the string it is given, and formatCents uses narrow/no-break
+// spaces. Collapsing the expected value keeps the assertion honest without
+// hand-typing invisible Unicode.
+function normalized(value: string): string {
+  return value.replace(/\s+/g, " ");
+}
 
 // OverviewPage's own responsibility is fetching, period selection, error
 // surfacing and empty states -- each chart's rendering is already covered by
@@ -135,6 +144,35 @@ function renderPage() {
   );
 }
 
+/** The full span signature of every bento cell, in document order. */
+function cellSpans(container: HTMLElement): string[] {
+  return Array.from(container.querySelectorAll<HTMLElement>(".yd-bento__cell")).map((cell) =>
+    (["base", "md", "lg"] as const)
+      .map((key) => cell.style.getPropertyValue(`--yd-cell-span-${key}`))
+      .concat(cell.style.getPropertyValue("--yd-cell-rows"))
+      .join("/"),
+  );
+}
+
+describe("coveredRangeLabel", () => {
+  const range = (from: string, to: string) =>
+    coveredRangeLabel({ ...summary, date_from: from, date_to: to } as never);
+
+  it("writes the first of the month as 1er, the way French does", () => {
+    expect(range("2025-03-01", "2025-03-31")).toBe("Du 1er mars 2025 au 31 mars 2025");
+  });
+
+  it("leaves every other day a bare numeral", () => {
+    expect(range("2025-01-24", "2026-01-09")).toBe("Du 24 janvier 2025 au 9 janvier 2026");
+  });
+
+  it("reads the dates in UTC, so a date never slips a day on a western timezone", () => {
+    // Parsed as UTC midnight: read in local time west of Greenwich this would
+    // render as the 31st of the previous month.
+    expect(range("2025-12-01", "2025-12-01")).toBe("Du 1er décembre 2025 au 1er décembre 2025");
+  });
+});
+
 describe("OverviewPage", () => {
   it("loads and shows the four headline stat tiles", async () => {
     setupFetch();
@@ -235,6 +273,89 @@ describe("OverviewPage", () => {
     const calledUrl = new URL(String(summaryCall?.[0]), "http://localhost");
     const currentYear = new Date().getUTCFullYear();
     expect(calledUrl.searchParams.get("date_from")).toBe(`${currentYear}-01-01`);
+  });
+
+  it("gives the net balance the hero cell — the largest area on the grid", async () => {
+    setupFetch();
+    const { container } = renderPage();
+    await screen.findByText("Entrées");
+
+    const hero = container.querySelector<HTMLElement>(".yd-hero");
+    expect(hero, "no hero cell on the dashboard").not.toBeNull();
+    expect(hero).toHaveClass("yd-bento__cell");
+    expect(hero?.style.getPropertyValue("--yd-cell-span-lg")).toBe("6");
+    expect(hero?.style.getPropertyValue("--yd-cell-rows")).toBe("2");
+
+    // Hierarchy is area: no other cell may cover more of the 12-column grid.
+    const areas = Array.from(container.querySelectorAll<HTMLElement>(".yd-bento__cell")).map(
+      (cell) =>
+        Number(cell.style.getPropertyValue("--yd-cell-span-lg")) *
+        Number(cell.style.getPropertyValue("--yd-cell-rows")),
+    );
+    const heroArea = 6 * 2;
+    expect(Math.max(...areas)).toBe(heroArea);
+  });
+
+  it("states the net figure, its comparison delta and the period it covers in the hero", async () => {
+    setupFetch();
+    renderPage();
+    await screen.findByText("Entrées");
+
+    const hero = screen.getByRole("status", { name: formatCents(80000, { signed: true }) });
+    expect(hero).toBeInTheDocument();
+    expect(screen.getByText(normalized(formatCents(20000, { signed: true })))).toBeInTheDocument();
+    // The range comes from the summary the backend actually answered with,
+    // never from the requested bounds -- the two differ on the "Tout" preset.
+    expect(screen.getByText(/1er mars 2025 au 31 mars 2025/)).toBeInTheDocument();
+  });
+
+  it("says so rather than printing a zero when the net balance is unavailable", async () => {
+    setupFetch({ summary: () => jsonResponse({ detail: "Résumé indisponible." }, 500) });
+    const { container } = renderPage();
+    await screen.findByRole("alert");
+
+    expect(container.querySelector(".yd-hero")).toBeNull();
+  });
+
+  it("lays the loading skeletons on the same cells, at the same spans, as the loaded content", async () => {
+    setupFetch();
+    const { container } = renderPage();
+
+    const whileLoading = cellSpans(container);
+    expect(whileLoading.length).toBeGreaterThan(0);
+
+    await screen.findByText("Entrées");
+    // Identical cell-for-cell: anything else and the grid reflows the moment
+    // the data lands, which is the jump this layout exists to avoid.
+    expect(cellSpans(container)).toEqual(whileLoading);
+  });
+
+  it("keeps the error banner above the grid instead of inside it", async () => {
+    setupFetch({ series: () => jsonResponse({ detail: "Série indisponible." }, 500) });
+    const { container } = renderPage();
+    const alert = await screen.findByRole("alert");
+
+    const grid = container.querySelector(".yd-bento");
+    expect(grid).not.toBeNull();
+    expect(alert.closest(".yd-bento")).toBeNull();
+    expect(
+      alert.compareDocumentPosition(grid as Node) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it("places the empty state on the grid rather than beside it", async () => {
+    setupFetch({
+      summary: () => jsonResponse({ ...summary, transaction_count: 0, inflow_cents: 0, outflow_cents: 0, net_cents: 0 }),
+      series: () => jsonResponse([]),
+      categoriesBreakdown: () => jsonResponse([]),
+      calendar: () => jsonResponse([]),
+    });
+    const { container } = renderPage();
+    await screen.findByText(/Aucune transaction/i);
+
+    const empty = container.querySelector(".yd-overview__empty");
+    expect(empty).toHaveClass("yd-bento__cell");
+    expect(empty?.closest(".yd-bento")).not.toBeNull();
   });
 
   it("carries the currently selected period across when linking to the transactions view", async () => {

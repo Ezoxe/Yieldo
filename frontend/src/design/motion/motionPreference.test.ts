@@ -57,7 +57,9 @@ describe("stylesheets respond to data-motion=\"off\"", () => {
   // a hover jump the element. These are the rules that hold it still.
   it.each([
     ["../bento/Bento.css", ".yd-bento__cell--interactive:hover", /translate:\s*none/],
-    ["../glass/GlassCard.css", ".yd-glass--interactive:hover", /transform:\s*none/],
+    // `translate`, not `transform`: the lift itself moved to the independent
+    // property so that Motion's inline `transform: none` stops killing it.
+    ["../glass/GlassCard.css", ".yd-glass--interactive:hover", /translate:\s*none/],
     [
       "../../features/import/ImportPage.css",
       ".yd-dropzone[data-over]",

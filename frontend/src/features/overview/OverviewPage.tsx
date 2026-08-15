@@ -1,3 +1,4 @@
+import { motion } from "motion/react";
 import { useEffect, useState, type ReactNode } from "react";
 import { Link } from "react-router";
 
@@ -5,7 +6,12 @@ import { CashflowChart } from "../../charts/CashflowChart";
 import { buildCategoryTreemapItems, CategoryTreemap } from "../../charts/CategoryTreemap";
 import { SpendingCalendar } from "../../charts/SpendingCalendar";
 import { WaterfallChart } from "../../charts/WaterfallChart";
-import { GlassCard } from "../../design/glass/GlassCard";
+import { BentoCell, type BentoSpan } from "../../design/bento/BentoCell";
+import { BentoGrid } from "../../design/bento/BentoGrid";
+import { CountUp } from "../../design/CountUp";
+import { useReducedMotion } from "../../design/motion/useReducedMotion";
+import { entryProps, staggerProps } from "../../design/motion/variants";
+import { formatCents } from "../../design/theme";
 import { useTheme } from "../../app/ThemeProvider";
 import { ApiError, api } from "../../lib/api";
 import type { CalendarPoint, Category, CategoryBreakdown, Granularity, SeriesBucket, Summary } from "../../lib/types";
@@ -49,6 +55,25 @@ function formatPercent(ratio: number): string {
   return `${(ratio * 100).toLocaleString("fr-FR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} %`;
 }
 
+// French writes the first of the month "1er"; every other day is a bare
+// numeral. Intl has no option for it, so the ordinal is applied here.
+function frenchDate(iso: string): string {
+  const date = new Date(`${iso}T00:00:00Z`);
+  const day = date.getUTCDate();
+  const rest = date.toLocaleDateString("fr-FR", { month: "long", year: "numeric", timeZone: "UTC" });
+  return `${day === 1 ? "1er" : day} ${rest}`;
+}
+
+/**
+ * The range the summary actually covers, which is not always the range that
+ * was asked for: the "Tout" preset sends no bounds at all and the backend
+ * answers with the span of the data itself. The hero states what it is
+ * showing, so it has to read the answer, never the request.
+ */
+export function coveredRangeLabel(summary: Summary): string {
+  return `Du ${frenchDate(summary.date_from)} au ${frenchDate(summary.date_to)}`;
+}
+
 interface LoadErrors {
   summary?: string;
   series?: string;
@@ -57,17 +82,137 @@ interface LoadErrors {
   reference?: string;
 }
 
-function StatTileSkeleton() {
-  return <div className="yd-skeleton yd-skeleton--tile" aria-hidden="true" />;
+/**
+ * One source of truth for the shape of the dashboard. The loading skeletons
+ * and the loaded content are laid on the *same* cells at the same spans, so
+ * nothing on the page moves when the data lands.
+ *
+ * Hierarchy is area. The net balance is the largest cell on the grid (6 x 2)
+ * and the cash-flow chart matches it beside it; the three remaining figures
+ * form a band of thirds below; the wide charts close the page.
+ */
+const SPAN = {
+  // 6 of 12 and two rows tall: the biggest single area on the page.
+  hero: { base: 1, md: 6, lg: 6 },
+  cashflow: { base: 1, md: 6, lg: 6 },
+  stat: { base: 1, md: 2, lg: 4 },
+  treemap: { base: 1, md: 6, lg: 5 },
+  waterfall: { base: 1, md: 6, lg: 7 },
+  // Full width, and not the 5 columns the plan sketched: this is a 53-week
+  // strip drawn at a fixed 16px cell, so anything under ~850px clips the back
+  // half of the year off the right edge. Its natural aspect is ~7:1 -- a wide
+  // short band is the shape it wants, and the shape it now gets.
+  calendar: { base: 1, md: 6, lg: 12 },
+  emptyState: { base: 1, md: 6, lg: 12 },
+} satisfies Record<string, BentoSpan>;
+
+/** The hero and the cash-flow chart share the two-row band at the top. */
+const TOP_BAND_ROWS = 2;
+
+type SkeletonVariant =
+  | "label"
+  | "title"
+  | "value"
+  | "hero-value"
+  | "meta"
+  | "chart"
+  | "chart-tall"
+  | "chart-short";
+
+function Skeleton({ variant }: { variant: SkeletonVariant }) {
+  return <div className={`yd-skeleton yd-skeleton--${variant}`} aria-hidden="true" />;
 }
 
-function ChartSkeleton() {
-  return <div className="yd-skeleton yd-skeleton--chart" aria-hidden="true" />;
+/**
+ * The same grid as the loaded dashboard, cell for cell. Deliberately not
+ * animated: skeletons are a placeholder for content that has not arrived, and
+ * staggering their entry would animate the wait itself.
+ */
+function DashboardSkeleton() {
+  // role="status" so the wait is announced once rather than being silence for
+  // a screen reader; the bars themselves are aria-hidden decoration.
+  return (
+    <BentoGrid role="status" aria-busy="true" aria-label="Chargement du tableau de bord">
+      <BentoCell span={SPAN.hero} rows={TOP_BAND_ROWS} className="yd-hero">
+        <Skeleton variant="label" />
+        <Skeleton variant="hero-value" />
+        <Skeleton variant="meta" />
+      </BentoCell>
+
+      <BentoCell span={SPAN.cashflow} rows={TOP_BAND_ROWS} className="yd-panel">
+        <Skeleton variant="title" />
+        <Skeleton variant="chart" />
+      </BentoCell>
+
+      {["entrees", "sorties", "epargne"].map((key) => (
+        <BentoCell span={SPAN.stat} key={key}>
+          {/* The real tile's own class, so the pair of bars is centred and
+              spaced exactly as the label and figure that replace them. */}
+          <div className="yd-stat-tile">
+            <Skeleton variant="label" />
+            <Skeleton variant="value" />
+          </div>
+        </BentoCell>
+      ))}
+
+      <BentoCell span={SPAN.treemap} className="yd-panel">
+        <Skeleton variant="title" />
+        <Skeleton variant="chart-tall" />
+      </BentoCell>
+
+      <BentoCell span={SPAN.waterfall} className="yd-panel">
+        <Skeleton variant="title" />
+        <Skeleton variant="chart-tall" />
+      </BentoCell>
+
+      <BentoCell span={SPAN.calendar} className="yd-panel">
+        <Skeleton variant="title" />
+        <Skeleton variant="chart-short" />
+      </BentoCell>
+    </BentoGrid>
+  );
+}
+
+/**
+ * The net balance, at display size. Red only when the balance is actually
+ * negative -- the app reserves it for something being wrong, never for "this
+ * is an expense", so a positive net stays in the plain text colour rather
+ * than turning the largest element on the page green.
+ */
+function NetHero({ summary, reduced }: { summary: Summary; reduced: boolean }) {
+  const net = summary.net_cents;
+  const delta = summary.comparison.delta_cents;
+  const toneClass = net < 0 ? " yd-hero__value--negative" : "";
+
+  return (
+    <BentoCell
+      as={motion.div}
+      span={SPAN.hero}
+      rows={TOP_BAND_ROWS}
+      className="yd-hero"
+      {...entryProps(reduced)}
+    >
+      <span className="yd-hero__label">Solde net</span>
+      <CountUp
+        value={net}
+        format={(cents) => formatCents(cents, { signed: true })}
+        className={`yd-hero__value${toneClass}`}
+      />
+      <div className="yd-hero__meta">
+        <span className={`yd-hero__delta yd-hero__delta--${delta >= 0 ? "good" : "bad"}`}>
+          {formatCents(delta, { signed: true })}
+          <span className="yd-hero__delta-note"> par rapport à la période précédente</span>
+        </span>
+        <p className="yd-hero__range">{coveredRangeLabel(summary)}</p>
+      </div>
+    </BentoCell>
+  );
 }
 
 export function OverviewPage() {
   const period = usePeriod();
   const { resolved } = useTheme();
+  const reduced = useReducedMotion();
 
   const [summary, setSummary] = useState<Summary | null>(null);
   const [series, setSeries] = useState<SeriesBucket[]>([]);
@@ -166,73 +311,78 @@ export function OverviewPage() {
 
   let body: ReactNode;
   if (isLoading) {
-    body = (
-      <>
-        <div className="yd-overview__stats">
-          <StatTileSkeleton />
-          <StatTileSkeleton />
-          <StatTileSkeleton />
-          <StatTileSkeleton />
-        </div>
-        <div className="yd-overview__charts">
-          <ChartSkeleton />
-          <ChartSkeleton />
-          <ChartSkeleton />
-        </div>
-      </>
-    );
+    body = <DashboardSkeleton />;
   } else if (isEmptyPeriod) {
     body = (
-      <GlassCard tone="solid" className="yd-overview__empty">
-        <p>Aucune transaction sur cette période.</p>
-        <Link to="/import" className="yd-overview__empty-cta">
-          Importer un relevé
-        </Link>
-      </GlassCard>
+      <BentoGrid as={motion.div} {...staggerProps(reduced)}>
+        <BentoCell
+          as={motion.div}
+          span={SPAN.emptyState}
+          className="yd-overview__empty"
+          {...entryProps(reduced)}
+        >
+          <p>Aucune transaction sur cette période.</p>
+          <Link to="/import" className="yd-overview__empty-cta">
+            Importer un relevé
+          </Link>
+        </BentoCell>
+      </BentoGrid>
     );
   } else {
     const treemapItems = buildCategoryTreemapItems(categoryBreakdown, categories, resolved);
     body = (
-      <>
-        <div className="yd-overview__stats">
+      <BentoGrid as={motion.div} {...staggerProps(reduced)}>
+        {summary ? <NetHero summary={summary} reduced={reduced} /> : null}
+
+        <BentoCell
+          as={motion.div}
+          span={SPAN.cashflow}
+          rows={TOP_BAND_ROWS}
+          className="yd-panel"
+          {...entryProps(reduced)}
+        >
+          <h2 className="yd-panel__title">Flux de trésorerie</h2>
+          <CashflowChart buckets={series} granularity={granularity} />
+        </BentoCell>
+
+        <BentoCell as={motion.div} span={SPAN.stat} {...entryProps(reduced)}>
           <StatTile label="Entrées" valueCents={summary?.inflow_cents ?? null} />
+        </BentoCell>
+
+        <BentoCell as={motion.div} span={SPAN.stat} {...entryProps(reduced)}>
           <StatTile label="Sorties" valueCents={summary?.outflow_cents ?? null} />
-          <StatTile
-            label="Solde net"
-            valueCents={summary?.net_cents ?? null}
-            deltaCents={summary?.comparison.delta_cents}
-          />
+        </BentoCell>
+
+        <BentoCell as={motion.div} span={SPAN.stat} {...entryProps(reduced)}>
           <StatTile
             label="Taux d'épargne"
             valueCents={summary?.savings_rate ?? null}
             format={formatPercent}
           />
-        </div>
+        </BentoCell>
 
-        <div className="yd-overview__charts">
-          <GlassCard tone="solid" className="yd-overview__chart-card">
-            <h2>Flux de trésorerie</h2>
-            <CashflowChart buckets={series} granularity={granularity} />
-          </GlassCard>
+        <BentoCell as={motion.div} span={SPAN.treemap} className="yd-panel" {...entryProps(reduced)}>
+          <h2 className="yd-panel__title">Répartition des dépenses</h2>
+          <CategoryTreemap items={treemapItems} />
+        </BentoCell>
 
-          <GlassCard tone="solid" className="yd-overview__chart-card">
-            <h2>Répartition des dépenses</h2>
-            <CategoryTreemap items={treemapItems} />
-          </GlassCard>
+        {summary ? (
+          <BentoCell
+            as={motion.div}
+            span={SPAN.waterfall}
+            className="yd-panel"
+            {...entryProps(reduced)}
+          >
+            <h2 className="yd-panel__title">Revenus, dépenses et épargne</h2>
+            <WaterfallChart summary={summary} categories={categoryBreakdown} />
+          </BentoCell>
+        ) : null}
 
-          <GlassCard tone="solid" className="yd-overview__chart-card">
-            <h2>Calendrier des dépenses</h2>
-            <SpendingCalendar points={calendarPoints} year={year} />
-          </GlassCard>
-
-          {summary ? (
-            <GlassCard tone="solid" className="yd-overview__chart-card">
-              <h2>Revenus, dépenses et épargne</h2>
-              <WaterfallChart summary={summary} categories={categoryBreakdown} />
-            </GlassCard>
-          ) : null}
-        </div>
-      </>
+        <BentoCell as={motion.div} span={SPAN.calendar} className="yd-panel" {...entryProps(reduced)}>
+          <h2 className="yd-panel__title">Calendrier des dépenses</h2>
+          <SpendingCalendar points={calendarPoints} year={year} />
+        </BentoCell>
+      </BentoGrid>
     );
   }
 
@@ -253,4 +403,3 @@ export function OverviewPage() {
     </section>
   );
 }
-

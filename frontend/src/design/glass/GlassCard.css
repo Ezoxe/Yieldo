@@ -9,7 +9,7 @@
   overflow: hidden;
   transition:
     border-color var(--yd-motion-base) var(--yd-ease),
-    transform var(--yd-motion-base) var(--yd-ease);
+    translate var(--yd-motion-base) var(--yd-ease);
 }
 
 /* The lit top edge is what makes the surface read as a physical pane. */
@@ -35,9 +35,14 @@
   -webkit-backdrop-filter: none;
 }
 
+/* The independent `translate` property, not `transform` — same defect, same
+   fix as Bento.css. A card rendered under a `motion.*` element carries an
+   inline `transform: none` that Motion writes once the entry animation
+   settles, and an inline declaration beats this rule: written as a transform,
+   this lift did nothing at all wherever Motion was involved. */
 .yd-glass--interactive:hover {
   border-color: var(--yd-border-strong);
-  transform: translateY(-2px);
+  translate: 0 -2px;
 }
 
 .yd-glass--interactive:focus-visible {
@@ -69,11 +74,11 @@
     transition: none;
   }
   .yd-glass--interactive:hover {
-    transform: none;
+    translate: none;
   }
 }
 
 /* The in-app Animations switch — see the same twin in Bento.css. */
 :root[data-motion="off"] .yd-glass--interactive:hover {
-  transform: none;
+  translate: none;
 }

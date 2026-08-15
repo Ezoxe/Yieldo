@@ -1,24 +1,31 @@
+/* No padding and no surface of its own: the bento cell around it owns both. */
 .yd-stat-tile {
-  padding: var(--yd-space-md) var(--yd-space-lg);
   display: flex;
   flex-direction: column;
+  /* The bento's minimum row height is taller than a label plus a figure, so
+     without this the pair hangs off the top of the cell with a void beneath. */
+  justify-content: center;
   gap: var(--yd-space-2xs);
+  min-width: 0;
+  height: 100%;
 }
 
 .yd-stat-tile__label {
   color: var(--yd-text-muted);
   font-size: 0.78rem;
   text-transform: uppercase;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.06em;
 }
 
 .yd-stat-tile__value {
+  display: block;
   color: var(--yd-text);
-  font-size: 1.7rem;
+  font-size: clamp(1.35rem, 2vw, 1.7rem);
   font-weight: 600;
-  /* Proportional figures on a large standalone value -- tabular-nums would
-     give every digit the width of a "0" and read loose at display size. */
-  font-variant-numeric: proportional-nums;
+  /* Tabular, inherited from .yd-num, and NOT overridden back to
+     proportional-nums as it once was: this value is animated by CountUp, and
+     proportional digits change width as they tick, which makes the whole
+     figure shiver horizontally for the length of the count. */
 }
 
 .yd-stat-tile__unavailable {

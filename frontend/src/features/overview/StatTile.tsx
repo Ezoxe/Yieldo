@@ -1,5 +1,4 @@
 import { CountUp } from "../../design/CountUp";
-import { GlassCard } from "../../design/glass/GlassCard";
 import { formatCents } from "../../design/theme";
 import "./StatTile.css";
 
@@ -50,6 +49,13 @@ function Sparkline({ values }: { values: number[] }) {
   );
 }
 
+// Renders the tile's *contents* only: on the dashboard the surface is the
+// bento cell around it (opaque, hairline, shadow), so a card of its own here
+// would nest one surface inside another. It also used to be a GlassCard
+// marked `interactive`, which put a pointer cursor and a hover lift on a
+// plain div nothing could click or focus -- an affordance that promised
+// something the tile never did.
+//
 // Never renders a zero standing in for an unknown: when valueCents is null
 // (e.g. a savings rate with no income to divide by) the tile says so in
 // words instead of showing a number -- and a delta against an unknown
@@ -59,7 +65,7 @@ export function StatTile({ label, valueCents, deltaCents, sparkline, format = fo
   const deltaGood = deltaCents !== undefined && deltaCents >= 0;
 
   return (
-    <GlassCard tone="solid" interactive className="yd-stat-tile">
+    <div className="yd-stat-tile">
       <span className="yd-stat-tile__label">{label}</span>
       {unavailable ? (
         <p className="yd-stat-tile__unavailable">Donnée indisponible</p>
@@ -74,6 +80,6 @@ export function StatTile({ label, valueCents, deltaCents, sparkline, format = fo
           {sparkline && sparkline.length > 1 ? <Sparkline values={sparkline} /> : null}
         </>
       )}
-    </GlassCard>
+    </div>
   );
 }

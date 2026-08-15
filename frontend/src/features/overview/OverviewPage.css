@@ -15,7 +15,8 @@
 
 .yd-overview h1 {
   margin: 0;
-  font-size: 1.4rem;
+  font-size: clamp(1.4rem, 2.2vw, 1.75rem);
+  letter-spacing: -0.015em;
   color: var(--yd-text);
 }
 
@@ -40,47 +41,114 @@
   font-size: 0.9rem;
 }
 
-.yd-overview__stats {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: var(--yd-space-md);
-}
+/* Panels ---------------------------------------------------------------- */
 
-.yd-overview__charts {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: var(--yd-space-lg);
-}
-
-.yd-overview__chart-card {
-  padding: var(--yd-space-lg);
+/* A chart cell. The surface, radius, border and shadow all come from
+   .yd-bento__cell -- this only stacks the title above the chart. */
+.yd-panel {
   display: flex;
   flex-direction: column;
   gap: var(--yd-space-sm);
 }
 
-.yd-overview__chart-card h2 {
+.yd-panel__title {
   margin: 0;
-  font-size: 1rem;
+  font-size: 0.95rem;
+  /* Pinned, not inherited: the skeleton bar standing in for this title is
+     sized off the same two numbers, and a global line-height change would
+     otherwise silently reintroduce the layout jump between the two states. */
+  line-height: 1.5;
+  font-weight: 600;
+  letter-spacing: -0.005em;
   color: var(--yd-text);
 }
 
-@media (min-width: 960px) {
-  .yd-overview__charts {
-    grid-template-columns: 1fr 1fr;
-  }
+/* Hero ------------------------------------------------------------------ */
 
-  .yd-overview__charts > :first-child {
-    grid-column: 1 / -1;
-  }
+/* The largest cell on the grid. space-between spreads label / figure / meta
+   across the two rows it spans instead of stacking them against the top.
+
+   A container, so the figure below can be sized against the cell it lives in
+   rather than against the viewport: at 1200px the sidebar leaves this cell
+   ~400px of usable width while `vw` still reads 1200, and a viewport-sized
+   figure overflowed it. */
+.yd-hero {
+  container-type: inline-size;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: var(--yd-space-md);
 }
+
+.yd-hero__label {
+  color: var(--yd-text-muted);
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+/* Display size, mono, tabular (inherited from .yd-num). 12cqw keeps a
+   12-glyph amount ("−12 345,67 €", the widest this app can produce before the
+   figure would be absurd) inside the cell at every breakpoint: Geist Mono's
+   advance width is 0.6em, so 12 glyphs occupy 12 x 0.6 x 12% = 86% of the
+   cell. The floor keeps it a display figure on a 375px screen. */
+.yd-hero__value {
+  display: block;
+  font-family: var(--yd-font-mono);
+  font-size: clamp(2.1rem, 12cqw, 4rem);
+  line-height: 1.05;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--yd-text);
+}
+
+/* Red is reserved for something being wrong. A negative net balance is one. */
+.yd-hero__value--negative {
+  color: var(--yd-negative);
+}
+
+.yd-hero__meta {
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-2xs);
+}
+
+.yd-hero__delta {
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.yd-hero__delta--good {
+  color: var(--yd-positive);
+}
+
+.yd-hero__delta--bad {
+  color: var(--yd-negative);
+}
+
+/* The qualifier is context, not a figure: it stays in the muted text colour
+   so the signed amount beside it keeps the emphasis. */
+.yd-hero__delta-note {
+  color: var(--yd-text-muted);
+  font-weight: 400;
+  font-size: 0.85rem;
+}
+
+.yd-hero__range {
+  margin: 0;
+  color: var(--yd-text-muted);
+  font-size: 0.82rem;
+}
+
+/* Empty period ---------------------------------------------------------- */
 
 .yd-overview__empty {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
+  justify-content: center;
   gap: var(--yd-space-sm);
-  padding: var(--yd-space-xl);
+  min-height: 180px;
 }
 
 .yd-overview__empty p {
@@ -100,18 +168,61 @@
 
 /* Skeletons ------------------------------------------------------------- */
 
+/* Each variant stands in for one real block and is sized to the *line box*
+   that block occupies -- font-size x line-height, not font-size -- so the
+   grid tracks resolve identically before and after the data lands. Measured
+   in a browser: sizing these to the bare font-size left the chart cells 8px
+   short, and every row below them slid up by that much when the data landed. */
 .yd-skeleton {
   position: relative;
   overflow: hidden;
+  border-radius: var(--yd-radius-sm);
   background: var(--yd-surface-raised);
 }
 
-.yd-skeleton--tile {
-  height: 108px;
+/* .yd-stat-tile__label / .yd-hero__label, at the inherited line-height 1.5. */
+.yd-skeleton--label {
+  height: calc(0.78rem * 1.5);
+  width: 42%;
 }
 
+/* .yd-panel__title. */
+.yd-skeleton--title {
+  height: calc(0.95rem * 1.5);
+  width: 38%;
+}
+
+/* .yd-stat-tile__value. */
+.yd-skeleton--value {
+  height: calc(clamp(1.35rem, 2vw, 1.7rem) * 1.5);
+  width: 68%;
+}
+
+/* .yd-hero__value, which sets its own tighter line-height. */
+.yd-skeleton--hero-value {
+  height: calc(clamp(2.1rem, 12cqw, 4rem) * 1.05);
+  width: 80%;
+}
+
+/* .yd-hero__meta: the delta line and the range line, plus the gap between. */
+.yd-skeleton--meta {
+  height: calc(0.95rem * 1.5 + 0.82rem * 1.5 + var(--yd-space-2xs));
+  width: 60%;
+}
+
+/* CashflowChart's own height. */
 .yd-skeleton--chart {
   height: 340px;
+}
+
+/* CategoryTreemap's and WaterfallChart's. */
+.yd-skeleton--chart-tall {
+  height: 360px;
+}
+
+/* SpendingCalendar's. */
+.yd-skeleton--chart-short {
+  height: 220px;
 }
 
 .yd-skeleton::after {

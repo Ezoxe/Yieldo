@@ -1,0 +1,250 @@
+/* The hero's miniature dashboard. Same tokens as the real screens, at a
+   smaller scale — it has to read as the product, not as an illustration of it.
+   Every figure it shows is fabricated; the caption at the bottom says so. */
+
+.yd-preview-figure {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-xs);
+  min-width: 0;
+}
+
+/* Opaque, like every surface in this app that carries figures. */
+.yd-preview {
+  min-width: 0;
+  border-radius: var(--yd-radius);
+  border: 1px solid var(--yd-border);
+  background: var(--yd-surface-strong);
+  box-shadow: var(--yd-shadow);
+  overflow: hidden;
+}
+
+.yd-preview__chrome {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--yd-space-sm);
+  padding: var(--yd-space-sm) var(--yd-space-md);
+  border-bottom: 1px solid var(--yd-border);
+}
+
+.yd-preview__chrome-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--yd-text);
+}
+
+.yd-preview__chrome-period {
+  font-size: 0.75rem;
+  color: var(--yd-text-muted);
+  border: 1px solid var(--yd-border);
+  border-radius: 999px;
+  padding: 3px 10px;
+}
+
+.yd-preview__stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1px;
+  /* The hairlines between tiles are the gap showing through, so no tile has to
+     carry a border of its own. */
+  background: var(--yd-border);
+  border-bottom: 1px solid var(--yd-border);
+}
+
+.yd-preview__stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--yd-space-sm) var(--yd-space-md);
+  background: var(--yd-surface-strong);
+  min-width: 0;
+}
+
+.yd-preview__stat-label {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--yd-text-muted);
+}
+
+.yd-preview__stat-value {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--yd-text);
+  /* Tabular figures: the value is counting up, and proportional digits would
+     make the tile's width twitch on every frame. */
+  font-variant-numeric: tabular-nums;
+}
+
+.yd-preview__stat-value--positive {
+  color: var(--yd-positive);
+}
+
+.yd-preview__panels {
+  display: grid;
+  gap: 1px;
+  background: var(--yd-border);
+}
+
+.yd-preview__panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-sm);
+  padding: var(--yd-space-md);
+  background: var(--yd-surface-strong);
+  min-width: 0;
+}
+
+.yd-preview__panel-title {
+  margin: 0;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--yd-text-muted);
+}
+
+/* --- Cash-flow bars ----------------------------------------------------- */
+
+.yd-preview__bars {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--yd-space-2xs);
+  height: 96px;
+}
+
+.yd-preview__bar-group {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.yd-preview__bar-pair {
+  flex: 1;
+  width: 100%;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 2px;
+}
+
+.yd-preview__bar {
+  width: 6px;
+  min-height: 3px;
+  border-radius: 2px 2px 0 0;
+}
+
+.yd-preview__bar--in {
+  background: var(--yd-positive);
+}
+
+.yd-preview__bar--out {
+  background: var(--yd-negative);
+}
+
+.yd-preview__bar-label {
+  font-size: 0.62rem;
+  color: var(--yd-text-muted);
+}
+
+.yd-preview__legend {
+  display: flex;
+  gap: var(--yd-space-md);
+  margin: 0;
+  font-size: 0.68rem;
+  color: var(--yd-text-muted);
+}
+
+.yd-preview__legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.yd-preview__legend-item::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+}
+
+.yd-preview__legend-item--in::before {
+  background: var(--yd-positive);
+}
+
+.yd-preview__legend-item--out::before {
+  background: var(--yd-negative);
+}
+
+/* --- Category breakdown ------------------------------------------------- */
+
+.yd-preview__categories {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.yd-preview__category {
+  display: grid;
+  grid-template-columns: minmax(0, 5.5rem) minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--yd-space-xs);
+}
+
+.yd-preview__category-name {
+  font-size: 0.72rem;
+  color: var(--yd-text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.yd-preview__category-track {
+  height: 6px;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--yd-text) 9%, transparent);
+  overflow: hidden;
+}
+
+.yd-preview__category-fill {
+  display: block;
+  height: 100%;
+  border-radius: 3px;
+  background: var(--yd-accent);
+}
+
+.yd-preview__category-value {
+  font-size: 0.72rem;
+  color: var(--yd-text-muted);
+}
+
+/* --- Caption ------------------------------------------------------------ */
+
+/* Never hidden from assistive technology: this caption is the disclaimer, and
+   a screen-reader user needs it more than a sighted one, not less. */
+.yd-preview-figure__caption {
+  font-size: 0.78rem;
+  line-height: 1.5;
+  color: var(--yd-text-muted);
+  text-align: center;
+}
+
+/* Four stat tiles across and two panels side by side only once there is room;
+   below that they stack, which is also what the real dashboard does. */
+@media (min-width: 560px) {
+  .yd-preview__stats {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .yd-preview__panels {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+}

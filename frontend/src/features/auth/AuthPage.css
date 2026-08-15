@@ -1,4 +1,9 @@
+/* AtmosphericBackground is mounted as a sibling of this element and paints a
+   fixed layer at z-index 0, so the card needs its own positioned stacking
+   context to read above it — the same arrangement AppShell.css describes. */
 .yd-auth {
+  position: relative;
+  z-index: 1;
   min-height: 100vh;
   display: grid;
   place-items: center;

@@ -4,12 +4,11 @@ import { LoginPage } from "../features/auth/LoginPage";
 import { DesignSystemPage } from "../features/design-system/DesignSystemPage";
 import { RegisterPage } from "../features/auth/RegisterPage";
 import { RequireAuth } from "../features/auth/RequireAuth";
-import { useSession } from "../features/auth/session";
 import { ImportPage } from "../features/import/ImportPage";
 import { OverviewPage } from "../features/overview/OverviewPage";
 import { SettingsPage } from "../features/settings/SettingsPage";
 import { TransactionsPage } from "../features/transactions/TransactionsPage";
-import { AppShell } from "./AppShell";
+import { AppShellRoute, HomeRoute } from "./HomeRoute";
 
 // Placeholder screen for the one route whose real implementation is still
 // pending. /, /transactions, /reglages and /import are real screens — see
@@ -27,21 +26,25 @@ const devRoutes = import.meta.env.DEV
   ? [{ path: "design-systeme", element: <DesignSystemPage /> }]
   : [];
 
-function AppShellRoute() {
-  const userName = useSession((state) => state.user?.name ?? "");
-  return <AppShell userName={userName} />;
-}
-
 export const router = createBrowserRouter([
   { path: "/connexion", element: <LoginPage /> },
   { path: "/inscription", element: <RegisterPage /> },
   {
+    // Deliberately not behind RequireAuth: an anonymous visitor here gets the
+    // public landing page instead of a redirect to /connexion. HomeRoute is the
+    // gate, and the index child below only ever renders through AppShell's
+    // <Outlet />, which HomeRoute returns for an authenticated session alone.
+    path: "/",
+    element: <HomeRoute />,
+    children: [{ index: true, element: <OverviewPage /> }],
+  },
+  {
+    // Every other authenticated route keeps the phase-1 guard.
     element: <RequireAuth />,
     children: [
       {
         element: <AppShellRoute />,
         children: [
-          { index: true, element: <OverviewPage /> },
           { path: "transactions", element: <TransactionsPage /> },
           { path: "categories", element: <CategoriesPlaceholder /> },
           { path: "import", element: <ImportPage /> },

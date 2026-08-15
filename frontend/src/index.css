@@ -23,30 +23,12 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* Slow mesh gradient behind everything — the only always-on animation. */
-body::before {
-  content: "";
-  position: fixed;
-  inset: -20%;
-  z-index: -1;
-  background:
-    radial-gradient(45% 40% at 18% 12%, var(--yd-bg-mesh-a) 0%, transparent 70%),
-    radial-gradient(40% 45% at 82% 78%, var(--yd-bg-mesh-b) 0%, transparent 72%);
-  animation: yd-drift 34s var(--yd-ease) infinite alternate;
-  pointer-events: none;
-}
-
-@keyframes yd-drift {
-  to {
-    transform: translate3d(2.5%, -2%, 0) scale(1.06);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  body::before {
-    animation: none;
-  }
-}
+/* Phase 1's `body::before` mesh gradient used to live here. It was deleted in
+   phase 1.5: design/atmosphere/AtmosphericBackground.tsx now paints the one
+   depth layer this app has, on every screen including the landing page and the
+   auth routes. Two backgrounds meant two grounds — and only one of them
+   followed --yd-bg when the light theme was deepened, which is why /connexion
+   used to sit visibly lighter than the rest of the app. */
 
 /* Money always uses tabular figures so columns line up. */
 .yd-num {

@@ -6,7 +6,13 @@ import { RouterProvider } from "react-router";
 import { router } from "./app/routes";
 import { DensityProvider } from "./app/DensityProvider";
 import { ThemeProvider } from "./app/ThemeProvider";
-import { readStoredDensity, readStoredTheme, resolveTheme } from "./design/theme";
+import { applyMotionAttribute } from "./design/motion/motionPreference";
+import {
+  readStoredDensity,
+  readStoredMotionDisabled,
+  readStoredTheme,
+  resolveTheme,
+} from "./design/theme";
 import { useSession } from "./features/auth/session";
 // Self-hosted, bundled by Vite as local woff2. Never a CDN or a Google Fonts
 // <link>: this app promises the operator that nothing leaves the machine, and
@@ -33,6 +39,11 @@ window
 // Same reasoning as the theme above: apply the stored density before the
 // first paint so there is no flash of the wrong spacing scale.
 document.documentElement.dataset.density = readStoredDensity();
+
+// And the same again for the Réglages "Animations" switch. Written here rather
+// than only inside setDisabled so a reload with animations off never plays one
+// frame of motion before React boots.
+applyMotionAttribute(readStoredMotionDisabled());
 
 const queryClient = new QueryClient();
 

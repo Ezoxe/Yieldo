@@ -1,0 +1,408 @@
+/* Public landing page. The one screen in this app that is mostly background,
+   so the atmosphere layer does the work and the content stays sparse and
+   large. Every colour here is a token; hierarchy comes from cell area and
+   type size, never from a decorative gradient. */
+
+/* AtmosphericBackground paints a fixed layer at z-index 0. Content needs its
+   own positioned stacking context to read above it — the same arrangement
+   AppShell.css and AuthPage.css use. */
+.yd-landing {
+  position: relative;
+  z-index: 1;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* --- Top bar ------------------------------------------------------------ */
+
+/* Chrome, not data: translucent so the halos read through it, the same
+   treatment as the app shell's header.
+   Sticky only from 640px. Below that the wordmark and the two actions no
+   longer fit on one line, and the bar wraps to two rows — 110px measured at
+   375, which is 13% of that viewport held permanently for a pair of buttons
+   the closing section repeats anyway. So it scrolls away instead. */
+.yd-landing__bar {
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--yd-space-sm) var(--yd-space-lg);
+  padding: var(--yd-space-sm) clamp(16px, 4vw, 48px);
+  background: var(--yd-surface);
+  backdrop-filter: blur(var(--yd-glass-blur)) saturate(var(--yd-glass-saturate));
+  -webkit-backdrop-filter: blur(var(--yd-glass-blur)) saturate(var(--yd-glass-saturate));
+  border-bottom: 1px solid var(--yd-border);
+}
+
+@media (min-width: 640px) {
+  .yd-landing__bar {
+    position: sticky;
+    top: 0;
+  }
+}
+
+.yd-landing__wordmark {
+  display: flex;
+  align-items: center;
+  gap: var(--yd-space-xs);
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--yd-text);
+}
+
+.yd-landing__mark {
+  color: var(--yd-accent);
+  flex-shrink: 0;
+}
+
+/* --- Shared layout ------------------------------------------------------ */
+
+.yd-landing__main {
+  flex: 1;
+  width: 100%;
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: clamp(32px, 6vw, 80px) clamp(16px, 4vw, 48px) 0;
+  display: flex;
+  flex-direction: column;
+  gap: clamp(56px, 9vw, 120px);
+}
+
+.yd-landing__eyebrow {
+  margin: 0;
+  color: var(--yd-accent);
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+/* --- Hero --------------------------------------------------------------- */
+
+.yd-landing__hero {
+  display: grid;
+  gap: clamp(32px, 5vw, 56px);
+  align-items: center;
+}
+
+.yd-landing__hero-copy {
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-md);
+  min-width: 0;
+}
+
+/* The page's one display-size element. Tight leading and a negative track are
+   what keep three lines of it reading as one block rather than three. */
+.yd-landing__hero-title {
+  margin: 0;
+  font-size: clamp(2.1rem, 4.4vw, 3.4rem);
+  line-height: 1.06;
+  letter-spacing: -0.03em;
+  font-weight: 600;
+  color: var(--yd-text);
+  text-wrap: balance;
+}
+
+.yd-landing__hero-lead {
+  margin: 0;
+  max-width: 56ch;
+  font-size: clamp(1rem, 1.3vw, 1.12rem);
+  line-height: 1.65;
+  color: var(--yd-text-muted);
+}
+
+.yd-landing__hero-note {
+  margin: 0;
+  max-width: 46ch;
+  font-size: 0.88rem;
+  line-height: 1.55;
+  color: var(--yd-text-muted);
+}
+
+.yd-landing__hero-preview {
+  min-width: 0;
+}
+
+@media (min-width: 1000px) {
+  .yd-landing__hero {
+    grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+  }
+}
+
+/* --- Calls to action ---------------------------------------------------- */
+
+.yd-landing__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--yd-space-sm);
+}
+
+.yd-landing__actions--block {
+  flex-wrap: wrap;
+  margin-top: var(--yd-space-xs);
+}
+
+.yd-landing__cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--yd-radius-sm);
+  padding: 11px 20px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  white-space: nowrap;
+  border: 1px solid transparent;
+  /* `translate`, not `transform`: consistent with the bento hover, and it stays
+     correct if this ever becomes a motion.* element (Motion writes an inline
+     `transform: none` that would beat this rule). */
+  transition:
+    background-color var(--yd-motion-fast) var(--yd-ease),
+    border-color var(--yd-motion-fast) var(--yd-ease),
+    translate var(--yd-motion-fast) var(--yd-ease);
+}
+
+.yd-landing__cta--primary {
+  background: var(--yd-accent);
+  color: var(--yd-bg);
+}
+
+.yd-landing__cta--primary:hover {
+  background: var(--yd-accent-strong);
+  translate: 0 -1px;
+}
+
+/* The border is the only thing that says "control" here, so it is derived from
+   --yd-text rather than taking --yd-border-strong: measured over the top bar,
+   that token gives 1.63:1 in the light theme, under WCAG 1.4.11's 3:1 for
+   non-text UI boundaries. This is the sign-in path on the front door — it does
+   not get to be the one control a reader cannot find. (The shared token is
+   left alone deliberately: it is load-bearing for every card in the app and
+   belongs to the phase's final contrast pass, not to this page.) */
+.yd-landing__cta--ghost {
+  background: transparent;
+  border-color: color-mix(in srgb, var(--yd-text) 52%, transparent);
+  color: var(--yd-text);
+}
+
+.yd-landing__cta--ghost:hover {
+  background: var(--yd-surface-raised);
+  translate: 0 -1px;
+}
+
+.yd-landing__cta:focus-visible {
+  outline: 2px solid var(--yd-accent);
+  outline-offset: 2px;
+}
+
+/* The bar's pair is smaller: it is a persistent affordance, not the hero's
+   invitation, and at 375px the two must still fit beside the wordmark. */
+.yd-landing__actions--bar .yd-landing__cta {
+  padding: 8px 14px;
+  font-size: 0.88rem;
+}
+
+/* --- Sections ----------------------------------------------------------- */
+
+.yd-landing__section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-lg);
+}
+
+.yd-landing__section-head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-xs);
+  max-width: 62ch;
+}
+
+.yd-landing__section-title {
+  margin: 0;
+  font-size: clamp(1.6rem, 2.8vw, 2.25rem);
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  font-weight: 600;
+  color: var(--yd-text);
+  text-wrap: balance;
+}
+
+.yd-landing__section-lead {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.6;
+  color: var(--yd-text-muted);
+}
+
+/* --- Bento cells -------------------------------------------------------- */
+
+.yd-landing__cell {
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-sm);
+}
+
+.yd-landing__cell-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  border-radius: var(--yd-radius-sm);
+  color: var(--yd-accent);
+  background: color-mix(in srgb, var(--yd-accent) 14%, transparent);
+}
+
+/* Three registers, so the reader can tell the sections apart without reading:
+   what it does (accent), what it deliberately does not (neutral), what is not
+   here yet (warning). Measured at 8% the neutral plate was invisible against
+   --yd-surface-strong in the dark theme; 14% gives it the same presence as the
+   tinted pair without borrowing a hue it has no business carrying. */
+.yd-landing__cell-icon--boundary {
+  color: var(--yd-text);
+  background: color-mix(in srgb, var(--yd-text) 14%, transparent);
+}
+
+.yd-landing__cell-icon--pending {
+  color: var(--yd-warning);
+  background: color-mix(in srgb, var(--yd-warning) 14%, transparent);
+}
+
+.yd-landing__cell-title {
+  margin: 0;
+  font-size: 1.05rem;
+  line-height: 1.3;
+  font-weight: 600;
+  color: var(--yd-text);
+}
+
+.yd-landing__cell-body {
+  margin: 0;
+  font-size: 0.92rem;
+  line-height: 1.6;
+  color: var(--yd-text-muted);
+}
+
+.yd-landing__cell--pending {
+  flex-direction: row;
+  align-items: flex-start;
+  gap: var(--yd-space-md);
+}
+
+.yd-landing__cell--pending .yd-landing__cell-title {
+  margin-bottom: var(--yd-space-2xs);
+}
+
+/* This is the one full-width cell on the page, and at 1440 its text measured
+   141 characters a line — roughly twice a readable measure. Every other cell
+   is narrow enough that its column caps it. */
+.yd-landing__cell--pending .yd-landing__cell-body {
+  max-width: 78ch;
+}
+
+/* Below the 6-column breakpoint the icon and the text no longer fit side by
+   side without squeezing the text into a gutter. */
+@media (max-width: 600px) {
+  .yd-landing__cell--pending {
+    flex-direction: column;
+  }
+}
+
+.yd-landing__step-number {
+  font-size: 1.4rem;
+  font-weight: 600;
+  color: var(--yd-accent);
+  letter-spacing: -0.02em;
+}
+
+/* --- Closing call to action --------------------------------------------- */
+
+.yd-landing__closing {
+  display: flex;
+  justify-content: center;
+}
+
+.yd-landing__closing-card {
+  width: 100%;
+  max-width: 720px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--yd-space-sm);
+  text-align: center;
+  padding: clamp(28px, 5vw, 48px);
+  border-radius: var(--yd-radius);
+  border: 1px solid var(--yd-border);
+  background: var(--yd-surface-strong);
+  box-shadow: var(--yd-shadow);
+}
+
+.yd-landing__closing-title {
+  margin: 0;
+  font-size: clamp(1.5rem, 2.6vw, 2rem);
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  font-weight: 600;
+  color: var(--yd-text);
+}
+
+.yd-landing__closing-lead {
+  margin: 0;
+  max-width: 46ch;
+  line-height: 1.6;
+  color: var(--yd-text-muted);
+}
+
+.yd-landing__closing-note {
+  margin: 0;
+  max-width: 52ch;
+  font-size: 0.85rem;
+  line-height: 1.55;
+  color: var(--yd-text-muted);
+}
+
+.yd-landing__closing-card .yd-landing__actions--block {
+  justify-content: center;
+}
+
+/* --- Footer ------------------------------------------------------------- */
+
+.yd-landing__footer {
+  margin-top: clamp(56px, 9vw, 120px);
+  padding: var(--yd-space-lg) clamp(16px, 4vw, 48px);
+  border-top: 1px solid var(--yd-border);
+  text-align: center;
+}
+
+.yd-landing__footer p {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--yd-text-muted);
+}
+
+/* --- Reduced motion ----------------------------------------------------- */
+
+@media (prefers-reduced-motion: reduce) {
+  .yd-landing__cta {
+    transition: none;
+  }
+
+  .yd-landing__cta--primary:hover,
+  .yd-landing__cta--ghost:hover {
+    translate: none;
+  }
+}
+
+/* The in-app Animations switch. tokens.css already zeroes the durations; this
+   is the movement, which a 0ms transition would still perform. */
+:root[data-motion="off"] .yd-landing__cta--primary:hover,
+:root[data-motion="off"] .yd-landing__cta--ghost:hover {
+  translate: none;
+}

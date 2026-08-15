@@ -65,8 +65,6 @@
 :root[data-theme="dark"] {
   color-scheme: dark;
   --yd-bg: #060d15;
-  --yd-bg-mesh-a: #123044;
-  --yd-bg-mesh-b: #0a1622;
   --yd-surface: rgba(24, 58, 79, 0.38);
   --yd-surface-strong: #0f1c28;
   --yd-surface-raised: rgba(30, 70, 94, 0.5);
@@ -93,8 +91,6 @@
      This is the ground the cards are raised off, and it backs the gradient
      during load. */
   --yd-bg: #e9f1f3;
-  --yd-bg-mesh-a: #d8eef0;
-  --yd-bg-mesh-b: #eaf3f6;
   --yd-surface: rgba(255, 255, 255, 0.66);
   --yd-surface-strong: #ffffff;
   --yd-surface-raised: rgba(255, 255, 255, 0.86);
@@ -142,4 +138,19 @@
     --yd-motion-base: 0ms;
     --yd-motion-slow: 0ms;
   }
+}
+
+/* The Réglages "Animations" switch, mirrored onto the root by
+   applyMotionAttribute() in design/motion/motionPreference.ts. Every transition
+   in this app is written in the three tokens above, so zeroing them here is
+   what gives the switch reach into CSS at all — the media query above can only
+   ever see the OS preference. Duration is only half of it: a 0ms transition
+   still lets a hover jump the element, so the rules that actually move
+   something (bento and glass hover lifts, the dropzone, the keyframe
+   animations) carry their own `[data-motion="off"]` twin next to their
+   reduced-motion block. */
+:root[data-motion="off"] {
+  --yd-motion-fast: 0ms;
+  --yd-motion-base: 0ms;
+  --yd-motion-slow: 0ms;
 }

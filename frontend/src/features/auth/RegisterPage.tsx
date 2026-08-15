@@ -2,6 +2,7 @@ import { motion } from "motion/react";
 import { useMemo, useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router";
 
+import { AtmosphericBackground } from "../../design/atmosphere/AtmosphericBackground";
 import { fadeInUp } from "../../design/motion/variants";
 import { useReducedMotion } from "../../design/motion/useReducedMotion";
 import { GlassCard } from "../../design/glass/GlassCard";
@@ -65,104 +66,107 @@ export function RegisterPage() {
   }
 
   return (
-    <div className="yd-auth">
-      <motion.div
-        className="yd-auth__wrap"
-        variants={fadeInUp}
-        initial={reducedMotion ? false : "hidden"}
-        animate="visible"
-      >
-        <GlassCard as="section" tone="raised" className="yd-auth__card">
-          <h1>Créer un compte</h1>
+    <>
+      <AtmosphericBackground />
+      <div className="yd-auth">
+        <motion.div
+          className="yd-auth__wrap"
+          variants={fadeInUp}
+          initial={reducedMotion ? false : "hidden"}
+          animate="visible"
+        >
+          <GlassCard as="section" tone="raised" className="yd-auth__card">
+            <h1>Créer un compte</h1>
 
-          {/* True regardless of who is registering: an instance with no user yet
-              makes the next registration an admin, one with users does not. */}
-          <p className="yd-auth__notice">
-            Le premier compte créé sur cette instance devient automatiquement
-            administrateur.
-          </p>
+            {/* True regardless of who is registering: an instance with no user yet
+                makes the next registration an admin, one with users does not. */}
+            <p className="yd-auth__notice">
+              Le premier compte créé sur cette instance devient automatiquement
+              administrateur.
+            </p>
 
-          <form className="yd-auth__form" onSubmit={handleSubmit} noValidate>
-            <div className="yd-auth__field">
-              <label htmlFor="register-name">Nom</label>
-              <input
-                id="register-name"
-                name="name"
-                type="text"
-                autoComplete="name"
-                value={name}
-                onChange={(event) => setName(event.target.value)}
-                required
-              />
-            </div>
-
-            <div className="yd-auth__field">
-              <label htmlFor="register-email">Adresse email</label>
-              <input
-                id="register-email"
-                name="email"
-                type="email"
-                autoComplete="email"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                required
-              />
-            </div>
-
-            <div className="yd-auth__field">
-              <label htmlFor="register-password">Mot de passe</label>
-              <input
-                id="register-password"
-                name="password"
-                type="password"
-                autoComplete="new-password"
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                required
-                minLength={8}
-              />
-              <div className="yd-auth__strength" aria-hidden="true">
-                {[0, 1, 2].map((index) => (
-                  <span
-                    key={index}
-                    className={`yd-auth__strength-bar ${
-                      index < strength ? "yd-auth__strength-bar--filled" : ""
-                    }`}
-                  />
-                ))}
+            <form className="yd-auth__form" onSubmit={handleSubmit} noValidate>
+              <div className="yd-auth__field">
+                <label htmlFor="register-name">Nom</label>
+                <input
+                  id="register-name"
+                  name="name"
+                  type="text"
+                  autoComplete="name"
+                  value={name}
+                  onChange={(event) => setName(event.target.value)}
+                  required
+                />
               </div>
-              <p className="yd-auth__strength-label">{STRENGTH_LABELS[strength]}</p>
-            </div>
 
-            <div className="yd-auth__field">
-              <label htmlFor="register-confirm-password">Confirmer le mot de passe</label>
-              <input
-                id="register-confirm-password"
-                name="confirmPassword"
-                type="password"
-                autoComplete="new-password"
-                value={confirmPassword}
-                onChange={(event) => setConfirmPassword(event.target.value)}
-                required
-              />
-            </div>
+              <div className="yd-auth__field">
+                <label htmlFor="register-email">Adresse email</label>
+                <input
+                  id="register-email"
+                  name="email"
+                  type="email"
+                  autoComplete="email"
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                  required
+                />
+              </div>
 
-            {error ? (
-              <p className="yd-auth__alert" role="alert">
-                {error}
-              </p>
-            ) : null}
+              <div className="yd-auth__field">
+                <label htmlFor="register-password">Mot de passe</label>
+                <input
+                  id="register-password"
+                  name="password"
+                  type="password"
+                  autoComplete="new-password"
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  required
+                  minLength={8}
+                />
+                <div className="yd-auth__strength" aria-hidden="true">
+                  {[0, 1, 2].map((index) => (
+                    <span
+                      key={index}
+                      className={`yd-auth__strength-bar ${
+                        index < strength ? "yd-auth__strength-bar--filled" : ""
+                      }`}
+                    />
+                  ))}
+                </div>
+                <p className="yd-auth__strength-label">{STRENGTH_LABELS[strength]}</p>
+              </div>
 
-            <button type="submit" className="yd-auth__submit" disabled={submitting}>
-              {submitting ? "Création…" : "Créer mon compte"}
-            </button>
-          </form>
+              <div className="yd-auth__field">
+                <label htmlFor="register-confirm-password">Confirmer le mot de passe</label>
+                <input
+                  id="register-confirm-password"
+                  name="confirmPassword"
+                  type="password"
+                  autoComplete="new-password"
+                  value={confirmPassword}
+                  onChange={(event) => setConfirmPassword(event.target.value)}
+                  required
+                />
+              </div>
 
-          <p className="yd-auth__footer">
-            Déjà un compte ? <Link to="/connexion">Se connecter</Link>
-          </p>
-        </GlassCard>
-      </motion.div>
-    </div>
+              {error ? (
+                <p className="yd-auth__alert" role="alert">
+                  {error}
+                </p>
+              ) : null}
+
+              <button type="submit" className="yd-auth__submit" disabled={submitting}>
+                {submitting ? "Création…" : "Créer mon compte"}
+              </button>
+            </form>
+
+            <p className="yd-auth__footer">
+              Déjà un compte ? <Link to="/connexion">Se connecter</Link>
+            </p>
+          </GlassCard>
+        </motion.div>
+      </div>
+    </>
   );
 }

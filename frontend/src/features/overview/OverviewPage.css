@@ -141,3 +141,9 @@
     animation: none;
   }
 }
+
+/* The in-app Animations switch. The shimmer's duration is hard-coded, so the
+   zeroed duration tokens cannot reach it. */
+:root[data-motion="off"] .yd-skeleton::after {
+  animation: none;
+}

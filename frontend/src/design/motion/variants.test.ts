@@ -10,6 +10,7 @@ import {
   cardEntry,
   entryProps,
   fadeInUp,
+  inViewStaggerProps,
   slideOver,
   staggerProps,
 } from "./variants";
@@ -73,8 +74,26 @@ describe("entry helpers", () => {
     expect(entryProps(false)).toEqual({ variants: cardEntry });
   });
 
-  it("both are inert under reduced motion", () => {
+  it("the scroll-triggered container arrives once and never replays", () => {
+    expect(inViewStaggerProps(false)).toEqual({
+      initial: "hidden",
+      whileInView: "visible",
+      viewport: { once: true, amount: 0.1 },
+      variants: bentoStagger,
+    });
+  });
+
+  // A section five viewports tall never shows more than 20% of itself, and a
+  // threshold it cannot cross leaves its cells at opacity 0 permanently.
+  it("keeps the viewport threshold low enough for a very tall section", () => {
+    const viewport = inViewStaggerProps(false).viewport;
+    expect(viewport?.amount).toBeLessThanOrEqual(0.15);
+    expect(viewport?.amount).toBeGreaterThan(0);
+  });
+
+  it("all three are inert under reduced motion", () => {
     expect(staggerProps(true)).toEqual({});
     expect(entryProps(true)).toEqual({});
+    expect(inViewStaggerProps(true)).toEqual({});
   });
 });

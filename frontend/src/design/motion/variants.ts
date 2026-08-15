@@ -43,6 +43,14 @@ interface EntryMotionProps {
   variants?: Variants;
 }
 
+/** What `inViewStaggerProps` spreads onto a `motion.*` element. */
+interface InViewMotionProps {
+  initial?: string;
+  whileInView?: string;
+  viewport?: { once: boolean; amount: number };
+  variants?: Variants;
+}
+
 /**
  * Staggered entry, the shape every screen copies:
  *
@@ -69,4 +77,28 @@ export function staggerProps(reduced: boolean): EntryMotionProps {
 export function entryProps(reduced: boolean): EntryMotionProps {
   if (reduced) return {};
   return { variants: cardEntry };
+}
+
+/**
+ * The scroll-triggered twin of {@link staggerProps}, for a long page whose
+ * sections arrive as the reader reaches them. Its children take the same
+ * `entryProps` as the mount-triggered version.
+ *
+ * `once: true` — a section that replayed its entry every time it scrolled back
+ * into view would be a demo loop, not an arrival.
+ *
+ * `amount` is the fraction of the *section* that must be on screen, so it has
+ * to stay well under the smallest ratio a tall section can reach: a section
+ * five viewports high never shows more than 20% of itself at once, and a
+ * threshold it cannot cross would leave its cells stuck at `opacity: 0`
+ * forever. 0.1 clears that with room to spare.
+ */
+export function inViewStaggerProps(reduced: boolean): InViewMotionProps {
+  if (reduced) return {};
+  return {
+    initial: "hidden",
+    whileInView: "visible",
+    viewport: { once: true, amount: 0.1 },
+    variants: bentoStagger,
+  };
 }

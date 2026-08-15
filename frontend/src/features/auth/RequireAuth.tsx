@@ -1,6 +1,7 @@
 import { Navigate, Outlet } from "react-router";
 
 import "./AuthPage.css";
+import { SessionLoading } from "./SessionLoading";
 import { useSession } from "./session";
 
 export function RequireAuth() {
@@ -11,11 +12,7 @@ export function RequireAuth() {
   // never redirecting here — is what keeps a page reload from bouncing an
   // already-authenticated user back to the login screen.
   if (status === "idle" || status === "loading") {
-    return (
-      <div className="yd-auth-loading" role="status" aria-live="polite">
-        Chargement…
-      </div>
-    );
+    return <SessionLoading />;
   }
 
   if (status === "anonymous") {

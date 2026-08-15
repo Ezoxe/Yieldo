@@ -629,3 +629,8 @@
     transform: none;
   }
 }
+
+/* The in-app Animations switch — see the same twin in Bento.css. */
+:root[data-motion="off"] .yd-dropzone[data-over] {
+  transform: none;
+}

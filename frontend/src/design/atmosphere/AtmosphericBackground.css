@@ -154,3 +154,11 @@
     animation: none;
   }
 }
+
+/* The in-app Animations switch. useReducedMotion() already drops the
+   --animated class for it, but only once React has hydrated; these keyframes
+   carry their own hard-coded durations, so the duration tokens cannot reach
+   them either. This holds the halos still from the very first paint. */
+:root[data-motion="off"] .yd-atmosphere__blob-fill {
+  animation: none;
+}

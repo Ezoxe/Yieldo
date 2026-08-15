@@ -85,3 +85,10 @@
     translate: none;
   }
 }
+
+/* The in-app Animations switch. tokens.css already zeroes the transition
+   durations for it; this is the movement itself, which a 0ms transition would
+   still perform — instantly, which is worse than slowly. */
+:root[data-motion="off"] .yd-bento__cell--interactive:hover {
+  translate: none;
+}

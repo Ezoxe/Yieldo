@@ -41,6 +41,26 @@ describe("font wiring", () => {
     expect(tokensCss).toMatch(/--yd-font-mono:\s*"Geist Mono Variable"/);
   });
 
+  // ECharts draws to canvas and cannot read a CSS custom property, so
+  // charts/theme.ts repeats the stack as string literals. That mirror has no
+  // cascade behind it: name a family the browser does not have and the axis
+  // labels fall back silently, in a canvas no DOM test can inspect.
+  // charts/theme.test.ts only asserts `toContain("Geist Mono")`, which the
+  // broken pre-fix value satisfied too — this is the assertion that does not.
+  it("mirrors the same variable families into the canvas chart theme", () => {
+    const chartsTheme = read("../charts/theme.ts");
+    // Both must name the *Variable* family first, exactly as tokens.css does:
+    // that is the family @fontsource-variable actually registers.
+    expect(chartsTheme).toMatch(/fontFamily:\s*"Geist Variable,/);
+    expect(chartsTheme).toMatch(/fontFamily:\s*"Geist Mono Variable,/);
+
+    // And the families named there must be ones tokens.css declares, so a
+    // future rename on either side cannot drift the two apart unnoticed.
+    for (const family of ["Geist Variable", "Geist Mono Variable"]) {
+      expect(tokensCss, `tokens.css no longer declares "${family}"`).toContain(`"${family}"`);
+    }
+  });
+
   it("never reaches a CDN for a font", () => {
     const html = read("../../index.html");
     for (const source of [html, tokensCss, mainTsx]) {

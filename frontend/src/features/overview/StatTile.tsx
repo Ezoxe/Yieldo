@@ -16,35 +16,64 @@ interface StatTileProps {
   format?: (value: number) => string;
 }
 
-function Sparkline({ values }: { values: number[] }) {
+interface SparklineProps {
+  values: number[];
+  /**
+   * Class on the `<svg>`. The caller owns the box (this component has no
+   * intrinsic size worth trusting) and, through `--yd-sparkline-line` /
+   * `--yd-sparkline-dot`, the two colours.
+   */
+  className?: string;
+}
+
+/**
+ * A bare trend line: no axes, no labels, just the shape of a series.
+ *
+ * `preserveAspectRatio="none"` stretches the 100x24 viewBox to whatever box
+ * the caller gives it, and the two callers differ by an order of magnitude
+ * (a 24px tile strip, a 260px hero band). So nothing drawn here may carry its
+ * thickness in user units: both marks use `vector-effect="non-scaling-stroke"`,
+ * which pins the stroke to CSS pixels whatever the scale. That also rules out
+ * a `<circle>` for the end marker -- a circle in a non-uniformly scaled
+ * coordinate system is an ellipse -- so the marker is a zero-length line with
+ * a round cap, which renders as a dot of exactly `strokeWidth` pixels.
+ */
+export function Sparkline({ values, className = "" }: SparklineProps) {
   const min = Math.min(...values);
   const max = Math.max(...values);
-  const span = max - min || 1;
   const toXY = (value: number, index: number) => {
     const x = (index / (values.length - 1)) * 100;
-    const y = 22 - ((value - min) / span) * 20 - 1;
+    // A series that never moved is flat through the middle of the band. The
+    // arithmetic fallback for a zero range used to put it on the floor, which
+    // draws a number that held steady as a number at its lowest.
+    const ratio = max === min ? 0.5 : (value - min) / (max - min);
+    const y = 22 - ratio * 20 - 1;
     return [x, y] as const;
   };
   const points = values.map((value, index) => toXY(value, index).join(",")).join(" ");
   const [lastX, lastY] = toXY(values[values.length - 1], values.length - 1);
 
   return (
-    <svg
-      className="yd-stat-tile__sparkline"
-      viewBox="0 0 100 24"
-      preserveAspectRatio="none"
-      aria-hidden="true"
-      focusable="false"
-    >
+    <svg className={className} viewBox="0 0 100 24" preserveAspectRatio="none" aria-hidden="true" focusable="false">
       <polyline
         points={points}
         fill="none"
         strokeWidth={2}
         strokeLinecap="round"
         strokeLinejoin="round"
-        style={{ stroke: "var(--yd-text-muted)" }}
+        vectorEffect="non-scaling-stroke"
+        style={{ stroke: "var(--yd-sparkline-line, var(--yd-text-muted))" }}
       />
-      <circle cx={lastX} cy={lastY} r={3} style={{ fill: "var(--yd-accent)" }} />
+      <line
+        x1={lastX}
+        y1={lastY}
+        x2={lastX}
+        y2={lastY}
+        strokeWidth={6}
+        strokeLinecap="round"
+        vectorEffect="non-scaling-stroke"
+        style={{ stroke: "var(--yd-sparkline-dot, var(--yd-accent))" }}
+      />
     </svg>
   );
 }
@@ -77,7 +106,9 @@ export function StatTile({ label, valueCents, deltaCents, sparkline, format = fo
               {formatCents(deltaCents, { signed: true })}
             </span>
           ) : null}
-          {sparkline && sparkline.length > 1 ? <Sparkline values={sparkline} /> : null}
+          {sparkline && sparkline.length > 1 ? (
+            <Sparkline values={sparkline} className="yd-stat-tile__sparkline" />
+          ) : null}
         </>
       )}
     </div>

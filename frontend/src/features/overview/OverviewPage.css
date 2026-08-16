@@ -65,19 +65,40 @@
 
 /* Hero ------------------------------------------------------------------ */
 
-/* The largest cell on the grid. space-between spreads label / figure / meta
-   across the two rows it spans instead of stacking them against the top.
+/* The largest cell on the grid, and full width. The head row carries the
+   figure and its context; the trend band below takes `flex: 1`, so any slack
+   the grid hands this cell goes into the drawing rather than into a void
+   between the figure and its footnotes.
 
-   A container, so the figure below can be sized against the cell it lives in
-   rather than against the viewport: at 1200px the sidebar leaves this cell
-   ~400px of usable width while `vw` still reads 1200, and a viewport-sized
-   figure overflowed it. */
+   A container, so both the figure and the trend band are sized against the
+   cell they live in rather than against the viewport: at 1200px the sidebar
+   leaves the grid ~950px while `vw` still reads 1200, and a viewport-sized
+   figure overflowed. */
 .yd-hero {
+  /* Declared once, read by the real element and by the skeleton bar standing
+     in for it. Two literals here would drift, and a drift of even a few pixels
+     reflows the whole grid the moment the data lands. */
+  --yd-hero-figure-size: clamp(2.4rem, 7cqw, 5rem);
+  --yd-hero-trend-min: clamp(160px, 24cqw, 260px);
   container-type: inline-size;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
   gap: var(--yd-space-md);
+}
+
+.yd-hero__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--yd-space-sm) var(--yd-space-lg);
+}
+
+.yd-hero__figure {
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-2xs);
+  min-width: 0;
 }
 
 .yd-hero__label {
@@ -87,15 +108,16 @@
   letter-spacing: 0.06em;
 }
 
-/* Display size, mono, tabular (inherited from .yd-num). 12cqw keeps a
-   12-glyph amount ("−12 345,67 €", the widest this app can produce before the
-   figure would be absurd) inside the cell at every breakpoint: Geist Mono's
-   advance width is 0.6em, so 12 glyphs occupy 12 x 0.6 x 12% = 86% of the
-   cell. The floor keeps it a display figure on a 375px screen. */
+/* Display size, mono, tabular (inherited from .yd-num). 7cqw keeps a 14-glyph
+   amount ("−123 456,78 €", wider than this app can plausibly produce) inside
+   the head row at every breakpoint: Geist Mono's advance width is 0.6em, so 14
+   glyphs occupy 14 x 0.6 x 7% = 59% of the cell, and the meta block beside it
+   wraps below rather than colliding. The floor keeps it a display figure on a
+   375px screen. */
 .yd-hero__value {
   display: block;
   font-family: var(--yd-font-mono);
-  font-size: clamp(2.1rem, 12cqw, 4rem);
+  font-size: var(--yd-hero-figure-size);
   line-height: 1.05;
   font-weight: 600;
   letter-spacing: -0.02em;
@@ -138,6 +160,76 @@
   margin: 0;
   color: var(--yd-text-muted);
   font-size: 0.82rem;
+}
+
+/* Once the head has room to be a row, the context block sits against the far
+   edge and reads inward. Below that it wraps under the figure, where a right
+   edge to align to no longer exists. */
+@container (min-width: 480px) {
+  .yd-hero__meta {
+    text-align: right;
+  }
+}
+
+/* The trend band. `flex: 1` is what removes the dead gap the figure used to
+   float above: whatever height the grid gives the cell beyond its text, the
+   drawing absorbs. */
+.yd-hero__trend {
+  margin: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-xs);
+  min-height: 0;
+}
+
+.yd-hero__trend-caption {
+  color: var(--yd-text-muted);
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+/* The plot area, whichever of the three things fills it: the drawing, the
+   sentence explaining why there is no drawing, or the skeleton bar. All three
+   are laid out by these two declarations alone, which is what makes the cell
+   exactly as tall before the data lands as after. */
+.yd-hero__plot,
+.yd-hero__trend-empty,
+.yd-skeleton--spark {
+  flex: 1;
+  min-height: var(--yd-hero-trend-min);
+}
+
+/* The `<svg>` is taken out of flow rather than left as the flex item it
+   replaces. A viewBox gives an svg an intrinsic aspect ratio, and an in-flow
+   flex item sized by one reports THAT height to the cell instead of the floor
+   above: measured, it made the loaded hero 3px taller than its own skeleton
+   and slid every row underneath up by that much. Out of flow it contributes
+   nothing, and simply fills whatever height this box settles at. */
+.yd-hero__plot {
+  position: relative;
+}
+
+/* Accent-strong is the colour the cash-flow chart already draws "Solde net"
+   in -- one quantity, one encoding, across the two places it appears. */
+.yd-hero__spark {
+  --yd-sparkline-line: var(--yd-accent-strong);
+  --yd-sparkline-dot: var(--yd-accent-strong);
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  /* The end marker straddles the right edge; the UA default would halve it. */
+  overflow: visible;
+}
+
+.yd-hero__trend-empty {
+  margin: 0;
+  color: var(--yd-text-muted);
+  font-size: 0.9rem;
+  font-style: italic;
 }
 
 /* Empty period ---------------------------------------------------------- */
@@ -198,17 +290,36 @@
   width: 68%;
 }
 
-/* .yd-hero__value, which sets its own tighter line-height. */
+/* .yd-hero__value, which sets its own tighter line-height. Both this and the
+   real figure read --yd-hero-figure-size, so they cannot drift apart.
+
+   Widths here are in cqw, against the hero cell, and not in per cent: the head
+   is a flex ROW, so the figure column it sits in has no definite width for a
+   percentage to resolve against -- these two bars computed to zero and the
+   most important thing on the loading screen was simply absent. */
 .yd-skeleton--hero-value {
-  height: calc(clamp(2.1rem, 12cqw, 4rem) * 1.05);
-  width: 80%;
+  height: calc(var(--yd-hero-figure-size) * 1.05);
+  width: 46cqw;
+}
+
+.yd-hero__figure > .yd-skeleton--label {
+  width: 12cqw;
 }
 
 /* .yd-hero__meta: the delta line and the range line, plus the gap between. */
 .yd-skeleton--meta {
   height: calc(0.95rem * 1.5 + 0.82rem * 1.5 + var(--yd-space-2xs));
-  width: 60%;
+  width: 240px;
 }
+
+/* .yd-hero__trend-caption, at the inherited line-height 1.5. */
+.yd-skeleton--caption {
+  height: calc(0.78rem * 1.5);
+  width: 22%;
+}
+
+/* .yd-skeleton--spark stands in for .yd-hero__plot and is sized by the shared
+   rule those two share, up in the Hero section -- never by a second literal. */
 
 /* CashflowChart's own height. */
 .yd-skeleton--chart {

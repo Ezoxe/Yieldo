@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ThemeProvider } from "../../app/ThemeProvider";
 import { formatCents } from "../../design/theme";
-import { coveredRangeLabel, OverviewPage } from "./OverviewPage";
+import { coveredRangeLabel, cumulativeNetCents, OverviewPage } from "./OverviewPage";
 
 // getByText compares against the DOM's *normalized* text content but does not
 // normalize the string it is given, and formatCents uses narrow/no-break
@@ -65,6 +65,8 @@ const summary = {
 
 const series = [
   { key: "2025-03-01", start: "2025-03-01", end: "2025-03-01", inflow_cents: 10000, outflow_cents: -5000, net_cents: 5000, count: 2 },
+  { key: "2025-03-02", start: "2025-03-02", end: "2025-03-02", inflow_cents: 4000, outflow_cents: -9000, net_cents: -5000, count: 3 },
+  { key: "2025-03-03", start: "2025-03-03", end: "2025-03-03", inflow_cents: 90000, outflow_cents: -10000, net_cents: 80000, count: 5 },
 ];
 
 const categoriesBreakdown = [
@@ -173,6 +175,32 @@ describe("coveredRangeLabel", () => {
   });
 });
 
+describe("cumulativeNetCents", () => {
+  const bucket = (net_cents: number) => ({
+    key: "k",
+    start: "2025-03-01",
+    end: "2025-03-01",
+    inflow_cents: 0,
+    outflow_cents: 0,
+    net_cents,
+    count: 0,
+  });
+
+  it("runs the balance forward, so the last point is the period's closing net", () => {
+    expect(cumulativeNetCents([bucket(1000), bucket(-400), bucket(250)])).toEqual([1000, 600, 850]);
+  });
+
+  it("stays in integer cents — no float ever touches a monetary value", () => {
+    const points = cumulativeNetCents([bucket(1), bucket(-3), bucket(7)]);
+    expect(points.every(Number.isInteger)).toBe(true);
+    expect(points).toEqual([1, -2, 5]);
+  });
+
+  it("has no points at all for an empty series", () => {
+    expect(cumulativeNetCents([])).toEqual([]);
+  });
+});
+
 describe("OverviewPage", () => {
   it("loads and shows the four headline stat tiles", async () => {
     setupFetch();
@@ -275,25 +303,54 @@ describe("OverviewPage", () => {
     expect(calledUrl.searchParams.get("date_from")).toBe(`${currentYear}-01-01`);
   });
 
-  it("gives the net balance the hero cell — the largest area on the grid", async () => {
+  it("gives the net balance the hero cell — strictly the largest area on the grid", async () => {
     setupFetch();
     const { container } = renderPage();
     await screen.findByText("Entrées");
 
     const hero = container.querySelector<HTMLElement>(".yd-hero");
     expect(hero, "no hero cell on the dashboard").not.toBeNull();
+    // Full width: nothing on the grid may be wider, so the hero's height is
+    // the only thing that has to hold for it to be the biggest rectangle.
     expect(hero).toHaveClass("yd-bento__cell");
-    expect(hero?.style.getPropertyValue("--yd-cell-span-lg")).toBe("6");
+    expect(hero?.style.getPropertyValue("--yd-cell-span-lg")).toBe("12");
     expect(hero?.style.getPropertyValue("--yd-cell-rows")).toBe("2");
 
-    // Hierarchy is area: no other cell may cover more of the 12-column grid.
-    const areas = Array.from(container.querySelectorAll<HTMLElement>(".yd-bento__cell")).map(
-      (cell) =>
-        Number(cell.style.getPropertyValue("--yd-cell-span-lg")) *
-        Number(cell.style.getPropertyValue("--yd-cell-rows")),
-    );
-    const heroArea = 6 * 2;
-    expect(Math.max(...areas)).toBe(heroArea);
+    // Hierarchy is area, and "largest" has to mean STRICTLY larger than every
+    // other cell. Asserting that the maximum equals the hero's own area is
+    // satisfied by a tie -- which is precisely how the calendar and the
+    // cash-flow chart once drew level with it without a single test failing.
+    //
+    // jsdom has no layout engine, so this compares the areas the spans declare
+    // at lg. The claim that actually matters is rendered pixels, measured in a
+    // browser at 1440 in both themes and recorded in task-3-report.md.
+    const areaOf = (cell: HTMLElement) =>
+      Number(cell.style.getPropertyValue("--yd-cell-span-lg")) *
+      Number(cell.style.getPropertyValue("--yd-cell-rows"));
+    const others = Array.from(container.querySelectorAll<HTMLElement>(".yd-bento__cell"))
+      .filter((cell) => cell !== hero)
+      .map(areaOf);
+
+    expect(others.length).toBeGreaterThan(0);
+    expect(areaOf(hero as HTMLElement)).toBeGreaterThan(Math.max(...others));
+  });
+
+  it("draws the period's cumulative net as a trend under the hero figure", async () => {
+    setupFetch();
+    const { container } = renderPage();
+    await screen.findByText("Entrées");
+
+    expect(container.querySelector(".yd-hero__spark")).not.toBeNull();
+    expect(screen.getByText("Solde cumulé sur la période")).toBeInTheDocument();
+  });
+
+  it("says why the trend is missing rather than leaving an empty box", async () => {
+    setupFetch({ series: () => jsonResponse({ detail: "Série indisponible." }, 500) });
+    const { container } = renderPage();
+    await screen.findByRole("alert");
+
+    expect(container.querySelector(".yd-hero__spark")).toBeNull();
+    expect(screen.getByText(/Pas assez de données pour tracer une tendance/)).toBeInTheDocument();
   });
 
   it("states the net figure, its comparison delta and the period it covers in the hero", async () => {

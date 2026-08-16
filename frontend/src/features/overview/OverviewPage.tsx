@@ -15,7 +15,7 @@ import { formatCents } from "../../design/theme";
 import { useTheme } from "../../app/ThemeProvider";
 import { ApiError, api } from "../../lib/api";
 import type { CalendarPoint, Category, CategoryBreakdown, Granularity, SeriesBucket, Summary } from "../../lib/types";
-import { StatTile } from "./StatTile";
+import { Sparkline, StatTile } from "./StatTile";
 import "./OverviewPage.css";
 import { PeriodSelector } from "../transactions/PeriodSelector";
 import { usePeriod, type UsePeriodResult } from "../transactions/usePeriod";
@@ -87,27 +87,43 @@ interface LoadErrors {
  * and the loaded content are laid on the *same* cells at the same spans, so
  * nothing on the page moves when the data lands.
  *
- * Hierarchy is area. The net balance is the largest cell on the grid (6 x 2)
- * and the cash-flow chart matches it beside it; the three remaining figures
- * form a band of thirds below; the wide charts close the page.
+ * Hierarchy is area, and at lg (12 columns) the rows tile exactly:
+ *
+ *   1-2 | hero, full width
+ *   3-5 | cash-flow (7 wide, 3 rows) | Entrées / Sorties / Taux d'épargne (5)
+ *     6 | treemap (5) | waterfall (7)
+ *     7 | calendar, full width
+ *
+ * The hero is the widest cell *and* the tallest of the full-width ones, which
+ * is what actually makes it the biggest rectangle on the screen. That is a
+ * pixel claim, not a span claim: the calendar is full width too, so nothing
+ * but the hero's height keeps it ahead. Measured areas are in task-3-report.md.
+ * Do not give another cell 12 columns unless it is shorter than the hero.
  */
 const SPAN = {
-  // 6 of 12 and two rows tall: the biggest single area on the page.
-  hero: { base: 1, md: 6, lg: 6 },
-  cashflow: { base: 1, md: 6, lg: 6 },
-  stat: { base: 1, md: 2, lg: 4 },
+  // Full width. The net balance is the only figure on this page that answers
+  // "how am I doing", so it gets the whole top band rather than half of it.
+  hero: { base: 1, md: 6, lg: 12 },
+  // 7 of 12, three rows tall, with the three component figures stacked in the
+  // remaining 5 columns beside it.
+  cashflow: { base: 1, md: 6, lg: 7 },
+  stat: { base: 1, md: 2, lg: 5 },
   treemap: { base: 1, md: 6, lg: 5 },
   waterfall: { base: 1, md: 6, lg: 7 },
   // Full width, and not the 5 columns the plan sketched: this is a 53-week
   // strip drawn at a fixed 16px cell, so anything under ~850px clips the back
   // half of the year off the right edge. Its natural aspect is ~7:1 -- a wide
-  // short band is the shape it wants, and the shape it now gets.
+  // short band is the shape it wants, and the shape it now gets. Short is also
+  // what keeps it under the hero despite sharing its width.
   calendar: { base: 1, md: 6, lg: 12 },
   emptyState: { base: 1, md: 6, lg: 12 },
 } satisfies Record<string, BentoSpan>;
 
-/** The hero and the cash-flow chart share the two-row band at the top. */
-const TOP_BAND_ROWS = 2;
+/** The top band. Two rows is a floor on the hero's height, not a ceiling. */
+const HERO_ROWS = 2;
+
+/** The cash-flow chart stands as tall as the three stat cells beside it. */
+const CASHFLOW_ROWS = 3;
 
 type SkeletonVariant =
   | "label"
@@ -115,6 +131,8 @@ type SkeletonVariant =
   | "value"
   | "hero-value"
   | "meta"
+  | "caption"
+  | "spark"
   | "chart"
   | "chart-tall"
   | "chart-short";
@@ -133,13 +151,25 @@ function DashboardSkeleton() {
   // a screen reader; the bars themselves are aria-hidden decoration.
   return (
     <BentoGrid role="status" aria-busy="true" aria-label="Chargement du tableau de bord">
-      <BentoCell span={SPAN.hero} rows={TOP_BAND_ROWS} className="yd-hero">
-        <Skeleton variant="label" />
-        <Skeleton variant="hero-value" />
-        <Skeleton variant="meta" />
+      <BentoCell span={SPAN.hero} rows={HERO_ROWS} className="yd-hero">
+        {/* The hero's own blocks, so every bar stands in the box it replaces
+            and the two states resolve to the identical height. */}
+        <div className="yd-hero__head">
+          <div className="yd-hero__figure">
+            <Skeleton variant="label" />
+            <Skeleton variant="hero-value" />
+          </div>
+          <div className="yd-hero__meta">
+            <Skeleton variant="meta" />
+          </div>
+        </div>
+        <div className="yd-hero__trend">
+          <Skeleton variant="caption" />
+          <Skeleton variant="spark" />
+        </div>
       </BentoCell>
 
-      <BentoCell span={SPAN.cashflow} rows={TOP_BAND_ROWS} className="yd-panel">
+      <BentoCell span={SPAN.cashflow} rows={CASHFLOW_ROWS} className="yd-panel">
         <Skeleton variant="title" />
         <Skeleton variant="chart" />
       </BentoCell>
@@ -174,37 +204,86 @@ function DashboardSkeleton() {
 }
 
 /**
- * The net balance, at display size. Red only when the balance is actually
+ * The running balance across the period, in integer cents: point i is the sum
+ * of every bucket's net up to and including i, so the line ends on the same
+ * quantity the hero prints in figures instead of on the last bucket alone.
+ * Integer arithmetic throughout -- the only ratio taken on these numbers is
+ * Sparkline's normalisation to geometry, which is the display boundary.
+ */
+export function cumulativeNetCents(buckets: SeriesBucket[]): number[] {
+  const running: number[] = [];
+  let total = 0;
+  for (const bucket of buckets) {
+    total += bucket.net_cents;
+    running.push(total);
+  }
+  return running;
+}
+
+/**
+ * The net balance, at display size, and the only cell on the page that spans
+ * the full width of the grid twice over. Red only when the balance is actually
  * negative -- the app reserves it for something being wrong, never for "this
  * is an expense", so a positive net stays in the plain text colour rather
  * than turning the largest element on the page green.
+ *
+ * The trend band under the figure is what earns the height: a cell this wide
+ * that only printed four lines of text would be a dead rectangle, and the
+ * period's shape is the one thing a single number cannot say.
  */
-function NetHero({ summary, reduced }: { summary: Summary; reduced: boolean }) {
+function NetHero({
+  summary,
+  series,
+  reduced,
+}: {
+  summary: Summary;
+  series: SeriesBucket[];
+  reduced: boolean;
+}) {
   const net = summary.net_cents;
   const delta = summary.comparison.delta_cents;
   const toneClass = net < 0 ? " yd-hero__value--negative" : "";
+  const trend = cumulativeNetCents(series);
 
   return (
     <BentoCell
       as={motion.div}
       span={SPAN.hero}
-      rows={TOP_BAND_ROWS}
+      rows={HERO_ROWS}
       className="yd-hero"
       {...entryProps(reduced)}
     >
-      <span className="yd-hero__label">Solde net</span>
-      <CountUp
-        value={net}
-        format={(cents) => formatCents(cents, { signed: true })}
-        className={`yd-hero__value${toneClass}`}
-      />
-      <div className="yd-hero__meta">
-        <span className={`yd-hero__delta yd-hero__delta--${delta >= 0 ? "good" : "bad"}`}>
-          {formatCents(delta, { signed: true })}
-          <span className="yd-hero__delta-note"> par rapport à la période précédente</span>
-        </span>
-        <p className="yd-hero__range">{coveredRangeLabel(summary)}</p>
+      <div className="yd-hero__head">
+        <div className="yd-hero__figure">
+          <span className="yd-hero__label">Solde net</span>
+          <CountUp
+            value={net}
+            format={(cents) => formatCents(cents, { signed: true })}
+            className={`yd-hero__value${toneClass}`}
+          />
+        </div>
+        <div className="yd-hero__meta">
+          <span className={`yd-hero__delta yd-hero__delta--${delta >= 0 ? "good" : "bad"}`}>
+            {formatCents(delta, { signed: true })}
+            <span className="yd-hero__delta-note"> par rapport à la période précédente</span>
+          </span>
+          <p className="yd-hero__range">{coveredRangeLabel(summary)}</p>
+        </div>
       </div>
+
+      <figure className="yd-hero__trend">
+        <figcaption className="yd-hero__trend-caption">Solde cumulé sur la période</figcaption>
+        {trend.length > 1 ? (
+          <div className="yd-hero__plot">
+            <Sparkline values={trend} className="yd-hero__spark" />
+          </div>
+        ) : (
+          // Never an empty box standing in for a line that could not be drawn:
+          // one bucket has no shape, and a failed series load says so in the
+          // banner above.
+          <p className="yd-hero__trend-empty">Pas assez de données pour tracer une tendance.</p>
+        )}
+      </figure>
     </BentoCell>
   );
 }
@@ -332,12 +411,12 @@ export function OverviewPage() {
     const treemapItems = buildCategoryTreemapItems(categoryBreakdown, categories, resolved);
     body = (
       <BentoGrid as={motion.div} {...staggerProps(reduced)}>
-        {summary ? <NetHero summary={summary} reduced={reduced} /> : null}
+        {summary ? <NetHero summary={summary} series={series} reduced={reduced} /> : null}
 
         <BentoCell
           as={motion.div}
           span={SPAN.cashflow}
-          rows={TOP_BAND_ROWS}
+          rows={CASHFLOW_ROWS}
           className="yd-panel"
           {...entryProps(reduced)}
         >

@@ -115,6 +115,33 @@ function monthCount(span: CalendarSpan): number {
   return (toYear - fromYear) * 12 + (toMonth - fromMonth) + 1;
 }
 
+/** A day cell's side, in px, when there is room for it. */
+const CELL = 16;
+
+/** Week columns the span draws, counting the part-weeks at either end. */
+export function weekColumns(span: CalendarSpan, firstDayOfWeek = 1): number {
+  const from = new Date(`${span.from}T00:00:00Z`);
+  const to = new Date(`${span.to}T00:00:00Z`);
+  const lead = (from.getUTCDay() - firstDayOfWeek + 7) % 7;
+  const days = Math.round((to.getTime() - from.getTime()) / 86_400_000) + 1;
+  return Math.ceil((lead + days) / 7);
+}
+
+/**
+ * The width of one day cell.
+ *
+ * Narrower than `CELL` when the span is too long to fit -- ECharts neither
+ * scrolls nor wraps a calendar, it draws past the right edge, so a fixed cell
+ * silently lost the back half of the range on any panel under ~900px. Never
+ * *wider* than `CELL`: left to fill the box, a one-month span turned its five
+ * columns into 200px-wide bars that stopped reading as a calendar at all.
+ * An unmeasured width (0) means the full cell.
+ */
+export function cellWidthFor(columns: number, availableWidth: number): number {
+  if (availableWidth <= 0 || columns <= 0) return CELL;
+  return Math.min(CELL, availableWidth / columns);
+}
+
 // Heats each day by how much was SPENT (outflow magnitude), a sequential
 // (one-hue) magnitude encoding -- not net balance, which would mix a
 // polarity question ("did I gain or lose that day") into what is meant to
@@ -130,7 +157,13 @@ export function buildCalendarOption(
   const maxOutflow = Math.max(1, ...points.map((point) => Math.abs(point.outflow_cents)));
   const crossesAYear = span.from.slice(0, 4) !== span.to.slice(0, 4);
   const months = monthCount(span);
-  const step = monthLabelStep(months, chartWidth - GRID_LEFT - GRID_RIGHT);
+  const available = chartWidth - GRID_LEFT - GRID_RIGHT;
+  const columns = weekColumns(span);
+  const cellWidth = cellWidthFor(columns, available);
+  // A grid narrower than the panel sits in the middle of it; one hugging the
+  // left edge of a wide empty cell reads as a layout mistake.
+  const centred = cellWidth * columns < available;
+  const step = monthLabelStep(months, cellWidth * columns);
   const firstYear = Number(span.from.slice(0, 4));
   const firstMonth = Number(span.from.slice(5, 7));
 
@@ -160,13 +193,8 @@ export function buildCalendarOption(
     },
     calendar: {
       range: [span.from, span.to],
-      // Column width follows the panel. A fixed 16px cell needs ~850px for one
-      // year and more for a longer span; ECharts does not scroll or wrap, it
-      // simply draws past the right edge, so anything narrower lost the back
-      // half of the range with nothing on screen to say so.
-      cellSize: ["auto", 16],
-      left: GRID_LEFT,
-      right: GRID_RIGHT,
+      cellSize: [cellWidth, CELL],
+      left: centred ? "center" : GRID_LEFT,
       // Clears Chart.tsx's absolutely positioned "Exporter" button (28px tall,
       // pinned to the top-right of every chart): the month labels are drawn
       // above the grid, and at 34 the last one of a full-width span rendered

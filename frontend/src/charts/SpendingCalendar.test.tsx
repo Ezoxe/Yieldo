@@ -5,7 +5,12 @@ import { beforeAll, describe, expect, it, vi } from "vitest";
 import { ThemeProvider } from "../app/ThemeProvider";
 import type { CalendarPoint } from "../lib/types";
 import { chartTokens, sequentialRamp } from "./theme";
-import { buildCalendarOption, calendarSpan, SpendingCalendar } from "./SpendingCalendar";
+import {
+  buildCalendarOption,
+  calendarSpan,
+  SpendingCalendar,
+  weekColumns,
+} from "./SpendingCalendar";
 
 beforeAll(() => {
   Object.defineProperty(window, "matchMedia", {
@@ -90,15 +95,32 @@ describe("buildCalendarOption", () => {
   });
 
   it("never clips the grid off the right edge of a narrow panel", () => {
+    const span = calendarSpan(acrossTwoYears)!;
+    // 57 columns at a fixed 16px needs ~912px; a 375 viewport gives the
+    // calendar 293, and ECharts draws past the edge rather than scrolling.
+    const { option } = buildCalendarOption(acrossTwoYears, span, tokens, ramp, 293);
+    const [width] = calendarOf(option)?.cellSize as [number, number];
+    expect(width * weekColumns(span)).toBeLessThanOrEqual(293 - 40 - 16);
+  });
+
+  // Left to fill the box, the five columns of a single month came out 200px
+  // wide: a row of bars, not a calendar.
+  it("never stretches a short span into bars", () => {
+    const oneMonth: CalendarPoint[] = [
+      { date: "2026-01-02", inflow_cents: 0, outflow_cents: -500, net_cents: -500, count: 1 },
+      { date: "2026-01-09", inflow_cents: 0, outflow_cents: -900, net_cents: -900, count: 1 },
+    ];
     const { option } = buildCalendarOption(
-      acrossTwoYears,
-      calendarSpan(acrossTwoYears)!,
+      oneMonth,
+      calendarSpan(oneMonth)!,
       tokens,
       ramp,
+      1095,
     );
-    // Auto column width: 58 columns at a fixed 16px would need ~930px, more
-    // than the panel has below 1200px, and ECharts simply draws past the edge.
-    expect(calendarOf(option)?.cellSize).toEqual(["auto", 16]);
+    const calendar = calendarOf(option);
+    expect(calendar?.cellSize).toEqual([16, 16]);
+    // ... and it sits in the middle of the panel rather than hugging the left.
+    expect(calendar?.left).toBe("center");
   });
 
   // `nameMap: "fr"` was a no-op -- ECharts resolves it against a locale that

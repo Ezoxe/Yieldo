@@ -1,0 +1,83 @@
+/* An empty state that diagnoses.
+
+   Shared by the dashboard and the transaction list. The surrounding cell owns
+   the surface, the padding and the minimum height -- this owns only the three
+   parts of the message, so the same diagnosis reads identically wherever it
+   lands. */
+
+.yd-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--yd-space-xs);
+  /* A diagnosis is a sentence, and a sentence needs a measure: at 1280px the
+     full-width dashboard cell would otherwise run "Vos 197 opérations vont
+     du..." across the whole screen on one line. */
+  max-width: 62ch;
+}
+
+/* The title carries the text colour and the detail the muted one: what is
+   empty is the headline, why it is empty is the explanation under it. Two
+   levels, so the eye lands on the sentence that names the situation first. */
+.yd-empty__title {
+  margin: 0;
+  font-size: 1.05rem;
+  line-height: 1.45;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+  color: var(--yd-text);
+}
+
+.yd-empty__detail {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.55;
+  color: var(--yd-text-muted);
+}
+
+.yd-empty__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--yd-space-sm);
+  margin-top: var(--yd-space-2xs);
+}
+
+/* The way out, whether it navigates (a link to the import) or changes the
+   period in place (a button). Styled identically on purpose: which element it
+   is depends on what it does, and the reader should not have to care. */
+.yd-empty__action {
+  border: 1px solid var(--yd-border-strong);
+  border-radius: var(--yd-radius-sm);
+  padding: var(--yd-space-xs) var(--yd-space-md);
+  background: transparent;
+  color: var(--yd-accent);
+  font: inherit;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    border-color var(--yd-motion-fast) var(--yd-ease),
+    background-color var(--yd-motion-fast) var(--yd-ease);
+}
+
+.yd-empty__action:hover {
+  border-color: var(--yd-accent);
+  background: color-mix(in srgb, var(--yd-accent) 10%, transparent);
+}
+
+.yd-empty__action:focus-visible {
+  outline: 2px solid var(--yd-accent);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .yd-empty__action {
+    transition: none;
+  }
+}
+
+/* The in-app Animations switch — see the same twin in Bento.css. */
+:root[data-motion="off"] .yd-empty__action {
+  transition: none;
+}

@@ -47,11 +47,25 @@ export interface Transaction {
   tags: string[];
 }
 
+// The span of the user's whole ledger, whatever period is being asked about.
+// `null` on the wire means they have no transactions at all — which is what
+// tells an empty screen apart from a screen pointed at an empty window.
+export interface History {
+  date_from: string;
+  date_to: string;
+  transaction_count: number;
+}
+
 export interface TransactionPage {
   items: Transaction[];
   total: number;
   limit: number;
   offset: number;
+  // How many transactions the date range holds with every other filter
+  // dropped: `total === 0` alone cannot say whether the period is empty or a
+  // filter is hiding what is in it.
+  period_total: number;
+  history: History | null;
 }
 
 // PATCH /api/transactions/{id}'s response: the updated transaction plus what the
@@ -201,6 +215,7 @@ export interface Comparison {
 export interface Summary extends PeriodTotals {
   previous: PeriodTotals;
   comparison: Comparison;
+  history: History | null;
 }
 
 export interface CalendarPoint {

@@ -10,6 +10,7 @@ import type { Account, Category, ImportSummary as ImportSummaryData } from "../.
 import { ColumnTagger } from "./ColumnTagger";
 import { DialectPanel } from "./DialectPanel";
 import { DropZone } from "./DropZone";
+import { ImportHistory } from "./ImportHistory";
 import "./ImportPage.css";
 import { ImportSummary } from "./ImportSummary";
 import { PreviewTable } from "./PreviewTable";
@@ -27,7 +28,7 @@ const STEPS: { key: WizardStep; label: string }[] = [
  * OverviewPage owns the dashboard's. At lg (12 columns) each step tiles
  * exactly:
  *
- *   file    | compte (5) | dépôt du fichier (7)
+ *   file    | compte (5) | dépôt du fichier (7) / imports précédents (12)
  *   mapping | format (4) | taggage des colonnes (8)
  *   preview | résumé (12) / aperçu (12)
  *   done    | rapport (12)
@@ -41,6 +42,9 @@ const STEPS: { key: WizardStep; label: string }[] = [
 const SPAN = {
   account: { base: 1, md: 6, lg: 5 },
   drop: { base: 1, md: 6, lg: 7 },
+  // Full width, under the two cells that start a new import: a list of one row
+  // per past batch, four counts and an action is a band, not a column.
+  history: { base: 1, md: 6, lg: 12 },
   newAccount: { base: 1, md: 6, lg: 12 },
   dialect: { base: 1, md: 6, lg: 4 },
   tagger: { base: 1, md: 6, lg: 8 },
@@ -426,6 +430,15 @@ function FileStep({ wizard, accounts, onCreateAccount, reduced }: FileStepProps)
         {isBusy ? <p className="yd-import__hint">Analyse du fichier…</p> : null}
 
         <ErrorAlert errors={errors} />
+      </BentoCell>
+
+      {/* Below the two cells that start a new import, because that is the
+          order of intent: someone arriving here usually wants to import, and
+          only sometimes wants to check or undo what they already did. It sits
+          inside the step's stage, which is keyed on the step -- so coming back
+          from a commit remounts it and the new batch is already listed. */}
+      <BentoCell as={motion.div} span={SPAN.history} className="yd-panel" {...entryProps(reduced)}>
+        <ImportHistory />
       </BentoCell>
     </BentoGrid>
   );

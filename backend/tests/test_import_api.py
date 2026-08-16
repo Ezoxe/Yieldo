@@ -78,6 +78,23 @@ def test_analyze_returns_preview_with_suggested_mapping(client, auth, account_id
     assert len(body["rows"]) == 4
 
 
+def test_analyze_proposes_amount_for_a_single_signed_column(client, auth, account_id):
+    """The operator's own export: one column of signed amounts headed
+    "Débit/Crédit". Proposing a débit role for it left every credit unimportable."""
+    csv = (
+        "Date;Libellé;Débit/Crédit\r\n"
+        "01/03/2025;CARREFOUR MARKET;-47,32\r\n"
+        "03/03/2025;VIR SALAIRE ACME SAS;2450,00\r\n"
+    ).encode("utf-8")
+    response = client.post("/api/imports/analyze", headers=auth,
+                           files={"file": ("signe.csv", csv, "text/csv")},
+                           data={"account_id": str(account_id)})
+    assert response.status_code == 200
+    body = response.json()
+    assert body["suggested_mapping"] == {"0": "date", "1": "label", "2": "amount"}
+    assert body["summary"]["importable"] == 2
+
+
 def test_analyze_rejects_a_non_csv_extension(client, auth, account_id):
     response = client.post("/api/imports/analyze", headers=auth,
                            files={"file": ("photo.png", b"\x89PNG", "image/png")},

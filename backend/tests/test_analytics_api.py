@@ -64,6 +64,62 @@ def test_summary_compares_with_the_preceding_period(client, imported):
     assert body["comparison"]["delta_cents"] == 232109
 
 
+# "Tout" sends no dates at all. Until this task the backend answered those with
+# the current calendar year, so a statement imported last year was invisible on
+# the dashboard's own default.
+
+
+def test_summary_without_dates_covers_the_whole_history(client, imported):
+    headers, _ = imported
+    body = client.get("/api/analytics/summary", headers=headers).json()
+    assert body["date_from"] == "2025-03-01"
+    assert body["date_to"] == "2025-03-07"
+    assert body["transaction_count"] == 4
+
+
+def test_series_without_dates_spans_the_whole_history(client, imported):
+    headers, _ = imported
+    body = client.get("/api/analytics/series?granularity=month", headers=headers).json()
+    assert [b["key"] for b in body] == ["2025-03"]
+
+
+def test_categories_without_dates_cover_the_whole_history(client, imported):
+    headers, _ = imported
+    body = client.get("/api/analytics/categories", headers=headers).json()
+    # 3, not 4: the breakdown is expense-only, and one of the four rows is the
+    # salary credit. Zero is what it answered before the fix.
+    assert sum(c["count"] for c in body) == 3
+
+
+def test_summary_reports_the_span_of_the_user_whole_history(client, imported):
+    headers, _ = imported
+    body = client.get("/api/analytics/summary?date_from=2026-01-01&date_to=2026-01-31",
+                      headers=headers).json()
+    assert body["transaction_count"] == 0
+    assert body["history"] == {
+        "date_from": "2025-03-01", "date_to": "2025-03-07", "transaction_count": 4,
+    }
+
+
+def test_summary_history_is_null_for_a_user_without_any_transaction(client):
+    registered = client.post("/api/auth/register", json={
+        "name": "Lea", "email": "lea@example.com", "password": "motdepasse123"}).json()
+    headers = {"Authorization": f"Bearer {registered['access_token']}"}
+    body = client.get("/api/analytics/summary", headers=headers).json()
+    assert body["history"] is None
+    assert body["transaction_count"] == 0
+    assert body["date_from"] == body["date_to"]
+
+
+def test_the_history_span_never_reaches_across_users(client, imported):
+    headers, _ = imported
+    other = client.post("/api/auth/register", json={
+        "name": "Lea", "email": "lea@example.com", "password": "motdepasse123"}).json()
+    other_headers = {"Authorization": f"Bearer {other['access_token']}"}
+    body = client.get("/api/analytics/summary", headers=other_headers).json()
+    assert body["history"] is None
+
+
 def test_calendar_returns_one_point_per_day_with_activity(client, imported):
     headers, _ = imported
     body = client.get("/api/analytics/calendar?year=2025", headers=headers).json()

@@ -106,6 +106,7 @@ function setupFetch(
     if (url === "/api/accounts") return Promise.resolve(jsonResponse([account]));
     if (url === "/api/categories") return Promise.resolve(jsonResponse([]));
     if (url === "/api/imports/profiles" && method === "GET") return Promise.resolve(jsonResponse([]));
+    if (url === "/api/imports" && method === "GET") return Promise.resolve(jsonResponse([committedBatch]));
     if (url === "/api/imports/analyze") {
       return Promise.resolve(overrides.analyze ? overrides.analyze() : jsonResponse(previewBody));
     }
@@ -328,6 +329,17 @@ describe("ImportPage — creating a bank account", () => {
     // must not silently reset what the user typed, nor pretend it worked.
     expect(screen.getByLabelText("Nom du compte")).toBeInTheDocument();
     expect(screen.queryByLabelText("Compte")).not.toBeInTheDocument();
+  });
+});
+
+describe("ImportPage — past imports", () => {
+  it("shows the import history on the landing step, where someone who has already imported will look", async () => {
+    setupFetch();
+    render(<ImportPage />);
+
+    // The batch listed by GET /api/imports, on the first screen of the wizard.
+    expect(await screen.findByText("b.csv")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Supprimer cet import/i })).toBeInTheDocument();
   });
 });
 

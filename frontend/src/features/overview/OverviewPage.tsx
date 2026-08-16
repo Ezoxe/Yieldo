@@ -9,6 +9,7 @@ import { WaterfallChart } from "../../charts/WaterfallChart";
 import { BentoCell, type BentoSpan } from "../../design/bento/BentoCell";
 import { BentoGrid } from "../../design/bento/BentoGrid";
 import { CountUp } from "../../design/CountUp";
+import { EmptyState, frenchDate, historySentence } from "../../design/EmptyState";
 import { useReducedMotion } from "../../design/motion/useReducedMotion";
 import { entryProps, staggerProps } from "../../design/motion/variants";
 import { formatCents } from "../../design/theme";
@@ -53,15 +54,6 @@ export function granularityForRange(from: string, to: string): Granularity {
 
 function formatPercent(ratio: number): string {
   return `${(ratio * 100).toLocaleString("fr-FR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} %`;
-}
-
-// French writes the first of the month "1er"; every other day is a bare
-// numeral. Intl has no option for it, so the ordinal is applied here.
-function frenchDate(iso: string): string {
-  const date = new Date(`${iso}T00:00:00Z`);
-  const day = date.getUTCDate();
-  const rest = date.toLocaleDateString("fr-FR", { month: "long", year: "numeric", timeZone: "UTC" });
-  return `${day === 1 ? "1er" : day} ${rest}`;
 }
 
 /**
@@ -392,6 +384,11 @@ export function OverviewPage() {
   if (isLoading) {
     body = <DashboardSkeleton />;
   } else if (isEmptyPeriod) {
+    // Two different situations, two different sentences. `summary.history` is
+    // the whole ledger's span (null when there is none), so the dashboard can
+    // tell "you have nothing" from "you are looking at the wrong window" --
+    // and, in the second case, say where the data is and offer to go there.
+    const history = summary?.history ?? null;
     body = (
       <BentoGrid as={motion.div} {...staggerProps(reduced)}>
         <BentoCell
@@ -400,10 +397,29 @@ export function OverviewPage() {
           className="yd-overview__empty"
           {...entryProps(reduced)}
         >
-          <p>Aucune transaction sur cette période.</p>
-          <Link to="/import" className="yd-overview__empty-cta">
-            Importer un relevé
-          </Link>
+          {history === null ? (
+            <EmptyState
+              title="Aucune donnée pour le moment."
+              detail="Importez un relevé bancaire et ce tableau de bord se remplira tout seul."
+            >
+              <Link to="/import" className="yd-empty__action">
+                Importer un relevé
+              </Link>
+            </EmptyState>
+          ) : (
+            <EmptyState
+              title="Aucune transaction sur cette période."
+              detail={historySentence(history)}
+            >
+              <button
+                type="button"
+                className="yd-empty__action"
+                onClick={() => period.setRange(history.date_from, history.date_to)}
+              >
+                Afficher toute la période
+              </button>
+            </EmptyState>
+          )}
         </BentoCell>
       </BentoGrid>
     );

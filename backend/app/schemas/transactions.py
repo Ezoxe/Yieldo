@@ -2,6 +2,8 @@ from datetime import date
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.schemas.history import HistoryOut
+
 
 class TransactionOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -26,6 +28,11 @@ class TransactionPage(BaseModel):
     total: int
     limit: int
     offset: int
+    # How many transactions the date range holds on its own, with every other
+    # filter dropped. `total == 0` alone cannot say whether the period is empty
+    # or a filter is hiding what is in it; these two figures can.
+    period_total: int
+    history: HistoryOut | None
 
 
 class TransactionPatch(BaseModel):

@@ -176,6 +176,220 @@
   cursor: not-allowed;
 }
 
+/* Import history ---------------------------------------------------------- */
+
+/* Past batches, on the wizard's landing step. No surface of its own: this is
+   the body of a BentoCell, exactly like .yd-dialect and .yd-tagger above. */
+.yd-import-history {
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-sm);
+}
+
+.yd-import-history__notice {
+  margin: 0;
+  padding: var(--yd-space-xs) var(--yd-space-md);
+  border-radius: var(--yd-radius-sm);
+  border: 1px solid var(--yd-border-strong);
+  background: color-mix(in srgb, var(--yd-accent) 10%, transparent);
+  color: var(--yd-text);
+  font-size: 0.85rem;
+}
+
+.yd-import-history__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-xs);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* One batch per row: identity on the left, counts in the middle, the
+   destructive action last and hard against the right edge -- far from the
+   filename someone is scanning for. Wraps to a stack below 600px. */
+.yd-import-history__item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--yd-space-xs) var(--yd-space-md);
+  padding: var(--yd-space-sm) var(--yd-space-md);
+  border: 1px solid var(--yd-border);
+  border-radius: var(--yd-radius-sm);
+  background: var(--yd-surface-raised);
+}
+
+.yd-import-history__head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  /* Takes the slack, so the counts and the action keep their natural width and
+     a long filename is what shrinks. */
+  flex: 1 1 14rem;
+}
+
+.yd-import-history__filename {
+  font-weight: 600;
+  color: var(--yd-text);
+  overflow-wrap: anywhere;
+}
+
+.yd-import-history__date {
+  font-size: 0.8rem;
+  color: var(--yd-text-muted);
+}
+
+.yd-import-history__counts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--yd-space-2xs) var(--yd-space-md);
+  margin: 0;
+}
+
+.yd-import-history__count {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--yd-space-2xs);
+  white-space: nowrap;
+}
+
+.yd-import-history__count-value {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--yd-text);
+}
+
+/* The two counts that mean something was NOT written carry their own tone --
+   and the component only sets `data-tone` when the figure is non-zero, since a
+   row of coloured zeroes is an alarm about nothing. */
+.yd-import-history__count[data-tone="failed"] .yd-import-history__count-value {
+  color: var(--yd-negative);
+}
+
+.yd-import-history__count[data-tone="duplicate"] .yd-import-history__count-value {
+  color: var(--yd-warning);
+}
+
+.yd-import-history__count-label {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--yd-text-muted);
+}
+
+/* The label is --yd-text, not --yd-negative. Measured on this row's composited
+   ground (rgb(23,49,67) in dark), --yd-negative comes to 4.00:1 -- the token is
+   tuned against --yd-bg, and a raised surface is lighter than the page. So the
+   red moves to the border, where the threshold is 3:1 for non-text, and the
+   word "Supprimer" carries the meaning. Colour was never the only signal here. */
+.yd-import-history__rollback {
+  margin-left: auto;
+  border: 1px solid var(--yd-negative);
+  border-radius: var(--yd-radius-sm);
+  padding: var(--yd-space-2xs) var(--yd-space-md);
+  background: transparent;
+  color: var(--yd-text);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color var(--yd-motion-fast) var(--yd-ease);
+}
+
+.yd-import-history__rollback:hover {
+  background: color-mix(in srgb, var(--yd-negative) 14%, transparent);
+}
+
+/* The confirmation takes the whole row rather than sitting beside the counts:
+   an irreversible action's sentence is the thing to read, and it must not be
+   something the eye can skip past on the way to the button. */
+.yd-import-history__confirm {
+  flex: 1 1 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-xs);
+  padding: var(--yd-space-sm) var(--yd-space-md);
+  border: 1px solid var(--yd-negative);
+  border-radius: var(--yd-radius-sm);
+  background: color-mix(in srgb, var(--yd-negative) 10%, transparent);
+}
+
+.yd-import-history__warning {
+  margin: 0;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--yd-text);
+}
+
+.yd-import-history__confirm-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--yd-space-sm);
+}
+
+.yd-import-history__delete {
+  border: none;
+  border-radius: var(--yd-radius-sm);
+  padding: var(--yd-space-2xs) var(--yd-space-md);
+  background: var(--yd-negative);
+  /* --yd-bg, the same pairing .yd-import__commit uses with the accent, and a
+     token rather than a literal. Measured: 5.78:1 in dark (#060d15 on #e5606b)
+     and 5.74:1 in light (#e9f1f3 on #b3232d). White was the first attempt and
+     is wrong -- it is only 3.38:1 on the dark theme's negative. */
+  color: var(--yd-bg);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.yd-import-history__cancel {
+  border: 1px solid var(--yd-border-strong);
+  border-radius: var(--yd-radius-sm);
+  padding: var(--yd-space-2xs) var(--yd-space-md);
+  background: transparent;
+  color: var(--yd-text);
+  font: inherit;
+  cursor: pointer;
+}
+
+.yd-import-history__delete:disabled,
+.yd-import-history__cancel:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.yd-import-history__rollback:focus-visible,
+.yd-import-history__delete:focus-visible,
+.yd-import-history__cancel:focus-visible {
+  outline: 2px solid var(--yd-accent);
+  outline-offset: 2px;
+}
+
+/* At 375 the row stacks: the action would otherwise be pushed onto its own
+   line anyway by `margin-left: auto`, but against the left edge, reading as if
+   it belonged to the next batch. */
+@media (max-width: 599px) {
+  .yd-import-history__rollback {
+    margin-left: 0;
+    align-self: flex-start;
+  }
+
+  .yd-import-history__counts {
+    gap: var(--yd-space-2xs) var(--yd-space-sm);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .yd-import-history__rollback {
+    transition: none;
+  }
+}
+
+:root[data-motion="off"] .yd-import-history__rollback {
+  transition: none;
+}
+
 /* Action bar ------------------------------------------------------------- */
 
 /* The step's way forward, pinned to the bottom of the viewport.

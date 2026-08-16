@@ -4,6 +4,7 @@ from typing import Literal
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
+from app.api.history import user_history
 from app.db import get_db
 from app.engines.aggregate import (
     TxPoint,
@@ -12,6 +13,7 @@ from app.engines.aggregate import (
     compare_periods,
     fill_missing_buckets,
 )
+from app.engines.period import resolve_range
 from app.models import Category, Transaction, User
 from app.schemas.analytics import (
     CalendarPointOut,
@@ -21,6 +23,7 @@ from app.schemas.analytics import (
     SeriesBucketOut,
     SummaryOut,
 )
+from app.schemas.history import HistoryOut
 from app.security.deps import get_current_user
 
 router = APIRouter(prefix="/analytics", tags=["analytics"])
@@ -51,10 +54,25 @@ def _points(
     ]
 
 
-def _default_range(date_from: date | None, date_to: date | None) -> tuple[date, date]:
-    end = date_to or date.today()
-    start = date_from or date(end.year, 1, 1)
-    return start, end
+def _period(
+    db: Session, user_id: int, date_from: date | None, date_to: date | None
+) -> tuple[date, date, HistoryOut | None]:
+    """The range this request actually covers, plus the user's whole history.
+
+    An absent bound means all of *this user's* data, not the current calendar
+    year -- which is what "Tout" was silently being answered with. The clock is
+    read here, at the route boundary, and handed to `resolve_range` as a
+    parameter: the engine stays pure and testable at any date.
+    """
+    history = user_history(db, user_id)
+    start, end = resolve_range(
+        date_from,
+        date_to,
+        history.date_from if history else None,
+        history.date_to if history else None,
+        date.today(),
+    )
+    return start, end, history
 
 
 @router.get("/series", response_model=list[SeriesBucketOut])
@@ -67,7 +85,7 @@ def series(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> list[SeriesBucketOut]:
-    start, end = _default_range(date_from, date_to)
+    start, end, _ = _period(db, user.id, date_from, date_to)
     points = _points(db, user.id, start, end, account_id)
     buckets = aggregate_series(points, granularity, include_transfers)
     filled = fill_missing_buckets(buckets, granularity, start, end)
@@ -88,7 +106,7 @@ def categories_breakdown(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> list[CategoryBreakdownOut]:
-    start, end = _default_range(date_from, date_to)
+    start, end, _ = _period(db, user.id, date_from, date_to)
     totals = aggregate_by_category(_points(db, user.id, start, end))
     names = {c.id: c for c in db.query(Category).filter(Category.user_id == user.id).all()}
     return [
@@ -127,7 +145,7 @@ def summary(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> SummaryOut:
-    start, end = _default_range(date_from, date_to)
+    start, end, history = _period(db, user.id, date_from, date_to)
     span = (end - start).days + 1
     previous_end = start - timedelta(days=1)
     previous_start = previous_end - timedelta(days=span - 1)
@@ -141,6 +159,7 @@ def summary(
         previous=previous,
         comparison=ComparisonOut(delta_cents=comparison.delta_cents,
                                  delta_ratio=comparison.delta_ratio),
+        history=history,
     )
 
 

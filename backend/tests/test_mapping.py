@@ -34,6 +34,93 @@ def test_booking_date_is_not_confused_with_value_date_when_order_is_reversed():
     assert mapping == {0: "value_date", 1: "date", 2: "label", 3: "amount"}
 
 
+# A header alone cannot tell a two-column débit/crédit export from a single
+# column of signed amounts -- both are commonly headed "Débit". Only the values
+# can, so `suggest_mapping` is given the sample rows the parser already read.
+
+
+def test_single_signed_column_is_proposed_as_amount_not_debit():
+    mapping = suggest_mapping(
+        ["Date", "Libellé", "Débit/Crédit"],
+        rows=[
+            ["01/03/2025", "CARREFOUR MARKET", "-47,32"],
+            ["03/03/2025", "VIR SALAIRE ACME SAS", "2450,00"],
+        ],
+    )
+    assert mapping == {0: "date", 1: "label", 2: "amount"}
+
+
+def test_a_signed_column_headed_debit_is_proposed_as_amount():
+    mapping = suggest_mapping(
+        ["Date", "Libellé", "Débit"],
+        rows=[
+            ["01/03/2025", "CARREFOUR MARKET", "-47,32"],
+            ["03/03/2025", "VIR SALAIRE ACME SAS", "2450,00"],
+        ],
+    )
+    assert mapping == {0: "date", 1: "label", 2: "amount"}
+
+
+def test_two_column_debit_credit_export_still_proposes_both():
+    mapping = suggest_mapping(
+        ["Date", "Libellé", "Débit euros", "Crédit euros"],
+        rows=[
+            ["01/03/2025", "CARREFOUR MARKET", "47,32", ""],
+            ["03/03/2025", "VIR SALAIRE ACME SAS", "", "2450,00"],
+        ],
+    )
+    assert mapping == {0: "date", 1: "label", 2: "debit", 3: "credit"}
+
+
+def test_a_column_of_only_negative_values_stays_debit():
+    """Only-negative is ambiguous: plenty of banks sign their débit column and
+    still ship a separate crédit one. Never guessed into a signed amount."""
+    mapping = suggest_mapping(
+        ["Date", "Libellé", "Débit", "Crédit"],
+        rows=[
+            ["01/03/2025", "CARREFOUR MARKET", "-47,32", ""],
+            ["02/03/2025", "PRLV NETFLIX.COM", "-13,49", ""],
+        ],
+    )
+    assert mapping == {0: "date", 1: "label", 2: "debit", 3: "credit"}
+
+
+def test_a_dot_decimal_signed_column_is_read_with_the_dialect_separator():
+    mapping = suggest_mapping(
+        ["Date", "Label", "Debit"],
+        rows=[["2025-03-01", "TESCO", "-47.32"], ["2025-03-02", "PAYROLL", "2450.00"]],
+        decimal_separator=".",
+    )
+    assert mapping[2] == "amount"
+
+
+def test_a_non_numeric_column_headed_debit_is_never_reinterpreted():
+    mapping = suggest_mapping(
+        ["Date", "Libellé", "Débit"],
+        rows=[["01/03/2025", "A", "oui"], ["02/03/2025", "B", "non"]],
+    )
+    assert mapping[2] == "debit"
+
+
+def test_a_row_shorter_than_the_header_never_stops_the_scan():
+    """Ragged exports exist; a truncated line is skipped, not treated as evidence."""
+    mapping = suggest_mapping(
+        ["Date", "Libellé", "Débit"],
+        rows=[
+            ["01/03/2025", "CARREFOUR MARKET", "-47,32"],
+            ["02/03/2025"],
+            ["03/03/2025", "VIR SALAIRE ACME SAS", "2450,00"],
+        ],
+    )
+    assert mapping[2] == "amount"
+
+
+def test_without_rows_the_header_proposal_is_unchanged():
+    assert suggest_mapping(["Date", "Libellé", "Débit", "Crédit"]) == {
+        0: "date", 1: "label", 2: "debit", 3: "credit",
+    }
+
+
 def test_validation_accepts_date_label_amount():
     assert validate_mapping({0: "date", 1: "label", 2: "amount"}, 3) == []
 

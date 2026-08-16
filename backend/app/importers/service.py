@@ -120,7 +120,13 @@ def build_preview(
     """Analyse a file and show what would happen. Writes nothing."""
     resolved_dialect = dialect or detect_dialect(raw)
     headers, rows = read_rows(raw, resolved_dialect)
-    resolved_mapping = mapping or suggest_mapping(headers)
+    # The rows are handed to the suggestion, not just the headers: a column
+    # headed "Débit" that carries both signs is a signed amount column, and
+    # nothing but its values can say so. Still only a proposal -- the user
+    # confirms it on screen before anything is imported.
+    resolved_mapping = mapping or suggest_mapping(
+        headers, rows, resolved_dialect.decimal_separator
+    )
 
     preview = ImportPreview(
         dialect=resolved_dialect,

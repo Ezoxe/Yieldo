@@ -36,6 +36,9 @@ const summary: Summary = {
     savings_rate: 0.2857,
   },
   comparison: { delta_cents: 0, delta_ratio: 0 },
+  // The whole ledger's span, which the chart does not read -- it draws the
+  // period it was handed. Present because the response carries it.
+  history: { date_from: "2025-01-24", date_to: "2026-01-09", transaction_count: 197 },
 };
 
 const categories: CategoryBreakdown[] = [

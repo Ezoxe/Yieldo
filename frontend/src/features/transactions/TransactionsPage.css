@@ -515,20 +515,8 @@
   padding: var(--yd-space-xl);
 }
 
-.yd-transactions__empty p {
-  margin: 0;
-  color: var(--yd-text-muted);
-}
-
-.yd-transactions__empty-cta {
-  color: var(--yd-accent);
-  font-weight: 600;
-  text-decoration: none;
-}
-
-.yd-transactions__empty-cta:hover {
-  text-decoration: underline;
-}
+/* The message itself is design/EmptyState.css's -- one diagnosis, styled the
+   same here and on the dashboard. This box only places it. */
 
 .yd-transactions__footer {
   display: flex;

@@ -61,6 +61,28 @@ const summary = {
     savings_rate: 0.2857,
   },
   comparison: { delta_cents: 20000, delta_ratio: 0.071 },
+  history: { date_from: "2025-03-01", date_to: "2025-03-31", transaction_count: 40 },
+};
+
+// The operator's own ledger: 197 transactions, none of them in the month the
+// dashboard happens to be showing.
+const history = { date_from: "2025-01-24", date_to: "2026-01-09", transaction_count: 197 };
+
+function emptySummary(span: typeof history | null) {
+  return {
+    ...summary,
+    transaction_count: 0,
+    inflow_cents: 0,
+    outflow_cents: 0,
+    net_cents: 0,
+    history: span,
+  };
+}
+
+const emptyRest = {
+  series: () => jsonResponse([]),
+  categoriesBreakdown: () => jsonResponse([]),
+  calendar: () => jsonResponse([]),
 };
 
 const series = [
@@ -249,18 +271,45 @@ describe("OverviewPage", () => {
   });
 
   it("shows a dashboard-wide empty state pointing at Import when there are no transactions at all", async () => {
-    setupFetch({
-      summary: () => jsonResponse({ ...summary, transaction_count: 0, inflow_cents: 0, outflow_cents: 0, net_cents: 0 }),
-      series: () => jsonResponse([]),
-      categoriesBreakdown: () => jsonResponse([]),
-      calendar: () => jsonResponse([]),
-    });
+    setupFetch({ summary: () => jsonResponse(emptySummary(null)), ...emptyRest });
     renderPage();
 
-    expect(await screen.findByText(/Aucune transaction/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Aucune donnée/i)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Importer un relevé/i })).toHaveAttribute("href", "/import");
     // The empty state replaces the chart grid rather than sitting above an empty one.
     expect(screen.queryByRole("img")).not.toBeInTheDocument();
+  });
+
+  // "Aucune transaction sur cette période" while 197 of them sit just outside
+  // the window is true and useless. The empty state has to say where the data
+  // actually is, and offer to go there.
+  it("says where the data actually is when the period is the only thing that is empty", async () => {
+    setupFetch({ summary: () => jsonResponse(emptySummary(history)), ...emptyRest });
+    renderPage();
+
+    expect(await screen.findByText(/Aucune transaction sur cette période/i)).toBeInTheDocument();
+    expect(screen.getByText(/197 opérations/)).toHaveTextContent(
+      "24 janvier 2025",
+    );
+    expect(screen.getByText(/197 opérations/)).toHaveTextContent("9 janvier 2026");
+    expect(screen.queryByRole("link", { name: /Importer un relevé/i })).not.toBeInTheDocument();
+  });
+
+  it("widens the period to the whole history in one click", async () => {
+    setupFetch({ summary: () => jsonResponse(emptySummary(history)), ...emptyRest });
+    const user = userEvent.setup();
+    renderPage();
+    await screen.findByText(/Aucune transaction sur cette période/i);
+
+    await user.click(screen.getByRole("button", { name: /Afficher toute la période/i }));
+
+    await waitFor(() => {
+      const asked = fetchMock.mock.calls
+        .map(([input]) => String(input))
+        .filter((url) => url.startsWith("/api/analytics/summary"));
+      expect(asked[asked.length - 1]).toContain("date_from=2025-01-24");
+      expect(asked[asked.length - 1]).toContain("date_to=2026-01-09");
+    });
   });
 
   it("renders the cashflow, category and calendar charts once data has loaded", async () => {
@@ -401,14 +450,9 @@ describe("OverviewPage", () => {
   });
 
   it("places the empty state on the grid rather than beside it", async () => {
-    setupFetch({
-      summary: () => jsonResponse({ ...summary, transaction_count: 0, inflow_cents: 0, outflow_cents: 0, net_cents: 0 }),
-      series: () => jsonResponse([]),
-      categoriesBreakdown: () => jsonResponse([]),
-      calendar: () => jsonResponse([]),
-    });
+    setupFetch({ summary: () => jsonResponse(emptySummary(null)), ...emptyRest });
     const { container } = renderPage();
-    await screen.findByText(/Aucune transaction/i);
+    await screen.findByText(/Aucune donnée/i);
 
     const empty = container.querySelector(".yd-overview__empty");
     expect(empty).toHaveClass("yd-bento__cell");

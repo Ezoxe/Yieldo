@@ -226,20 +226,8 @@
   min-height: 180px;
 }
 
-.yd-overview__empty p {
-  margin: 0;
-  color: var(--yd-text-muted);
-}
-
-.yd-overview__empty-cta {
-  color: var(--yd-accent);
-  font-weight: 600;
-  text-decoration: none;
-}
-
-.yd-overview__empty-cta:hover {
-  text-decoration: underline;
-}
+/* The message itself is design/EmptyState.css's -- one diagnosis, styled the
+   same here and on the transaction list. This cell only places it. */
 
 /* Skeletons ------------------------------------------------------------- */
 

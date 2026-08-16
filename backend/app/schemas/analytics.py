@@ -2,6 +2,8 @@ from datetime import date
 
 from pydantic import BaseModel
 
+from app.schemas.history import HistoryOut
+
 
 class SeriesBucketOut(BaseModel):
     key: str
@@ -41,6 +43,10 @@ class PeriodTotalsOut(BaseModel):
 class SummaryOut(PeriodTotalsOut):
     previous: PeriodTotalsOut
     comparison: ComparisonOut
+    # The span of the whole ledger, not of this period -- what tells an empty
+    # dashboard whether the user has no data or is simply looking elsewhere.
+    # null when they have no transactions at all.
+    history: HistoryOut | None
 
 
 class CalendarPointOut(BaseModel):

@@ -3,7 +3,46 @@ import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { TransactionsPage } from "./TransactionsPage";
+import { activeFilterLabels, filteredEmptyDetail, TransactionsPage } from "./TransactionsPage";
+
+describe("activeFilterLabels", () => {
+  const none = { search: "", accountName: null, categoryName: null, uncategorizedOnly: false };
+
+  it("names nothing when nothing is filtering", () => {
+    expect(activeFilterLabels(none)).toEqual([]);
+  });
+
+  it("names each filter the way the reader set it", () => {
+    expect(
+      activeFilterLabels({
+        search: "netflix",
+        accountName: "Compte courant",
+        categoryName: "Alimentation",
+        uncategorizedOnly: true,
+      }),
+    ).toEqual([
+      "la recherche « netflix »",
+      "la catégorie « Alimentation »",
+      "le compte « Compte courant »",
+      "« Non catégorisées uniquement »",
+    ]);
+  });
+});
+
+describe("filteredEmptyDetail", () => {
+  it("states what the period holds even when no filter can be named", () => {
+    expect(filteredEmptyDetail(4, [])).toBe("Cette période contient 4 transactions.");
+  });
+
+  it("agrees in number, on both the count and the filter list", () => {
+    expect(filteredEmptyDetail(1, ["la recherche « x »"])).toBe(
+      "Cette période contient 1 transaction. Filtre actif : la recherche « x ».",
+    );
+    expect(filteredEmptyDetail(197, ["la recherche « x »", "le compte « y »"])).toBe(
+      "Cette période contient 197 transactions. Filtres actifs : la recherche « x », le compte « y ».",
+    );
+  });
+});
 
 const fetchMock = vi.fn();
 
@@ -35,6 +74,14 @@ const txSalaire = {
   is_recurring: false, notes: null, tags: [],
 };
 
+// The operator's own ledger: 197 transactions, none of them inside whatever
+// window the screen happens to be showing.
+const history = { date_from: "2025-01-24", date_to: "2026-01-09", transaction_count: 197 };
+
+function emptyPage(span: typeof history | null, periodTotal: number) {
+  return { items: [], total: 0, limit: 50, offset: 0, period_total: periodTotal, history: span };
+}
+
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
@@ -45,7 +92,7 @@ function jsonResponse(body: unknown, status = 200) {
 interface FetchOverrides {
   accounts?: () => Response;
   categories?: () => Response;
-  transactions?: (offset: number) => Response;
+  transactions?: (offset: number, url: URL) => Response;
   patch?: (id: number, body: Record<string, unknown>) => Response;
 }
 
@@ -65,8 +112,11 @@ function setupFetch(overrides: FetchOverrides = {}) {
       const offset = Number(url.searchParams.get("offset") ?? "0");
       return Promise.resolve(
         overrides.transactions
-          ? overrides.transactions(offset)
-          : jsonResponse({ items: [txCarrefour, txSalaire], total: 2, limit: 50, offset }),
+          ? overrides.transactions(offset, url)
+          : jsonResponse({
+              items: [txCarrefour, txSalaire], total: 2, limit: 50, offset,
+              period_total: 2, history,
+            }),
       );
     }
     const patchMatch = /\/api\/transactions\/(\d+)$/.exec(path);
@@ -163,12 +213,59 @@ describe("TransactionsPage", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("Comptes indisponibles.");
   });
 
-  it("shows an inviting empty state with no silent blank screen", async () => {
-    setupFetch({ transactions: () => jsonResponse({ items: [], total: 0, limit: 50, offset: 0 }) });
+  // Three ways a list comes back empty, and the reader is owed a different
+  // sentence for each: nothing imported, nothing in this period, nothing
+  // matching the filters.
+
+  it("offers the import when the user has no transactions at all", async () => {
+    setupFetch({ transactions: () => jsonResponse(emptyPage(null, 0)) });
     renderPage();
 
-    expect(await screen.findByText("Aucune transaction ne correspond à ces filtres.")).toBeInTheDocument();
+    expect(await screen.findByText(/Aucune donnée/i)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Importer un relevé" })).toHaveAttribute("href", "/import");
+  });
+
+  it("says where the data is, and widens to it, when only the period is empty", async () => {
+    setupFetch({ transactions: () => jsonResponse(emptyPage(history, 0)) });
+    const user = userEvent.setup();
+    renderPage();
+
+    expect(await screen.findByText(/Aucune transaction sur cette période/i)).toBeInTheDocument();
+    expect(screen.getByText(/197 opérations/)).toHaveTextContent("24 janvier 2025");
+
+    await user.click(screen.getByRole("button", { name: /Afficher toute la période/i }));
+
+    await waitFor(() => {
+      const asked = fetchMock.mock.calls
+        .map(([input]) => String(input))
+        .filter((url) => url.startsWith("/api/transactions?"));
+      expect(asked[asked.length - 1]).toContain("date_from=2025-01-24");
+      expect(asked[asked.length - 1]).toContain("date_to=2026-01-09");
+    });
+  });
+
+  it("names the filter that is hiding the period's transactions, and clears it", async () => {
+    setupFetch({
+      transactions: (offset, url) =>
+        url.searchParams.get("search")
+          ? jsonResponse(emptyPage(history, 4))
+          : jsonResponse({
+              items: [txCarrefour, txSalaire], total: 2, limit: 50, offset,
+              period_total: 4, history,
+            }),
+    });
+    const user = userEvent.setup();
+    renderPage();
+    await screen.findByText("CARREFOUR MARKET CB 01/03");
+
+    await user.type(screen.getByRole("searchbox"), "introuvable");
+    await screen.findByText(/Aucune transaction ne correspond à ces filtres/i);
+    expect(screen.getByText(/introuvable/)).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /Effacer les filtres/i }));
+
+    expect(await screen.findByText("CARREFOUR MARKET CB 01/03")).toBeInTheDocument();
+    expect(screen.getByRole("searchbox")).toHaveValue("");
   });
 
   it("recategorizes without a banner when nothing else was backfilled", async () => {

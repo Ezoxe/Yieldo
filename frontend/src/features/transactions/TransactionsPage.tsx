@@ -1,15 +1,17 @@
 import { motion } from "motion/react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Link } from "react-router";
 
 import { BentoCell, type BentoSpan } from "../../design/bento/BentoCell";
 import { BentoGrid } from "../../design/bento/BentoGrid";
+import { EmptyState, historySentence } from "../../design/EmptyState";
 import { entryProps, staggerProps } from "../../design/motion/variants";
 import { useReducedMotion } from "../../design/motion/useReducedMotion";
 import { ApiError, api } from "../../lib/api";
 import type {
   Account,
   Category,
+  History,
   Transaction,
   TransactionPage as TransactionPageBody,
   TransactionPatchResult,
@@ -48,6 +50,36 @@ function messageFor(err: unknown): string {
 
 function plural(count: number, singular: string, pluralForm: string): string {
   return count > 1 ? pluralForm : singular;
+}
+
+export interface ActiveFilters {
+  search: string;
+  accountName: string | null;
+  categoryName: string | null;
+  uncategorizedOnly: boolean;
+}
+
+/**
+ * The filters currently narrowing the list, named the way the reader set them.
+ *
+ * The period is deliberately not one of them: it is its own diagnosis (the
+ * period holds nothing at all), with its own way out, and lumping it in here
+ * would offer to "clear" a control the user can plainly see.
+ */
+export function activeFilterLabels(filters: ActiveFilters): string[] {
+  const labels: string[] = [];
+  if (filters.search) labels.push(`la recherche « ${filters.search} »`);
+  if (filters.categoryName) labels.push(`la catégorie « ${filters.categoryName} »`);
+  if (filters.accountName) labels.push(`le compte « ${filters.accountName} »`);
+  if (filters.uncategorizedOnly) labels.push("« Non catégorisées uniquement »");
+  return labels;
+}
+
+/** Why this period's transactions are not on screen, filter by filter. */
+export function filteredEmptyDetail(periodTotal: number, labels: string[]): string {
+  const held = `Cette période contient ${periodTotal} ${plural(periodTotal, "transaction", "transactions")}.`;
+  if (labels.length === 0) return held;
+  return `${held} ${plural(labels.length, "Filtre actif", "Filtres actifs")} : ${labels.join(", ")}.`;
 }
 
 // What just happened after a category change that taught the categorizer a
@@ -114,8 +146,18 @@ export function TransactionsPage() {
   const [uncategorizedOnly, setUncategorizedOnly] = useState(false);
   const [search, setSearch] = useState("");
 
+  // Bumped by "Effacer les filtres" to remount FilterBar: the search box holds
+  // its own debounced input state, and clearing the page's `search` alone
+  // would leave the text sitting in a field that no longer filters anything.
+  const [filterResetKey, setFilterResetKey] = useState(0);
+
   const [items, setItems] = useState<Transaction[]>([]);
   const [total, setTotal] = useState(0);
+  // What the period holds with the other filters dropped, and the span of the
+  // whole ledger: between them, an empty list can say which of the three
+  // reasons it is empty for.
+  const [periodTotal, setPeriodTotal] = useState(0);
+  const [history, setHistory] = useState<History | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -171,6 +213,8 @@ export function TransactionsPage() {
         if (cancelled) return;
         setItems(page.items);
         setTotal(page.total);
+        setPeriodTotal(page.period_total);
+        setHistory(page.history);
       } catch (err) {
         if (cancelled) return;
         setLoadError(messageFor(err));
@@ -256,6 +300,67 @@ export function TransactionsPage() {
 
   const uncategorizedCount = uncategorizedOnly ? total : null;
 
+  function clearFilters() {
+    setAccountId(null);
+    setCategoryId(null);
+    setUncategorizedOnly(false);
+    setSearch("");
+    setFilterResetKey((key) => key + 1);
+  }
+
+  const filterLabels = activeFilterLabels({
+    search,
+    accountName: accounts.find((a) => a.id === accountId)?.name ?? null,
+    categoryName: categories.find((c) => c.id === categoryId)?.name ?? null,
+    uncategorizedOnly,
+  });
+
+  // Three reasons a list comes back empty, in the order that makes the answer
+  // useful: no ledger at all beats an empty period, and an empty period beats
+  // blaming a filter -- clearing a filter cannot conjure transactions into a
+  // window that holds none.
+  let emptyState: ReactNode = null;
+  if (items.length === 0 && !isLoading) {
+    if (history === null) {
+      emptyState = (
+        <EmptyState
+          title="Aucune donnée pour le moment."
+          detail="Importez un relevé bancaire pour voir vos opérations apparaître ici."
+        >
+          <Link to="/import" className="yd-empty__action">
+            Importer un relevé
+          </Link>
+        </EmptyState>
+      );
+    } else if (periodTotal === 0) {
+      emptyState = (
+        <EmptyState
+          title="Aucune transaction sur cette période."
+          detail={historySentence(history)}
+        >
+          <button
+            type="button"
+            className="yd-empty__action"
+            onClick={() => period.setRange(history.date_from, history.date_to)}
+          >
+            Afficher toute la période
+          </button>
+        </EmptyState>
+      );
+    } else {
+      emptyState = (
+        <EmptyState
+          title="Aucune transaction ne correspond à ces filtres."
+          detail={filteredEmptyDetail(periodTotal, filterLabels)}
+        >
+          <button type="button" className="yd-empty__action" onClick={clearFilters}>
+            Effacer les filtres
+          </button>
+        </EmptyState>
+      );
+    }
+  }
+
   return (
     <section className="yd-transactions">
       <h1>Transactions</h1>
@@ -323,6 +428,7 @@ export function TransactionsPage() {
           {...entryProps(reducedMotion)}
         >
           <FilterBar
+            key={filterResetKey}
             period={period}
             accounts={accounts}
             categories={categories}
@@ -346,13 +452,8 @@ export function TransactionsPage() {
           className="yd-transactions__list"
           {...entryProps(reducedMotion)}
         >
-          {items.length === 0 && !isLoading ? (
-            <div className="yd-transactions__empty">
-              <p>Aucune transaction ne correspond à ces filtres.</p>
-              <Link to="/import" className="yd-transactions__empty-cta">
-                Importer un relevé
-              </Link>
-            </div>
+          {emptyState !== null ? (
+            <div className="yd-transactions__empty">{emptyState}</div>
           ) : (
             <>
               <div className="yd-transactions__scroll">

@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from app.api.history import user_history
 from app.categorization.learning import apply_learned_rule, learn_from_correction
 from app.db import get_db
 from app.importers.dedup import normalize_label
@@ -45,12 +46,19 @@ def list_transactions(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> TransactionPage:
+    # No default range here, deliberately: absent dates already mean the whole
+    # ledger on this route, and that is what they now mean on /analytics too.
     query = db.query(Transaction).filter(Transaction.user_id == user.id)
 
     if date_from is not None:
         query = query.filter(Transaction.date >= date_from)
     if date_to is not None:
         query = query.filter(Transaction.date <= date_to)
+
+    # Branched off before the other filters are applied: this is the count of
+    # the period alone, which is what tells an empty list apart from a list
+    # emptied by a filter.
+    period_query = query
     if category_id is not None:
         query = query.filter(Transaction.category_id == category_id)
     if account_id is not None:
@@ -65,11 +73,15 @@ def list_transactions(
         query = query.filter(Transaction.label_clean.contains(normalize_label(search)))
 
     total = query.with_entities(func.count(Transaction.id)).scalar() or 0
+    period_total = period_query.with_entities(func.count(Transaction.id)).scalar() or 0
     items = (
         query.order_by(Transaction.date.desc(), Transaction.id.desc())
         .limit(limit).offset(offset).all()
     )
-    return TransactionPage(items=items, total=total, limit=limit, offset=offset)
+    return TransactionPage(
+        items=items, total=total, limit=limit, offset=offset,
+        period_total=period_total, history=user_history(db, user.id),
+    )
 
 
 @router.patch("/{transaction_id}", response_model=TransactionPatchOut)

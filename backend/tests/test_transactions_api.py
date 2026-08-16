@@ -27,6 +27,39 @@ def test_search_filter_matches_the_normalized_label(client, imported):
     assert client.get("/api/transactions?search=NETFLIX", headers=headers).json()["total"] == 1
 
 
+# What an empty list means -- no data at all, a period that holds none, or a
+# filter excluding it -- is not something the client can tell from `total: 0`.
+# These two figures are what let the empty state diagnose it.
+
+
+def test_listing_reports_the_span_of_the_user_whole_history(client, imported):
+    headers, _ = imported
+    body = client.get("/api/transactions?date_from=2026-01-01&date_to=2026-01-31",
+                      headers=headers).json()
+    assert body["total"] == 0
+    assert body["period_total"] == 0
+    assert body["history"] == {
+        "date_from": "2025-03-01", "date_to": "2025-03-07", "transaction_count": 4,
+    }
+
+
+def test_listing_reports_the_period_total_ignoring_the_other_filters(client, imported):
+    headers, _ = imported
+    body = client.get("/api/transactions?date_from=2025-03-01&date_to=2025-03-31"
+                      "&search=introuvable", headers=headers).json()
+    assert body["total"] == 0
+    assert body["period_total"] == 4
+
+
+def test_listing_history_is_null_for_a_user_without_any_transaction(client, imported):
+    other = client.post("/api/auth/register", json={
+        "name": "Lea", "email": "lea@example.com", "password": "motdepasse123"}).json()
+    other_headers = {"Authorization": f"Bearer {other['access_token']}"}
+    body = client.get("/api/transactions", headers=other_headers).json()
+    assert body["history"] is None
+    assert body["period_total"] == 0
+
+
 def test_amount_range_filter(client, imported):
     headers, _ = imported
     body = client.get("/api/transactions?max_cents=-5000", headers=headers).json()

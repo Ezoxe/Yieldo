@@ -7,6 +7,13 @@ interface DialectPanelProps {
   dialect: CsvDialect | null;
   profiles: ColumnProfile[];
   isBusy: boolean;
+  /**
+   * What the last change to this panel threw away, in French, or null. Rendered
+   * here rather than at the top of the step: someone who has just nudged the
+   * preamble spinner is looking at the spinner.
+   */
+  discardNotice: string | null;
+  onDismissDiscardNotice: () => void;
   onFieldChange: (field: keyof CsvDialect, value: string | number) => void;
   onSaveProfile: (name: string) => void;
   onApplyProfile: (profile: ColumnProfile) => void;
@@ -42,6 +49,8 @@ export function DialectPanel({
   dialect,
   profiles,
   isBusy,
+  discardNotice,
+  onDismissDiscardNotice,
   onFieldChange,
   onSaveProfile,
   onApplyProfile,
@@ -140,6 +149,17 @@ export function DialectPanel({
           />
         </label>
       </div>
+
+      {/* role="status" (aria-live polite): the choices vanish without any other
+          visible change, so this has to be announced, not merely displayed. */}
+      {discardNotice ? (
+        <div role="status" className="yd-dialect__notice">
+          <p className="yd-dialect__notice-text">{discardNotice}</p>
+          <button type="button" className="yd-dialect__notice-dismiss" onClick={onDismissDiscardNotice}>
+            Fermer
+          </button>
+        </div>
+      ) : null}
 
       <div className="yd-dialect__profiles">
         {profiles.length > 0 ? (

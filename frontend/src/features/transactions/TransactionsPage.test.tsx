@@ -334,6 +334,28 @@ describe("TransactionsPage", () => {
     await waitFor(() => expect(screen.queryByRole("status")).not.toBeInTheDocument());
   });
 
+  // Reachable as soon as the learned rule matched exactly one other row, which
+  // is the common case on a small ledger. The hint under Annuler used to read
+  // "les 1 transactions reclassées automatiquement".
+  it("agrees in number when the rule reclassified a single other transaction", async () => {
+    setupFetch({
+      patch: (id, body) =>
+        jsonResponse({ ...txCarrefour, id, category_id: body.category_id, category_source: "manual", learned_rule_id: 99, backfilled: 1 }),
+    });
+    const user = userEvent.setup();
+    renderPage();
+    await screen.findByText("CARREFOUR MARKET CB 01/03");
+
+    await user.selectOptions(screen.getAllByLabelText("Catégorie")[0], "3");
+
+    const banner = await screen.findByRole("status");
+    expect(banner).toHaveTextContent("Règle apprise — 1 autre transaction similaire a été reclassée.");
+    expect(banner).toHaveTextContent(
+      "la transaction reclassée automatiquement ne peut pas être annulée individuellement",
+    );
+    expect(banner.textContent).not.toMatch(/1 transactions/);
+  });
+
   it("reports the undo's own backfill instead of silently discarding it", async () => {
     setupFetch({
       patch: (id, body) =>

@@ -1,6 +1,7 @@
 import { useCallback, useRef, useState } from "react";
 
 import { ApiError, api } from "../../lib/api";
+import { plural } from "../../lib/plural";
 import {
   ROLE_LABELS,
   type ColumnProfile,
@@ -68,6 +69,52 @@ const REINDEXING_DIALECT_FIELDS: ReadonlySet<keyof CsvDialect> = new Set([
   "preamble_rows",
 ]);
 
+/** How each re-indexing field is named to the user, for the notice below. */
+const REINDEXING_FIELD_LABELS: Partial<Record<keyof CsvDialect, string>> = {
+  header_row: "La ligne d'en-tête a changé",
+  preamble_rows: "Le nombre de lignes de préambule a changé",
+};
+
+/**
+ * What the discard just cost the user, in French -- or null when it cost
+ * nothing.
+ *
+ * Dropping the row-keyed choices is right (see REINDEXING_DIALECT_FIELDS);
+ * dropping them without a word is the silent failure this repository's contract
+ * forbids. The user has no reason to expect that nudging the preamble spinner
+ * undoes the categories they fixed on the preview, and nothing else on the
+ * screen would tell them: the errors list is normally empty, and the choices
+ * simply are not there when they look back at the table.
+ *
+ * Null on a zero total, because that spinner is a bare number input firing
+ * onChange on every keystroke: typing "12" gets here twice, and the second pass
+ * -- which has nothing left to discard -- must not announce anything.
+ *
+ * Every clause is active voice ("a annulé X"), so the sentence needs no
+ * agreement with what follows and one wording covers both counts and both
+ * genders.
+ */
+function discardMessage(
+  field: keyof CsvDialect,
+  overrides: number,
+  keepDuplicates: number,
+): string | null {
+  const total = overrides + keepDuplicates;
+  if (total === 0) return null;
+  const lost: string[] = [];
+  if (overrides > 0) {
+    lost.push(`${overrides} ${plural(overrides, "catégorie corrigée", "catégories corrigées")}`);
+  }
+  if (keepDuplicates > 0) {
+    lost.push(`${keepDuplicates} ${plural(keepDuplicates, "doublon conservé", "doublons conservés")}`);
+  }
+  const cause = REINDEXING_FIELD_LABELS[field] ?? "Le format du fichier a changé";
+  return (
+    `${cause} : les lignes du fichier sont renumérotées, ce qui a annulé ${lost.join(" et ")}. ` +
+    `${plural(total, "Reprenez ce choix", "Reprenez ces choix")} sur l'aperçu.`
+  );
+}
+
 /**
  * The keep-list, cut down to what the fresh preview still reads as a duplicate.
  *
@@ -106,6 +153,13 @@ export interface UseImportWizardResult {
   overrides: Record<number, number>;
   keepDuplicates: number[];
   errors: string[];
+  /**
+   * What the last re-indexing dialect change discarded, in French, or null.
+   * Not an error -- the discard is correct behaviour -- so it is not folded
+   * into `errors`; it is a notice the screen shows next to the control that
+   * caused it, until the user dismisses it or relaunches the analysis.
+   */
+  discardNotice: string | null;
   isBusy: boolean;
   isPreviewStale: boolean;
   canCommit: boolean;
@@ -122,6 +176,7 @@ export interface UseImportWizardResult {
     reanalyze: () => Promise<void>;
     overrideCategory: (rowNumber: number, categoryId: number) => void;
     toggleKeepDuplicate: (rowNumber: number) => void;
+    dismissDiscardNotice: () => void;
     backToMapping: () => void;
     commit: () => Promise<void>;
     cancelImport: () => Promise<void>;
@@ -139,6 +194,7 @@ export function useImportWizard(): UseImportWizardResult {
   const [overrides, setOverrides] = useState<Record<number, number>>({});
   const [keepDuplicates, setKeepDuplicates] = useState<number[]>([]);
   const [errors, setErrors] = useState<string[]>([]);
+  const [discardNotice, setDiscardNotice] = useState<string | null>(null);
   const [isBusy, setIsBusy] = useState(false);
   const [isPreviewStale, setIsPreviewStale] = useState(false);
   const [profiles, setProfiles] = useState<ColumnProfile[]>([]);
@@ -201,6 +257,7 @@ export function useImportWizard(): UseImportWizardResult {
     setFile(nextFile);
     setIsBusy(true);
     setErrors([]);
+    setDiscardNotice(null);
     try {
       const analyzed = await runAnalyze(nextFile);
       const nextMapping = toRoleMapping(analyzed.suggested_mapping);
@@ -240,6 +297,10 @@ export function useImportWizard(): UseImportWizardResult {
       setPreview(analyzed);
       setKeepDuplicates((kept) => keepsStillDuplicated(kept, analyzed));
       setIsPreviewStale(false);
+      // The user has read the notice and moved on: this fresh preview is the
+      // one their next choices are made against, so the sentence about the
+      // previous numbering has had its say.
+      setDiscardNotice(null);
       const freshErrors = validateMapping(current.mapping);
       setErrors(freshErrors);
       // A valid, freshly computed preview is what "preview" means: move the user
@@ -258,20 +319,34 @@ export function useImportWizard(): UseImportWizardResult {
     const baseDialect = current.dialect ?? current.preview?.dialect;
     if (!baseDialect || !current.file) return;
     const nextDialect = { ...baseDialect, [field]: value } as CsvDialect;
+    const reindexes = REINDEXING_DIALECT_FIELDS.has(field);
     setDialect(nextDialect);
     setIsPreviewStale(true);
     setIsBusy(true);
+
+    // Before the request, not after it. `dialect` above is already the
+    // re-indexing one, so choices left behind by a failed analyze (network
+    // drop, 401, 413, backend 500) would be sent under the new numbering by the
+    // next "Voir l'aperçu" -- reanalyze never clears them.
+    if (reindexes) {
+      // Every row number the user's choices were made against now points
+      // somewhere else; there is no honest way to carry them over. Say so:
+      // `message` is null when there was nothing to discard, and a no-op pass
+      // must neither announce anything nor wipe a notice already on screen.
+      const message = discardMessage(
+        field,
+        Object.keys(current.overrides).length,
+        current.keepDuplicates.length,
+      );
+      setOverrides({});
+      setKeepDuplicates([]);
+      if (message) setDiscardNotice(message);
+    }
+
     try {
       const analyzed = await runAnalyze(current.file, current.mapping, nextDialect);
       setPreview(analyzed);
-      if (REINDEXING_DIALECT_FIELDS.has(field)) {
-        // Every row number the user's choices were made against now points
-        // somewhere else; there is no honest way to carry them over.
-        setOverrides({});
-        setKeepDuplicates([]);
-      } else {
-        setKeepDuplicates((kept) => keepsStillDuplicated(kept, analyzed));
-      }
+      if (!reindexes) setKeepDuplicates((kept) => keepsStillDuplicated(kept, analyzed));
       setIsPreviewStale(false);
       setErrors(validateMapping(current.mapping));
     } catch (err) {
@@ -325,6 +400,8 @@ export function useImportWizard(): UseImportWizardResult {
     );
   }, []);
 
+  const dismissDiscardNotice = useCallback(() => setDiscardNotice(null), []);
+
   // Reviewing the preview is not a one-way door: the user must be able to go back
   // and retag a column they got wrong without restarting the whole wizard.
   const backToMapping = useCallback(() => setStep("mapping"), []);
@@ -373,6 +450,7 @@ export function useImportWizard(): UseImportWizardResult {
     setKeepDuplicates([]);
     setBatch(null);
     setErrors([]);
+    setDiscardNotice(null);
     setIsPreviewStale(false);
     setIsBusy(false);
   }, []);
@@ -407,6 +485,7 @@ export function useImportWizard(): UseImportWizardResult {
     overrides,
     keepDuplicates,
     errors,
+    discardNotice,
     isBusy,
     isPreviewStale,
     canCommit,
@@ -423,6 +502,7 @@ export function useImportWizard(): UseImportWizardResult {
       reanalyze,
       overrideCategory,
       toggleKeepDuplicate,
+      dismissDiscardNotice,
       backToMapping,
       commit,
       cancelImport,

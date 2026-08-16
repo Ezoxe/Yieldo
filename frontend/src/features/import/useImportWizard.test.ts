@@ -261,6 +261,91 @@ describe("useImportWizard", () => {
     expect(result.current.keepDuplicates).toEqual([]);
   });
 
+  // Discarding the choices is right; discarding them without a word is the
+  // silent failure this repository's contract forbids. The wizard hands the
+  // screen a sentence naming what it threw away.
+  it("says what the re-indexing change threw away, counting each kind", async () => {
+    const result = await startWith(withDuplicateBody);
+    act(() => {
+      result.current.actions.overrideCategory(2, 42);
+      result.current.actions.toggleKeepDuplicate(2);
+    });
+
+    fetchMock.mockResolvedValueOnce(jsonResponse(withDuplicateBody));
+    await act(async () => {
+      await result.current.actions.setDialectField("preamble_rows", 5);
+    });
+
+    expect(result.current.discardNotice).toContain("préambule");
+    expect(result.current.discardNotice).toContain("1 catégorie corrigée");
+    expect(result.current.discardNotice).toContain("1 doublon conservé");
+  });
+
+  // The spinner behind this fires onChange on every keystroke: typing "12"
+  // reaches setDialectField twice, and the second pass has nothing left to
+  // discard. It must neither raise a second notice nor wipe the first.
+  it("stays silent when the re-indexing change had nothing to discard", async () => {
+    const result = await startWith(withDuplicateBody);
+
+    fetchMock.mockResolvedValueOnce(jsonResponse(withDuplicateBody));
+    await act(async () => {
+      await result.current.actions.setDialectField("preamble_rows", 1);
+    });
+    expect(result.current.discardNotice).toBeNull();
+
+    act(() => result.current.actions.overrideCategory(2, 42));
+    fetchMock.mockResolvedValueOnce(jsonResponse(withDuplicateBody));
+    await act(async () => {
+      await result.current.actions.setDialectField("preamble_rows", 1);
+    });
+    const raised = result.current.discardNotice;
+    expect(raised).toContain("1 catégorie corrigée");
+
+    fetchMock.mockResolvedValueOnce(jsonResponse(withDuplicateBody));
+    await act(async () => {
+      await result.current.actions.setDialectField("preamble_rows", 12);
+    });
+    expect(result.current.discardNotice).toBe(raised);
+  });
+
+  it("drops the notice once the user has relaunched the analysis", async () => {
+    const result = await startWith(withDuplicateBody);
+    act(() => result.current.actions.overrideCategory(2, 42));
+
+    fetchMock.mockResolvedValueOnce(jsonResponse(withDuplicateBody));
+    await act(async () => {
+      await result.current.actions.setDialectField("preamble_rows", 5);
+    });
+    expect(result.current.discardNotice).not.toBeNull();
+
+    fetchMock.mockResolvedValueOnce(jsonResponse(withDuplicateBody));
+    await act(async () => {
+      await result.current.actions.reanalyze();
+    });
+    expect(result.current.discardNotice).toBeNull();
+  });
+
+  // The dialect on the wizard is already the re-indexing one before the request
+  // leaves. If the analyze then fails, choices left behind would be applied
+  // under the new numbering by the next "Voir l'aperçu", which never clears them.
+  it("forgets the row-keyed choices even when the re-analysis fails", async () => {
+    const result = await startWith(withDuplicateBody);
+    act(() => {
+      result.current.actions.overrideCategory(2, 42);
+      result.current.actions.toggleKeepDuplicate(2);
+    });
+
+    fetchMock.mockResolvedValueOnce(jsonResponse({ detail: "Erreur serveur inattendue." }, 500));
+    await act(async () => {
+      await result.current.actions.setDialectField("preamble_rows", 5);
+    });
+
+    expect(result.current.errors[0]).toContain("Erreur serveur inattendue.");
+    expect(result.current.overrides).toEqual({});
+    expect(result.current.keepDuplicates).toEqual([]);
+    expect(result.current.discardNotice).not.toBeNull();
+  });
+
   it("keeps them when the dialect change leaves the row numbering alone", async () => {
     const result = await startWith(withDuplicateBody);
     act(() => result.current.actions.overrideCategory(2, 42));

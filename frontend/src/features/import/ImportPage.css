@@ -718,6 +718,40 @@
   color: var(--yd-text-muted) !important;
 }
 
+/* What a re-indexing change (préambule, ligne d'en-tête) just discarded. A
+   warning, not an error: the discard is correct, it simply must not be silent.
+   The text is --yd-text on a 12% warning wash rather than warning-on-surface --
+   #f4a261 as a text colour misses AA on the light theme -- so the border and
+   the tint carry the tone and the sentence stays readable in both. */
+.yd-dialect__notice {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--yd-space-sm);
+  padding: var(--yd-space-sm) var(--yd-space-md);
+  border-radius: var(--yd-radius-sm);
+  border: 1px solid var(--yd-warning);
+  background: color-mix(in srgb, var(--yd-warning) 12%, transparent);
+  color: var(--yd-text);
+  font-size: 0.85rem;
+}
+
+.yd-dialect__notice-text {
+  margin: 0;
+  flex: 1;
+}
+
+.yd-dialect__notice-dismiss {
+  flex-shrink: 0;
+  border: 1px solid var(--yd-border-strong);
+  border-radius: var(--yd-radius-sm);
+  padding: var(--yd-space-2xs) var(--yd-space-sm);
+  background: transparent;
+  color: var(--yd-text);
+  font: inherit;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
 /* ColumnTagger -------------------------------------------------------------- */
 
 .yd-tagger {

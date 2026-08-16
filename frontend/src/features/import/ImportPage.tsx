@@ -442,7 +442,8 @@ function FileStep({ wizard, accounts, onCreateAccount, reduced }: FileStepProps)
 }
 
 function MappingStep({ wizard, reduced }: StepProps & { reduced: boolean }) {
-  const { preview, mapping, errors, dialect, profiles, isBusy, isPreviewStale, actions } = wizard;
+  const { preview, mapping, errors, dialect, profiles, isBusy, isPreviewStale, discardNotice, actions } =
+    wizard;
   if (!preview) return null;
 
   return (
@@ -453,6 +454,8 @@ function MappingStep({ wizard, reduced }: StepProps & { reduced: boolean }) {
             dialect={dialect}
             profiles={profiles}
             isBusy={isBusy}
+            discardNotice={discardNotice}
+            onDismissDiscardNotice={actions.dismissDiscardNotice}
             onFieldChange={(field, value) => {
               void actions.setDialectField(field, value);
             }}

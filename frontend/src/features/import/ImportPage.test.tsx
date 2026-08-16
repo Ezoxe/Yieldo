@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -97,14 +97,21 @@ function jsonResponse(body: unknown, status = 200) {
 // /imports/profiles essentially simultaneously, so asserting on
 // fetchMock.mock.calls[n] the way the hook-level tests do would be fragile here.
 function setupFetch(
-  overrides: { commit?: () => Response; cancel?: () => Response; analyze?: () => Response } = {},
+  overrides: {
+    commit?: () => Response;
+    cancel?: () => Response;
+    analyze?: () => Response;
+    categories?: () => Response;
+  } = {},
 ) {
   fetchMock.mockImplementation((input: string, init?: RequestInit) => {
     const url = typeof input === "string" ? input : String(input);
     const method = init?.method ?? "GET";
 
     if (url === "/api/accounts") return Promise.resolve(jsonResponse([account]));
-    if (url === "/api/categories") return Promise.resolve(jsonResponse([]));
+    if (url === "/api/categories") {
+      return Promise.resolve(overrides.categories ? overrides.categories() : jsonResponse([]));
+    }
     if (url === "/api/imports/profiles" && method === "GET") return Promise.resolve(jsonResponse([]));
     if (url === "/api/imports" && method === "GET") return Promise.resolve(jsonResponse([committedBatch]));
     if (url === "/api/imports/analyze") {
@@ -133,7 +140,7 @@ function actionBarOf(control: HTMLElement): HTMLElement {
   return bar as HTMLElement;
 }
 
-async function driveToPreviewStep() {
+async function driveToMappingStep() {
   render(<ImportPage />);
 
   await userEvent.selectOptions(
@@ -145,6 +152,10 @@ async function driveToPreviewStep() {
   await userEvent.upload(fileInput, new File(["x"], "b.csv", { type: "text/csv" }));
 
   await screen.findByText("Taggez vos colonnes");
+}
+
+async function driveToPreviewStep() {
+  await driveToMappingStep();
   await userEvent.click(screen.getByRole("button", { name: "Voir l'aperçu" }));
 
   await screen.findByText("Aperçu des lignes");
@@ -428,5 +439,102 @@ describe("ImportPage — surfacing commit/cancel failures", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("Lot d'import introuvable");
     // Still on the done step -- a failed cancel must not silently reset the wizard.
     expect(screen.getByText("Import terminé")).toBeInTheDocument();
+  });
+});
+
+// Moving the header or the preamble renumbers every data row, so the wizard
+// drops the choices keyed by row number (see useImportWizard.ts). Dropping them
+// is the honest thing to do; dropping them without a word is the silent failure
+// this repository's contract forbids -- and the "Lignes de préambule" spinner is
+// a bare number input whose onChange fires on every keystroke, so one stray
+// touch is all it takes.
+describe("ImportPage — telling the user what a re-indexing dialect change discarded", () => {
+  const courses = {
+    id: 3, parent_id: null, name: "Courses", slug: "courses",
+    kind: "expense", color: "#4fd6a8", icon: "cart", monthly_budget_cents: null,
+  };
+
+  /** Preview step, one category corrected and one duplicate kept, then back to the tagger. */
+  async function withChoicesMadeThenBackToTagging() {
+    const user = userEvent.setup();
+    setupFetch({
+      analyze: () => jsonResponse(mixedPreviewBody),
+      categories: () => jsonResponse([courses]),
+    });
+    await driveToPreviewStep();
+
+    await user.selectOptions(screen.getByLabelText("Catégorie de la ligne 1"), "3");
+    await user.click(screen.getAllByRole("checkbox", { name: "Importer quand même" })[0]);
+    await user.click(screen.getByRole("button", { name: "Retour au tagging" }));
+
+    return { user, preamble: await screen.findByLabelText("Lignes de préambule") };
+  }
+
+  it("names what was lost, in French, on the screen where it happened", async () => {
+    const { user, preamble } = await withChoicesMadeThenBackToTagging();
+
+    await user.type(preamble, "2");
+
+    const notice = await screen.findByRole("status");
+    expect(notice).toHaveTextContent(/préambule/i);
+    expect(notice).toHaveTextContent("1 catégorie corrigée");
+    expect(notice).toHaveTextContent("1 doublon conservé");
+    // The notice sits with the control that caused it, not at the far end of
+    // the step where someone who just nudged the spinner would never look.
+    expect(preamble.closest(".yd-dialect")).toContainElement(notice);
+  });
+
+  it("lets the user dismiss it", async () => {
+    const { user, preamble } = await withChoicesMadeThenBackToTagging();
+    await user.type(preamble, "2");
+
+    const notice = await screen.findByRole("status");
+    await user.click(within(notice).getByRole("button", { name: "Fermer" }));
+
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+  });
+
+  it("stays silent when the spinner is touched with nothing to discard", async () => {
+    const user = userEvent.setup();
+    setupFetch();
+    await driveToMappingStep();
+
+    const preamble = screen.getByLabelText("Lignes de préambule");
+    await user.type(preamble, "2");
+    await waitFor(() => expect(preamble).not.toBeDisabled());
+
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+  });
+
+  // Typing "12" into the spinner is two changes: the second one has nothing
+  // left to discard and must neither raise a second notice nor erase the first.
+  it("neither repeats nor erases the notice on the next keystroke", async () => {
+    const { user, preamble } = await withChoicesMadeThenBackToTagging();
+
+    await user.type(preamble, "1");
+    await screen.findByRole("status");
+    await waitFor(() => expect(preamble).not.toBeDisabled());
+    await user.type(preamble, "2");
+    await waitFor(() => expect(preamble).not.toBeDisabled());
+
+    expect(screen.getAllByRole("status")).toHaveLength(1);
+    expect(screen.getByRole("status")).toHaveTextContent("1 catégorie corrigée");
+  });
+
+  it("carries the discard through to the preview: the corrected category is gone", async () => {
+    const { user, preamble } = await withChoicesMadeThenBackToTagging();
+    await user.type(preamble, "2");
+    await screen.findByRole("status");
+    await waitFor(() => expect(preamble).not.toBeDisabled());
+
+    await user.click(screen.getByRole("button", { name: "Voir l'aperçu" }));
+    await screen.findByText("Aperçu des lignes");
+
+    // Back to what the backend proposed for that row (nothing), and the kept
+    // duplicate is no longer counted as a row about to be imported.
+    expect(screen.getByLabelText("Catégorie de la ligne 1")).toHaveValue("");
+    expect(actionBarOf(screen.getByRole("button", { name: "Valider l'import" }))).toHaveTextContent(
+      "3 lignes à importer",
+    );
   });
 });

@@ -396,8 +396,12 @@ export function TransactionsPage() {
                 Annuler
               </button>
               <p className="yd-transactions__notice-hint">
-                Cela restaure uniquement cette transaction à sa catégorie précédente ; les{" "}
-                {notice.count} transactions reclassées automatiquement ne peuvent pas être annulées
+                Cela restaure uniquement cette transaction à sa catégorie précédente ;{" "}
+                {plural(
+                  notice.count,
+                  "la transaction reclassée automatiquement ne peut pas être annulée",
+                  `les ${notice.count} transactions reclassées automatiquement ne peuvent pas être annulées`,
+                )}{" "}
                 individuellement.
               </p>
             </>

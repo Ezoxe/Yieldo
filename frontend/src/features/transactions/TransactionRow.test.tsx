@@ -97,6 +97,30 @@ describe("TransactionRow", () => {
     expect(ruleBody(".yd-amount--positive")).toMatch(/color:\s*var\(--yd-positive\)/);
   });
 
+  // Under 600px a row is laid out as a two-line grid, which means the table
+  // boxes stop being table boxes and the browser stops inferring table
+  // semantics from them. The roles are written down instead of implied, so the
+  // row stays a row and the four cells stay cells at every width. jsdom has no
+  // layout, so this asserts the declaration; the rendered result is in
+  // task-4-report.md.
+  it("declares its table semantics instead of leaving them to the layout", () => {
+    const { container } = render(<TransactionRow transaction={transaction} categories={categories}
+                                                 onRecategorize={vi.fn()} />);
+    // The attribute, not the inferred role: jsdom infers `row`/`cell` from the
+    // tag whatever the stylesheet says, so only the written-down role proves
+    // the semantics survive `display: grid` in a real browser.
+    expect(container.querySelector("tr")).toHaveAttribute("role", "row");
+    expect(container.querySelectorAll('td[role="cell"]')).toHaveLength(4);
+  });
+
+  // The defect: at 375 the category column was 5.4rem, so every picker read
+  // "Livrai" / "Salair" / "Remb" -- present, aligned, and carrying no
+  // information at all. It gets its own line under the label now.
+  it("gives the category a line of its own on a phone", () => {
+    const phone = css.slice(css.indexOf("@media (max-width: 599px)"));
+    expect(phone).toMatch(/grid-template-areas:\s*"date label amount"\s+"\.\s+category category"/);
+  });
+
   // Amounts are a column to be compared down, not prose: tabular figures in
   // the mono family, right-aligned. `.yd-num` carries the first two.
   it("keeps the amount in the tabular figure style", () => {

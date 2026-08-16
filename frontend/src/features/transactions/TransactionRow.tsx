@@ -34,16 +34,19 @@ export function TransactionRow({ transaction, categories, onRecategorize }: Tran
   const sourceBadge = SOURCE_BADGES[transaction.category_source] ?? transaction.category_source;
 
   return (
-    <tr className="yd-transactions__row">
-      <td className="yd-num yd-transactions__cell yd-transactions__cell--date">
+    // role="row"/"cell" rather than the tags alone: under 600px the row is laid
+    // out as a two-line grid (see TransactionsPage.css), and a browser reads
+    // table semantics off the display value unless they are declared.
+    <tr className="yd-transactions__row" role="row">
+      <td role="cell" className="yd-num yd-transactions__cell yd-transactions__cell--date">
         {new Date(transaction.date).toLocaleDateString("fr-FR")}
       </td>
-      <td className="yd-transactions__cell yd-transactions__cell--label">
+      <td role="cell" className="yd-transactions__cell yd-transactions__cell--label">
         {/* label_raw, never label_clean: the user must recognize the line
             exactly as it reads on their own bank statement. */}
         <span>{transaction.label_raw}</span>
       </td>
-      <td className="yd-transactions__cell yd-transactions__cell--category">
+      <td role="cell" className="yd-transactions__cell yd-transactions__cell--category">
         <label className="sr-only" htmlFor={`category-${transaction.id}`}>
           Catégorie
         </label>
@@ -86,7 +89,7 @@ export function TransactionRow({ transaction, categories, onRecategorize }: Tran
           </span>
         </div>
       </td>
-      <td className="yd-transactions__cell yd-transactions__cell--amount">
+      <td role="cell" className="yd-transactions__cell yd-transactions__cell--amount">
         {/* Both tones are carried by the class, in TransactionsPage.css. They
             used to come from an inline style, which no theme and no stylesheet
             could reach -- and `.yd-amount--negative` matched no rule at all. */}

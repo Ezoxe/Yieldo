@@ -356,16 +356,29 @@ export function TransactionsPage() {
           ) : (
             <>
               <div className="yd-transactions__scroll">
-                <table className="yd-transactions__table">
-                  <thead className="yd-transactions__head">
-                    <tr>
-                      <th scope="col">Date</th>
-                      <th scope="col">Libellé</th>
-                      <th scope="col">Catégorie</th>
-                      <th scope="col">Montant</th>
+                {/* The roles are written down rather than inferred from the
+                    layout: under 600px TransactionsPage.css lays each row out
+                    as a two-line grid, which means these boxes stop being
+                    table boxes and a browser stops exposing them as a table.
+                    Declaring the roles keeps the list a table at every width. */}
+                <table className="yd-transactions__table" role="table">
+                  <thead className="yd-transactions__head" role="rowgroup">
+                    <tr role="row">
+                      <th scope="col" role="columnheader">
+                        Date
+                      </th>
+                      <th scope="col" role="columnheader">
+                        Libellé
+                      </th>
+                      <th scope="col" role="columnheader">
+                        Catégorie
+                      </th>
+                      <th scope="col" role="columnheader">
+                        Montant
+                      </th>
                     </tr>
                   </thead>
-                  <tbody>
+                  <tbody className="yd-transactions__body" role="rowgroup">
                     {items.map((transaction) => (
                       <TransactionRow
                         key={transaction.id}

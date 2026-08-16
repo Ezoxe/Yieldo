@@ -180,6 +180,14 @@ describe("ImportPage.css — the pinned action bar", () => {
     const zIndex = /z-index:\s*(\d+)/.exec(ruleBody(".yd-import__actionbar"))?.[1];
     expect(Number(zIndex)).toBeGreaterThan(5);
   });
+
+  // An opaque bar across the bottom of the scrollport is also an opaque bar
+  // across whatever the browser just scrolled a newly focused control to. The
+  // preview table has no vertical scroll of its own, so the scrolling box is
+  // the document and the reserve has to be declared on its root.
+  it("reserves the bar's height on the scrolling root, so a focused control below the fold is not scrolled under it", () => {
+    expect(ruleBody(":root:has(.yd-import__actionbar)")).toMatch(/scroll-padding-bottom:\s*\S/);
+  });
 });
 
 describe("commitCounts", () => {

@@ -341,18 +341,29 @@
   font-weight: 600;
 }
 
-/* A phone has room for four columns only if every one of them gives something
-   up. Under 600px the table stops sizing itself off its content -- an auto
-   table with an editable <select> in every row measures ~425px against 341px
-   of screen, and whatever is trimmed it stays wider than the phone. So the
-   columns are declared instead: three fixed widths that hold the figures, and
-   the label takes what is left and wraps.
+/* A phone has room for three columns, not four. Four were declared here for a
+   round -- date 4.3rem, catégorie 5.4rem, montant 4.9rem, label taking the
+   rest -- and the category column rendered "Livrai", "Remb", "Salair",
+   "Loyer": a column that costs 86px and cannot tell Livraison from Livres, or
+   name which of the eight income categories a row carries. Present, aligned,
+   and carrying no information, which is worse than an honest overflow.
 
-   The alternative, tried and rejected in the browser: freeze the amount
-   against the right edge and let the rest scroll horizontally under it. It
-   renders a category picker sliced down its middle by an opaque column, which
-   reads as a broken table rather than a scrollable one -- and puts a sideways
-   scroll on a touch surface where the finger is already used for the page. */
+   So the row uses two lines instead. Line one is the three things the eye runs
+   down a statement for -- date, libellé, montant, in their own columns, the
+   amount right-aligned in mono. Line two carries the category picker, indented
+   under the label so the columns still read as columns. That is what a table
+   row on a phone looks like; it is not a card, and nothing is dropped.
+
+   Two earlier attempts, both rejected in the browser: freezing the amount
+   against the right edge and scrolling the rest under it (a picker sliced down
+   its middle by an opaque column, and a sideways scroll on a surface where the
+   finger is already the page's scroll); and squeezing all four columns, above.
+
+   `display: block` on the table boxes plus `grid` on the rows is what allows
+   the wrap -- and it is also what stops a browser inferring table semantics
+   from the layout, which is why TransactionsPage.tsx and TransactionRow.tsx
+   write role="table"/"rowgroup"/"row"/"columnheader"/"cell" down explicitly
+   rather than leaving them to the display value. */
 @media (max-width: 599px) {
   /* The band is four controls and six period tabs; left to wrap on its own
      every one of them took a full line and the first transaction started
@@ -384,54 +395,106 @@
     max-height: none;
   }
 
-  /* Declared columns, not measured ones: the three that carry a figure or a
-     control are pinned, and the label is the only one that flexes. The widths
-     are on the header cells because that is where `table-layout: fixed` reads
-     them, and repeated on the body cells so a filtered list that renders no
-     <thead> row would still hold its columns. */
-  .yd-transactions__table {
-    table-layout: fixed;
+  /* The table boxes stop laying out as a table so the rows can wrap; the rows
+     become the grid that keeps the columns in line across all of them. */
+  .yd-transactions__table,
+  .yd-transactions__head,
+  .yd-transactions__body {
+    display: block;
     font-size: 0.8rem;
   }
 
+  /* One template for the header row and every body row, so a header still
+     stands over the column it names -- CATÉGORIE included, on line two.
+     `minmax(0, 1fr)` on the label: an `auto` minimum would let a long
+     unbroken label push the track past the screen. */
+  .yd-transactions__head tr,
+  .yd-transactions__row {
+    display: grid;
+    grid-template-columns: 4.3rem minmax(0, 1fr) 4.9rem;
+    grid-template-areas:
+      "date label amount"
+      ".   category category";
+    align-items: baseline;
+    column-gap: var(--yd-space-xs);
+    padding: var(--yd-space-2xs) var(--yd-space-xs);
+  }
+
+  /* The cells no longer own the row's inset -- the grid does -- so the tint
+     that marks the row under the pointer or holding focus moves up with it,
+     or it would stripe the row and leave the gutters and column gaps bare. */
   .yd-transactions__cell,
   .yd-transactions__head th {
-    padding: var(--yd-space-2xs) var(--yd-space-xs);
+    padding: 1px 0;
+  }
+
+  .yd-transactions__row:hover .yd-transactions__cell,
+  .yd-transactions__row:focus-within .yd-transactions__cell {
+    background: none;
+  }
+
+  .yd-transactions__row:hover,
+  .yd-transactions__row:focus-within {
+    background: color-mix(in srgb, var(--yd-accent) 8%, transparent);
+  }
+
+  /* Same reason, for the header: an opaque background on each <th> would paint
+     three tight rectangles with bare gutters between them instead of one band.
+     The band -- and the stickiness -- move to the row, which is also the box
+     that actually has a scrollport to stick to now that the cells are grid
+     items. */
+  .yd-transactions__head th {
+    position: static;
+    background: none;
+    border-bottom: none;
+  }
+
+  .yd-transactions__head tr {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    background: var(--yd-surface-strong);
+    border-bottom: 1px solid var(--yd-border);
   }
 
   .yd-transactions__head th:nth-child(1),
   .yd-transactions__cell--date {
-    width: 4.3rem;
+    grid-area: date;
     font-size: 0.7rem;
   }
 
-  .yd-transactions__head th:nth-child(3) {
-    width: 5.4rem;
-  }
-
-  .yd-transactions__head th:nth-child(4),
-  .yd-transactions__cell--amount {
-    width: 4.9rem;
-    font-size: 0.75rem;
-  }
-
-  /* Whatever the other three leave. `break-word`, not `anywhere`: a word is
-     only cut when it cannot fit a line on its own, so "REMBOURSEMENT" wraps
-     whole instead of being sliced into "REMBOURSEME / NT". */
+  /* Whatever the date and the amount leave. `break-word`, not `anywhere`: a
+     word is only cut when it cannot fit a line on its own, so "REMBOURSEMENT"
+     wraps whole instead of being sliced into "REMBOURSEME / NT". */
+  .yd-transactions__head th:nth-child(2),
   .yd-transactions__cell--label {
+    grid-area: label;
     width: auto;
     min-width: 0;
     overflow-wrap: break-word;
   }
 
-  /* The picker takes the whole column; `min-width: 0` is what lets it shrink
-     inside the flex row rather than pushing the column back out. */
+  .yd-transactions__head th:nth-child(3),
+  .yd-transactions__cell--category {
+    grid-area: category;
+  }
+
+  .yd-transactions__head th:nth-child(4),
+  .yd-transactions__cell--amount {
+    grid-area: amount;
+    font-size: 0.75rem;
+  }
+
+  /* The picker takes the whole of line two -- ~240px, which holds the longest
+     category name the seed carries -- instead of the 5.4rem that truncated it
+     to six characters. `min-width: 0` is what lets it shrink inside the flex
+     row rather than pushing the line back out. */
   .yd-transactions__select {
     width: 100%;
     min-width: 0;
     max-width: none;
     font-size: 0.75rem;
-    padding: 2px;
+    padding: 2px var(--yd-space-2xs);
   }
 
   /* The only thing dropped at this width, and the only one that can be: the

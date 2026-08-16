@@ -207,6 +207,26 @@
   box-shadow: var(--yd-shadow);
 }
 
+/* An opaque bar across the bottom of the scrollport is also an opaque bar
+   across wherever the browser scrolls a newly focused control to. Tab into the
+   preview's category pickers below the fold and Chrome scrolls each one to the
+   bottom edge of the scrollport -- which is exactly where this bar sits -- so
+   the ring landed underneath it, on the same 300-row keyboard path this screen
+   was rebuilt for.
+
+   Neither table owns a vertical scroll (`.yd-import-preview__scroll` and
+   `.yd-tagger__scroll` are `overflow-x` only), so the scrolling box is the
+   document and the reserve belongs on its root. Scoped with :has() so it only
+   exists while a bar does -- no other screen pays for it.
+
+   8rem, against a bar measured at 54px (mapping) and 86px (preview, three
+   counts and a note) on a 375x812 phone: enough headroom for a note that wraps
+   further, and overshooting only parks the focused row a little higher up the
+   screen. */
+:root:has(.yd-import__actionbar) {
+  scroll-padding-bottom: 8rem;
+}
+
 .yd-import__actionbar-row {
   display: flex;
   flex-wrap: wrap;

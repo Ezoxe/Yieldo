@@ -1,5 +1,6 @@
 import { CountUp } from "../../design/CountUp";
 import { formatCents } from "../../design/theme";
+import { plural } from "../../lib/plural";
 import type { ImportBatch, ImportSummary as ImportSummaryData } from "../../lib/types";
 import "./ImportPage.css";
 
@@ -20,10 +21,6 @@ function formatPeriod(from: string | null, to: string | null): string {
   return from === to ? format(from) : `${format(from)} – ${format(to)}`;
 }
 
-function plural(count: number, word: string): string {
-  return `${count} ${word}${count > 1 ? "s" : ""}`;
-}
-
 export function ImportSummary({ summary, batch, isBusy, onCancelImport }: ImportSummaryProps) {
   // Once the batch exists the import already happened -- the pre-commit banner
   // (still countable, still cancellable-before-the-fact) no longer applies.
@@ -33,9 +30,16 @@ export function ImportSummary({ summary, batch, isBusy, onCancelImport }: Import
       <div className="yd-summary yd-summary--done">
         <h2 className="yd-summary__title">Import terminé</h2>
         <p className="yd-summary__report">
-          {plural(batch.rows_imported, "ligne importée")} dans «&nbsp;{batch.filename}&nbsp;»
-          {batch.rows_duplicate > 0 ? `, ${plural(batch.rows_duplicate, "doublon ignoré")}` : ""}
-          {batch.rows_failed > 0 ? `, ${plural(batch.rows_failed, "ligne en erreur")}` : ""}.
+          {batch.rows_imported}{" "}
+          {plural(batch.rows_imported, "ligne importée", "lignes importées")} dans «&nbsp;
+          {batch.filename}&nbsp;»
+          {batch.rows_duplicate > 0
+            ? `, ${batch.rows_duplicate} ${plural(batch.rows_duplicate, "doublon ignoré", "doublons ignorés")}`
+            : ""}
+          {batch.rows_failed > 0
+            ? `, ${batch.rows_failed} ${plural(batch.rows_failed, "ligne en erreur", "lignes en erreur")}`
+            : ""}
+          .
         </p>
         <button type="button" className="yd-summary__cancel" onClick={onCancelImport} disabled={isBusy}>
           Annuler cet import

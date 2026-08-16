@@ -108,6 +108,16 @@ def suggest_mapping(
     matched as `debit` or `credit` whose values carry both signs is proposed as
     `amount` instead. Without rows the proposal is exactly the header-only one.
 
+    Two passes, deliberately. The header pass runs to completion first, because
+    only a finished mapping knows whether the file also has the counterpart
+    column: a Débit column carrying one negative row (a reversal, an *extourne*,
+    a corrected fee -- an ordinary line on a real statement) satisfies
+    `_carries_both_signs` while the Crédit column beside it is still the other
+    half of the same ledger. Promoting it there would flip every expense in the
+    file into income, in a mapping that passes `validate_mapping` and previews
+    cleanly. So the promotion happens only when the finished mapping holds
+    exactly one amount-bearing column.
+
     Pure: no session, no clock, no I/O. Nothing here imports anything; the user
     confirms the mapping on screen before a single row is written.
     """
@@ -122,15 +132,21 @@ def suggest_mapping(
             if pattern.search(normalized):
                 role = candidate
                 break
-        if (
-            role in ("debit", "credit")
-            and "amount" not in taken
-            and _carries_both_signs(rows, index, decimal_separator)
-        ):
-            role = "amount"
         if role != "ignore":
             taken.add(role)
         mapping[index] = role
+
+    # Second pass. A file already carrying an `amount` column, or carrying both a
+    # `debit` and a `credit` one, has nothing to promote -- only a lone
+    # `debit`-or-`credit` column can be the single signed column in disguise.
+    if "amount" not in taken and ("debit" in taken) != ("credit" in taken):
+        for index, role in mapping.items():
+            if role in ("debit", "credit") and _carries_both_signs(
+                rows, index, decimal_separator
+            ):
+                mapping[index] = "amount"
+                break
+
     return mapping
 
 

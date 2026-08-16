@@ -6,6 +6,7 @@ import { BentoGrid } from "../../design/bento/BentoGrid";
 import { entryProps, staggerProps } from "../../design/motion/variants";
 import { useReducedMotion } from "../../design/motion/useReducedMotion";
 import { ApiError, api } from "../../lib/api";
+import { plural } from "../../lib/plural";
 import type { Account, Category, ImportSummary as ImportSummaryData } from "../../lib/types";
 import { ColumnTagger } from "./ColumnTagger";
 import { DialectPanel } from "./DialectPanel";
@@ -53,10 +54,6 @@ const SPAN = {
   done: { base: 1, md: 6, lg: 12 },
 } satisfies Record<string, BentoSpan>;
 
-function plural(count: number, singular: string, pluralForm: string): string {
-  return count > 1 ? pluralForm : singular;
-}
-
 /** What clicking "Valider l'import" is about to write, in the user's terms. */
 export interface CommitCounts {
   toImport: number;
@@ -69,12 +66,12 @@ export interface CommitCounts {
  * *decision*, which is not the same thing once the user has ticked "Importer
  * quand même" on a duplicate.
  *
- * `keptDuplicates` is the raw length of the wizard's keep-list, so this figure
- * cannot disagree with the `canCommit` the button reads. That list is not
- * cleared by a re-analysis, so it can in principle outlive the rows it named
- * (a pre-existing wizard behaviour, unchanged here) -- hence the clamp, which
- * keeps a nonsensical negative off the screen rather than standing in for a
- * number nobody computed.
+ * `keptDuplicates` is the length of the wizard's keep-list, so this figure
+ * cannot disagree with the `canCommit` the button reads. Every fresh preview
+ * filters that list down to rows it still reads as duplicates
+ * (useImportWizard.ts), so a kept row is always one of `summary.duplicates` and
+ * the subtraction below cannot go negative; the clamp is there so a future
+ * caller of this exported function cannot put a nonsensical figure on screen.
  */
 export function commitCounts(summary: ImportSummaryData, keptDuplicates: number): CommitCounts {
   return {

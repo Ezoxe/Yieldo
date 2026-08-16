@@ -21,10 +21,12 @@ describe("historySentence", () => {
     ).toBe("Vos 197 opérations vont du 24 janvier 2025 au 9 janvier 2026.");
   });
 
-  it("agrees in the singular", () => {
+  // "Vos 1 opération va du 1er mars 2025 au 1er mars 2025." is not French, and
+  // it is reachable: one transaction, with the period pointed somewhere else.
+  it("agrees in the singular, without naming the same date twice", () => {
     expect(
       historySentence({ date_from: "2025-03-01", date_to: "2025-03-01", transaction_count: 1 }),
-    ).toBe("Vos 1 opération va du 1er mars 2025 au 1er mars 2025.");
+    ).toBe("Votre seule opération date du 1er mars 2025.");
   });
 });
 

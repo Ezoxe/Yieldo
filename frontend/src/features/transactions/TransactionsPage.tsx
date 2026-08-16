@@ -8,6 +8,7 @@ import { EmptyState, historySentence } from "../../design/EmptyState";
 import { entryProps, staggerProps } from "../../design/motion/variants";
 import { useReducedMotion } from "../../design/motion/useReducedMotion";
 import { ApiError, api } from "../../lib/api";
+import { plural } from "../../lib/plural";
 import type {
   Account,
   Category,
@@ -46,10 +47,6 @@ const LIST_ROWS = 3;
 
 function messageFor(err: unknown): string {
   return err instanceof ApiError ? err.detail : GENERIC_ERROR;
-}
-
-function plural(count: number, singular: string, pluralForm: string): string {
-  return count > 1 ? pluralForm : singular;
 }
 
 export interface ActiveFilters {
@@ -385,7 +382,13 @@ export function TransactionsPage() {
       {notice?.origin === "correction" ? (
         <div role="status" className="yd-transactions__notice">
           <p>
-            Règle apprise — {notice.count} {plural(notice.count, "autre transaction similaire a été", "autres transactions similaires ont été")} reclassée{notice.count > 1 ? "s" : ""}.
+            Règle apprise — {notice.count}{" "}
+            {plural(
+              notice.count,
+              "autre transaction similaire a été reclassée",
+              "autres transactions similaires ont été reclassées",
+            )}
+            .
           </p>
           {notice.previousCategoryId !== null ? (
             <>
@@ -494,7 +497,7 @@ export function TransactionsPage() {
 
               <div className="yd-transactions__footer">
                 <span>
-                  {items.length} sur {total} transaction{total > 1 ? "s" : ""}
+                  {items.length} sur {total} {plural(total, "transaction", "transactions")}
                 </span>
                 {items.length < total ? (
                   <button

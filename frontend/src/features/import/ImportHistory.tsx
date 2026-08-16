@@ -1,16 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { ApiError, api } from "../../lib/api";
+import { plural } from "../../lib/plural";
 import type { ImportBatch } from "../../lib/types";
 
 const GENERIC_ERROR = "Une erreur inattendue est survenue.";
 
 function messageFor(err: unknown): string {
   return err instanceof ApiError ? err.detail : GENERIC_ERROR;
-}
-
-function plural(count: number, singular: string, pluralForm: string): string {
-  return count > 1 ? pluralForm : singular;
 }
 
 /** "12 août 2026 à 08:29", in the reader's own locale conventions. */

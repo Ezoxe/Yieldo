@@ -203,8 +203,9 @@ describe("commitCounts", () => {
   });
 
   it("never reports a negative number of ignored duplicates", () => {
-    // Reachable today: keepDuplicates survives a re-analysis that turned some
-    // of those rows into non-duplicates (see the note in ImportPage.tsx).
+    // Not reachable through the wizard any more -- a fresh preview filters the
+    // keep-list down to rows it still reads as duplicates. This holds the line
+    // for any other caller of the exported function.
     expect(commitCounts(summary, 5).duplicatesIgnored).toBe(0);
   });
 });

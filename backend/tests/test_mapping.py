@@ -1,4 +1,6 @@
+from app.importers.dialect import CsvDialect
 from app.importers.mapping import suggest_mapping, validate_mapping
+from app.importers.parser import parse_rows
 
 
 def test_suggests_roles_for_french_bank_headers():
@@ -80,6 +82,52 @@ def test_a_column_of_only_negative_values_stays_debit():
         rows=[
             ["01/03/2025", "CARREFOUR MARKET", "-47,32", ""],
             ["02/03/2025", "PRLV NETFLIX.COM", "-13,49", ""],
+        ],
+    )
+    assert mapping == {0: "date", 1: "label", 2: "debit", 3: "credit"}
+
+
+def test_a_debit_column_holding_one_reversal_stays_debit_and_keeps_its_rows_negative():
+    """One negative row does not turn a two-column export into a signed one.
+
+    A reversal (an *extourne*, a corrected fee) is a normal line on a real
+    statement, and it makes the Débit column carry both signs while the Crédit
+    column beside it is still the other half of the same ledger. Promoting the
+    Débit column to `amount` there flips every expense in the file into income,
+    and the resulting mapping passes validation, so the wizard renders a clean,
+    committable preview of exactly the wrong thing.
+
+    Asserted on the resolved cents, not just on the proposed role: the role is
+    the cause, the cents are the damage.
+    """
+    headers = ["Date", "Libellé", "Débit", "Crédit"]
+    rows = [
+        ["01/03/2025", "CARREFOUR MARKET", "47,32", ""],
+        ["02/03/2025", "PRLV NETFLIX", "13,49", ""],
+        ["04/03/2025", "EXTOURNE FRAIS", "-4,90", ""],
+        ["05/03/2025", "VIR SALAIRE", "", "2450,00"],
+    ]
+
+    mapping = suggest_mapping(headers, rows=rows)
+
+    parsed = parse_rows(rows, mapping, CsvDialect())
+    assert [(row.label_raw, row.amount_cents) for row in parsed] == [
+        ("CARREFOUR MARKET", -4732),
+        ("PRLV NETFLIX", -1349),
+        ("EXTOURNE FRAIS", -490),
+        ("VIR SALAIRE", 245000),
+    ]
+    assert mapping == {0: "date", 1: "label", 2: "debit", 3: "credit"}
+
+
+def test_a_credit_column_holding_one_reversal_stays_credit():
+    """The mirror case: the sign mix lands in the Crédit column instead."""
+    mapping = suggest_mapping(
+        ["Date", "Libellé", "Débit", "Crédit"],
+        rows=[
+            ["01/03/2025", "CARREFOUR MARKET", "47,32", ""],
+            ["05/03/2025", "VIR SALAIRE", "", "2450,00"],
+            ["06/03/2025", "ANNULATION VIREMENT", "", "-120,00"],
         ],
     )
     assert mapping == {0: "date", 1: "label", 2: "debit", 3: "credit"}

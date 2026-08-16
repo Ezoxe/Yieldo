@@ -1,9 +1,10 @@
 import os
 from pathlib import Path
 
-from fastapi import APIRouter, FastAPI, HTTPException
+from fastapi import APIRouter, FastAPI, HTTPException, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 
 from app.api import accounts as account_routes
 from app.api import analytics as analytics_routes
@@ -11,6 +12,7 @@ from app.api import auth as auth_routes
 from app.api import categories as category_routes
 from app.api import imports as import_routes
 from app.api import transactions as transaction_routes
+from app.api.errors import french_validation_detail
 from app.config import settings
 
 app = FastAPI(title="Yieldo", version=settings.version, docs_url="/api/docs",
@@ -23,6 +25,22 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.exception_handler(RequestValidationError)
+async def french_request_validation_error(
+    request: Request, exc: RequestValidationError
+) -> JSONResponse:
+    """Answer a schema violation in French, like every other error this API returns.
+
+    Replaces FastAPI's default handler, which serves pydantic's English text --
+    the frontend renders `detail` verbatim (by design: the backend owns the
+    wording), so untranslated here means untranslated on screen.
+    """
+    return JSONResponse(
+        status_code=422,
+        content={"detail": french_validation_detail(exc.errors())},
+    )
+
 
 api = APIRouter(prefix="/api")
 

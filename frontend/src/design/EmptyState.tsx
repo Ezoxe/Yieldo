@@ -29,8 +29,15 @@ export function frenchDate(iso: string): string {
  */
 export function historySentence(history: History): string {
   const count = history.transaction_count;
-  const noun = count > 1 ? "opérations vont" : "opération va";
-  return `Vos ${count} ${noun} du ${frenchDate(history.date_from)} au ${frenchDate(history.date_to)}.`;
+  // A ledger holding a single operation spans a single day -- date_from and
+  // date_to are that same date -- so naming both ends would print it twice, and
+  // "Vos 1 opération va du..." is not French either way. The backend reports no
+  // history at all rather than a zero count (backend/app/api/history.py), so
+  // there is no empty case to phrase here.
+  if (count === 1) {
+    return `Votre seule opération date du ${frenchDate(history.date_from)}.`;
+  }
+  return `Vos ${count} opérations vont du ${frenchDate(history.date_from)} au ${frenchDate(history.date_to)}.`;
 }
 
 interface EmptyStateProps {

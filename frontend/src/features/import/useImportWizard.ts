@@ -51,6 +51,38 @@ export function validateMapping(mapping: Record<number, ColumnRole>): string[] {
   return errors;
 }
 
+/**
+ * Which dialect fields renumber the rows.
+ *
+ * `overrides` and `keepDuplicates` are keyed by `row_number`, which the backend
+ * assigns as a 1-based index into the file's *data* rows (see
+ * backend/app/importers/parser.py). Moving the header or the preamble shifts
+ * where the data starts, so every row number now names a different transaction
+ * -- a category correction that survived would silently land on one the user
+ * never looked at. The other dialect fields (delimiter, encoding, decimal
+ * separator, date format, quote char) change how a row is read, never which
+ * rows there are, so the choices made against them still hold.
+ */
+const REINDEXING_DIALECT_FIELDS: ReadonlySet<keyof CsvDialect> = new Set([
+  "header_row",
+  "preamble_rows",
+]);
+
+/**
+ * The keep-list, cut down to what the fresh preview still reads as a duplicate.
+ *
+ * A row the user forced through, that a re-analysis then read as importable on
+ * its own, is inside `summary.importable` now. Left in the keep-list it would be
+ * counted a second time: the action bar would promise N+1 rows for a commit
+ * writing N, and `canCommit` -- which reads the same sum -- could enable a
+ * commit of nothing at all.
+ */
+function keepsStillDuplicated(kept: number[], analyzed: ImportPreview): number[] {
+  return kept.filter((rowNumber) =>
+    analyzed.rows.some((row) => row.row_number === rowNumber && row.is_duplicate),
+  );
+}
+
 interface WizardSnapshot {
   file: File | null;
   accountId: number | null;
@@ -206,6 +238,7 @@ export function useImportWizard(): UseImportWizardResult {
     try {
       const analyzed = await runAnalyze(current.file, current.mapping, current.dialect ?? undefined);
       setPreview(analyzed);
+      setKeepDuplicates((kept) => keepsStillDuplicated(kept, analyzed));
       setIsPreviewStale(false);
       const freshErrors = validateMapping(current.mapping);
       setErrors(freshErrors);
@@ -231,6 +264,14 @@ export function useImportWizard(): UseImportWizardResult {
     try {
       const analyzed = await runAnalyze(current.file, current.mapping, nextDialect);
       setPreview(analyzed);
+      if (REINDEXING_DIALECT_FIELDS.has(field)) {
+        // Every row number the user's choices were made against now points
+        // somewhere else; there is no honest way to carry them over.
+        setOverrides({});
+        setKeepDuplicates([]);
+      } else {
+        setKeepDuplicates((kept) => keepsStillDuplicated(kept, analyzed));
+      }
       setIsPreviewStale(false);
       setErrors(validateMapping(current.mapping));
     } catch (err) {

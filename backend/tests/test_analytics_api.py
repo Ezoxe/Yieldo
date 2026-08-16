@@ -173,10 +173,35 @@ def test_the_history_span_never_reaches_across_users(client, imported):
 
 def test_calendar_returns_one_point_per_day_with_activity(client, imported):
     headers, _ = imported
-    body = client.get("/api/analytics/calendar?year=2025", headers=headers).json()
+    body = client.get(
+        "/api/analytics/calendar?date_from=2025-01-01&date_to=2025-12-31",
+        headers=headers).json()
     by_day = {point["date"]: point for point in body}
     assert by_day["2025-03-01"]["outflow_cents"] == -4732
     assert "2025-03-02" not in by_day
+
+
+def test_calendar_without_dates_covers_the_whole_history(client, imported):
+    """The calendar takes the period, not a calendar year.
+
+    It used to take `year` and nothing else, so the dashboard's own "Tout"
+    default asked it for the current year: on the operator's ledger that was
+    2026, nine days of data under eleven and a half blank months, full width.
+    """
+    headers, _ = imported
+    body = client.get("/api/analytics/calendar", headers=headers).json()
+    # today is well past 2025, so a current-year answer would be empty
+    assert {point["date"] for point in body} == {
+        "2025-03-01", "2025-03-03", "2025-03-05", "2025-03-07",
+    }
+
+
+def test_calendar_honours_an_explicit_range(client, imported):
+    headers, _ = imported
+    body = client.get(
+        "/api/analytics/calendar?date_from=2025-03-03&date_to=2025-03-05",
+        headers=headers).json()
+    assert [point["date"] for point in body] == ["2025-03-03", "2025-03-05"]
 
 
 def test_analytics_require_authentication(client):

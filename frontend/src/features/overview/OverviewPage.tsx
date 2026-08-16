@@ -304,7 +304,6 @@ export function OverviewPage() {
   const [isLoading, setIsLoading] = useState(true);
 
   const granularity = granularityForRange(period.from, period.to);
-  const year = period.to ? new Date(`${period.to}T00:00:00Z`).getUTCFullYear() : new Date().getUTCFullYear();
 
   useEffect(() => {
     let cancelled = false;
@@ -324,7 +323,10 @@ export function OverviewPage() {
             date_from: period.from,
             date_to: period.to,
           }),
-          api.get<CalendarPoint[]>("/analytics/calendar", { year }),
+          api.get<CalendarPoint[]>("/analytics/calendar", {
+            date_from: period.from,
+            date_to: period.to,
+          }),
           api.get<Category[]>("/categories"),
         ]);
 
@@ -370,7 +372,7 @@ export function OverviewPage() {
     return () => {
       cancelled = true;
     };
-  }, [period.from, period.to, granularity, year]);
+  }, [period.from, period.to, granularity]);
 
   const errorMessages = Object.values(errors).filter((message): message is string => Boolean(message));
 
@@ -485,7 +487,7 @@ export function OverviewPage() {
 
         <BentoCell as={motion.div} span={SPAN.calendar} className="yd-panel" {...entryProps(reduced)}>
           <h2 className="yd-panel__title">Calendrier des dépenses</h2>
-          <SpendingCalendar points={calendarPoints} year={year} />
+          <SpendingCalendar points={calendarPoints} />
         </BentoCell>
       </BentoGrid>
     );

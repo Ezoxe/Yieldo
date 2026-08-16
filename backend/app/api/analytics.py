@@ -1,7 +1,7 @@
 from datetime import date, timedelta
 from typing import Literal
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app.api.history import user_history
@@ -177,11 +177,17 @@ def summary(
 
 @router.get("/calendar", response_model=list[CalendarPointOut])
 def calendar_heatmap(
-    year: int = Query(..., ge=1970, le=2200),
+    date_from: date | None = None,
+    date_to: date | None = None,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> list[CalendarPointOut]:
-    points = _points(db, user.id, date(year, 1, 1), date(year, 12, 31))
+    """The day-by-day heat of the *period*, resolved exactly like its three
+    siblings above. It used to take a single `year`, which is why the dashboard
+    asked it for the current calendar year on every preset -- on "Tout" that is
+    a full-width panel showing whatever happens to fall inside this year."""
+    start, end, _ = _period(db, user.id, date_from, date_to)
+    points = _points(db, user.id, start, end)
     buckets = aggregate_series(points, "day")
     return [
         CalendarPointOut(date=b.key, inflow_cents=b.inflow_cents,

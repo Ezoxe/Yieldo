@@ -41,27 +41,10 @@
   font-size: 0.9rem;
 }
 
-/* Panels ---------------------------------------------------------------- */
-
-/* A chart cell. The surface, radius, border and shadow all come from
-   .yd-bento__cell -- this only stacks the title above the chart. */
-.yd-panel {
-  display: flex;
-  flex-direction: column;
-  gap: var(--yd-space-sm);
-}
-
-.yd-panel__title {
-  margin: 0;
-  font-size: 0.95rem;
-  /* Pinned, not inherited: the skeleton bar standing in for this title is
-     sized off the same two numbers, and a global line-height change would
-     otherwise silently reintroduce the layout jump between the two states. */
-  line-height: 1.5;
-  font-weight: 600;
-  letter-spacing: -0.005em;
-  color: var(--yd-text);
-}
+/* `.yd-panel` and `.yd-panel__title` -- the cell body every screen stacks its
+   title in -- moved to design/bento/Bento.css when the transactions and import
+   screens started using them too. `.yd-skeleton--title` below still mirrors the
+   title's font-size and line-height. */
 
 /* Hero ------------------------------------------------------------------ */
 

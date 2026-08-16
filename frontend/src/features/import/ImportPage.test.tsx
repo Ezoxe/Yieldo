@@ -1,8 +1,12 @@
+import { readFileSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { ImportPage } from "./ImportPage";
+import { commitBlockedReason, commitCounts, ImportPage } from "./ImportPage";
 
 const fetchMock = vi.fn();
 
@@ -42,6 +46,34 @@ const previewBody = {
   },
 };
 
+// Three importable rows, two duplicates, one broken row -- the shape the
+// action bar has to state before the user commits anything.
+const mixedPreviewBody = {
+  ...previewBody,
+  rows: [
+    ...[1, 2, 3].map((row_number) => ({
+      row_number, date: "2025-03-01", amount_cents: -4732, label_raw: `LIGNE ${row_number}`,
+      category_id: null, category_name: null, category_source: "uncategorized",
+      is_duplicate: false, error: null,
+    })),
+    ...[4, 5].map((row_number) => ({
+      row_number, date: "2025-03-02", amount_cents: -1000, label_raw: `DOUBLON ${row_number}`,
+      category_id: null, category_name: null, category_source: "uncategorized",
+      is_duplicate: true, error: null,
+    })),
+    {
+      row_number: 6, date: null, amount_cents: null, label_raw: "",
+      category_id: null, category_name: null, category_source: "uncategorized",
+      is_duplicate: false, error: "Date illisible",
+    },
+  ],
+  summary: {
+    total: 6, importable: 3, duplicates: 2, failed: 1,
+    date_from: "2025-03-01", date_to: "2025-03-02",
+    inflow_cents: 0, outflow_cents: -16196, mapping_errors: [],
+  },
+};
+
 const committedBatch = {
   id: 7,
   account_id: 1,
@@ -64,7 +96,9 @@ function jsonResponse(body: unknown, status = 200) {
 // order: the mount effect fires GET /accounts, GET /categories and GET
 // /imports/profiles essentially simultaneously, so asserting on
 // fetchMock.mock.calls[n] the way the hook-level tests do would be fragile here.
-function setupFetch(overrides: { commit?: () => Response; cancel?: () => Response } = {}) {
+function setupFetch(
+  overrides: { commit?: () => Response; cancel?: () => Response; analyze?: () => Response } = {},
+) {
   fetchMock.mockImplementation((input: string, init?: RequestInit) => {
     const url = typeof input === "string" ? input : String(input);
     const method = init?.method ?? "GET";
@@ -72,7 +106,9 @@ function setupFetch(overrides: { commit?: () => Response; cancel?: () => Respons
     if (url === "/api/accounts") return Promise.resolve(jsonResponse([account]));
     if (url === "/api/categories") return Promise.resolve(jsonResponse([]));
     if (url === "/api/imports/profiles" && method === "GET") return Promise.resolve(jsonResponse([]));
-    if (url === "/api/imports/analyze") return Promise.resolve(jsonResponse(previewBody));
+    if (url === "/api/imports/analyze") {
+      return Promise.resolve(overrides.analyze ? overrides.analyze() : jsonResponse(previewBody));
+    }
     if (url === "/api/imports/commit") {
       return Promise.resolve(overrides.commit ? overrides.commit() : jsonResponse(committedBatch, 201));
     }
@@ -87,6 +123,14 @@ beforeEach(() => {
   fetchMock.mockReset();
   vi.stubGlobal("fetch", fetchMock);
 });
+
+// The bar is found from the control it carries rather than through a test-only
+// attribute: what matters is that the commit button lives inside it.
+function actionBarOf(control: HTMLElement): HTMLElement {
+  const bar = control.closest(".yd-import__actionbar");
+  if (!bar) throw new Error("The control is not inside an action bar");
+  return bar as HTMLElement;
+}
 
 async function driveToPreviewStep() {
   render(<ImportPage />);
@@ -104,6 +148,97 @@ async function driveToPreviewStep() {
 
   await screen.findByText("Aperçu des lignes");
 }
+
+// Comments stripped, so a rule described in prose cannot satisfy an assertion
+// about the declarations themselves. These assertions prove the rule is
+// written, never that it survives the cascade on screen -- phase 1.5 has
+// already been bitten by a CSS test staying green over a dead effect, which is
+// why the browser pass, not this file, is the gate for the pinned bar.
+const importCss = readFileSync(
+  path.resolve(path.dirname(fileURLToPath(import.meta.url)), "./ImportPage.css"),
+  "utf8",
+).replace(/\/\*[\s\S]*?\*\//g, "");
+
+function ruleBody(selector: string): string {
+  const start = importCss.indexOf(`${selector} {`);
+  if (start === -1) throw new Error(`No rule for "${selector}" in ImportPage.css`);
+  return importCss.slice(importCss.indexOf("{", start) + 1, importCss.indexOf("}", start));
+}
+
+describe("ImportPage.css — the pinned action bar", () => {
+  it("sticks the bar to the bottom of the viewport", () => {
+    const rule = ruleBody(".yd-import__actionbar");
+    expect(rule).toMatch(/position:\s*sticky/);
+    expect(rule).toMatch(/bottom:\s*0/);
+  });
+
+  it("paints it opaque, so the rows sliding under it never read through", () => {
+    expect(ruleBody(".yd-import__actionbar")).toMatch(/background:\s*var\(--yd-surface-strong\)/);
+  });
+
+  it("keeps it above the preview table's own sticky header", () => {
+    const zIndex = /z-index:\s*(\d+)/.exec(ruleBody(".yd-import__actionbar"))?.[1];
+    expect(Number(zIndex)).toBeGreaterThan(5);
+  });
+});
+
+describe("commitCounts", () => {
+  const summary = { ...mixedPreviewBody.summary };
+
+  it("reports what the commit will write, not what the file contained", () => {
+    expect(commitCounts(summary, 0)).toEqual({ toImport: 3, duplicatesIgnored: 2, failed: 1 });
+  });
+
+  it("moves a kept duplicate from the ignored column to the imported one", () => {
+    expect(commitCounts(summary, 2)).toEqual({ toImport: 5, duplicatesIgnored: 0, failed: 1 });
+  });
+
+  it("never reports a negative number of ignored duplicates", () => {
+    // Reachable today: keepDuplicates survives a re-analysis that turned some
+    // of those rows into non-duplicates (see the note in ImportPage.tsx).
+    expect(commitCounts(summary, 5).duplicatesIgnored).toBe(0);
+  });
+});
+
+describe("commitBlockedReason", () => {
+  const committable = { isPreviewStale: false, errors: [], total: 6, toImport: 3 };
+
+  it("is silent when nothing blocks the commit", () => {
+    expect(commitBlockedReason(committable)).toBeNull();
+  });
+
+  it("names the stale preview first, since that is the contract that matters", () => {
+    const reason = commitBlockedReason({ ...committable, isPreviewStale: true, errors: ["x"] });
+    expect(reason).toMatch(/relancez l'analyse/i);
+  });
+
+  it("points at the error already on screen rather than repeating it", () => {
+    expect(commitBlockedReason({ ...committable, errors: ["Mapping invalide"] })).toMatch(
+      /Corrigez l'erreur/i,
+    );
+  });
+
+  it("distinguishes an empty file from a file of duplicates", () => {
+    expect(commitBlockedReason({ ...committable, total: 0, toImport: 0 })).toMatch(/aucune ligne/i);
+    expect(commitBlockedReason({ ...committable, toImport: 0 })).toMatch(/doublons ou en erreur/i);
+  });
+
+  // The bar's `disabled` must never disagree with the sentence under it: a
+  // greyed button with no explanation is exactly the dead end this task fixes.
+  it("returns a reason for every state the wizard refuses to commit, and only those", () => {
+    for (const isPreviewStale of [false, true]) {
+      for (const errors of [[], ["boom"]]) {
+        for (const toImport of [0, 3]) {
+          const canCommit = !isPreviewStale && errors.length === 0 && toImport > 0;
+          const reason = commitBlockedReason({ isPreviewStale, errors, total: 6, toImport });
+          expect(reason === null, `stale=${isPreviewStale} errors=${errors.length} rows=${toImport}`).toBe(
+            canCommit,
+          );
+        }
+      }
+    }
+  });
+});
 
 describe("ImportPage — creating a bank account", () => {
   // There is no way for a freshly registered user to reach the import wizard
@@ -213,6 +348,51 @@ describe("ImportPage — surfacing commit/cancel failures", () => {
     const alert = await screen.findByRole("alert");
     expect(alert).toHaveTextContent("Le fichier téléversé a expiré. Recommencez l'import.");
     expect(alert.textContent).toMatch(/expiré/);
+  });
+
+  it("keeps the commit action reachable without scrolling past the preview table", async () => {
+    setupFetch({ analyze: () => jsonResponse(mixedPreviewBody) });
+    await driveToPreviewStep();
+
+    const bar = actionBarOf(screen.getByRole("button", { name: "Valider l'import" }));
+
+    // The defect this task exists to fix: the operator never saw that there
+    // was anything left to do. The bar states what the click will write.
+    expect(bar).toHaveTextContent("3 lignes à importer");
+    expect(bar).toHaveTextContent("2 doublons ignorés");
+    expect(bar).toHaveTextContent("1 ligne en erreur");
+    // Both the way forward and the way back are in the bar, not below the table.
+    expect(bar).toContainElement(screen.getByRole("button", { name: "Retour au tagging" }));
+  });
+
+  it("counts a duplicate the user chose to keep as a row that will be imported", async () => {
+    const user = userEvent.setup();
+    setupFetch({ analyze: () => jsonResponse(mixedPreviewBody) });
+    await driveToPreviewStep();
+
+    await user.click(screen.getAllByRole("checkbox", { name: "Importer quand même" })[0]);
+
+    const bar = actionBarOf(screen.getByRole("button", { name: "Valider l'import" }));
+    expect(bar).toHaveTextContent("4 lignes à importer");
+    expect(bar).toHaveTextContent("1 doublon ignoré");
+  });
+
+  it("says in French why the commit is refused when every row is a duplicate", async () => {
+    setupFetch({
+      analyze: () =>
+        jsonResponse({
+          ...mixedPreviewBody,
+          rows: mixedPreviewBody.rows.filter((row) => row.is_duplicate),
+          summary: { ...mixedPreviewBody.summary, total: 2, importable: 0, duplicates: 2, failed: 0 },
+        }),
+    });
+    await driveToPreviewStep();
+
+    const commit = screen.getByRole("button", { name: "Valider l'import" });
+    expect(commit).toBeDisabled();
+    expect(actionBarOf(commit)).toHaveTextContent(
+      "Aucune ligne à importer : toutes les lignes de ce fichier sont des doublons ou en erreur.",
+    );
   });
 
   it("shows the backend's message on the done step when cancelImport fails", async () => {

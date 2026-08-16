@@ -1,4 +1,3 @@
-import { GlassCard } from "../../design/glass/GlassCard";
 import { formatCents } from "../../design/theme";
 import type { Category, PreviewRow } from "../../lib/types";
 import "./ImportPage.css";
@@ -33,6 +32,10 @@ function formatDate(value: string | null): string {
   return parsed.toLocaleDateString("fr-FR");
 }
 
+// The class prefix is `yd-import-preview`, not `yd-preview`: the landing page's
+// DashboardPreview owns `.yd-preview` and its own `__category`, and since Vite
+// bundles every component stylesheet into one document the two blocks were
+// silently overriding each other's display and padding.
 export function PreviewTable({
   rows,
   categories,
@@ -42,11 +45,11 @@ export function PreviewTable({
   onToggleKeepDuplicate,
 }: PreviewTableProps) {
   return (
-    <GlassCard tone="solid" className="yd-preview">
-      <h2 className="yd-preview__title">Aperçu des lignes</h2>
+    <div className="yd-import-preview">
+      <h2 className="yd-import-preview__title">Aperçu des lignes</h2>
 
-      <div className="yd-preview__scroll">
-        <table className="yd-preview__table">
+      <div className="yd-import-preview__scroll">
+        <table className="yd-import-preview__table">
           <thead>
             <tr>
               <th scope="col">Ligne</th>
@@ -62,7 +65,10 @@ export function PreviewTable({
             {rows.map((row) => {
               if (row.error) {
                 return (
-                  <tr key={row.row_number} className="yd-preview__row yd-preview__row--error">
+                  <tr
+                    key={row.row_number}
+                    className="yd-import-preview__row yd-import-preview__row--error"
+                  >
                     <td className="yd-num">{row.row_number}</td>
                     <td colSpan={6} role="alert">
                       Ligne {row.row_number} ignorée&nbsp;: {row.error}
@@ -79,19 +85,19 @@ export function PreviewTable({
               return (
                 <tr
                   key={row.row_number}
-                  className="yd-preview__row"
+                  className="yd-import-preview__row"
                   data-duplicate={row.is_duplicate || undefined}
                 >
                   <td className="yd-num">{row.row_number}</td>
-                  <td>{formatDate(row.date)}</td>
-                  <td>{row.label_raw}</td>
-                  <td className="yd-num">
+                  <td className="yd-num">{formatDate(row.date)}</td>
+                  <td className="yd-import-preview__label">{row.label_raw}</td>
+                  <td className="yd-num yd-import-preview__amount">
                     {row.amount_cents !== null ? formatCents(row.amount_cents, { signed: true }) : "—"}
                   </td>
                   <td>
-                    <span className="yd-preview__category">
+                    <span className="yd-import-preview__category">
                       <span
-                        className="yd-preview__dot"
+                        className="yd-import-preview__dot"
                         aria-hidden="true"
                         style={{ background: category?.color ?? "var(--yd-text-muted)" }}
                       />
@@ -116,11 +122,11 @@ export function PreviewTable({
                     </span>
                   </td>
                   <td>
-                    <span className="yd-preview__badge">{sourceLabel}</span>
+                    <span className="yd-import-preview__badge">{sourceLabel}</span>
                   </td>
                   <td>
                     {row.is_duplicate ? (
-                      <label className="yd-preview__keep">
+                      <label className="yd-import-preview__keep">
                         <input
                           type="checkbox"
                           checked={keptDuplicate}
@@ -136,6 +142,6 @@ export function PreviewTable({
           </tbody>
         </table>
       </div>
-    </GlassCard>
+    </div>
   );
 }

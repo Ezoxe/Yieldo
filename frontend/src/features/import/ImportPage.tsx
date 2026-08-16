@@ -1,11 +1,12 @@
-import { AnimatePresence, motion } from "motion/react";
+import { motion } from "motion/react";
 import { useEffect, useState, type FormEvent } from "react";
 
-import { GlassCard } from "../../design/glass/GlassCard";
-import { fadeInUp } from "../../design/motion/variants";
+import { BentoCell, type BentoSpan } from "../../design/bento/BentoCell";
+import { BentoGrid } from "../../design/bento/BentoGrid";
+import { entryProps, staggerProps } from "../../design/motion/variants";
 import { useReducedMotion } from "../../design/motion/useReducedMotion";
 import { ApiError, api } from "../../lib/api";
-import type { Account, Category } from "../../lib/types";
+import type { Account, Category, ImportSummary as ImportSummaryData } from "../../lib/types";
 import { ColumnTagger } from "./ColumnTagger";
 import { DialectPanel } from "./DialectPanel";
 import { DropZone } from "./DropZone";
@@ -20,6 +21,92 @@ const STEPS: { key: WizardStep; label: string }[] = [
   { key: "preview", label: "Aperçu" },
   { key: "done", label: "Terminé" },
 ];
+
+/**
+ * One source of truth for the shape of each wizard step, the same way
+ * OverviewPage owns the dashboard's. At lg (12 columns) each step tiles
+ * exactly:
+ *
+ *   file    | compte (5) | dépôt du fichier (7)
+ *   mapping | format (4) | taggage des colonnes (8)
+ *   preview | résumé (12) / aperçu (12)
+ *   done    | rapport (12)
+ *
+ * The column tagger is the screen's decision point -- nothing is imported
+ * until the user has confirmed it -- so it is the widest cell of its step.
+ * The preview table keeps the full width instead of sharing a row: it carries
+ * seven columns, one of them a category picker, and anything narrower turns
+ * the row the user is checking into a horizontal scroll.
+ */
+const SPAN = {
+  account: { base: 1, md: 6, lg: 5 },
+  drop: { base: 1, md: 6, lg: 7 },
+  newAccount: { base: 1, md: 6, lg: 12 },
+  dialect: { base: 1, md: 6, lg: 4 },
+  tagger: { base: 1, md: 6, lg: 8 },
+  summary: { base: 1, md: 6, lg: 12 },
+  preview: { base: 1, md: 6, lg: 12 },
+  done: { base: 1, md: 6, lg: 12 },
+} satisfies Record<string, BentoSpan>;
+
+function plural(count: number, singular: string, pluralForm: string): string {
+  return count > 1 ? pluralForm : singular;
+}
+
+/** What clicking "Valider l'import" is about to write, in the user's terms. */
+export interface CommitCounts {
+  toImport: number;
+  duplicatesIgnored: number;
+  failed: number;
+}
+
+/**
+ * The analysis counts the rows of the file; this counts the rows of the
+ * *decision*, which is not the same thing once the user has ticked "Importer
+ * quand même" on a duplicate.
+ *
+ * `keptDuplicates` is the raw length of the wizard's keep-list, so this figure
+ * cannot disagree with the `canCommit` the button reads. That list is not
+ * cleared by a re-analysis, so it can in principle outlive the rows it named
+ * (a pre-existing wizard behaviour, unchanged here) -- hence the clamp, which
+ * keeps a nonsensical negative off the screen rather than standing in for a
+ * number nobody computed.
+ */
+export function commitCounts(summary: ImportSummaryData, keptDuplicates: number): CommitCounts {
+  return {
+    toImport: summary.importable + keptDuplicates,
+    duplicatesIgnored: Math.max(summary.duplicates - keptDuplicates, 0),
+    failed: summary.failed,
+  };
+}
+
+/**
+ * Why the commit is refused, in French, or null when it is not. A greyed-out
+ * button with no sentence under it is the dead end this screen is being fixed
+ * for, so every state `canCommit` refuses has to answer here -- there is a
+ * test over the whole matrix.
+ */
+export function commitBlockedReason(state: {
+  isPreviewStale: boolean;
+  errors: string[];
+  total: number;
+  toImport: number;
+}): string | null {
+  // First, because it is the contract: an aperçu computed under a different
+  // tagging says nothing about what this mapping would import.
+  if (state.isPreviewStale) {
+    return "Le tagging a changé : relancez l'analyse pour actualiser l'aperçu avant de valider.";
+  }
+  // The message itself is already on screen in its own alert; repeating it
+  // here would only say the same thing twice, in a smaller font.
+  if (state.errors.length > 0) return "Corrigez l'erreur signalée ci-dessus avant de valider l'import.";
+  if (state.toImport === 0) {
+    return state.total === 0
+      ? "Aucune ligne à importer : ce fichier ne contient aucune ligne exploitable."
+      : "Aucune ligne à importer : toutes les lignes de ce fichier sont des doublons ou en erreur.";
+  }
+  return null;
+}
 
 // Mirrors the backend's ACCOUNT_KINDS (backend/app/models/account.py). "checking"
 // is first and the form's default: the realistic case for a phase-1 user's very
@@ -149,12 +236,115 @@ function ErrorAlert({ errors }: { errors: string[] }) {
   );
 }
 
+interface ActionBarAction {
+  label: string;
+  onClick: () => void;
+  disabled?: boolean;
+}
+
+interface WizardActionBarProps {
+  label: string;
+  counts?: CommitCounts;
+  /**
+   * What the user needs to know about the primary action right now: why it is
+   * refused when it is disabled, what is pending when it is not. Tied to the
+   * button with aria-describedby, so it is not a colour-only signal.
+   */
+  note?: string | null;
+  primary: ActionBarAction;
+  secondary?: ActionBarAction;
+}
+
+/**
+ * The step's way forward, pinned to the bottom of the viewport instead of
+ * sitting under however many hundred rows the file happens to have. This is
+ * the defect the whole task exists for: the operator scrolled a ~200-row
+ * preview, never reached the commit button, and concluded his data had
+ * vanished.
+ *
+ * `position: sticky` rather than `position: fixed` (see ImportPage.css): a
+ * sticky bar occupies its own space at the end of the step, so it is pinned
+ * while the page is longer than the viewport AND lands under the table's last
+ * row once the user reaches the bottom -- it can never hide the final rows,
+ * with no measured height and no reserved padding to keep in step with it.
+ *
+ * Not a dialog: no focus trap, no aria-modal. It is the last thing in the DOM
+ * of its step, so the tab order runs table, then bar.
+ */
+function WizardActionBar({ label, counts, note, primary, secondary }: WizardActionBarProps) {
+  const noteId = "yd-import-actionbar-note";
+  const items = counts
+    ? [
+        {
+          value: counts.toImport,
+          label: plural(counts.toImport, "ligne à importer", "lignes à importer"),
+          tone: "import",
+        },
+        {
+          value: counts.duplicatesIgnored,
+          label: plural(counts.duplicatesIgnored, "doublon ignoré", "doublons ignorés"),
+          tone: "duplicate",
+        },
+        { value: counts.failed, label: plural(counts.failed, "ligne en erreur", "lignes en erreur"), tone: "failed" },
+      ]
+        // A row of zeroes is noise; what will be written is the decision, so it
+        // is stated even when it is nothing (the note then says why).
+        .filter((item) => item.tone === "import" || item.value > 0)
+    : [];
+
+  return (
+    <div className="yd-import__actionbar" role="group" aria-label={label}>
+      <div className="yd-import__actionbar-row">
+        {items.length > 0 ? (
+          <ul className="yd-import__counts">
+            {items.map((item) => (
+              <li className="yd-import__count" key={item.tone} data-tone={item.tone}>
+                <span className="yd-num yd-import__count-value">{item.value}</span>{" "}
+                <span className="yd-import__count-label">{item.label}</span>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+
+        <div className="yd-import__actionbar-buttons">
+          {secondary ? (
+            <button
+              type="button"
+              className="yd-import__back"
+              onClick={secondary.onClick}
+              disabled={secondary.disabled}
+            >
+              {secondary.label}
+            </button>
+          ) : null}
+          <button
+            type="button"
+            className="yd-import__commit"
+            onClick={primary.onClick}
+            disabled={primary.disabled}
+            aria-describedby={note ? noteId : undefined}
+          >
+            {primary.label}
+          </button>
+        </div>
+      </div>
+
+      {note ? (
+        <p className="yd-import__actionbar-note" id={noteId} data-blocked={primary.disabled || undefined}>
+          {note}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
 interface FileStepProps extends StepProps {
   accounts: Account[];
   onCreateAccount: (input: NewAccountInput) => Promise<void>;
+  reduced: boolean;
 }
 
-function FileStep({ wizard, accounts, onCreateAccount }: FileStepProps) {
+function FileStep({ wizard, accounts, onCreateAccount, reduced }: FileStepProps) {
   const { accountId, isBusy, errors, file, actions } = wizard;
   const [showNewAccountForm, setShowNewAccountForm] = useState(false);
 
@@ -164,179 +354,238 @@ function FileStep({ wizard, accounts, onCreateAccount }: FileStepProps) {
   // single unusable placeholder option.
   if (accounts.length === 0) {
     return (
-      <GlassCard tone="solid" className="yd-import__panel">
-        <div className="yd-import__empty-accounts">
+      <BentoGrid as={motion.div} {...staggerProps(reduced)}>
+        <BentoCell
+          as={motion.div}
+          span={SPAN.newAccount}
+          className="yd-panel"
+          {...entryProps(reduced)}
+        >
+          <h2 className="yd-panel__title">Votre premier compte</h2>
           <p className="yd-import__hint">
             Vous n'avez pas encore de compte bancaire dans Yieldo. Créez-en un pour commencer à
             importer vos relevés.
           </p>
           <NewAccountForm onCreate={onCreateAccount} />
-        </div>
-      </GlassCard>
+        </BentoCell>
+      </BentoGrid>
     );
   }
 
   return (
-    <GlassCard tone="solid" className="yd-import__panel">
-      <div className="yd-import__account-row">
-        <label className="yd-import__account">
-          <span>Compte</span>
-          <select
-            value={accountId ?? ""}
-            onChange={(event) => actions.selectAccount(Number(event.target.value))}
-          >
-            <option value="" disabled>
-              Choisir un compte…
-            </option>
-            {accounts.map((account) => (
-              <option key={account.id} value={account.id}>
-                {account.name}
+    <BentoGrid as={motion.div} {...staggerProps(reduced)}>
+      <BentoCell as={motion.div} span={SPAN.account} className="yd-panel" {...entryProps(reduced)}>
+        <h2 className="yd-panel__title">Compte de destination</h2>
+
+        <div className="yd-import__account-row">
+          <label className="yd-import__account">
+            <span>Compte</span>
+            <select
+              value={accountId ?? ""}
+              onChange={(event) => actions.selectAccount(Number(event.target.value))}
+            >
+              <option value="" disabled>
+                Choisir un compte…
               </option>
-            ))}
-          </select>
-        </label>
-        <button
-          type="button"
-          className="yd-import__new-account-toggle"
-          onClick={() => setShowNewAccountForm((open) => !open)}
-        >
-          {showNewAccountForm ? "Annuler" : "Nouveau compte"}
-        </button>
-      </div>
+              {accounts.map((account) => (
+                <option key={account.id} value={account.id}>
+                  {account.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <button
+            type="button"
+            className="yd-import__new-account-toggle"
+            onClick={() => setShowNewAccountForm((open) => !open)}
+          >
+            {showNewAccountForm ? "Annuler" : "Nouveau compte"}
+          </button>
+        </div>
 
-      {showNewAccountForm ? (
-        <NewAccountForm
-          onCreate={async (input) => {
-            await onCreateAccount(input);
-            setShowNewAccountForm(false);
-          }}
-          onCancel={() => setShowNewAccountForm(false)}
+        {showNewAccountForm ? (
+          <NewAccountForm
+            onCreate={async (input) => {
+              await onCreateAccount(input);
+              setShowNewAccountForm(false);
+            }}
+            onCancel={() => setShowNewAccountForm(false)}
+          />
+        ) : null}
+      </BentoCell>
+
+      <BentoCell as={motion.div} span={SPAN.drop} className="yd-panel" {...entryProps(reduced)}>
+        <h2 className="yd-panel__title">Relevé à importer</h2>
+
+        <DropZone
+          onFileSelected={actions.selectFile}
+          disabled={isBusy || accountId === null}
+          fileName={file?.name}
         />
-      ) : null}
 
-      <DropZone
-        onFileSelected={actions.selectFile}
-        disabled={isBusy || accountId === null}
-        fileName={file?.name}
-      />
+        {isBusy ? <p className="yd-import__hint">Analyse du fichier…</p> : null}
 
-      {isBusy ? <p className="yd-import__hint">Analyse du fichier…</p> : null}
-
-      <ErrorAlert errors={errors} />
-    </GlassCard>
+        <ErrorAlert errors={errors} />
+      </BentoCell>
+    </BentoGrid>
   );
 }
 
-function MappingStep({ wizard }: StepProps) {
+function MappingStep({ wizard, reduced }: StepProps & { reduced: boolean }) {
   const { preview, mapping, errors, dialect, profiles, isBusy, isPreviewStale, actions } = wizard;
   if (!preview) return null;
 
   return (
-    <div className="yd-import__panel">
-      <DialectPanel
-        dialect={dialect}
-        profiles={profiles}
-        isBusy={isBusy}
-        onFieldChange={(field, value) => {
-          void actions.setDialectField(field, value);
-        }}
-        onSaveProfile={(name) => {
-          void actions.saveProfile(name);
-        }}
-        onApplyProfile={actions.applyProfile}
-      />
+    <>
+      <BentoGrid as={motion.div} {...staggerProps(reduced)}>
+        <BentoCell as={motion.div} span={SPAN.dialect} className="yd-panel" {...entryProps(reduced)}>
+          <DialectPanel
+            dialect={dialect}
+            profiles={profiles}
+            isBusy={isBusy}
+            onFieldChange={(field, value) => {
+              void actions.setDialectField(field, value);
+            }}
+            onSaveProfile={(name) => {
+              void actions.saveProfile(name);
+            }}
+            onApplyProfile={actions.applyProfile}
+          />
+        </BentoCell>
 
-      <ColumnTagger
-        headers={preview.headers}
-        sampleRows={preview.sample_rows}
-        mapping={mapping}
-        onRoleChange={actions.setRole}
-        errors={errors}
-      />
-
-      <div className="yd-import__actions">
-        <button
-          type="button"
-          className="yd-import__next"
-          onClick={() => {
-            void actions.reanalyze();
-          }}
-          disabled={isBusy || errors.length > 0}
+        <BentoCell
+          as={motion.div}
+          span={SPAN.tagger}
+          className="yd-panel yd-import__tagger-cell"
+          {...entryProps(reduced)}
         >
-          {isBusy ? "Analyse…" : "Voir l'aperçu"}
-        </button>
-        {isPreviewStale && errors.length === 0 ? (
-          <p className="yd-import__hint">Le tagging a changé — l'aperçu doit être actualisé.</p>
-        ) : null}
-      </div>
-    </div>
+          <ColumnTagger
+            headers={preview.headers}
+            sampleRows={preview.sample_rows}
+            mapping={mapping}
+            onRoleChange={actions.setRole}
+            errors={errors}
+          />
+        </BentoCell>
+      </BentoGrid>
+
+      {/* The tagger is a wide table with a sample under every column: on a
+          phone it is well past a screenful, so its own way forward is pinned
+          exactly like the preview step's. */}
+      <WizardActionBar
+        label="Passer à l'aperçu"
+        note={
+          errors.length > 0
+            ? "Corrigez le taggage des colonnes avant de continuer."
+            : isPreviewStale
+              ? "Le tagging a changé — l'aperçu doit être actualisé."
+              : null
+        }
+        primary={{
+          label: isBusy ? "Analyse…" : "Voir l'aperçu",
+          onClick: () => {
+            void actions.reanalyze();
+          },
+          disabled: isBusy || errors.length > 0,
+        }}
+      />
+    </>
   );
 }
 
-function PreviewStep({ wizard, categories }: StepProps & { categories: Category[] }) {
-  const { preview, overrides, keepDuplicates, canCommit, isBusy, errors, actions } = wizard;
+function PreviewStep({
+  wizard,
+  categories,
+  reduced,
+}: StepProps & { categories: Category[]; reduced: boolean }) {
+  const { preview, overrides, keepDuplicates, canCommit, isBusy, errors, isPreviewStale, actions } =
+    wizard;
   if (!preview) return null;
 
-  return (
-    <div className="yd-import__panel">
-      <ImportSummary summary={preview.summary} batch={null} isBusy={isBusy} onCancelImport={() => {}} />
+  const counts = commitCounts(preview.summary, keepDuplicates.length);
 
-      <PreviewTable
-        rows={preview.rows}
-        categories={categories}
-        overrides={overrides}
-        keepDuplicates={keepDuplicates}
-        onOverrideCategory={actions.overrideCategory}
-        onToggleKeepDuplicate={actions.toggleKeepDuplicate}
-      />
+  return (
+    <>
+      <BentoGrid as={motion.div} {...staggerProps(reduced)}>
+        <BentoCell as={motion.div} span={SPAN.summary} className="yd-panel" {...entryProps(reduced)}>
+          <h2 className="yd-panel__title">Ce que contient le fichier</h2>
+          <ImportSummary
+            summary={preview.summary}
+            batch={null}
+            isBusy={isBusy}
+            onCancelImport={() => {}}
+          />
+        </BentoCell>
+
+        <BentoCell
+          as={motion.div}
+          span={SPAN.preview}
+          className="yd-panel yd-import__preview-cell"
+          {...entryProps(reduced)}
+        >
+          <PreviewTable
+            rows={preview.rows}
+            categories={categories}
+            overrides={overrides}
+            keepDuplicates={keepDuplicates}
+            onOverrideCategory={actions.overrideCategory}
+            onToggleKeepDuplicate={actions.toggleKeepDuplicate}
+          />
+        </BentoCell>
+      </BentoGrid>
 
       {/* A failed commit (expired upload, invalid mapping caught server-side,
           unknown account...) must leave the user here, with their overrides and
           duplicate choices intact, and tell them why in the backend's own words. */}
       <ErrorAlert errors={errors} />
 
-      <div className="yd-import__actions">
-        <button type="button" className="yd-import__back" onClick={actions.backToMapping} disabled={isBusy}>
-          Retour au tagging
-        </button>
-        <button
-          type="button"
-          className="yd-import__commit"
-          onClick={() => {
+      <WizardActionBar
+        label="Validation de l'import"
+        counts={counts}
+        note={commitBlockedReason({
+          isPreviewStale,
+          errors,
+          total: preview.summary.total,
+          toImport: counts.toImport,
+        })}
+        primary={{
+          label: isBusy ? "Validation…" : "Valider l'import",
+          onClick: () => {
             void actions.commit();
-          }}
-          disabled={!canCommit || isBusy}
-        >
-          {isBusy ? "Validation…" : "Valider l'import"}
-        </button>
-      </div>
-    </div>
+          },
+          disabled: !canCommit || isBusy,
+        }}
+        secondary={{ label: "Retour au tagging", onClick: actions.backToMapping, disabled: isBusy }}
+      />
+    </>
   );
 }
 
-function DoneStep({ wizard }: StepProps) {
+function DoneStep({ wizard, reduced }: StepProps & { reduced: boolean }) {
   const { batch, isBusy, errors, actions } = wizard;
 
   return (
-    <div className="yd-import__panel">
-      <ImportSummary
-        summary={null}
-        batch={batch}
-        isBusy={isBusy}
-        onCancelImport={() => {
-          void actions.cancelImport();
-        }}
-      />
+    <BentoGrid as={motion.div} {...staggerProps(reduced)}>
+      <BentoCell as={motion.div} span={SPAN.done} className="yd-panel" {...entryProps(reduced)}>
+        <ImportSummary
+          summary={null}
+          batch={batch}
+          isBusy={isBusy}
+          onCancelImport={() => {
+            void actions.cancelImport();
+          }}
+        />
 
-      {/* A failed rollback (batch already gone, network error...) must not be
-          swallowed -- the user just clicked "Annuler cet import" and needs to know
-          it did not happen. */}
-      <ErrorAlert errors={errors} />
+        {/* A failed rollback (batch already gone, network error...) must not be
+            swallowed -- the user just clicked "Annuler cet import" and needs to know
+            it did not happen. */}
+        <ErrorAlert errors={errors} />
 
-      <button type="button" className="yd-import__restart" onClick={actions.reset}>
-        Importer un autre fichier
-      </button>
-    </div>
+        <button type="button" className="yd-import__restart" onClick={actions.reset}>
+          Importer un autre fichier
+        </button>
+      </BentoCell>
+    </BentoGrid>
   );
 }
 
@@ -423,22 +672,24 @@ export function ImportPage() {
         </p>
       ) : null}
 
-      <AnimatePresence mode="wait">
-        <motion.div
-          key={step}
-          variants={fadeInUp}
-          initial={reducedMotion ? false : "hidden"}
-          animate="visible"
-          className="yd-import__stage"
-        >
-          {step === "file" ? (
-            <FileStep wizard={wizard} accounts={accounts} onCreateAccount={handleCreateAccount} />
-          ) : null}
-          {step === "mapping" ? <MappingStep wizard={wizard} /> : null}
-          {step === "preview" ? <PreviewStep wizard={wizard} categories={categories} /> : null}
-          {step === "done" ? <DoneStep wizard={wizard} /> : null}
-        </motion.div>
-      </AnimatePresence>
+      {/* Keyed on the step, so every step change remounts the grid and replays
+          its stagger -- the arrival IS the transition, which is why there is no
+          second fade wrapped around it. */}
+      <div className="yd-import__stage" key={step}>
+        {step === "file" ? (
+          <FileStep
+            wizard={wizard}
+            accounts={accounts}
+            onCreateAccount={handleCreateAccount}
+            reduced={reducedMotion}
+          />
+        ) : null}
+        {step === "mapping" ? <MappingStep wizard={wizard} reduced={reducedMotion} /> : null}
+        {step === "preview" ? (
+          <PreviewStep wizard={wizard} categories={categories} reduced={reducedMotion} />
+        ) : null}
+        {step === "done" ? <DoneStep wizard={wizard} reduced={reducedMotion} /> : null}
+      </div>
     </section>
   );
 }

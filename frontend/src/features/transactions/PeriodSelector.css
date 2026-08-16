@@ -71,6 +71,29 @@
   min-width: 0;
 }
 
+/* Six tabs at 32px of horizontal padding each need three lines on a phone.
+   Tighter padding and a slightly smaller label bring them back to two, which
+   is 40px of a 812px screen returned to the data. */
+@media (max-width: 599px) {
+  .yd-period-selector__tab {
+    padding: var(--yd-space-xs) var(--yd-space-xs);
+    font-size: 0.8rem;
+  }
+
+  .yd-period-selector__range {
+    gap: var(--yd-space-sm);
+  }
+
+  .yd-period-selector__field {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+
+  .yd-period-selector__field input {
+    width: 100%;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .yd-period-selector__tab {
     transition: none;

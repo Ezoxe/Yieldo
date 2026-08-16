@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react";
 
-import { GlassCard } from "../../design/glass/GlassCard";
 import type { Account, Category } from "../../lib/types";
 import { CategoryPicker } from "./CategoryPicker";
 import { PeriodSelector } from "./PeriodSelector";
@@ -50,8 +49,12 @@ export function FilterBar({
     return () => window.clearTimeout(timeout);
   }, [searchInput]);
 
+  // Plain content: the BentoCell around it (TransactionsPage's SPAN.filters)
+  // is the surface. The period and the four filters are siblings in one band
+  // rather than two stacked rows -- side by side once there is width for it,
+  // stacked when there is not.
   return (
-    <GlassCard tone="raised" as="div" className="yd-filterbar">
+    <div className="yd-filterbar">
       <PeriodSelector period={period} />
 
       <div className="yd-filterbar__row">
@@ -110,6 +113,6 @@ export function FilterBar({
           </span>
         </label>
       </div>
-    </GlassCard>
+    </div>
   );
 }

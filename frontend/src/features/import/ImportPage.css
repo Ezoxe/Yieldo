@@ -1,5 +1,8 @@
 .yd-import {
-  max-width: 920px;
+  /* Was 920px, when every step was one stacked card. The wizard is on the
+     12-column bento grid now, and the preview table -- seven columns, one of
+     them a category picker -- is what actually needs the width. */
+  max-width: 1280px;
   display: flex;
   flex-direction: column;
   gap: var(--yd-space-lg);
@@ -13,10 +16,13 @@
 
 /* Breadcrumb ------------------------------------------------------------ */
 
+/* Wraps: four steps at 16px apart are 392px wide, which ran off the right of a
+   375px screen and took the whole document's horizontal scroll with it. */
 .yd-import__breadcrumb {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: var(--yd-space-md);
+  gap: var(--yd-space-xs) var(--yd-space-md);
   margin: 0;
   padding: 0;
   list-style: none;
@@ -64,17 +70,13 @@
 
 /* Stage ------------------------------------------------------------------ */
 
+/* The step's grid and its action bar. The bar is a child of this box, not of
+   the grid, which is what lets it stick: a sticky grid item is trapped inside
+   its own row. */
 .yd-import__stage {
   display: flex;
   flex-direction: column;
   gap: var(--yd-space-lg);
-}
-
-.yd-import__panel {
-  display: flex;
-  flex-direction: column;
-  gap: var(--yd-space-md);
-  padding: var(--yd-space-lg);
 }
 
 .yd-import__account {
@@ -174,11 +176,123 @@
   cursor: not-allowed;
 }
 
-.yd-import__actions {
+/* Action bar ------------------------------------------------------------- */
+
+/* The step's way forward, pinned to the bottom of the viewport.
+
+   `position: sticky`, not `fixed`: the bar keeps its own place in the flow at
+   the end of the step, so it is pinned for as long as the page is longer than
+   the viewport and then settles *below* the table's last row when the reader
+   reaches the bottom. That is the "reserve space for it" requirement, met by
+   construction rather than by a measured height that could drift out of step
+   with the bar (the note under it makes this box one, two or three lines
+   tall). Nothing above it in the tree may clip overflow, or the bar silently
+   stops sticking -- verified in a browser, which is the only place that shows. */
+.yd-import__actionbar {
+  position: sticky;
+  bottom: 0;
+  /* Above the preview table's own sticky header (4) and anything else on the
+     page; below the drawer and its scrim (35/40 in AppShell.css). */
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-2xs);
+  /* Above every cell on the page and their contents. */
+  padding: var(--yd-space-sm) var(--yd-space-md);
+  border: 1px solid var(--yd-border-strong);
+  border-radius: var(--yd-radius);
+  /* Opaque, never blurred: hundreds of rows slide under this box, and a
+     figure read through a blur is worse than no figure. */
+  background: var(--yd-surface-strong);
+  box-shadow: var(--yd-shadow);
+}
+
+.yd-import__actionbar-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--yd-space-xs) var(--yd-space-lg);
+}
+
+.yd-import__counts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--yd-space-2xs) var(--yd-space-md);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  min-width: 0;
+}
+
+.yd-import__count {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--yd-space-2xs);
+  font-size: 0.82rem;
+  color: var(--yd-text-muted);
+  white-space: nowrap;
+}
+
+.yd-import__count-value {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--yd-text);
+}
+
+/* What is about to be written carries the accent; what is about to be dropped
+   on the floor carries the tone that says so. */
+.yd-import__count[data-tone="import"] .yd-import__count-value {
+  color: var(--yd-accent);
+}
+
+.yd-import__count[data-tone="failed"] .yd-import__count-value {
+  color: var(--yd-negative);
+}
+
+.yd-import__actionbar-buttons {
   display: flex;
   align-items: center;
-  gap: var(--yd-space-md);
-  flex-wrap: wrap;
+  gap: var(--yd-space-sm);
+  margin-left: auto;
+}
+
+.yd-import__actionbar-note {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--yd-text-muted);
+}
+
+/* A disabled button that says nothing is the dead end this screen is being
+   fixed for. The colour is a second signal, never the only one -- the sentence
+   itself is the message, and it is tied to the button by aria-describedby. */
+.yd-import__actionbar-note[data-blocked] {
+  color: var(--yd-warning);
+}
+
+/* A phone screen is 812px tall and this bar is the only thing standing between
+   the reader and a mistake -- but it still may not eat the screen. Measured at
+   375x812 with all three counts and a two-line note. */
+@media (max-width: 599px) {
+  .yd-import__actionbar {
+    padding: var(--yd-space-xs) var(--yd-space-sm);
+  }
+
+  .yd-import__actionbar-row {
+    gap: var(--yd-space-xs);
+  }
+
+  .yd-import__count {
+    font-size: 0.75rem;
+  }
+
+  .yd-import__count-value {
+    font-size: 0.9rem;
+  }
+
+  .yd-import__actionbar-note {
+    font-size: 0.75rem;
+  }
 }
 
 .yd-import__hint {
@@ -202,7 +316,6 @@
   padding-left: var(--yd-space-md);
 }
 
-.yd-import__next,
 .yd-import__commit,
 .yd-import__restart {
   border: none;
@@ -213,6 +326,7 @@
   font: inherit;
   font-weight: 600;
   cursor: pointer;
+  white-space: nowrap;
   transition: opacity var(--yd-motion-fast) var(--yd-ease);
 }
 
@@ -224,13 +338,21 @@
   color: var(--yd-text);
   font: inherit;
   cursor: pointer;
+  white-space: nowrap;
 }
 
-.yd-import__next:disabled,
 .yd-import__commit:disabled,
 .yd-import__back:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+.yd-import__commit:focus-visible,
+.yd-import__back:focus-visible,
+.yd-import__restart:focus-visible,
+.yd-import__new-account-toggle:focus-visible {
+  outline: 2px solid var(--yd-accent);
+  outline-offset: 2px;
 }
 
 /* DropZone ---------------------------------------------------------------- */
@@ -278,8 +400,10 @@
 
 /* DialectPanel -------------------------------------------------------------- */
 
+/* No padding of its own: these blocks are the body of a BentoCell now, and the
+   cell owns the surface and the padding. Same for .yd-tagger,
+   .yd-import-preview and .yd-summary below. */
 .yd-dialect {
-  padding: var(--yd-space-lg);
   display: flex;
   flex-direction: column;
   gap: var(--yd-space-sm);
@@ -363,7 +487,6 @@
 /* ColumnTagger -------------------------------------------------------------- */
 
 .yd-tagger {
-  padding: var(--yd-space-lg);
   display: flex;
   flex-direction: column;
   gap: var(--yd-space-sm);
@@ -447,76 +570,114 @@
 
 /* PreviewTable -------------------------------------------------------------- */
 
-.yd-preview {
-  padding: var(--yd-space-lg);
+/* `yd-import-preview`, not `yd-preview`: the landing page's DashboardPreview
+   owns `.yd-preview` and `.yd-preview__category`, and every component
+   stylesheet ends up in the same document, so the two blocks were quietly
+   overriding each other's display and padding. */
+.yd-import-preview {
   display: flex;
   flex-direction: column;
   gap: var(--yd-space-sm);
 }
 
-.yd-preview__title {
+.yd-import-preview__title {
   margin: 0;
-  font-size: 1.1rem;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  font-weight: 600;
+  letter-spacing: -0.005em;
   color: var(--yd-text);
 }
 
-.yd-preview__scroll {
+.yd-import-preview__scroll {
   overflow-x: auto;
 }
 
-.yd-preview__table {
+.yd-import-preview__table {
   width: 100%;
   border-collapse: collapse;
   font-size: 0.85rem;
 }
 
-.yd-preview__table th {
+/* Deliberately NOT sticky. It was, for one round: `position: sticky; top: 0`
+   on a header whose nearest scrolling ancestor is `.yd-import-preview__scroll`
+   -- which scrolls horizontally only -- sticks to a box that never moves
+   vertically, so the rule rendered exactly nothing. Naming the columns at row
+   180 needs the table to own a vertical scroll of its own, which is a change
+   to how the preview reads, not a stylesheet tweak. */
+.yd-import-preview__table th {
   text-align: left;
   padding: var(--yd-space-xs);
+  background: var(--yd-surface-strong);
   color: var(--yd-text-muted);
   font-size: 0.75rem;
   text-transform: uppercase;
   letter-spacing: 0.02em;
+  border-bottom: 1px solid var(--yd-border);
 }
 
-.yd-preview__row td {
+.yd-import-preview__row td {
   padding: var(--yd-space-xs);
   border-top: 1px solid var(--yd-border);
   color: var(--yd-text);
 }
 
-.yd-preview__row[data-duplicate] {
+.yd-import-preview__label {
+  min-width: 12ch;
+}
+
+.yd-import-preview__amount {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.yd-import-preview__row[data-duplicate] {
   opacity: 0.55;
 }
 
-.yd-preview__row--error td {
+.yd-import-preview__row--error td {
   color: var(--yd-negative);
   background: color-mix(in srgb, var(--yd-negative) 8%, transparent);
 }
 
-.yd-preview__category {
+/* Scanning hundreds of rows across seven columns: the row under the pointer
+   and the row holding focus both have to be findable, without moving anything
+   (`translate`/`transform` on a row would drag the whole table with it). */
+.yd-import-preview__row:hover td,
+.yd-import-preview__row:focus-within td {
+  background: color-mix(in srgb, var(--yd-accent) 8%, transparent);
+}
+
+.yd-import-preview__category {
   display: inline-flex;
   align-items: center;
   gap: var(--yd-space-2xs);
 }
 
-.yd-preview__dot {
+.yd-import-preview__dot {
   width: 10px;
   height: 10px;
   border-radius: 50%;
   flex-shrink: 0;
 }
 
-.yd-preview__category select {
+.yd-import-preview__category select {
   background: var(--yd-surface);
   border: 1px solid var(--yd-border);
   border-radius: var(--yd-radius-sm);
   padding: var(--yd-space-2xs) var(--yd-space-xs);
   color: var(--yd-text);
   font: inherit;
+  max-width: 22ch;
 }
 
-.yd-preview__badge {
+.yd-import-preview__category select:focus-visible,
+.yd-import-preview__keep input:focus-visible {
+  outline: 2px solid var(--yd-accent);
+  outline-offset: 1px;
+}
+
+.yd-import-preview__badge {
   display: inline-block;
   padding: 2px var(--yd-space-xs);
   border-radius: 999px;
@@ -524,9 +685,10 @@
   border: 1px solid var(--yd-border);
   font-size: 0.72rem;
   color: var(--yd-text-muted);
+  white-space: nowrap;
 }
 
-.yd-preview__keep {
+.yd-import-preview__keep {
   display: inline-flex;
   align-items: center;
   gap: var(--yd-space-2xs);
@@ -538,7 +700,6 @@
 /* ImportSummary -------------------------------------------------------------- */
 
 .yd-summary {
-  padding: var(--yd-space-lg);
   display: flex;
   flex-direction: column;
   gap: var(--yd-space-sm);
@@ -616,9 +777,79 @@
   cursor: pointer;
 }
 
+/* A table wider than its cell has to be clipped BY THE CELL, not only by the
+   scroll container inside it: measured at 375, the tagger's 640px of column
+   minimums escaped `.yd-tagger__scroll` and gave the whole document 313px of
+   horizontal scroll -- the page slid sideways off an empty background. The
+   inner scroller still does the scrolling; this only stops the overflow
+   reaching the document. (`.yd-transactions__list` has carried the same
+   `overflow: hidden` since phase 1, which is why that table never leaked.) */
+.yd-import__tagger-cell,
+.yd-import__preview-cell {
+  overflow: hidden;
+}
+
+/* A seven-column table on a 375px screen needs every pixel it can get; the
+   cell's usual 24px gutters are two columns' worth of it.
+
+   This block sits AFTER the button rules on purpose: media queries carry no
+   extra specificity, so an override written above them loses the cascade and
+   changes nothing -- which is exactly what happened on the first attempt. */
+@media (max-width: 599px) {
+  .yd-import__preview-cell {
+    padding-left: var(--yd-space-sm);
+    padding-right: var(--yd-space-sm);
+  }
+
+  /* Both bar buttons on one line: at the desktop padding they measured 326px
+     against 319px of bar, and "Valider l'import" hung 26px off the right of
+     the screen, taking the document's horizontal scroll with it. */
+  .yd-import__commit,
+  .yd-import__back {
+    padding: var(--yd-space-xs) var(--yd-space-sm);
+    font-size: 0.85rem;
+  }
+
+  /* Seven columns will not fit 317px whatever is done to them, so the preview
+     keeps its horizontal scroll here -- but the three columns the reader
+     checks a statement against (date, libellé, montant) now all land inside
+     that 317px, instead of the montant starting 20px off the right edge and
+     only the row numbers being legible. Measured: montant ends at 299. */
+  .yd-import-preview__table {
+    font-size: 0.75rem;
+  }
+
+  .yd-import-preview__row td,
+  .yd-import-preview__table th {
+    padding: 4px 3px;
+  }
+
+  .yd-import-preview__label {
+    min-width: 8ch;
+  }
+
+  /* The CSV line number is the one column that costs width and says nothing a
+     phone reader needs: it is an ordinal, and the only place it actually
+     matters -- a row that failed to parse -- repeats it inside the message
+     ("Ligne 12 ignorée : ..."), which is still shown. */
+  .yd-import-preview__table thead th:nth-child(1),
+  .yd-import-preview__row > td:nth-child(1) {
+    display: none;
+  }
+
+  /* Six figures at 1.15rem stood the summary 470px tall on an 812px screen,
+     which pushed the first previewed row off the bottom. */
+  .yd-summary__item dd {
+    font-size: 0.95rem;
+  }
+
+  .yd-summary__grid {
+    gap: var(--yd-space-sm) var(--yd-space-md);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .yd-import__crumb-marker,
-  .yd-import__next,
   .yd-import__commit,
   .yd-import__restart,
   .yd-dropzone {

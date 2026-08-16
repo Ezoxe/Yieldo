@@ -1,7 +1,3 @@
-import { motion } from "motion/react";
-
-import { fadeInUp } from "../../design/motion/variants";
-import { useReducedMotion } from "../../design/motion/useReducedMotion";
 import { formatCents } from "../../design/theme";
 import type { Category, Transaction } from "../../lib/types";
 
@@ -31,15 +27,14 @@ interface TransactionRowProps {
 }
 
 export function TransactionRow({ transaction, categories, onRecategorize }: TransactionRowProps) {
-  const reducedMotion = useReducedMotion();
   const category = categories.find((candidate) => candidate.id === transaction.category_id);
   const isCredit = transaction.amount_cents > 0;
   const parents = categories.filter((candidate) => candidate.parent_id === null);
   const sourceHint = SOURCE_HINTS[transaction.category_source] ?? transaction.category_source;
   const sourceBadge = SOURCE_BADGES[transaction.category_source] ?? transaction.category_source;
 
-  const cells = (
-    <>
+  return (
+    <tr className="yd-transactions__row">
       <td className="yd-num yd-transactions__cell yd-transactions__cell--date">
         {new Date(transaction.date).toLocaleDateString("fr-FR")}
       </td>
@@ -92,27 +87,13 @@ export function TransactionRow({ transaction, categories, onRecategorize }: Tran
         </div>
       </td>
       <td className="yd-transactions__cell yd-transactions__cell--amount">
-        {/* A credit reads in the positive tone; a debit stays the default text
-            colour -- red is reserved for anomalies, not every expense. */}
-        <span
-          className={`yd-num ${isCredit ? "yd-amount--positive" : "yd-amount--negative"}`}
-          style={{ color: isCredit ? "var(--yd-positive)" : "var(--yd-text)" }}
-        >
+        {/* Both tones are carried by the class, in TransactionsPage.css. They
+            used to come from an inline style, which no theme and no stylesheet
+            could reach -- and `.yd-amount--negative` matched no rule at all. */}
+        <span className={`yd-num ${isCredit ? "yd-amount--positive" : "yd-amount--negative"}`}>
           {formatCents(transaction.amount_cents)}
         </span>
       </td>
-    </>
-  );
-
-  // The staggered entrance (see TransactionsPage's staggerChildren tbody) needs
-  // each row to carry its own fadeInUp variant; reduced motion keeps the row a
-  // plain <tr> instead of mounting motion's runtime for a transition nobody wants.
-  if (reducedMotion) {
-    return <tr className="yd-transactions__row">{cells}</tr>;
-  }
-  return (
-    <motion.tr className="yd-transactions__row" variants={fadeInUp}>
-      {cells}
-    </motion.tr>
+    </tr>
   );
 }

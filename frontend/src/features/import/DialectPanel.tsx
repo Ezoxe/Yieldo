@@ -1,6 +1,5 @@
 import { useState } from "react";
 
-import { GlassCard } from "../../design/glass/GlassCard";
 import type { ColumnProfile, CsvDialect } from "../../lib/types";
 import "./ImportPage.css";
 
@@ -60,8 +59,9 @@ export function DialectPanel({
     setNamingProfile(false);
   }
 
+  // Plain content: the BentoCell around it is the surface (see ColumnTagger).
   return (
-    <GlassCard tone="solid" className="yd-dialect">
+    <div className="yd-dialect">
       <h2 className="yd-dialect__title">Format du fichier</h2>
       <p className="yd-dialect__intro">
         Détecté automatiquement. Ajustez si l'aperçu ne correspond pas à votre relevé&nbsp;: chaque
@@ -190,6 +190,6 @@ export function DialectPanel({
           </button>
         )}
       </div>
-    </GlassCard>
+    </div>
   );
 }

@@ -2,8 +2,9 @@ import { motion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
 
-import { GlassCard } from "../../design/glass/GlassCard";
-import { staggerChildren } from "../../design/motion/variants";
+import { BentoCell, type BentoSpan } from "../../design/bento/BentoCell";
+import { BentoGrid } from "../../design/bento/BentoGrid";
+import { entryProps, staggerProps } from "../../design/motion/variants";
 import { useReducedMotion } from "../../design/motion/useReducedMotion";
 import { ApiError, api } from "../../lib/api";
 import type {
@@ -20,6 +21,26 @@ import { usePeriod } from "./usePeriod";
 
 const PAGE_SIZE = 50;
 const GENERIC_ERROR = "Une erreur inattendue est survenue.";
+
+/**
+ * The shape of the screen, in one place. Two cells, both full width, and the
+ * hierarchy is the row count: the filter band is one track tall, the list is
+ * three. The list is what this screen exists for and it takes strictly the
+ * largest area on the grid -- there is a test over that.
+ *
+ * Deliberately not a filter rail beside the table: at 1200px, where the 12
+ * column grid starts, a four-column rail is 243px wide once the sidebar and
+ * the cell's own padding are taken out, which wraps the six period tabs onto
+ * four lines and squeezes the category picker below its minimum. Full width
+ * lets the period tabs and the four controls share a single 60px band.
+ */
+const SPAN = {
+  filters: { base: 1, md: 6, lg: 12 },
+  list: { base: 1, md: 6, lg: 12 },
+} satisfies Record<string, BentoSpan>;
+
+/** The list stands three tracks tall; the filter band, one. */
+const LIST_ROWS = 3;
 
 function messageFor(err: unknown): string {
   return err instanceof ApiError ? err.detail : GENERIC_ERROR;
@@ -245,20 +266,6 @@ export function TransactionsPage() {
         </p>
       ) : null}
 
-      <FilterBar
-        period={period}
-        accounts={accounts}
-        categories={categories}
-        accountId={accountId}
-        onAccountChange={setAccountId}
-        categoryId={categoryId}
-        onCategoryChange={setCategoryId}
-        uncategorizedOnly={uncategorizedOnly}
-        onUncategorizedOnlyChange={setUncategorizedOnly}
-        uncategorizedCount={uncategorizedCount}
-        onSearchChange={setSearch}
-      />
-
       {loadError ? (
         <p role="alert" className="yd-transactions__alert">
           {loadError}
@@ -308,27 +315,56 @@ export function TransactionsPage() {
         </div>
       ) : null}
 
-      <GlassCard tone="solid" className="yd-transactions__panel">
-        {items.length === 0 && !isLoading ? (
-          <div className="yd-transactions__empty">
-            <p>Aucune transaction ne correspond à ces filtres.</p>
-            <Link to="/import" className="yd-transactions__empty-cta">
-              Importer un relevé
-            </Link>
-          </div>
-        ) : (
-          <>
-            <div className="yd-transactions__scroll">
-              <table className="yd-transactions__table">
-                <thead className="yd-transactions__head">
-                  <tr>
-                    <th scope="col">Date</th>
-                    <th scope="col">Libellé</th>
-                    <th scope="col">Catégorie</th>
-                    <th scope="col">Montant</th>
-                  </tr>
-                </thead>
-                {reducedMotion ? (
+      <BentoGrid as={motion.div} {...staggerProps(reducedMotion)}>
+        <BentoCell
+          as={motion.div}
+          span={SPAN.filters}
+          className="yd-transactions__filters"
+          {...entryProps(reducedMotion)}
+        >
+          <FilterBar
+            period={period}
+            accounts={accounts}
+            categories={categories}
+            accountId={accountId}
+            onAccountChange={setAccountId}
+            categoryId={categoryId}
+            onCategoryChange={setCategoryId}
+            uncategorizedOnly={uncategorizedOnly}
+            onUncategorizedOnlyChange={setUncategorizedOnly}
+            uncategorizedCount={uncategorizedCount}
+            onSearchChange={setSearch}
+          />
+        </BentoCell>
+
+        {/* The cells are what arrives, never the rows: two hundred staggered
+            table rows is a slot machine, not an interface. */}
+        <BentoCell
+          as={motion.div}
+          span={SPAN.list}
+          rows={LIST_ROWS}
+          className="yd-transactions__list"
+          {...entryProps(reducedMotion)}
+        >
+          {items.length === 0 && !isLoading ? (
+            <div className="yd-transactions__empty">
+              <p>Aucune transaction ne correspond à ces filtres.</p>
+              <Link to="/import" className="yd-transactions__empty-cta">
+                Importer un relevé
+              </Link>
+            </div>
+          ) : (
+            <>
+              <div className="yd-transactions__scroll">
+                <table className="yd-transactions__table">
+                  <thead className="yd-transactions__head">
+                    <tr>
+                      <th scope="col">Date</th>
+                      <th scope="col">Libellé</th>
+                      <th scope="col">Catégorie</th>
+                      <th scope="col">Montant</th>
+                    </tr>
+                  </thead>
                   <tbody>
                     {items.map((transaction) => (
                       <TransactionRow
@@ -339,39 +375,28 @@ export function TransactionsPage() {
                       />
                     ))}
                   </tbody>
-                ) : (
-                  <motion.tbody variants={staggerChildren} initial="hidden" animate="visible">
-                    {items.map((transaction) => (
-                      <TransactionRow
-                        key={transaction.id}
-                        transaction={transaction}
-                        categories={categories}
-                        onRecategorize={(id, catId) => void handleRecategorize(id, catId)}
-                      />
-                    ))}
-                  </motion.tbody>
-                )}
-              </table>
-            </div>
+                </table>
+              </div>
 
-            <div className="yd-transactions__footer">
-              <span>
-                {items.length} sur {total} transaction{total > 1 ? "s" : ""}
-              </span>
-              {items.length < total ? (
-                <button
-                  type="button"
-                  className="yd-transactions__load-more"
-                  onClick={() => void loadMore()}
-                  disabled={isLoadingMore}
-                >
-                  {isLoadingMore ? "Chargement…" : "Charger plus"}
-                </button>
-              ) : null}
-            </div>
-          </>
-        )}
-      </GlassCard>
+              <div className="yd-transactions__footer">
+                <span>
+                  {items.length} sur {total} transaction{total > 1 ? "s" : ""}
+                </span>
+                {items.length < total ? (
+                  <button
+                    type="button"
+                    className="yd-transactions__load-more"
+                    onClick={() => void loadMore()}
+                    disabled={isLoadingMore}
+                  >
+                    {isLoadingMore ? "Chargement…" : "Charger plus"}
+                  </button>
+                ) : null}
+              </div>
+            </>
+          )}
+        </BentoCell>
+      </BentoGrid>
     </section>
   );
 }

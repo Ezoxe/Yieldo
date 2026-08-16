@@ -28,6 +28,29 @@
     translate var(--yd-motion-fast) var(--yd-ease);
 }
 
+/* The standard body of a cell: a title stacked over whatever the cell shows.
+   Lives here rather than in OverviewPage.css because the dashboard, the
+   transactions screen and the import wizard all lay their cells out this way,
+   and a screen importing another screen's stylesheet only works by accident of
+   bundling. The surface, radius, border and padding come from the cell itself. */
+.yd-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-sm);
+}
+
+.yd-panel__title {
+  margin: 0;
+  font-size: 0.95rem;
+  /* Pinned, not inherited: OverviewPage's `.yd-skeleton--title` bar is sized
+     off the same two numbers, and a global line-height change would otherwise
+     silently reintroduce the layout jump between its two states. */
+  line-height: 1.5;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+  color: var(--yd-text);
+}
+
 /* Interactive cells are expected to be rendered as a natively focusable
    element (`as="button"`, or a link) — the focus ring below has nothing to
    attach to otherwise. These resets undo the browser's button styling. */

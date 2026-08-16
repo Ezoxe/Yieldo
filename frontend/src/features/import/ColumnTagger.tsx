@@ -1,4 +1,3 @@
-import { GlassCard } from "../../design/glass/GlassCard";
 import { COLUMN_ROLES, ROLE_LABELS, type ColumnRole } from "../../lib/types";
 
 interface ColumnTaggerProps {
@@ -15,8 +14,11 @@ interface ColumnTaggerProps {
 // and nothing downstream (preview, commit) can happen without this component's
 // state passing through the user's own eyes first.
 export function ColumnTagger({ headers, sampleRows, mapping, onRoleChange, errors }: ColumnTaggerProps) {
+  // The surface, radius and padding come from the BentoCell this sits in
+  // (see ImportPage's SPAN map) -- a card inside a card would only draw a
+  // second border around the same content.
   return (
-    <GlassCard tone="solid" className="yd-tagger">
+    <div className="yd-tagger">
       <h2 className="yd-tagger__title">Taggez vos colonnes</h2>
       <p className="yd-tagger__intro">
         Yieldo a proposé un rôle pour chaque colonne. Corrigez-les si besoin&nbsp;: rien ne sera
@@ -82,6 +84,6 @@ export function ColumnTagger({ headers, sampleRows, mapping, onRoleChange, error
           </tbody>
         </table>
       </div>
-    </GlassCard>
+    </div>
   );
 }

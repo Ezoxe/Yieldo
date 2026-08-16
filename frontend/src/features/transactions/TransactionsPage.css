@@ -1,5 +1,5 @@
 .yd-transactions {
-  max-width: 1160px;
+  max-width: 1280px;
   display: flex;
   flex-direction: column;
   gap: var(--yd-space-lg);
@@ -13,21 +13,36 @@
 
 /* FilterBar ---------------------------------------------------------------- */
 
-.yd-filterbar {
+/* The band that scopes the list. One BentoCell, laid out in two blocks -- the
+   period on the left, the four filters on the right -- that sit side by side
+   whenever there is room for both and stack when there is not. The cell owns
+   the surface; the tighter vertical padding keeps the band one track tall so
+   the list below it stays the largest thing on the screen. */
+.yd-transactions__filters {
   padding: var(--yd-space-md) var(--yd-space-lg);
+}
+
+.yd-filterbar {
   display: flex;
-  flex-direction: column;
-  gap: var(--yd-space-sm);
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--yd-space-sm) var(--yd-space-lg);
 }
 
 /* The period-preset tabs and custom-range inputs live in PeriodSelector.css
    now -- FilterBar renders <PeriodSelector>, shared with OverviewPage,
    instead of its own copy. */
 
+.yd-filterbar > .yd-period-selector {
+  flex: 0 1 auto;
+}
+
 .yd-filterbar__row {
+  flex: 1 1 420px;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
+  justify-content: flex-end;
   gap: var(--yd-space-sm);
 }
 
@@ -179,15 +194,31 @@
 
 /* Table ---------------------------------------------------------------------- */
 
-.yd-transactions__panel {
+/* The list cell. No padding of its own: the table runs to the cell's edges and
+   the rounded corners clip it, so a row's hover tint reaches the border the
+   way a table row should. */
+.yd-transactions__list {
   padding: 0;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
+/* The scroll lives inside the cell rather than on the page, which is what
+   keeps the filter band above it on screen while the reader works down two
+   hundred rows. It is also the scroll container the sticky header below
+   sticks to. */
 .yd-transactions__scroll {
   overflow-x: auto;
-  max-height: 70vh;
   overflow-y: auto;
+  /* Tall enough to be the screen, short enough that the row counter and
+     "Charger plus" under it are on screen too -- 70vh put the footer just
+     below the fold at 900px, which is the same "there was more below and I
+     never saw it" failure the import wizard is being fixed for, in miniature.
+     The subtrahend is what stands above the list (header, title, filter band)
+     plus the footer; the floor keeps a usable list on a short window. */
+  max-height: max(320px, calc(100vh - 420px));
+  flex: 1;
 }
 
 .yd-transactions__table {
@@ -218,13 +249,39 @@
   border-top: 1px solid var(--yd-border);
 }
 
+/* Findable without moving: a tint on the cells, never a lift. `translate` or
+   `transform` on a row drags the whole table with it, and these rows sit under
+   a Motion-animated cell that writes its own inline transform. Backed by the
+   accent rather than by --yd-surface-raised, which is very nearly white on the
+   light theme's white cell and would show nothing at all. */
+.yd-transactions__row:hover .yd-transactions__cell,
+.yd-transactions__row:focus-within .yd-transactions__cell {
+  background: color-mix(in srgb, var(--yd-accent) 8%, transparent);
+}
+
+/* Vertical padding is xs, not sm: the category picker sets the row height on
+   its own, and the extra 8px only bought four fewer rows per screen. */
 .yd-transactions__cell {
-  padding: var(--yd-space-sm) var(--yd-space-md);
+  padding: var(--yd-space-xs) var(--yd-space-md);
   color: var(--yd-text);
+  transition: background-color var(--yd-motion-fast) var(--yd-ease);
+}
+
+.yd-transactions__cell--date {
+  white-space: nowrap;
+  color: var(--yd-text-muted);
+}
+
+/* The one column that may take the slack: everything else is sized by its
+   content so the four columns stay in line down the whole list. */
+.yd-transactions__cell--label {
+  width: 100%;
+  min-width: 16ch;
 }
 
 .yd-transactions__cell--amount {
   text-align: right;
+  white-space: nowrap;
 }
 
 .yd-transactions__category {
@@ -250,6 +307,14 @@
   max-width: 200px;
 }
 
+.yd-transactions__select:focus-visible,
+.yd-transactions__load-more:focus-visible,
+.yd-transactions__undo:focus-visible,
+.yd-filterbar__row :is(input, select):focus-visible {
+  outline: 2px solid var(--yd-accent);
+  outline-offset: 1px;
+}
+
 .yd-transactions__badge {
   display: inline-block;
   padding: 2px var(--yd-space-xs);
@@ -261,8 +326,120 @@
   white-space: nowrap;
 }
 
+/* The money column, and the only place on this screen where colour carries
+   meaning. Both tones live here rather than in a component's inline style:
+   `.yd-amount--negative` was applied to every debit for the whole of phase 1
+   and matched no rule at all. Both tokens clear AA against the cell's surface
+   in either theme (see design/contrast.test.ts for the token-level guard). */
 .yd-amount--positive {
+  color: var(--yd-positive);
   font-weight: 600;
+}
+
+.yd-amount--negative {
+  color: var(--yd-negative);
+  font-weight: 600;
+}
+
+/* A phone has room for four columns only if every one of them gives something
+   up. Under 600px the table stops sizing itself off its content -- an auto
+   table with an editable <select> in every row measures ~425px against 341px
+   of screen, and whatever is trimmed it stays wider than the phone. So the
+   columns are declared instead: three fixed widths that hold the figures, and
+   the label takes what is left and wraps.
+
+   The alternative, tried and rejected in the browser: freeze the amount
+   against the right edge and let the rest scroll horizontally under it. It
+   renders a category picker sliced down its middle by an opaque column, which
+   reads as a broken table rather than a scrollable one -- and puts a sideways
+   scroll on a touch surface where the finger is already used for the page. */
+@media (max-width: 599px) {
+  /* The band is four controls and six period tabs; left to wrap on its own
+     every one of them took a full line and the first transaction started
+     600px down a 812px screen. Two columns for the two short selects, full
+     width for the search and the switch. */
+  .yd-transactions__filters {
+    padding: var(--yd-space-sm) var(--yd-space-md);
+  }
+
+  .yd-filterbar__row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    align-items: end;
+  }
+
+  .yd-filterbar__field--search,
+  .yd-filterbar__toggle {
+    grid-column: 1 / -1;
+  }
+
+  .yd-category-picker {
+    min-width: 0;
+  }
+
+  /* Nested scrolling on a touch screen is a trap: the finger lands on the
+     list and the page underneath does not move. On a phone the list is simply
+     the page. */
+  .yd-transactions__scroll {
+    max-height: none;
+  }
+
+  /* Declared columns, not measured ones: the three that carry a figure or a
+     control are pinned, and the label is the only one that flexes. The widths
+     are on the header cells because that is where `table-layout: fixed` reads
+     them, and repeated on the body cells so a filtered list that renders no
+     <thead> row would still hold its columns. */
+  .yd-transactions__table {
+    table-layout: fixed;
+    font-size: 0.8rem;
+  }
+
+  .yd-transactions__cell,
+  .yd-transactions__head th {
+    padding: var(--yd-space-2xs) var(--yd-space-xs);
+  }
+
+  .yd-transactions__head th:nth-child(1),
+  .yd-transactions__cell--date {
+    width: 4.3rem;
+    font-size: 0.7rem;
+  }
+
+  .yd-transactions__head th:nth-child(3) {
+    width: 5.4rem;
+  }
+
+  .yd-transactions__head th:nth-child(4),
+  .yd-transactions__cell--amount {
+    width: 4.9rem;
+    font-size: 0.75rem;
+  }
+
+  /* Whatever the other three leave. `break-word`, not `anywhere`: a word is
+     only cut when it cannot fit a line on its own, so "REMBOURSEMENT" wraps
+     whole instead of being sliced into "REMBOURSEME / NT". */
+  .yd-transactions__cell--label {
+    width: auto;
+    min-width: 0;
+    overflow-wrap: break-word;
+  }
+
+  /* The picker takes the whole column; `min-width: 0` is what lets it shrink
+     inside the flex row rather than pushing the column back out. */
+  .yd-transactions__select {
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+    font-size: 0.75rem;
+    padding: 2px;
+  }
+
+  /* The only thing dropped at this width, and the only one that can be: the
+     source chip repeats what the picker already shows the result of. The
+     category, the amount, the date and the label all stay. */
+  .yd-transactions__badge {
+    display: none;
+  }
 }
 
 /* Empty state and pagination --------------------------------------------------- */

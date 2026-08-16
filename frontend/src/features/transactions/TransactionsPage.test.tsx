@@ -92,6 +92,54 @@ function renderPage() {
   );
 }
 
+describe("TransactionsPage — the grid", () => {
+  /** Columns spanned at lg, times rows spanned: the cell's area on the grid. */
+  function areaOf(cell: HTMLElement): number {
+    return (
+      Number(cell.style.getPropertyValue("--yd-cell-span-lg")) *
+      Number(cell.style.getPropertyValue("--yd-cell-rows"))
+    );
+  }
+
+  it("gives the list strictly the largest cell — it is the screen's reason to exist", async () => {
+    setupFetch();
+    const { container } = renderPage();
+    await screen.findByText("CARREFOUR MARKET CB 01/03");
+
+    const list = container.querySelector<HTMLElement>(".yd-transactions__list");
+    expect(list, "no list cell on the transactions grid").not.toBeNull();
+    expect(list).toHaveClass("yd-bento__cell");
+
+    // Strictly larger than every sibling: a tie is how the dashboard's hero
+    // silently stopped being its biggest cell in task 3. jsdom has no layout,
+    // so this compares declared areas; the rendered claim is measured in a
+    // browser and recorded in task-4-report.md.
+    const others = Array.from(container.querySelectorAll<HTMLElement>(".yd-bento__cell")).filter(
+      (cell) => cell !== list,
+    );
+    expect(others.length).toBeGreaterThan(0);
+    for (const cell of others) {
+      expect(areaOf(list as HTMLElement)).toBeGreaterThan(areaOf(cell));
+    }
+  });
+
+  // A transaction list is a table: aligned columns, one row per line, scanned
+  // down a column rather than read card by card.
+  it("keeps the rows in a table with named columns", async () => {
+    setupFetch();
+    renderPage();
+    await screen.findByText("CARREFOUR MARKET CB 01/03");
+
+    expect(screen.getByRole("table")).toBeInTheDocument();
+    expect(screen.getAllByRole("columnheader").map((th) => th.textContent)).toEqual([
+      "Date",
+      "Libellé",
+      "Catégorie",
+      "Montant",
+    ]);
+  });
+});
+
 describe("TransactionsPage", () => {
   it("loads and displays fetched transactions with their raw label", async () => {
     setupFetch();

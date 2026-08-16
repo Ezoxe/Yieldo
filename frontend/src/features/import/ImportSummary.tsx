@@ -1,5 +1,4 @@
 import { CountUp } from "../../design/CountUp";
-import { GlassCard } from "../../design/glass/GlassCard";
 import { formatCents } from "../../design/theme";
 import type { ImportBatch, ImportSummary as ImportSummaryData } from "../../lib/types";
 import "./ImportPage.css";
@@ -14,7 +13,11 @@ interface ImportSummaryProps {
 function formatPeriod(from: string | null, to: string | null): string {
   if (!from || !to) return "—";
   const format = (value: string) => new Date(value).toLocaleDateString("fr-FR");
-  return from === to ? format(from) : `${format(from)} – ${format(to)}`;
+  // A non-breaking space before the dash: the range is too wide for one grid
+  // track at any width the wizard runs at, so it wraps -- and left to itself it
+  // wrapped BEFORE the dash, standing the figure on three lines with a lone "–"
+  // in the middle. Glued to the first date, it breaks once, after the dash.
+  return from === to ? format(from) : `${format(from)} – ${format(to)}`;
 }
 
 function plural(count: number, word: string): string {
@@ -24,9 +27,10 @@ function plural(count: number, word: string): string {
 export function ImportSummary({ summary, batch, isBusy, onCancelImport }: ImportSummaryProps) {
   // Once the batch exists the import already happened -- the pre-commit banner
   // (still countable, still cancellable-before-the-fact) no longer applies.
+  // Plain content: the BentoCell around it is the surface (see ColumnTagger).
   if (batch) {
     return (
-      <GlassCard tone="raised" className="yd-summary yd-summary--done">
+      <div className="yd-summary yd-summary--done">
         <h2 className="yd-summary__title">Import terminé</h2>
         <p className="yd-summary__report">
           {plural(batch.rows_imported, "ligne importée")} dans «&nbsp;{batch.filename}&nbsp;»
@@ -36,7 +40,7 @@ export function ImportSummary({ summary, batch, isBusy, onCancelImport }: Import
         <button type="button" className="yd-summary__cancel" onClick={onCancelImport} disabled={isBusy}>
           Annuler cet import
         </button>
-      </GlassCard>
+      </div>
     );
   }
 
@@ -46,7 +50,7 @@ export function ImportSummary({ summary, batch, isBusy, onCancelImport }: Import
   const asMoney = (value: number) => formatCents(value, { signed: true });
 
   return (
-    <GlassCard tone="raised" className="yd-summary">
+    <div className="yd-summary">
       <dl className="yd-summary__grid">
         <div className="yd-summary__item">
           <dt>Période</dt>
@@ -93,6 +97,6 @@ export function ImportSummary({ summary, batch, isBusy, onCancelImport }: Import
           </ul>
         </div>
       ) : null}
-    </GlassCard>
+    </div>
   );
 }

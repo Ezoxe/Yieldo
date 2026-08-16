@@ -415,6 +415,37 @@ describe("OverviewPage", () => {
     expect(screen.getByText(/1er mars 2025 au 31 mars 2025/)).toBeInTheDocument();
   });
 
+  // On "Tout" the backend answers with no comparison at all: the range starts
+  // at the user's first transaction, so the window before it cannot hold data.
+  // The hero used to print the net itself as a fall "par rapport à la période
+  // précédente" -- a red number stated about a period that does not exist.
+  it("says nothing about a preceding period when the backend reports there is none", async () => {
+    setupFetch({
+      summary: () => jsonResponse({ ...summary, previous: null, comparison: null }),
+    });
+    const { container } = renderPage();
+    await screen.findByText("Entrées");
+
+    // The net is still stated in full...
+    expect(screen.getByRole("status", { name: formatCents(80000, { signed: true }) })).toBeInTheDocument();
+    // ...and the covered range too.
+    expect(screen.getByText(/1er mars 2025 au 31 mars 2025/)).toBeInTheDocument();
+
+    // But no chip, and above all not the net masquerading as a delta.
+    expect(container.querySelector(".yd-hero__delta")).toBeNull();
+    expect(screen.queryByText(/par rapport à la période précédente/)).toBeNull();
+    expect(screen.queryByText(normalized(formatCents(80000, { signed: true }) + " "))).toBeNull();
+  });
+
+  it("still shows the delta when a range the user asked for does have a period before it", async () => {
+    setupFetch();
+    const { container } = renderPage();
+    await screen.findByText("Entrées");
+
+    expect(container.querySelector(".yd-hero__delta")).not.toBeNull();
+    expect(screen.getByText(/par rapport à la période précédente/)).toBeInTheDocument();
+  });
+
   it("says so rather than printing a zero when the net balance is unavailable", async () => {
     setupFetch({ summary: () => jsonResponse({ detail: "Résumé indisponible." }, 500) });
     const { container } = renderPage();

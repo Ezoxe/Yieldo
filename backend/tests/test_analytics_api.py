@@ -77,6 +77,57 @@ def test_summary_without_dates_covers_the_whole_history(client, imported):
     assert body["transaction_count"] == 4
 
 
+def test_summary_without_dates_offers_no_comparison(client, imported):
+    """With no date_from there is no preceding period to speak of.
+
+    `start` resolves to the earliest transaction the user has, so the window
+    before it cannot hold data -- not because the user spent nothing then, but
+    because nothing exists before the first row by construction. Comparing
+    against it reported the entire net as a fall: the hero read
+    "-2 209,63 EUR par rapport à la période précédente" on the operator's own
+    dashboard, in red, where that number was simply the net itself.
+    """
+    headers, _ = imported
+    body = client.get("/api/analytics/summary", headers=headers).json()
+
+    # The window that would be compared against ends the day before the very
+    # first transaction, and every transaction is on or after it.
+    assert body["date_from"] == "2025-03-01"
+    assert body["net_cents"] == 232109
+
+    # So there is nothing to compare with, and the answer is "unavailable" --
+    # the same way savings_rate is null rather than 0 when it is undefined.
+    # Before the fix these were previous.net_cents == 0 and delta_cents ==
+    # 232109, a fall stated against a period that cannot exist.
+    assert body["previous"] is None
+    assert body["comparison"] is None
+
+
+def test_a_date_to_alone_still_leaves_no_preceding_period(client, imported):
+    """date_from is the bound that matters: without it the start is still the
+    first row that exists, whatever end the caller asked for."""
+    headers, _ = imported
+    body = client.get("/api/analytics/summary?date_to=2025-03-05", headers=headers).json()
+    assert body["date_from"] == "2025-03-01"
+    assert body["previous"] is None
+    assert body["comparison"] is None
+
+
+def test_a_requested_range_is_still_compared_even_where_nothing_precedes_it(client, imported):
+    """The deliberate asymmetry: a range the user typed is answered as asked.
+
+    March 2025 holds the earliest data too, so its predecessor is just as empty
+    -- but here the user chose that window, and "nothing the month before" is a
+    real answer to a real question. Only the *defaulted* start is suppressed.
+    """
+    headers, _ = imported
+    body = client.get("/api/analytics/summary?date_from=2025-03-01&date_to=2025-03-31",
+                      headers=headers).json()
+    assert body["previous"]["date_from"] == "2025-01-29"
+    assert body["previous"]["transaction_count"] == 0
+    assert body["comparison"]["delta_cents"] == 232109
+
+
 def test_series_without_dates_spans_the_whole_history(client, imported):
     headers, _ = imported
     body = client.get("/api/analytics/series?granularity=month", headers=headers).json()

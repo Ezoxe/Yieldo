@@ -233,7 +233,13 @@ function NetHero({
   reduced: boolean;
 }) {
   const net = summary.net_cents;
-  const delta = summary.comparison.delta_cents;
+  // null on the presets that state no start date ("Tout", and anything the
+  // backend had to default): the range then opens on the first transaction the
+  // user has, so the window before it is empty by construction and a delta
+  // against it would restate the net as a fall. The chip is dropped entirely
+  // rather than shown as a zero or an empty gap -- the range line below still
+  // says exactly what is being totalled.
+  const comparison = summary.comparison;
   const toneClass = net < 0 ? " yd-hero__value--negative" : "";
   const trend = cumulativeNetCents(series);
 
@@ -255,10 +261,14 @@ function NetHero({
           />
         </div>
         <div className="yd-hero__meta">
-          <span className={`yd-hero__delta yd-hero__delta--${delta >= 0 ? "good" : "bad"}`}>
-            {formatCents(delta, { signed: true })}
-            <span className="yd-hero__delta-note"> par rapport à la période précédente</span>
-          </span>
+          {comparison !== null ? (
+            <span
+              className={`yd-hero__delta yd-hero__delta--${comparison.delta_cents >= 0 ? "good" : "bad"}`}
+            >
+              {formatCents(comparison.delta_cents, { signed: true })}
+              <span className="yd-hero__delta-note"> par rapport à la période précédente</span>
+            </span>
+          ) : null}
           <p className="yd-hero__range">{coveredRangeLabel(summary)}</p>
         </div>
       </div>

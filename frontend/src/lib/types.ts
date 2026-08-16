@@ -213,8 +213,11 @@ export interface Comparison {
 }
 
 export interface Summary extends PeriodTotals {
-  previous: PeriodTotals;
-  comparison: Comparison;
+  // Both null when the caller stated no start date: the range then begins at
+  // the user's first transaction, so no period precedes it and there is
+  // nothing to compare against. Undefined, not zero.
+  previous: PeriodTotals | null;
+  comparison: Comparison | null;
   history: History | null;
 }
 

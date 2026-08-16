@@ -41,8 +41,11 @@ class PeriodTotalsOut(BaseModel):
 
 
 class SummaryOut(PeriodTotalsOut):
-    previous: PeriodTotalsOut
-    comparison: ComparisonOut
+    # Both null when the range was not asked for: a defaulted start is the
+    # user's first transaction, so no period precedes it and any comparison
+    # would be against a window that cannot hold data.
+    previous: PeriodTotalsOut | None
+    comparison: ComparisonOut | None
     # The span of the whole ledger, not of this period -- what tells an empty
     # dashboard whether the user has no data or is simply looking elsewhere.
     # null when they have no transactions at all.

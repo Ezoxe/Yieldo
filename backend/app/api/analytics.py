@@ -146,19 +146,31 @@ def summary(
     db: Session = Depends(get_db),
 ) -> SummaryOut:
     start, end, history = _period(db, user.id, date_from, date_to)
-    span = (end - start).days + 1
-    previous_end = start - timedelta(days=1)
-    previous_start = previous_end - timedelta(days=span - 1)
-
     current = _period_totals(db, user.id, start, end)
-    previous = _period_totals(db, user.id, previous_start, previous_end)
-    comparison = compare_periods(current.net_cents, previous.net_cents)
+
+    # Only a start the caller actually asked for has a period before it. A
+    # defaulted one *is* the user's earliest transaction, so the window ahead of
+    # it cannot hold data -- not because nothing was spent then, but because
+    # nothing exists there by construction. Comparing against it reported the
+    # whole net as a fall. Undefined, so null, the way savings_rate already is.
+    #
+    # A range the caller typed is answered as asked, even where nothing precedes
+    # it: "nothing the month before" is a real answer to a question they posed.
+    previous: PeriodTotalsOut | None = None
+    comparison: ComparisonOut | None = None
+    if date_from is not None:
+        span = (end - start).days + 1
+        previous_end = start - timedelta(days=1)
+        previous_start = previous_end - timedelta(days=span - 1)
+        previous = _period_totals(db, user.id, previous_start, previous_end)
+        delta = compare_periods(current.net_cents, previous.net_cents)
+        comparison = ComparisonOut(delta_cents=delta.delta_cents,
+                                   delta_ratio=delta.delta_ratio)
 
     return SummaryOut(
         **current.model_dump(),
         previous=previous,
-        comparison=ComparisonOut(delta_cents=comparison.delta_cents,
-                                 delta_ratio=comparison.delta_ratio),
+        comparison=comparison,
         history=history,
     )
 

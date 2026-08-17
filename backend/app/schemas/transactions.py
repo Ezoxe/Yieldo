@@ -58,6 +58,7 @@ class CategoryOut(BaseModel):
     color: str
     icon: str
     monthly_budget_cents: int | None
+    is_essential: bool
 
 
 class CategoryIn(BaseModel):
@@ -67,6 +68,7 @@ class CategoryIn(BaseModel):
     color: str = "#7ee2d6"
     icon: str = "circle"
     monthly_budget_cents: int | None = None
+    is_essential: bool = False
 
 
 class CategoryPatch(BaseModel):
@@ -74,3 +76,4 @@ class CategoryPatch(BaseModel):
     color: str | None = None
     icon: str | None = None
     monthly_budget_cents: int | None = None
+    is_essential: bool | None = None

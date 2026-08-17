@@ -29,6 +29,7 @@ export interface Category {
   color: string;
   icon: string;
   monthly_budget_cents: number | null;
+  is_essential: boolean;
 }
 
 export interface Transaction {

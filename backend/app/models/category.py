@@ -1,4 +1,4 @@
-from sqlalchemy import ForeignKey, Integer, String, UniqueConstraint
+from sqlalchemy import Boolean, ForeignKey, Integer, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
@@ -23,6 +23,11 @@ class Category(Base):
     icon: Mapped[str] = mapped_column(String(40), default="circle", nullable=False)
     monthly_budget_cents: Mapped[int | None] = mapped_column(Integer, nullable=True)
     position: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    # What the household still pays when income stops -- rent, food, energy,
+    # health, insurance, tax. It is what makes the runway's reduced scenario a
+    # measurement of the user's own ledger rather than a guessed percentage.
+    # Editable: only the user knows whether their gym membership is optional.
+    is_essential: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
     user = relationship("User", back_populates="categories")
     parent = relationship("Category", remote_side="Category.id", back_populates="children")

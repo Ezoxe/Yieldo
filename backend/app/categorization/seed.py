@@ -88,6 +88,34 @@ CATEGORY_TREE: list[tuple[str, str, str, str, str, list[tuple[str, str]]]] = [
     ("virement-interne", "Virement interne", "transfer", "#64748b", "arrows", []),
 ]
 
+# The French household floor: what still gets paid when income stops. Deliberately
+# excludes restaurants, delivery, streaming, sport, holidays, hobbies, clothing,
+# gifts and equipment -- the reduced-spending scenario is meant to be austere, and
+# a reader who disagrees can change any of these on the Budgets screen.
+ESSENTIAL_SLUGS: frozenset[str] = frozenset({
+    "logement-loyer",
+    "logement-credit",
+    "logement-charges",
+    "logement-energie",
+    "logement-internet",
+    "logement-assurance",
+    "alimentation-courses",
+    "transport-carburant",
+    "transport-assurance",
+    "transport-commun",
+    "sante-medecin",
+    "sante-pharmacie",
+    "sante-mutuelle",
+    "famille-garde",
+    "famille-scolarite",
+    "impots-revenu",
+    "impots-fonciere",
+    "impots-habitation",
+    "impots-autres",
+    "frais-tenue",
+    "frais-carte",
+})
+
 
 def seed_categories(db: Session, user_id: int) -> dict[str, Category]:
     """Create the default French category tree for a user. Safe to call twice."""
@@ -98,7 +126,8 @@ def seed_categories(db: Session, user_id: int) -> dict[str, Category]:
         parent = index.get(slug)
         if parent is None:
             parent = Category(user_id=user_id, name=name, slug=slug, kind=kind,
-                              color=color, icon=icon, position=position)
+                              color=color, icon=icon, position=position,
+                              is_essential=slug in ESSENTIAL_SLUGS)
             db.add(parent)
             db.flush()
             index[slug] = parent
@@ -108,7 +137,8 @@ def seed_categories(db: Session, user_id: int) -> dict[str, Category]:
                 continue
             child = Category(user_id=user_id, parent_id=parent.id, name=child_name,
                              slug=child_slug, kind=kind, color=color, icon=icon,
-                             position=child_position)
+                             position=child_position,
+                             is_essential=child_slug in ESSENTIAL_SLUGS)
             db.add(child)
             db.flush()
             index[child_slug] = child

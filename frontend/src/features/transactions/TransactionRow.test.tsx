@@ -21,9 +21,9 @@ function ruleBody(selector: string): string {
 
 const categories = [
   { id: 1, parent_id: null, name: "Alimentation", slug: "alimentation",
-    kind: "expense", color: "#4fd6a8", icon: "cart", monthly_budget_cents: null },
+    kind: "expense", color: "#4fd6a8", icon: "cart", monthly_budget_cents: null, is_essential: false },
   { id: 2, parent_id: 1, name: "Courses", slug: "alimentation-courses",
-    kind: "expense", color: "#4fd6a8", icon: "cart", monthly_budget_cents: null },
+    kind: "expense", color: "#4fd6a8", icon: "cart", monthly_budget_cents: null, is_essential: false },
 ];
 
 const transaction = {

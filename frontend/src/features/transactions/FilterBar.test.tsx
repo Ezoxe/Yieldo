@@ -14,7 +14,7 @@ const accounts = [
 
 const categories = [
   { id: 1, parent_id: null, name: "Alimentation", slug: "alimentation",
-    kind: "expense", color: "#4fd6a8", icon: "cart", monthly_budget_cents: null },
+    kind: "expense", color: "#4fd6a8", icon: "cart", monthly_budget_cents: null, is_essential: false },
 ];
 
 function makePeriod(overrides: Partial<UsePeriodResult> = {}): UsePeriodResult {

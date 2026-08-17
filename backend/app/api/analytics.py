@@ -4,17 +4,15 @@ from typing import Literal
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
-from app.api.history import user_history
+from app.api.common import period_range, tx_points
 from app.db import get_db
 from app.engines.aggregate import (
-    TxPoint,
     aggregate_by_category,
     aggregate_series,
     compare_periods,
     fill_missing_buckets,
 )
-from app.engines.period import resolve_range
-from app.models import Category, Transaction, User
+from app.models import Category, User
 from app.schemas.analytics import (
     CalendarPointOut,
     CategoryBreakdownOut,
@@ -23,56 +21,11 @@ from app.schemas.analytics import (
     SeriesBucketOut,
     SummaryOut,
 )
-from app.schemas.history import HistoryOut
 from app.security.deps import get_current_user
 
 router = APIRouter(prefix="/analytics", tags=["analytics"])
 
 Granularity = Literal["day", "week", "month", "quarter", "year"]
-
-
-def _points(
-    db: Session,
-    user_id: int,
-    date_from: date | None,
-    date_to: date | None,
-    account_id: int | None = None,
-) -> list[TxPoint]:
-    """Fetch this user's transactions and convert them into the engine's pure input
-    shape. The aggregation engine never sees an ORM object."""
-    query = db.query(Transaction).filter(Transaction.user_id == user_id)
-    if date_from is not None:
-        query = query.filter(Transaction.date >= date_from)
-    if date_to is not None:
-        query = query.filter(Transaction.date <= date_to)
-    if account_id is not None:
-        query = query.filter(Transaction.account_id == account_id)
-    return [
-        TxPoint(on=t.date, amount_cents=t.amount_cents, category_id=t.category_id,
-                account_id=t.account_id, is_transfer=t.is_transfer)
-        for t in query.all()
-    ]
-
-
-def _period(
-    db: Session, user_id: int, date_from: date | None, date_to: date | None
-) -> tuple[date, date, HistoryOut | None]:
-    """The range this request actually covers, plus the user's whole history.
-
-    An absent bound means all of *this user's* data, not the current calendar
-    year -- which is what "Tout" was silently being answered with. The clock is
-    read here, at the route boundary, and handed to `resolve_range` as a
-    parameter: the engine stays pure and testable at any date.
-    """
-    history = user_history(db, user_id)
-    start, end = resolve_range(
-        date_from,
-        date_to,
-        history.date_from if history else None,
-        history.date_to if history else None,
-        date.today(),
-    )
-    return start, end, history
 
 
 @router.get("/series", response_model=list[SeriesBucketOut])
@@ -85,8 +38,8 @@ def series(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> list[SeriesBucketOut]:
-    start, end, _ = _period(db, user.id, date_from, date_to)
-    points = _points(db, user.id, start, end, account_id)
+    start, end, _ = period_range(db, user.id, date_from, date_to)
+    points = tx_points(db, user.id, start, end, account_id)
     buckets = aggregate_series(points, granularity, include_transfers)
     filled = fill_missing_buckets(buckets, granularity, start, end)
     return [
@@ -106,8 +59,8 @@ def categories_breakdown(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> list[CategoryBreakdownOut]:
-    start, end, _ = _period(db, user.id, date_from, date_to)
-    totals = aggregate_by_category(_points(db, user.id, start, end))
+    start, end, _ = period_range(db, user.id, date_from, date_to)
+    totals = aggregate_by_category(tx_points(db, user.id, start, end))
     names = {c.id: c for c in db.query(Category).filter(Category.user_id == user.id).all()}
     return [
         CategoryBreakdownOut(
@@ -125,7 +78,7 @@ def categories_breakdown(
 
 
 def _period_totals(db: Session, user_id: int, from_: date, to_: date) -> PeriodTotalsOut:
-    points = _points(db, user_id, from_, to_)
+    points = tx_points(db, user_id, from_, to_)
     inflow = sum(p.amount_cents for p in points if p.amount_cents > 0 and not p.is_transfer)
     outflow = sum(p.amount_cents for p in points if p.amount_cents < 0 and not p.is_transfer)
     net = inflow + outflow
@@ -145,7 +98,7 @@ def summary(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> SummaryOut:
-    start, end, history = _period(db, user.id, date_from, date_to)
+    start, end, history = period_range(db, user.id, date_from, date_to)
     current = _period_totals(db, user.id, start, end)
 
     # Only a start the caller actually asked for has a period before it. A
@@ -186,8 +139,8 @@ def calendar_heatmap(
     siblings above. It used to take a single `year`, which is why the dashboard
     asked it for the current calendar year on every preset -- on "Tout" that is
     a full-width panel showing whatever happens to fall inside this year."""
-    start, end, _ = _period(db, user.id, date_from, date_to)
-    points = _points(db, user.id, start, end)
+    start, end, _ = period_range(db, user.id, date_from, date_to)
+    points = tx_points(db, user.id, start, end)
     buckets = aggregate_series(points, "day")
     return [
         CalendarPointOut(date=b.key, inflow_cents=b.inflow_cents,

@@ -325,6 +325,10 @@ def test_a_dense_burst_on_each_side_of_an_empty_year_is_not_a_weekly_rhythm():
     small. Left at that, the engine announces a *confirmed* weekly subscription
     of 86 EUR a week, built across nine months in which nothing was recorded.
     A rhythm is a claim about every gap, not about the middle one.
+
+    Cutting at the last hole does not rescue it either, and should not: what
+    follows the 264-day gap is a December burst four days apart on median, and
+    `classify_period(4)` matches no rhythm anyone bills on.
     """
     days = [date(2025, 1, 24), date(2025, 1, 29), date(2025, 2, 3), date(2025, 2, 10),
             date(2025, 3, 15), date(2025, 12, 4), date(2025, 12, 11), date(2025, 12, 11),
@@ -338,6 +342,63 @@ def test_a_dense_burst_on_each_side_of_an_empty_year_is_not_a_weekly_rhythm():
     report = detect_recurrences(rows, TODAY)
     assert report.recurrences == []
     assert report.rejected_irregular == 1
+
+
+def test_a_series_that_never_settles_is_refused_even_with_no_hole_in_it():
+    """The wobble gate, pinned on its own.
+
+    Gaps of 30, 45, 18, 42 and 20 days: the median is 30 so the rhythm reads
+    monthly, and the longest gap is 45, well inside the 65 days that would make
+    it a hole -- so the hole gate stays silent and only the MAD test stands
+    between this and a "monthly subscription". Its MAD is 12 against an allowed
+    8, and it is refused.
+
+    Without this case every test that once depended on the wobble test is now
+    also caught by the hole test, and the wobble condition could be deleted with
+    the suite still green.
+    """
+    offsets = [0, 30, 75, 93, 135, 155]
+    rows = [
+        RecurringTx(on=date(2026, 1, 5) + timedelta(days=offset), amount_cents=-4500,
+                    label_key="assurance", label_raw="ASSURANCE", category_id=None)
+        for offset in offsets
+    ]
+    report = detect_recurrences(rows, date(2026, 6, 20))
+    assert report.recurrences == []
+    assert report.rejected_irregular == 1
+
+
+def test_a_subscription_that_lapsed_and_resumed_is_read_on_its_trailing_run():
+    """An expired card in the summer of 2024, a re-subscription in October, and
+    nine clean months since. Discarding the whole label over a hole that closed
+    two years ago would report nothing at all, forever, about a subscription
+    that is plainly running -- so the engine describes the stretch since the
+    lapse, and says so by dating `first_on` at the resumption rather than at the
+    original sign-up."""
+    lapsed = _monthly("netflix", -1549, date(2024, 1, 10), 6)
+    resumed = _monthly("netflix", -1549, date(2024, 10, 10), 9)
+    report = detect_recurrences(lapsed + resumed, date(2025, 7, 1))
+
+    assert len(report.recurrences) == 1
+    found = report.recurrences[0]
+    assert found.periodicity == "monthly"
+    assert found.status == "active"
+    assert found.occurrences == 9
+    assert found.first_on == date(2024, 10, 10)
+    assert found.last_on == date(2025, 6, 9)
+
+
+def test_the_price_search_stops_at_the_hole_too():
+    """13,49 EUR before the lapse, 15,99 EUR after. The engine never saw the
+    subscription cross between the two, so it must not report a price rise it
+    cannot place -- and the current level is the one it did observe."""
+    lapsed = _monthly("netflix", -1349, date(2024, 1, 10), 6)
+    resumed = _monthly("netflix", -1599, date(2024, 10, 10), 9)
+    found = detect_recurrences(lapsed + resumed, date(2025, 7, 1)).recurrences[0]
+
+    assert found.price_change is None
+    assert found.amount_cents == -1599
+    assert found.occurrences == 9
 
 
 def test_one_skipped_month_does_not_disqualify_a_subscription():

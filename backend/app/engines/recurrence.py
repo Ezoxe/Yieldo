@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from datetime import date, timedelta
 from typing import Literal
 
-from app.engines.robust import describe
+from app.engines.robust import Spread, describe
 
 
 @dataclass(frozen=True)
@@ -166,15 +166,45 @@ def classify_period(median_interval_days: int) -> Periodicity | None:
     return None
 
 
-def _spans_a_hole(intervals: list[int], periodicity: Periodicity) -> bool:
-    """True when one gap is too long for the rhythm to have carried across it.
+def _analysable_run(dates: list[date]) -> tuple[int, Periodicity, Spread] | None:
+    """The trailing stretch one rhythm can actually be claimed across.
 
-    Measured against the classified period's own nominal and tolerance, so no
-    threshold is invented here: a monthly charge may skip one month (65 days),
-    a weekly one may skip one week (16 days), and neither may skip a year.
+    Returns the index that stretch starts at, the rhythm it keeps and the spread
+    of its intervals -- or None when no stretch of it supports a rhythm at all.
+
+    A hole is not a reason to throw the whole label away. Five clean years of
+    Netflix with a three-month lapse in 2022, an expired card and a
+    re-subscription, is still a live subscription today; reporting nothing at
+    all, forever, because of one old interruption would be its own wrong answer,
+    and the odds of some such hole only grow as a ledger lengthens. So the series
+    is cut at its *last* hole and what follows is described on its own terms --
+    which is why the caller must take its occurrence count, its first date and
+    its price history from the run and not from the whole group.
+
+    A gap counts as a hole past `MAX_GAP_PERIODS` of the rhythm's own nominal
+    plus its tolerance, so no threshold is invented here: a monthly charge may
+    skip one month (65 days), a weekly one one week (16 days), neither a year.
+
+    Re-cut until stable, because trimming changes the median, which can change
+    the rhythm, which changes what counts as a hole. Every pass strictly shortens
+    the run, so this ends -- at the latest when fewer than `MIN_OCCURRENCES`
+    remain and there is nothing left to describe.
     """
-    nominal, tolerance = PERIOD_BOUNDS[periodicity]
-    return max(intervals) > MAX_GAP_PERIODS * nominal + tolerance
+    start = 0
+    while len(dates) - start >= MIN_OCCURRENCES:
+        run = dates[start:]
+        intervals = [(run[i] - run[i - 1]).days for i in range(1, len(run))]
+        spread = describe(intervals)
+        periodicity = classify_period(spread.median)
+        if periodicity is None:
+            return None
+        nominal, tolerance = PERIOD_BOUNDS[periodicity]
+        longest_gap = MAX_GAP_PERIODS * nominal + tolerance
+        if max(intervals) <= longest_gap:
+            return start, periodicity, spread
+        last_hole = max(index for index, gap in enumerate(intervals) if gap > longest_gap)
+        start += last_hole + 1
+    return None
 
 
 def find_price_change(amounts: list[int], dates: list[date]) -> PriceChange | None:
@@ -238,10 +268,23 @@ def detect_recurrences(
     replaced the other. Amount is used *within* a group instead, to locate the
     level change.
 
-    Known limitation, documented rather than patched: a bank that appends a
-    varying reference which `normalize_label` does not strip will fragment one
-    subscription into several groups, each too thin to qualify. The engine will
-    then report nothing rather than something wrong.
+    Two known limitations of that key, documented rather than patched, and they
+    run in opposite directions.
+
+    It can **fragment**: a bank that appends a varying reference which
+    `normalize_label` does not strip splits one subscription into several groups,
+    each too thin to qualify. The engine then reports nothing rather than
+    something wrong, which is the failure worth having.
+
+    It can also **collide**, and that one is not safe on its own.
+    `normalize_label` strips `carte 1234`, so every cash withdrawal in the ledger
+    collapses to the single key `retrait dab`. Weekly withdrawals of wildly
+    varying size are one group with a clean weekly rhythm and no hole, and
+    nothing in here refuses them: no gate in this engine looks at amount
+    stability, so `annual_cents` would be 52 times the median withdrawal, ready
+    to be presented as a subscription. `Recurrence.amount_spread_cents` is
+    published for exactly this reason, and **the caller must use it** before
+    putting any of this under a heading that says "abonnements".
     """
     groups: dict[str, list[RecurringTx]] = {}
     for tx in transactions:
@@ -254,27 +297,34 @@ def detect_recurrences(
     rejected_irregular = 0
 
     for key in sorted(groups):
-        rows = sorted(groups[key], key=lambda row: row.on)
-        if len(rows) < MIN_OCCURRENCES:
+        group = sorted(groups[key], key=lambda row: row.on)
+        if len(group) < MIN_OCCURRENCES:
             rejected_thin += 1
             continue
 
-        dates = [row.on for row in rows]
-        intervals = [(dates[i] - dates[i - 1]).days for i in range(1, len(dates))]
-        interval_spread = describe(intervals)
-        periodicity = classify_period(interval_spread.median)
+        analysable = _analysable_run([row.on for row in group])
+        if analysable is None:
+            rejected_irregular += 1
+            continue
+        run_start, periodicity, interval_spread = analysable
+
+        # Two independent gates, and each catches series the other lets past.
+        # `_analysable_run` tests the *longest* gap; this tests the *typical*
+        # one, so a series that never stops but never settles -- 30, 45, 18, 42,
+        # 20 days apart, no gap long enough to be a hole -- is refused here.
         allowed_wobble = max(
             MIN_INTERVAL_MAD_DAYS,
             round(interval_spread.median * MAX_INTERVAL_MAD_RATIO),
         )
-        if (
-            periodicity is None
-            or interval_spread.mad > allowed_wobble
-            or _spans_a_hole(intervals, periodicity)
-        ):
+        if interval_spread.mad > allowed_wobble:
             rejected_irregular += 1
             continue
 
+        # Everything below describes the analysed run, never the whole group. An
+        # occurrence count, a first date or a price history reaching back across
+        # a hole would claim a continuity that was never observed.
+        rows = group[run_start:]
+        dates = [row.on for row in rows]
         amounts = [row.amount_cents for row in rows]
         change = find_price_change(amounts, dates)
         current_level = amounts[change.occurrence_index:] if change else amounts

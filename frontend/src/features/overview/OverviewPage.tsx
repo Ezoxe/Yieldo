@@ -12,6 +12,7 @@ import { CountUp } from "../../design/CountUp";
 import { EmptyState, frenchDate, historySentence } from "../../design/EmptyState";
 import { useReducedMotion } from "../../design/motion/useReducedMotion";
 import { entryProps, staggerProps } from "../../design/motion/variants";
+import "../../design/Skeleton.css";
 import { formatCents } from "../../design/theme";
 import { useTheme } from "../../app/ThemeProvider";
 import { ApiError, api } from "../../lib/api";

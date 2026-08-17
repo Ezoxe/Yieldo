@@ -1,0 +1,425 @@
+.yd-budgets {
+  max-width: 1280px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-lg);
+}
+
+.yd-budgets__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--yd-space-sm);
+}
+
+.yd-budgets h1 {
+  margin: 0;
+  font-size: clamp(1.4rem, 2.2vw, 1.75rem);
+  letter-spacing: -0.015em;
+  color: var(--yd-text);
+}
+
+/* Month navigation ------------------------------------------------------- */
+
+.yd-budgets__month-nav {
+  display: flex;
+  align-items: center;
+  gap: var(--yd-space-sm);
+}
+
+.yd-budgets__month-nav button {
+  /* 36px square, so the arrows clear the 24px minimum target size WCAG 2.2
+     asks for (2.5.8) without the two of them colliding at 375px. */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  flex: none;
+  border: 1px solid var(--yd-border-strong);
+  border-radius: var(--yd-radius-sm);
+  background: transparent;
+  color: var(--yd-text);
+  font: inherit;
+  line-height: 1;
+  cursor: pointer;
+  transition: border-color var(--yd-motion-fast) var(--yd-ease);
+}
+
+.yd-budgets__month-nav button:hover:not(:disabled) {
+  border-color: var(--yd-accent);
+}
+
+.yd-budgets__month-nav button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.yd-budgets__month-nav button:focus-visible {
+  outline: 2px solid var(--yd-accent);
+  outline-offset: 2px;
+}
+
+.yd-budgets__month {
+  min-width: 10ch;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: var(--yd-text);
+  /* First letter of a French month is lowercase from Intl; the heading reads
+     better capitalised, and text-transform does not touch the data. */
+  text-transform: capitalize;
+}
+
+/* Summary cell ----------------------------------------------------------- */
+
+/* The two figures sit side by side at their own width, NOT in two 1fr tracks:
+   this cell spans all 12 columns, and `1fr` tracks stretched "Dépensé" to the
+   middle of a 1160px card with a dead half-screen of white beside it. Measured
+   at 1440 before the change. `minmax(0, max-content)` lets each column shrink
+   below its content rather than overflow at 375. */
+.yd-budgets__totals {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, max-content));
+  justify-content: start;
+  gap: var(--yd-space-sm) var(--yd-space-xl);
+}
+
+.yd-budgets__total {
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-2xs);
+  min-width: 0;
+}
+
+.yd-budgets__total-label {
+  font-size: 0.78rem;
+  color: var(--yd-text-muted);
+}
+
+.yd-budgets__total-value {
+  font-size: clamp(1.35rem, 2vw, 1.7rem);
+  font-weight: 600;
+  color: var(--yd-text);
+}
+
+/* The verdict and the pace note span both figure columns and stay on their
+   own rows, so a long sentence never squeezes a figure into two lines. */
+.yd-budgets__verdict,
+.yd-budgets__note {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+
+.yd-budgets__verdict {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--yd-text);
+}
+
+.yd-budgets__note {
+  font-size: 0.82rem;
+  color: var(--yd-text-muted);
+}
+
+/* This cell spans the whole grid, so from 768px the verdict moves up onto the
+   figures' own row and takes the width they leave. Stacked underneath it left
+   the right two thirds of a 1160px card empty at 1440 -- a full-width cell has
+   to earn its width, not just occupy it. Below 768 it stays under the figures,
+   where there is no width to fill. */
+@media (min-width: 768px) {
+  .yd-budgets__totals {
+    grid-template-columns: repeat(2, minmax(0, max-content)) minmax(0, 1fr);
+    /* Wider than --yd-space-xl once the figures are next to each other rather
+       than in their own half of the card: at 32px "1 920,00 €" and
+       "2 720,05 €" read as one number at display size. Built from the density
+       tokens, so compact mode still tightens it. */
+    column-gap: calc(var(--yd-space-xl) + var(--yd-space-lg));
+  }
+
+  .yd-budgets__verdict {
+    grid-column: 3;
+    grid-row: 1;
+    /* Bottom-aligned with the two figure stacks, so the three sit on one line
+       rather than the verdict floating in the middle of the row. */
+    align-self: end;
+    justify-self: end;
+    text-align: right;
+  }
+}
+
+/* Budget rows ------------------------------------------------------------ */
+
+.yd-budgets__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-md);
+}
+
+.yd-budgets__none {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--yd-text-muted);
+}
+
+/* One budget row. A GRID, not a flex column: the track below is sized in
+   percent, and a percentage inside an auto-width flex column resolves against
+   nothing and renders at zero width. `minmax(0, 1fr)` gives it a definite
+   inline size to resolve against. Verified in a browser, not in jsdom. */
+.yd-budget {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--yd-space-2xs);
+}
+
+.yd-budget__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--yd-space-xs);
+}
+
+.yd-budget__name {
+  font-weight: 600;
+  color: var(--yd-text);
+}
+
+.yd-budget__figures {
+  margin-left: auto;
+  font-family: var(--yd-font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.86rem;
+  white-space: nowrap;
+  color: var(--yd-text);
+}
+
+/* Below ~480px the head no longer fits a name, an "Essentiel" chip and two
+   figures on one line, so it wrapped on some rows and not on others and the
+   list lost its rhythm -- seen at 375, not in jsdom. Here the figures always
+   take their own line, right-aligned onto the track's own right edge, so every
+   row is built the same way. The threshold is the width at which the longest
+   real category name stops fitting, not one of the grid's breakpoints: the
+   cell is already full-width for everything under 768. */
+@media (max-width: 480px) {
+  .yd-budget__figures {
+    flex-basis: 100%;
+    margin-left: 0;
+    text-align: right;
+  }
+}
+
+.yd-budget__essential {
+  font-size: 0.72rem;
+  padding: 0 var(--yd-space-2xs);
+  border-radius: var(--yd-radius-sm);
+  border: 1px solid var(--yd-border-strong);
+  color: var(--yd-text-muted);
+}
+
+.yd-budget__track {
+  width: 100%;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--yd-surface);
+  border: 1px solid var(--yd-border);
+  overflow: hidden;
+}
+
+.yd-budget__fill {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--yd-positive);
+  /* `width`, not `transform: scaleX()`: this fill sits inside a cell rendered
+     as a motion.* element, which carries an inline `transform: none` once its
+     entry animation settles and would kill a transform-based bar outright. */
+  transition: width var(--yd-motion-slow) var(--yd-ease);
+}
+
+.yd-budget--at_risk .yd-budget__fill {
+  background: var(--yd-warning);
+}
+
+.yd-budget--over .yd-budget__fill {
+  background: var(--yd-negative);
+}
+
+.yd-budget__note {
+  margin: 0;
+  font-size: 0.86rem;
+  color: var(--yd-text-muted);
+}
+
+/* Status is never carried by colour alone: `.yd-budget__status` states it in
+   words, and the bar's colour only reinforces it (WCAG 1.4.1). */
+.yd-budget__status {
+  font-weight: 600;
+  color: var(--yd-text);
+}
+
+/* Sans budget ------------------------------------------------------------ */
+
+.yd-budgets__suggestions {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-sm);
+}
+
+.yd-budgets__suggestion {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "name spent"
+    "field save";
+  gap: var(--yd-space-2xs) var(--yd-space-xs);
+  align-items: center;
+}
+
+/* A rule between rows: without it two suggestions read as one four-line block,
+   and the second row's input looks like it belongs to the first row's name. */
+.yd-budgets__suggestion + .yd-budgets__suggestion {
+  padding-top: var(--yd-space-sm);
+  border-top: 1px solid var(--yd-border);
+}
+
+.yd-budgets__suggestion-name {
+  grid-area: name;
+  font-weight: 600;
+  color: var(--yd-text);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.yd-budgets__suggestion-spent {
+  grid-area: spent;
+  font-family: var(--yd-font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.86rem;
+  white-space: nowrap;
+  color: var(--yd-text-muted);
+}
+
+.yd-budgets__suggestion-field {
+  grid-area: field;
+  /* The input below is 100% wide. Its own grid track is `minmax(0, 1fr)`, so
+     that percentage has something definite to resolve against and the field
+     can never grow past the cell's right edge -- which is exactly how the
+     import wizard's inputs got clipped at 375px in phase 1.5. */
+  min-width: 0;
+}
+
+.yd-budgets__suggestion-field input {
+  width: 100%;
+  box-sizing: border-box;
+  background: var(--yd-surface);
+  border: 1px solid var(--yd-border);
+  border-radius: var(--yd-radius-sm);
+  padding: var(--yd-space-2xs) var(--yd-space-sm);
+  color: var(--yd-text);
+  font: inherit;
+  font-family: var(--yd-font-mono);
+  min-width: 0;
+}
+
+.yd-budgets__suggestion-field input:focus-visible {
+  outline: 2px solid var(--yd-accent);
+  outline-offset: 1px;
+}
+
+.yd-budgets__suggestion-save {
+  grid-area: save;
+  border: 1px solid var(--yd-border-strong);
+  border-radius: var(--yd-radius-sm);
+  padding: var(--yd-space-2xs) var(--yd-space-md);
+  background: transparent;
+  color: var(--yd-accent);
+  font: inherit;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    border-color var(--yd-motion-fast) var(--yd-ease),
+    background-color var(--yd-motion-fast) var(--yd-ease);
+}
+
+.yd-budgets__suggestion-save:hover:not(:disabled) {
+  border-color: var(--yd-accent);
+  background: color-mix(in srgb, var(--yd-accent) 10%, transparent);
+}
+
+.yd-budgets__suggestion-save:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.yd-budgets__suggestion-save:focus-visible {
+  outline: 2px solid var(--yd-accent);
+  outline-offset: 2px;
+}
+
+/* Alert ------------------------------------------------------------------ */
+
+.yd-budgets__alert {
+  margin: 0;
+  padding: var(--yd-space-sm) var(--yd-space-md);
+  border-radius: var(--yd-radius-sm);
+  background: color-mix(in srgb, var(--yd-negative) 14%, transparent);
+  border: 1px solid var(--yd-negative);
+  color: var(--yd-negative);
+  font-size: 0.9rem;
+}
+
+/* Skeletons -------------------------------------------------------------- */
+
+/* The bar itself is design/Skeleton.css's. These are the sizes, each one the
+   line box of the block it stands in for, so the three cells are exactly as
+   tall before the data lands as after and nothing on the page moves. */
+
+/* .yd-panel__title, at the line-height Bento.css pins on it. */
+.yd-skeleton--budget-title {
+  height: calc(0.95rem * 1.5);
+  width: 38%;
+}
+
+/* .yd-budgets__totals: two label+figure stacks, the verdict and the note. */
+.yd-skeleton--budget-totals {
+  height: calc(
+    0.78rem * 1.5 + clamp(1.35rem, 2vw, 1.7rem) * 1.5 + var(--yd-space-2xs) + 0.95rem * 1.5 +
+      0.82rem * 1.5 + var(--yd-space-sm) * 2
+  );
+}
+
+/* Three .yd-budget rows -- the head, the 10px track and the note, three times
+   over, plus the gaps. Three because that is the operator's real count; a
+   taller guess would drop the page when the data lands. */
+.yd-skeleton--budget-list {
+  height: calc((1rem * 1.5 + 10px + 0.86rem * 1.5 + var(--yd-space-2xs) * 2) * 3 + var(--yd-space-md) * 2);
+}
+
+/* Two .yd-budgets__suggestion rows: name over field, twice. */
+.yd-skeleton--budget-suggestions {
+  height: calc((1rem * 1.5 + 34px + var(--yd-space-2xs)) * 2 + var(--yd-space-sm) * 2);
+}
+
+/* Reduced motion --------------------------------------------------------- */
+
+@media (prefers-reduced-motion: reduce) {
+  .yd-budget__fill,
+  .yd-budgets__month-nav button,
+  .yd-budgets__suggestion-save {
+    transition: none;
+  }
+}
+
+/* The in-app Animations switch — see the same twin in Bento.css. The zeroed
+   duration tokens already cover these transitions, but a 0ms `width`
+   transition still animates: this removes it outright, so a bar that changes
+   month simply appears at its new width. */
+:root[data-motion="off"] .yd-budget__fill,
+:root[data-motion="off"] .yd-budgets__month-nav button,
+:root[data-motion="off"] .yd-budgets__suggestion-save {
+  transition: none;
+}

@@ -229,3 +229,46 @@ export interface CalendarPoint {
   net_cents: number;
   count: number;
 }
+
+// A closed set, not `string`: the backend types this field as the budget
+// engine's own BudgetStatus literal, so the OpenAPI schema advertises exactly
+// these three values and a fourth would be a backend change, not a surprise.
+export type BudgetStatus = "ok" | "at_risk" | "over";
+
+export interface BudgetLine {
+  category_id: number;
+  name: string;
+  color: string;
+  is_essential: boolean;
+  /** A ceiling, positive. */
+  budget_cents: number;
+  /** An outflow, negative — take the magnitude for display. */
+  spent_cents: number;
+  /** Positive while under the ceiling, negative once past it. */
+  remaining_cents: number;
+  consumed_ratio: number;
+  /** null when a projection would be dishonest — never a zero standing in. */
+  projected_cents: number | null;
+  status: BudgetStatus;
+}
+
+export interface UnbudgetedCategory {
+  category_id: number;
+  name: string;
+  color: string;
+  spent_cents: number;
+}
+
+export interface BudgetReport {
+  month: string;
+  month_start: string;
+  month_end: string;
+  days_elapsed: number;
+  days_in_month: number;
+  is_current_month: boolean;
+  lines: BudgetLine[];
+  unbudgeted: UnbudgetedCategory[];
+  total_budget_cents: number;
+  total_spent_cents: number;
+  history: History | null;
+}

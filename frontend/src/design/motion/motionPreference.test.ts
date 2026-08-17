@@ -76,7 +76,7 @@ describe("stylesheets respond to data-motion=\"off\"", () => {
   // above cannot reach them.
   it.each([
     ["../atmosphere/AtmosphericBackground.css", ".yd-atmosphere__blob-fill"],
-    ["../../features/overview/OverviewPage.css", ".yd-skeleton::after"],
+    ["../Skeleton.css", ".yd-skeleton::after"],
   ])("stops %s's keyframe animation on %s", (file, selector) => {
     const css = read(file);
     const index = css.indexOf(':root[data-motion="off"]');

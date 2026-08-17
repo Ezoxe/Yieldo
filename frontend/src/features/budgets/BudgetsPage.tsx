@@ -1,0 +1,382 @@
+import { motion } from "motion/react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { Link, useSearchParams } from "react-router";
+
+import { BentoCell, type BentoSpan } from "../../design/bento/BentoCell";
+import { BentoGrid } from "../../design/bento/BentoGrid";
+import { CountUp } from "../../design/CountUp";
+import { EmptyState, historySentence } from "../../design/EmptyState";
+import { useReducedMotion } from "../../design/motion/useReducedMotion";
+import { entryProps, staggerProps } from "../../design/motion/variants";
+import "../../design/Skeleton.css";
+import { formatCents, parseCents } from "../../design/theme";
+import { ApiError, api } from "../../lib/api";
+import { plural } from "../../lib/plural";
+import type { BudgetReport } from "../../lib/types";
+import { BudgetBar } from "./BudgetBar";
+import "./BudgetsPage.css";
+
+const GENERIC_ERROR = "Une erreur inattendue est survenue.";
+
+function messageFor(err: unknown): string {
+  return err instanceof ApiError ? err.detail : GENERIC_ERROR;
+}
+
+/**
+ * The two month-navigation chevrons. Inline SVG, never a glyph: MASTER.md
+ * forbids emoji-as-icon, and U+25C0 / U+25B6 pick up emoji presentation on some
+ * platforms. Same grid as features/landing/icons.tsx -- 24x24, 1.6px stroke,
+ * round caps, `currentColor` -- so the whole app draws icons one way.
+ */
+function ChevronIcon({ direction }: { direction: "left" | "right" }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="18"
+      height="18"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.6"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <path d={direction === "left" ? "M15 6l-6 6 6 6" : "M9 6l6 6-6 6"} />
+    </svg>
+  );
+}
+
+/** "2026-01" → "janvier 2026". The month key is the API's, the words are ours. */
+export function monthLabel(key: string): string {
+  const [year, month] = key.split("-").map(Number);
+  return new Date(Date.UTC(year, month - 1, 1)).toLocaleDateString("fr-FR", {
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+}
+
+/** The month `offset` months away from `key`, in the same "AAAA-MM" shape. */
+export function shiftMonth(key: string, offset: number): string {
+  const [year, month] = key.split("-").map(Number);
+  const shifted = new Date(Date.UTC(year, month - 1 + offset, 1));
+  return `${shifted.getUTCFullYear()}-${String(shifted.getUTCMonth() + 1).padStart(2, "0")}`;
+}
+
+/**
+ * One source of truth for the shape of this screen, so the loading skeletons
+ * and the loaded content land on the *same* cells at the same spans and
+ * nothing moves when the data arrives.
+ *
+ * At lg (12 columns): the month's totals across the top, then the budget bars
+ * (7) beside the categories still waiting for a ceiling (5). The bars are the
+ * wider of the two because they are what the reader came for; the right-hand
+ * column is the way to add more of them.
+ */
+const SPAN = {
+  summary: { base: 1, md: 6, lg: 12 },
+  lines: { base: 1, md: 6, lg: 7 },
+  unbudgeted: { base: 1, md: 6, lg: 5 },
+  empty: { base: 1, md: 6, lg: 12 },
+} satisfies Record<string, BentoSpan>;
+
+interface BudgetInputProps {
+  categoryId: number;
+  name: string;
+  spentCents: number;
+  onSaved: () => void;
+  onError: (message: string) => void;
+}
+
+/**
+ * One "set a budget" row. The euro figure typed here becomes integer cents
+ * through `parseCents`, which returns null rather than 0 on anything it cannot
+ * read exactly -- a silent 0 would set a budget of nothing and mark the
+ * category permanently over.
+ */
+function BudgetInput({ categoryId, name, spentCents, onSaved, onError }: BudgetInputProps) {
+  const [value, setValue] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  async function save() {
+    const cents = parseCents(value);
+    if (cents === null || cents <= 0) {
+      onError(`Montant invalide pour ${name} : saisissez un montant en euros, par exemple 250,50.`);
+      return;
+    }
+    setSaving(true);
+    try {
+      await api.patch(`/categories/${categoryId}`, { monthly_budget_cents: cents });
+      onSaved();
+    } catch (err) {
+      onError(messageFor(err));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <li className="yd-budgets__suggestion">
+      <span className="yd-budgets__suggestion-name">{name}</span>
+      <span className="yd-budgets__suggestion-spent">{formatCents(Math.abs(spentCents))}</span>
+      <label className="yd-budgets__suggestion-field">
+        <span className="sr-only">{`Budget mensuel pour ${name}`}</span>
+        <input
+          type="text"
+          inputMode="decimal"
+          aria-label={`Budget mensuel pour ${name}`}
+          value={value}
+          onChange={(event) => setValue(event.target.value)}
+          placeholder="250,00"
+        />
+      </label>
+      <button
+        type="button"
+        className="yd-budgets__suggestion-save"
+        disabled={saving}
+        onClick={() => void save()}
+      >
+        <span className="sr-only">{`Enregistrer le budget de ${name}`}</span>
+        <span aria-hidden="true">Définir</span>
+      </button>
+    </li>
+  );
+}
+
+export function BudgetsPage() {
+  const [params, setParams] = useSearchParams();
+  const reduced = useReducedMotion();
+  const askedMonth = params.get("mois");
+
+  const [report, setReport] = useState<BudgetReport | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [reloadToken, setReloadToken] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      setIsLoading(true);
+      try {
+        // No `month` at all on the first visit: the backend then resolves it to
+        // the month of the user's *latest* transaction, not to today's. The
+        // operator's statements stop months before today, and opening this
+        // screen on a permanently empty month is the defect this avoids.
+        const body = await api.get<BudgetReport>("/budgets", { month: askedMonth ?? undefined });
+        if (cancelled) return;
+        setReport(body);
+        setError(null);
+      } catch (err) {
+        if (cancelled) return;
+        setReport(null);
+        setError(messageFor(err));
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+    }
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, [askedMonth, reloadToken]);
+
+  const goToMonth = useCallback((key: string) => setParams({ mois: key }), [setParams]);
+
+  // The URL first, the loaded report only as a fallback. `report` lags a click
+  // behind -- it is not cleared while the next month is in flight -- so reading
+  // the month off it made the header sit on the *previous* month for the whole
+  // load, and made a second click on "Mois précédent" recompute from that stale
+  // month and ask for the one already being fetched. With no `?mois=` at all
+  // (the first visit) there is nothing to read but the report, which is exactly
+  // the month the backend resolved to the user's latest transaction.
+  const current = askedMonth ?? report?.month ?? "";
+  const overCount = report?.lines.filter((line) => line.status === "over").length ?? 0;
+  const atRiskCount = report?.lines.filter((line) => line.status === "at_risk").length ?? 0;
+
+  let body: ReactNode;
+  if (isLoading) {
+    body = (
+      <BentoGrid role="status" aria-busy="true" aria-label="Chargement des budgets">
+        <BentoCell span={SPAN.summary} className="yd-panel">
+          <div className="yd-skeleton yd-skeleton--budget-title" aria-hidden="true" />
+          <div className="yd-skeleton yd-skeleton--budget-totals" aria-hidden="true" />
+        </BentoCell>
+        <BentoCell span={SPAN.lines} className="yd-panel">
+          <div className="yd-skeleton yd-skeleton--budget-title" aria-hidden="true" />
+          <div className="yd-skeleton yd-skeleton--budget-list" aria-hidden="true" />
+        </BentoCell>
+        <BentoCell span={SPAN.unbudgeted} className="yd-panel">
+          <div className="yd-skeleton yd-skeleton--budget-title" aria-hidden="true" />
+          <div className="yd-skeleton yd-skeleton--budget-suggestions" aria-hidden="true" />
+        </BentoCell>
+      </BentoGrid>
+    );
+  } else if (report === null) {
+    body = null;
+  } else if (report.lines.length === 0 && report.unbudgeted.length === 0) {
+    body = (
+      <BentoGrid as={motion.div} {...staggerProps(reduced)}>
+        <BentoCell as={motion.div} span={SPAN.empty} {...entryProps(reduced)}>
+          {report.history === null ? (
+            <EmptyState
+              title="Aucun budget défini, et aucune dépense à budgéter."
+              detail="Importez un relevé bancaire : les catégories sur lesquelles vous dépensez apparaîtront ici, prêtes à recevoir un plafond."
+            >
+              <Link to="/import" className="yd-empty__action">
+                Importer un relevé
+              </Link>
+            </EmptyState>
+          ) : (
+            <EmptyState
+              title="Aucun budget défini, et aucune dépense ce mois-ci."
+              detail={historySentence(report.history)}
+            >
+              <button
+                type="button"
+                className="yd-empty__action"
+                onClick={() => goToMonth(report.history!.date_to.slice(0, 7))}
+              >
+                Aller au dernier mois avec des données
+              </button>
+            </EmptyState>
+          )}
+        </BentoCell>
+      </BentoGrid>
+    );
+  } else {
+    body = (
+      <BentoGrid as={motion.div} {...staggerProps(reduced)}>
+        <BentoCell as={motion.div} span={SPAN.summary} className="yd-panel" {...entryProps(reduced)}>
+          <h2 className="yd-panel__title">Ce mois-ci</h2>
+          <div className="yd-budgets__totals">
+            <div className="yd-budgets__total">
+              <span className="yd-budgets__total-label">Budgété</span>
+              <CountUp
+                value={report.total_budget_cents}
+                format={(cents) => formatCents(cents)}
+                className="yd-budgets__total-value"
+              />
+            </div>
+            <div className="yd-budgets__total">
+              <span className="yd-budgets__total-label">Dépensé</span>
+              <CountUp
+                value={Math.abs(report.total_spent_cents)}
+                format={(cents) => formatCents(cents)}
+                className="yd-budgets__total-value"
+              />
+            </div>
+            <p className="yd-budgets__verdict">
+              {overCount === 0 && atRiskCount === 0
+                ? "Aucun budget dépassé."
+                : [
+                    overCount > 0
+                      ? `${overCount} ${plural(overCount, "budget dépassé", "budgets dépassés")}`
+                      : "",
+                    atRiskCount > 0
+                      ? `${atRiskCount} ${plural(atRiskCount, "budget en passe de l'être", "budgets en passe de l'être")}`
+                      : "",
+                  ]
+                    .filter(Boolean)
+                    .join(", ") + "."}
+            </p>
+            {!report.is_current_month ? (
+              // A finished month has no pace to project, and saying so is
+              // better than leaving the reader wondering why no projection
+              // appears on any line.
+              <p className="yd-budgets__note">
+                Mois terminé : les montants affichés sont définitifs, aucune projection n'est faite.
+              </p>
+            ) : (
+              <p className="yd-budgets__note">
+                {`Mois en cours, ${report.days_elapsed} ${plural(report.days_elapsed, "jour écoulé", "jours écoulés")} sur ${report.days_in_month}.`}
+              </p>
+            )}
+          </div>
+        </BentoCell>
+
+        <BentoCell as={motion.div} span={SPAN.lines} className="yd-panel" {...entryProps(reduced)}>
+          <h2 className="yd-panel__title">Budgets par catégorie</h2>
+          {report.lines.length === 0 ? (
+            <p className="yd-budgets__none">
+              Aucun budget défini. Choisissez une catégorie à droite pour commencer.
+            </p>
+          ) : (
+            <div className="yd-budgets__list">
+              {report.lines.map((line) => (
+                <BudgetBar key={line.category_id} line={line} />
+              ))}
+            </div>
+          )}
+        </BentoCell>
+
+        <BentoCell
+          as={motion.div}
+          span={SPAN.unbudgeted}
+          className="yd-panel"
+          {...entryProps(reduced)}
+        >
+          <h2 className="yd-panel__title">Sans budget</h2>
+          {report.unbudgeted.length === 0 ? (
+            <p className="yd-budgets__none">
+              Chaque catégorie sur laquelle vous avez dépensé a un budget.
+            </p>
+          ) : (
+            <ul className="yd-budgets__suggestions">
+              {report.unbudgeted.map((entry) => (
+                <BudgetInput
+                  key={entry.category_id}
+                  categoryId={entry.category_id}
+                  name={entry.name}
+                  spentCents={entry.spent_cents}
+                  onSaved={() => {
+                    setError(null);
+                    setReloadToken((token) => token + 1);
+                  }}
+                  onError={setError}
+                />
+              ))}
+            </ul>
+          )}
+        </BentoCell>
+      </BentoGrid>
+    );
+  }
+
+  return (
+    <section className="yd-budgets">
+      <div className="yd-budgets__header">
+        <h1>Budgets</h1>
+        <div className="yd-budgets__month-nav">
+          <button
+            type="button"
+            onClick={() => goToMonth(shiftMonth(current, -1))}
+            disabled={!current}
+          >
+            <span className="sr-only">Mois précédent</span>
+            <ChevronIcon direction="left" />
+          </button>
+          <span className="yd-budgets__month" aria-live="polite">
+            {current ? monthLabel(current) : ""}
+          </span>
+          <button
+            type="button"
+            onClick={() => goToMonth(shiftMonth(current, 1))}
+            disabled={!current}
+          >
+            <span className="sr-only">Mois suivant</span>
+            <ChevronIcon direction="right" />
+          </button>
+        </div>
+      </div>
+
+      {error !== null ? (
+        <p role="alert" className="yd-budgets__alert">
+          {error}
+        </p>
+      ) : null}
+
+      {body}
+    </section>
+  );
+}

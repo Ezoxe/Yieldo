@@ -88,6 +88,36 @@ export function formatCents(cents: number, options: FormatOptions = {}): string 
   return `${sign}${body}${NBSP}${currency}`;
 }
 
+/**
+ * The inverse of {@link formatCents}: a typed or pasted euro amount, back to an
+ * integer number of cents.
+ *
+ * String arithmetic throughout, never `parseFloat(x) * 100` -- 8.70 through a
+ * float is 869.9999999999999, and `Math.round` hiding that is exactly the kind
+ * of silent conversion the integer-cents rule exists to prevent.
+ *
+ * Accepts what a French user actually types or pastes: a comma or a dot, the
+ * narrow no-break spaces and the "€" that `formatCents` itself emits, and the
+ * typographic minus it uses for negatives. Returns `null` -- never 0 -- for
+ * anything it cannot read exactly, including more than two decimals: rounding
+ * a third digit away would change the number the user typed without saying so.
+ */
+export function parseCents(text: string): number | null {
+  // \s already covers U+00A0 and U+202F, the two spaces formatCents emits; both
+  // are spelt out as escapes so the source carries no invisible characters.
+  const cleaned = text
+    .replace(/[\s\u00a0\u202f]/g, "")
+    .replace(/€/g, "")
+    .replace(MINUS, "-")
+    .replace(",", ".");
+  if (!/^-?\d+(\.\d{1,2})?$/.test(cleaned)) return null;
+
+  const negative = cleaned.startsWith("-");
+  const [whole, fraction = ""] = cleaned.replace("-", "").split(".");
+  const cents = Number(whole) * 100 + Number(fraction.padEnd(2, "0"));
+  return negative ? -cents : cents;
+}
+
 export function formatCompactCents(cents: number, currency = "€"): string {
   const units = Math.abs(cents) / 100;
   const sign = cents < 0 ? MINUS : "";

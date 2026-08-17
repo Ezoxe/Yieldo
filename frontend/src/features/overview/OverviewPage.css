@@ -231,17 +231,13 @@
 
 /* Skeletons ------------------------------------------------------------- */
 
-/* Each variant stands in for one real block and is sized to the *line box*
-   that block occupies -- font-size x line-height, not font-size -- so the
-   grid tracks resolve identically before and after the data lands. Measured
-   in a browser: sizing these to the bare font-size left the chart cells 8px
-   short, and every row below them slid up by that much when the data landed. */
-.yd-skeleton {
-  position: relative;
-  overflow: hidden;
-  border-radius: var(--yd-radius-sm);
-  background: var(--yd-surface-raised);
-}
+/* The bar itself -- surface, radius and shimmer -- is design/Skeleton.css's,
+   shared with the budgets screen. What stays here is the sizing: each variant
+   stands in for one real block and is sized to the *line box* that block
+   occupies -- font-size x line-height, not font-size -- so the grid tracks
+   resolve identically before and after the data lands. Measured in a browser:
+   sizing these to the bare font-size left the chart cells 8px short, and every
+   row below them slid up by that much when the data landed. */
 
 /* .yd-stat-tile__label / .yd-hero__label, at the inherited line-height 1.5. */
 .yd-skeleton--label {
@@ -307,36 +303,5 @@
   height: 220px;
 }
 
-.yd-skeleton::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(
-    100deg,
-    transparent 30%,
-    color-mix(in srgb, var(--yd-text) 8%, transparent) 50%,
-    transparent 70%
-  );
-  animation: yd-skeleton-shimmer 1.6s ease-in-out infinite;
-}
-
-@keyframes yd-skeleton-shimmer {
-  from {
-    transform: translateX(-100%);
-  }
-  to {
-    transform: translateX(100%);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .yd-skeleton::after {
-    animation: none;
-  }
-}
-
-/* The in-app Animations switch. The shimmer's duration is hard-coded, so the
-   zeroed duration tokens cannot reach it. */
-:root[data-motion="off"] .yd-skeleton::after {
-  animation: none;
-}
+/* The shimmer, its keyframes and both of its off-switches live in
+   design/Skeleton.css -- see the note at the top of this section. */

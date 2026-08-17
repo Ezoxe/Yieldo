@@ -38,6 +38,7 @@ function renderShell(initialPath: string) {
           <Route element={<AppShell userName="Maxime" />}>
             <Route index element={<p>Écran vue d'ensemble</p>} />
             <Route path="transactions" element={<p>Écran transactions</p>} />
+            <Route path="budgets" element={<p>Écran budgets</p>} />
             <Route path="categories" element={<p>Écran catégories</p>} />
             <Route path="import" element={<p>Écran import</p>} />
             <Route path="reglages" element={<p>Écran réglages</p>} />
@@ -71,6 +72,29 @@ describe("AppShell", () => {
     expect(screen.getByRole("link", { name: "Transactions" })).not.toHaveAttribute(
       "aria-current",
     );
+  });
+
+  // Pinned as a list, not a count: a nav entry silently dropped in a refactor
+  // is a screen the operator can no longer reach, and /budgets is the only
+  // place a monthly budget can be set while /categories is a placeholder.
+  it("lists every screen in the sidebar, in order", () => {
+    renderShell("/");
+
+    expect(
+      within(screen.getByRole("navigation", { name: NAV_LABEL }))
+        .getAllByRole("link")
+        .map((link) => link.textContent),
+    ).toEqual(["Vue d'ensemble", "Transactions", "Budgets", "Catégories", "Import", "Réglages"]);
+  });
+
+  it("routes the Budgets nav entry to the budgets screen", async () => {
+    const user = userEvent.setup();
+    renderShell("/");
+
+    await user.click(screen.getByRole("link", { name: "Budgets" }));
+
+    expect(screen.getByRole("main")).toHaveTextContent("Écran budgets");
+    expect(screen.getByRole("link", { name: "Budgets" })).toHaveAttribute("aria-current", "page");
   });
 
   it("renders the routed page content inside main", () => {

@@ -1,0 +1,58 @@
+/* The loading placeholder every screen draws while its data is in flight.
+   Only the primitive lives here -- the shimmering bar itself and the switches
+   that hold it still. Each screen sizes its own variants next to the blocks
+   they stand in for, because only the screen knows how tall its blocks are.
+
+   This moved out of features/overview/OverviewPage.css when the budgets screen
+   became the second screen to need it: a screen reaching into another screen's
+   stylesheet only works by accident of how the bundle is assembled, and would
+   go silently blank the day the routes are code-split. Same reasoning that put
+   `.yd-panel` in design/bento/Bento.css. */
+.yd-skeleton {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--yd-radius-sm);
+  /* Derived from --yd-text, NOT from --yd-surface-raised. A skeleton always
+     sits on a bento cell, whose surface is --yd-surface-strong; in the light
+     theme that is #ffffff and --yd-surface-raised is rgba(255,255,255,0.86),
+     which composites to pure white on pure white. Measured in a browser at
+     1.000:1 -- the loading state of every screen in the app was three blank
+     cards. Mixing the text colour instead means the bar is a tint of whatever
+     the theme's foreground is, so it can never match the surface it lies on.
+     Pinned by Skeleton.test.ts, which does that compositing arithmetic. */
+  background: color-mix(in srgb, var(--yd-text) 12%, transparent);
+}
+
+.yd-skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    100deg,
+    transparent 30%,
+    color-mix(in srgb, var(--yd-text) 8%, transparent) 50%,
+    transparent 70%
+  );
+  animation: yd-skeleton-shimmer 1.6s ease-in-out infinite;
+}
+
+@keyframes yd-skeleton-shimmer {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .yd-skeleton::after {
+    animation: none;
+  }
+}
+
+/* The in-app Animations switch. The shimmer's duration is hard-coded, so the
+   zeroed duration tokens cannot reach it. */
+:root[data-motion="off"] .yd-skeleton::after {
+  animation: none;
+}

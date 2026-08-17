@@ -1,6 +1,7 @@
 import { createBrowserRouter } from "react-router";
 
 import { LoginPage } from "../features/auth/LoginPage";
+import { BudgetsPage } from "../features/budgets/BudgetsPage";
 import { DesignSystemPage } from "../features/design-system/DesignSystemPage";
 import { RegisterPage } from "../features/auth/RegisterPage";
 import { RequireAuth } from "../features/auth/RequireAuth";
@@ -11,9 +12,11 @@ import { TransactionsPage } from "../features/transactions/TransactionsPage";
 import { AppShellRoute, HomeRoute } from "./HomeRoute";
 
 // Placeholder screen for the one route whose real implementation is still
-// pending. /, /transactions, /reglages and /import are real screens — see
-// features/overview/OverviewPage.tsx, features/transactions/TransactionsPage.tsx,
-// features/settings/SettingsPage.tsx and features/import/ImportPage.tsx.
+// pending. /, /transactions, /budgets, /reglages and /import are real screens
+// — see features/overview/OverviewPage.tsx, features/transactions/TransactionsPage.tsx,
+// features/budgets/BudgetsPage.tsx, features/settings/SettingsPage.tsx and
+// features/import/ImportPage.tsx. Until /categories exists, /budgets is the
+// only place a monthly budget can be set.
 function CategoriesPlaceholder() {
   return <p>Catégories — à venir.</p>;
 }
@@ -46,6 +49,7 @@ export const router = createBrowserRouter([
         element: <AppShellRoute />,
         children: [
           { path: "transactions", element: <TransactionsPage /> },
+          { path: "budgets", element: <BudgetsPage /> },
           { path: "categories", element: <CategoriesPlaceholder /> },
           { path: "import", element: <ImportPage /> },
           { path: "reglages", element: <SettingsPage /> },

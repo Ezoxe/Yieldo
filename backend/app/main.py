@@ -9,6 +9,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from app.api import accounts as account_routes
 from app.api import analytics as analytics_routes
 from app.api import auth as auth_routes
+from app.api import budgets as budget_routes
 from app.api import categories as category_routes
 from app.api import imports as import_routes
 from app.api import transactions as transaction_routes
@@ -56,6 +57,7 @@ api.include_router(import_routes.router)
 api.include_router(transaction_routes.router)
 api.include_router(category_routes.router)
 api.include_router(analytics_routes.router)
+api.include_router(budget_routes.router)
 
 app.include_router(api)
 

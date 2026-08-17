@@ -92,6 +92,17 @@ def test_anomaly_points_carry_the_transaction_id_and_label(db):
     assert points[0].category_id == category.id
 
 
+def test_anomaly_points_never_cross_users(db):
+    mine = _user(db, "mine-anomaly@example.com")
+    theirs = _user(db, "theirs-anomaly@example.com")
+    _tx(db, mine, _account(db, mine), date(2025, 1, 10), -1549, "NETFLIX")
+    _tx(db, theirs, _account(db, theirs), date(2025, 1, 10), -9999, "AUTRE")
+    db.commit()
+
+    points = anomaly_points(db, mine.id)
+    assert [point.amount_cents for point in points] == [-1549]
+
+
 def test_liquid_balance_sums_opening_balances_and_every_movement(db):
     user = _user(db, "d@example.com")
     account = _account(db, user, "checking", opening=100_000)
@@ -114,6 +125,23 @@ def test_liquid_balance_ignores_illiquid_and_archived_accounts(db):
     assert liquid_balance_cents(db, user.id) == 100_000
 
 
+def test_liquid_balance_never_crosses_users(db):
+    mine = _user(db, "mine-liquid@example.com")
+    theirs = _user(db, "theirs-liquid@example.com")
+    _account(db, mine, "checking", opening=100_000)
+    _account(db, theirs, "checking", opening=900_000)
+    db.commit()
+
+    assert liquid_balance_cents(db, mine.id) == 100_000
+
+
+def test_liquid_balance_is_zero_for_a_user_with_no_liquid_accounts_at_all(db):
+    user = _user(db, "no-accounts@example.com")
+    db.commit()
+
+    assert liquid_balance_cents(db, user.id) == 0
+
+
 def test_period_range_still_answers_an_absent_bound_with_the_whole_history(db):
     user = _user(db, "f@example.com")
     account = _account(db, user)
@@ -126,6 +154,20 @@ def test_period_range_still_answers_an_absent_bound_with_the_whole_history(db):
     assert history is not None and history.transaction_count == 2
 
 
+def test_period_range_never_widens_with_another_users_older_history(db):
+    """An absent bound resolves to this user's own history -- another user's
+    older transaction must not push the default start further back."""
+    mine = _user(db, "mine-period@example.com")
+    theirs = _user(db, "theirs-period@example.com")
+    _tx(db, mine, _account(db, mine), date(2025, 6, 1), -1000, "A")
+    _tx(db, theirs, _account(db, theirs), date(2020, 1, 1), -1000, "OLDER")
+    db.commit()
+
+    start, end, history = period_range(db, mine.id, None, None)
+    assert (start, end) == (date(2025, 6, 1), date(2025, 6, 1))
+    assert history is not None and history.transaction_count == 1
+
+
 def test_tx_points_are_the_engine_shape_not_orm_rows(db):
     user = _user(db, "g@example.com")
     account = _account(db, user)
@@ -134,3 +176,14 @@ def test_tx_points_are_the_engine_shape_not_orm_rows(db):
 
     points = tx_points(db, user.id, date(2025, 1, 1), date(2025, 12, 31))
     assert [type(point).__name__ for point in points] == ["TxPoint"]
+
+
+def test_tx_points_never_cross_users(db):
+    mine = _user(db, "mine-tx@example.com")
+    theirs = _user(db, "theirs-tx@example.com")
+    _tx(db, mine, _account(db, mine), date(2025, 1, 10), -1549, "NETFLIX")
+    _tx(db, theirs, _account(db, theirs), date(2025, 1, 10), -9999, "AUTRE")
+    db.commit()
+
+    points = tx_points(db, mine.id, None, None)
+    assert [point.amount_cents for point in points] == [-1549]

@@ -2,7 +2,7 @@ import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
 import type { BudgetLine } from "../../lib/types";
-import { BudgetBar, fillPercent } from "./BudgetBar";
+import { BudgetBar, consumedPercent, fillPercent } from "./BudgetBar";
 
 const line: BudgetLine = {
   category_id: 1,
@@ -17,6 +17,20 @@ const line: BudgetLine = {
   status: "ok",
 };
 
+describe("consumedPercent", () => {
+  it("rounds the consumed share to a whole percentage", () => {
+    expect(consumedPercent(0.804)).toBe(80);
+  });
+
+  it("caps at 100", () => {
+    expect(consumedPercent(3.4)).toBe(100);
+  });
+
+  it("never goes negative", () => {
+    expect(consumedPercent(-1)).toBe(0);
+  });
+});
+
 describe("fillPercent", () => {
   it("is the consumed share as a percentage string", () => {
     expect(fillPercent(0.8)).toBe("80%");
@@ -28,6 +42,14 @@ describe("fillPercent", () => {
 
   it("never goes negative", () => {
     expect(fillPercent(-1)).toBe("0%");
+  });
+
+  // One clamp, not two. The width drawn and the value announced are the same
+  // rule or they can drift: a bar can only be wrong about itself once.
+  it("is `consumedPercent` and nothing else", () => {
+    for (const ratio of [-2, 0, 0.333, 0.805, 1, 1.15, 3.4]) {
+      expect(fillPercent(ratio)).toBe(`${consumedPercent(ratio)}%`);
+    }
   });
 });
 
@@ -45,6 +67,23 @@ describe("BudgetBar", () => {
     const bar = screen.getByRole("progressbar", { name: /Courses/ });
     expect(bar).toHaveAttribute("aria-valuenow", "80");
     expect(bar).toHaveAttribute("aria-valuemax", "100");
+  });
+
+  it("draws the fill and announces the value from the same clamped figure", () => {
+    render(
+      <BudgetBar
+        line={{
+          ...line,
+          spent_cents: -102000,
+          remaining_cents: -72000,
+          consumed_ratio: 3.4,
+          status: "over",
+        }}
+      />,
+    );
+    const bar = screen.getByRole("progressbar", { name: /Courses/ });
+    expect(bar).toHaveAttribute("aria-valuenow", "100");
+    expect(bar.firstElementChild).toHaveStyle({ width: fillPercent(3.4) });
   });
 
   it("says what is left in words, not only in colour", () => {

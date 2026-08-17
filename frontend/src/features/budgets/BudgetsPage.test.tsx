@@ -29,6 +29,7 @@ const report = {
   ],
   unbudgeted: [
     { category_id: 3, name: "Restaurants", color: "#fb7185", spent_cents: -18000 },
+    { category_id: 4, name: "Énergie", color: "#3b82f6", spent_cents: -9000 },
   ],
   total_budget_cents: 42000,
   total_spent_cents: -58500,
@@ -48,7 +49,13 @@ function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
 }
 
-function setupFetch(overrides: { budgets?: () => Response; categories?: () => Response } = {}) {
+function setupFetch(
+  overrides: {
+    budgets?: () => Response | Promise<Response>;
+    categories?: () => Response;
+    patch?: () => Response;
+  } = {},
+) {
   fetchMock.mockImplementation((input: string, init?: RequestInit) => {
     const url = new URL(typeof input === "string" ? input : String(input), "http://localhost");
     if (url.pathname === "/api/budgets") {
@@ -58,10 +65,21 @@ function setupFetch(overrides: { budgets?: () => Response; categories?: () => Re
       return Promise.resolve(overrides.categories ? overrides.categories() : jsonResponse(categories));
     }
     if (url.pathname.startsWith("/api/categories/") && init?.method === "PATCH") {
-      return Promise.resolve(jsonResponse({ ...categories[0], monthly_budget_cents: 25000 }));
+      return Promise.resolve(
+        overrides.patch
+          ? overrides.patch()
+          : jsonResponse({ ...categories[0], monthly_budget_cents: 25000 }),
+      );
     }
     throw new Error(`Unhandled fetch in test: ${url.pathname}`);
   });
+}
+
+function budgetMonthsAsked(): (string | null)[] {
+  return fetchMock.mock.calls
+    .map(([input]) => new URL(String(input), "http://localhost"))
+    .filter((url) => url.pathname === "/api/budgets")
+    .map((url) => url.searchParams.get("month"));
 }
 
 beforeEach(() => {
@@ -134,6 +152,115 @@ describe("BudgetsPage", () => {
     expect(fetchMock.mock.calls.some(([, init]) => init?.method === "PATCH")).toBe(false);
   });
 
+  // At 375 the cells stack, so a page-level alert for a field-level failure
+  // appears several screens above the field: the operator clicks "Définir",
+  // sees the button re-enable, and nothing else changes.
+  it("states an unreadable amount at the field that caused it", async () => {
+    setupFetch();
+    renderPage();
+    const input = await screen.findByLabelText(/Budget mensuel pour Restaurants/);
+    await userEvent.type(input, "abc");
+    await userEvent.click(screen.getByRole("button", { name: /Enregistrer le budget de Restaurants/ }));
+
+    const alert = await screen.findByRole("alert");
+    expect(input.closest("li")).toContainElement(alert);
+    expect(input).toHaveAttribute("aria-invalid", "true");
+    expect(input).toHaveAccessibleDescription(/Montant invalide/);
+  });
+
+  it("states a rejected save at the field too, verbatim from the backend", async () => {
+    setupFetch({ patch: () => jsonResponse({ detail: "Budget mensuel trop élevé." }, 422) });
+    renderPage();
+    const input = await screen.findByLabelText(/Budget mensuel pour Restaurants/);
+    await userEvent.type(input, "150");
+    await userEvent.click(screen.getByRole("button", { name: /Enregistrer le budget de Restaurants/ }));
+
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("Budget mensuel trop élevé.");
+    expect(input.closest("li")).toContainElement(alert);
+  });
+
+  // A save re-asks for the month already on screen. Blanking the grid for it
+  // unmounts every other BudgetInput and throws away what has been typed into
+  // them -- and this is the screen's core repeated interaction.
+  it("keeps what is typed in the other fields when one budget is saved", async () => {
+    setupFetch();
+    renderPage();
+    const restaurants = await screen.findByLabelText(/Budget mensuel pour Restaurants/);
+    await userEvent.type(restaurants, "150");
+    await userEvent.type(screen.getByLabelText(/Budget mensuel pour Énergie/), "120");
+    await userEvent.click(screen.getByRole("button", { name: /Enregistrer le budget de Restaurants/ }));
+
+    await waitFor(() => expect(budgetMonthsAsked()).toHaveLength(2));
+    expect(screen.getByLabelText(/Budget mensuel pour Énergie/)).toHaveValue("120");
+  });
+
+  it("does not blank the grid to skeletons while a save reloads", async () => {
+    let release: (response: Response) => void = () => {};
+    let call = 0;
+    setupFetch({
+      budgets: () => {
+        call += 1;
+        if (call === 1) return jsonResponse(report);
+        return new Promise<Response>((resolve) => {
+          release = resolve;
+        });
+      },
+    });
+    renderPage();
+    await screen.findByText("Courses");
+    await userEvent.type(await screen.findByLabelText(/Budget mensuel pour Restaurants/), "150");
+    await userEvent.click(screen.getByRole("button", { name: /Enregistrer le budget de Restaurants/ }));
+
+    // The reload is held open here: with the skeleton branch taken, "Courses"
+    // and every input would be gone from the document by now.
+    await waitFor(() => expect(budgetMonthsAsked()).toHaveLength(2));
+    expect(screen.getByText("Courses")).toBeInTheDocument();
+    expect(screen.getByLabelText(/Budget mensuel pour Énergie/)).toBeInTheDocument();
+
+    release(jsonResponse(report));
+    await waitFor(() => expect(screen.getByText("Courses")).toBeInTheDocument());
+  });
+
+  // The other half of the same rule: a month change *is* a navigation, and the
+  // skeleton is how the screen says the figures on it are about to be replaced.
+  it("still shows the skeleton on a month change", async () => {
+    let release: (response: Response) => void = () => {};
+    let call = 0;
+    setupFetch({
+      budgets: () => {
+        call += 1;
+        if (call === 1) return jsonResponse(report);
+        return new Promise<Response>((resolve) => {
+          release = resolve;
+        });
+      },
+    });
+    renderPage();
+    await screen.findByText("Courses");
+    await userEvent.click(screen.getByRole("button", { name: /Mois précédent/ }));
+
+    const loading = await screen.findByRole("status");
+    expect(loading).toHaveAttribute("aria-busy", "true");
+    expect(screen.queryByText("Courses")).not.toBeInTheDocument();
+
+    release(jsonResponse(report));
+    await screen.findByText("Courses");
+  });
+
+  // `SPAN.unbudgeted` is `{ base: 1, md: 6 }`: the "Sans budget" cell is only
+  // to the right of this one from 1200px up. Two of the three required widths
+  // stack it underneath, where "à droite" sends the reader the wrong way.
+  it("points at the other panel by name rather than by a position it only has at 1200px", async () => {
+    setupFetch({
+      budgets: () => jsonResponse({ ...report, lines: [], total_budget_cents: 0 }),
+    });
+    renderPage();
+    const none = await screen.findByText(/Aucun budget défini\./);
+    expect(none).toHaveTextContent(/Sans budget/);
+    expect(none).not.toHaveTextContent(/à droite/);
+  });
+
   it("diagnoses an empty month rather than showing a blank grid", async () => {
     setupFetch({ budgets: () => jsonResponse(emptyReport) });
     renderPage();
@@ -146,13 +273,7 @@ describe("BudgetsPage", () => {
     await screen.findByText("Courses");
     await userEvent.click(screen.getByRole("button", { name: /Mois précédent/ }));
 
-    await waitFor(() => {
-      const asked = fetchMock.mock.calls
-        .map(([input]) => new URL(String(input), "http://localhost"))
-        .filter((url) => url.pathname === "/api/budgets")
-        .map((url) => url.searchParams.get("month"));
-      expect(asked).toContain("2025-12");
-    });
+    await waitFor(() => expect(budgetMonthsAsked()).toContain("2025-12"));
   });
 
   // The month the header names, and the month the arrows step from, is the one
@@ -170,13 +291,7 @@ describe("BudgetsPage", () => {
     await userEvent.click(previous);
     await userEvent.click(previous);
 
-    await waitFor(() => {
-      const asked = fetchMock.mock.calls
-        .map(([input]) => new URL(String(input), "http://localhost"))
-        .filter((url) => url.pathname === "/api/budgets")
-        .map((url) => url.searchParams.get("month"));
-      expect(asked).toContain("2025-11");
-    });
+    await waitFor(() => expect(budgetMonthsAsked()).toContain("2025-11"));
   });
 
   it("names the requested month on the first paint, before any response", async () => {

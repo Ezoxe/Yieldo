@@ -1,5 +1,5 @@
 import { motion } from "motion/react";
-import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { Link, useSearchParams } from "react-router";
 
 import { BentoCell, type BentoSpan } from "../../design/bento/BentoCell";
@@ -86,7 +86,6 @@ interface BudgetInputProps {
   name: string;
   spentCents: number;
   onSaved: () => void;
-  onError: (message: string) => void;
 }
 
 /**
@@ -94,23 +93,34 @@ interface BudgetInputProps {
  * through `parseCents`, which returns null rather than 0 on anything it cannot
  * read exactly -- a silent 0 would set a budget of nothing and mark the
  * category permanently over.
+ *
+ * Both ways a save can fail -- an unreadable amount, and a rejection from the
+ * backend -- are reported *here*, under the field that caused them. Sent up to
+ * the page-level alert instead they landed above the bento grid, which at 375px
+ * is several screens above this input: the operator saw the button re-enable
+ * and nothing else change. Only a failed *load* has no field to attach to, and
+ * that one is still the page's to report.
  */
-function BudgetInput({ categoryId, name, spentCents, onSaved, onError }: BudgetInputProps) {
+function BudgetInput({ categoryId, name, spentCents, onSaved }: BudgetInputProps) {
   const [value, setValue] = useState("");
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  // Category ids are unique across this list, so this needs no useId.
+  const errorId = `yd-budget-error-${categoryId}`;
 
   async function save() {
     const cents = parseCents(value);
     if (cents === null || cents <= 0) {
-      onError(`Montant invalide pour ${name} : saisissez un montant en euros, par exemple 250,50.`);
+      setError("Montant invalide : saisissez un montant en euros, par exemple 250,50.");
       return;
     }
     setSaving(true);
+    setError(null);
     try {
       await api.patch(`/categories/${categoryId}`, { monthly_budget_cents: cents });
       onSaved();
     } catch (err) {
-      onError(messageFor(err));
+      setError(messageFor(err));
     } finally {
       setSaving(false);
     }
@@ -126,8 +136,15 @@ function BudgetInput({ categoryId, name, spentCents, onSaved, onError }: BudgetI
           type="text"
           inputMode="decimal"
           aria-label={`Budget mensuel pour ${name}`}
+          aria-invalid={error !== null}
+          aria-describedby={error !== null ? errorId : undefined}
           value={value}
-          onChange={(event) => setValue(event.target.value)}
+          onChange={(event) => {
+            setValue(event.target.value);
+            // What was typed is what was rejected; once it changes, the
+            // message no longer describes the field it sits under.
+            if (error !== null) setError(null);
+          }}
           placeholder="250,00"
         />
       </label>
@@ -140,6 +157,11 @@ function BudgetInput({ categoryId, name, spentCents, onSaved, onError }: BudgetI
         <span className="sr-only">{`Enregistrer le budget de ${name}`}</span>
         <span aria-hidden="true">Définir</span>
       </button>
+      {error !== null ? (
+        <p id={errorId} role="alert" className="yd-budgets__suggestion-error">
+          {error}
+        </p>
+      ) : null}
     </li>
   );
 }
@@ -154,10 +176,20 @@ export function BudgetsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [reloadToken, setReloadToken] = useState(0);
 
+  // The month this screen is already showing (or already asking for). A change
+  // of month is a navigation and earns the skeleton; a save re-asks for the
+  // month already on screen and must NOT, because swapping the grid for the
+  // skeleton unmounts every `BudgetInput` on it and throws away what the
+  // operator has typed into the ones he has not saved yet. Setting three
+  // budgets in a row is this screen's core interaction.
+  const shownMonth = useRef<string | null | undefined>(undefined);
+
   useEffect(() => {
     let cancelled = false;
+    const isNavigation = shownMonth.current !== askedMonth;
+    shownMonth.current = askedMonth;
     async function load() {
-      setIsLoading(true);
+      if (isNavigation) setIsLoading(true);
       try {
         // No `month` at all on the first visit: the backend then resolves it to
         // the month of the user's *latest* transaction, not to today's. The
@@ -298,8 +330,11 @@ export function BudgetsPage() {
         <BentoCell as={motion.div} span={SPAN.lines} className="yd-panel" {...entryProps(reduced)}>
           <h2 className="yd-panel__title">Budgets par catégorie</h2>
           {report.lines.length === 0 ? (
+            // Named, not placed: `SPAN.unbudgeted` is `{ base: 1, md: 6 }`, so
+            // "Sans budget" is only to the right of this panel from 1200px up.
+            // At 375 and at 768 it is stacked underneath.
             <p className="yd-budgets__none">
-              Aucun budget défini. Choisissez une catégorie à droite pour commencer.
+              Aucun budget défini. Choisissez une catégorie dans « Sans budget » pour commencer.
             </p>
           ) : (
             <div className="yd-budgets__list">
@@ -329,11 +364,7 @@ export function BudgetsPage() {
                   categoryId={entry.category_id}
                   name={entry.name}
                   spentCents={entry.spent_cents}
-                  onSaved={() => {
-                    setError(null);
-                    setReloadToken((token) => token + 1);
-                  }}
-                  onError={setError}
+                  onSaved={() => setReloadToken((token) => token + 1)}
                 />
               ))}
             </ul>

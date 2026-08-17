@@ -2,15 +2,23 @@ import { formatCents } from "../../design/theme";
 import type { BudgetLine } from "../../lib/types";
 
 /**
- * The consumed share, as a CSS percentage, clamped into [0, 100].
+ * The consumed share as a whole percentage, clamped into [0, 100].
  *
  * Capped rather than allowed to overflow: a category at 340 % of its budget
  * would otherwise draw a bar three times the width of its row. The overrun is
  * stated in figures underneath instead, where it can be read exactly.
+ *
+ * The single source of that rule. Both the width the bar is drawn at and the
+ * `aria-valuenow` it announces come from here, so the picture and the number
+ * cannot disagree about the same line.
  */
+export function consumedPercent(ratio: number): number {
+  return Math.round(Math.min(100, Math.max(0, ratio * 100)));
+}
+
+/** {@link consumedPercent}, as the CSS percentage the fill is sized in. */
 export function fillPercent(ratio: number): string {
-  const clamped = Math.min(100, Math.max(0, ratio * 100));
-  return `${Math.round(clamped)}%`;
+  return `${consumedPercent(ratio)}%`;
 }
 
 const STATUS_NOTE: Record<BudgetLine["status"], string> = {
@@ -25,7 +33,7 @@ interface BudgetBarProps {
 
 export function BudgetBar({ line }: BudgetBarProps) {
   const spent = Math.abs(line.spent_cents);
-  const percent = Math.round(Math.min(100, Math.max(0, line.consumed_ratio * 100)));
+  const percent = consumedPercent(line.consumed_ratio);
 
   return (
     <div className={`yd-budget yd-budget--${line.status}`}>
@@ -55,10 +63,7 @@ export function BudgetBar({ line }: BudgetBarProps) {
         aria-valuemin={0}
         aria-valuemax={100}
       >
-        <div
-          className="yd-budget__fill"
-          style={{ width: fillPercent(line.consumed_ratio) }}
-        />
+        <div className="yd-budget__fill" style={{ width: fillPercent(line.consumed_ratio) }} />
       </div>
 
       <p className="yd-budget__note">

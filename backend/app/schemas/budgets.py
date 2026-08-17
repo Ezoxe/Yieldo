@@ -2,6 +2,7 @@ from datetime import date
 
 from pydantic import BaseModel
 
+from app.engines.budget import BudgetStatus
 from app.schemas.history import HistoryOut
 
 
@@ -21,7 +22,7 @@ class BudgetLineOut(BaseModel):
     # null whenever a projection would be dishonest (too early in the month, or
     # the month is over). Never a zero standing in for "we did not compute it".
     projected_cents: int | None
-    status: str
+    status: BudgetStatus
 
 
 class UnbudgetedOut(BaseModel):

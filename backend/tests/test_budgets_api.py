@@ -95,6 +95,20 @@ def test_a_month_number_out_of_range_is_refused(client, imported):
     assert client.get("/api/budgets?month=2025-13", headers=headers).status_code == 422
 
 
+def test_a_year_of_zero_is_refused_in_french_not_a_500(client, imported):
+    """`_MONTH_KEY` matches any four digits, including "0000" -- month 05 is
+    within 1..12, so without an explicit year check `date(0, 5, 1)` reaches
+    the constructor and raises `ValueError: year 0 is out of range` (Python's
+    MINYEAR is 1). Nothing in this app catches a bare `ValueError`, so that
+    would surface as an untranslated 500 rather than the French 422 every
+    other malformed-month path returns -- exactly the silent failure
+    CLAUDE.md forbids."""
+    headers, _ = imported
+    response = client.get("/api/budgets?month=0000-05", headers=headers)
+    assert response.status_code == 422
+    assert "AAAA-MM" in response.json()["detail"]
+
+
 def test_budgets_require_authentication(client, imported):
     assert client.get("/api/budgets").status_code == 401
 

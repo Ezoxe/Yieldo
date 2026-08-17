@@ -34,7 +34,12 @@ def resolve_month(value: str | None, history: HistoryOut | None, today: date) ->
         if match is None:
             raise HTTPException(status_code=422, detail="Mois invalide : format attendu AAAA-MM")
         year, month = int(match.group(1)), int(match.group(2))
-        if not 1 <= month <= 12:
+        # `_MONTH_KEY` accepts any four digits, including "0000": without this
+        # guard, date(0, 5, 1) reaches datetime's constructor and raises
+        # "year 0 is out of range" (MINYEAR is 1) as an unhandled, untranslated
+        # 500 -- no handler in this app catches a bare ValueError. date.max.year
+        # (9999) is the other end, for the same reason.
+        if not 1 <= year <= 9999 or not 1 <= month <= 12:
             raise HTTPException(status_code=422, detail="Mois invalide : format attendu AAAA-MM")
         return date(year, month, 1)
     if history is not None:

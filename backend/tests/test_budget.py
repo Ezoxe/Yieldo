@@ -106,3 +106,45 @@ def test_lines_come_back_in_the_order_they_were_given():
     ]
     lines = evaluate_budgets(entries, date(2026, 1, 1), date(2026, 8, 12))
     assert [line.category_id for line in lines] == [7, 3]
+
+
+def test_a_positive_spent_cents_is_rejected_rather_than_coerced():
+    """A category that nets positive (refunds exceeding this month's spend) is
+    not a spend at all. Coercing it through abs() would silently report net
+    income as an outflow, feeding a false figure into remaining/consumed/
+    projected/status. The engine must refuse the input, not guess at it."""
+    with pytest.raises(ValueError):
+        evaluate_budgets(
+            [BudgetEntry(category_id=1, budget_cents=BUDGET, spent_cents=100)],
+            date(2026, 1, 1),
+            date(2026, 1, 15),
+        )
+
+
+def test_zero_spent_cents_is_the_ordinary_no_spend_case_and_does_not_raise():
+    """A budgeted category with nothing spent yet this month is routine, not
+    an error -- only a strictly positive `spent_cents` is rejected."""
+    line = _line(0, date(2026, 1, 15))
+    assert line.status == "ok"
+    assert line.remaining_cents == BUDGET
+    assert line.consumed_ratio == 0.0
+
+
+def test_evaluate_budget_singular_is_an_internal_helper_not_a_public_name():
+    """Only `evaluate_budgets` (plural) is the public entry point: it computes
+    elapsed/total_days once and shares them across every entry. A public
+    singular helper would invite callers to bypass that and recompute
+    per-entry, so it is named with a leading underscore instead."""
+    import app.engines.budget as budget_module
+
+    assert not hasattr(budget_module, "evaluate_budget")
+    assert hasattr(budget_module, "_evaluate_budget")
+
+
+def test_spending_exactly_the_budget_is_over_with_remaining_at_zero():
+    """Spending exactly the ceiling counts as breaching it, not merely
+    reaching it -- the safer direction for a budget alert. `remaining_cents`
+    lands at zero, the same instant the status flips to "over"."""
+    line = _line(-BUDGET, date(2026, 1, 15))
+    assert line.status == "over"
+    assert line.remaining_cents == 0

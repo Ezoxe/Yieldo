@@ -12,6 +12,7 @@ from app.api import auth as auth_routes
 from app.api import budgets as budget_routes
 from app.api import categories as category_routes
 from app.api import imports as import_routes
+from app.api import recurrences as recurrence_routes
 from app.api import transactions as transaction_routes
 from app.api.errors import french_validation_detail
 from app.config import settings
@@ -58,6 +59,7 @@ api.include_router(transaction_routes.router)
 api.include_router(category_routes.router)
 api.include_router(analytics_routes.router)
 api.include_router(budget_routes.router)
+api.include_router(recurrence_routes.router)
 
 app.include_router(api)
 

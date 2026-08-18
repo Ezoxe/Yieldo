@@ -1,0 +1,272 @@
+.yd-recurrences {
+  max-width: 1280px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-lg);
+}
+
+.yd-recurrences__header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-2xs);
+}
+
+.yd-recurrences h1 {
+  margin: 0;
+  font-size: clamp(1.4rem, 2.2vw, 1.75rem);
+  letter-spacing: -0.015em;
+  color: var(--yd-text);
+}
+
+.yd-recurrences__lead {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--yd-text-muted);
+}
+
+/* Cost cell -------------------------------------------------------------- */
+
+.yd-recurrences__annual {
+  font-size: clamp(1.8rem, 4vw, 2.4rem);
+  font-weight: 600;
+  color: var(--yd-text);
+}
+
+/* What stands in for the figure when there is no figure to state. Sized so the
+   cell is the same height either way -- a card that shrinks when the answer is
+   "not yet" reads as the answer being less important, and it is not. Not the
+   muted colour either: this is the cell's headline, not a footnote. */
+.yd-recurrences__uncomputable {
+  margin: 0;
+  font-size: clamp(1.2rem, 2.4vw, 1.5rem);
+  font-weight: 600;
+  line-height: 1.5;
+  color: var(--yd-text);
+}
+
+.yd-recurrences__annual-note,
+.yd-recurrences__scope,
+.yd-recurrences__caption,
+.yd-recurrences__audit {
+  margin: 0;
+  color: var(--yd-text-muted);
+  font-size: 0.86rem;
+}
+
+/* The engine's own explanation of an empty or zero total. Given a left rule and
+   the warning colour so it is not read as a caption: it is the reason the
+   figure above it is not the number the reader came for. */
+.yd-recurrences__notice {
+  margin: 0;
+  padding-left: var(--yd-space-sm);
+  border-left: 3px solid var(--yd-warning);
+  font-size: 0.86rem;
+  color: var(--yd-text);
+}
+
+/* Alerts ----------------------------------------------------------------- */
+
+.yd-recurrences__alerts {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-xs);
+  font-size: 0.9rem;
+  color: var(--yd-text);
+}
+
+.yd-recurrences__clock {
+  color: var(--yd-text-muted);
+  font-size: 0.86rem;
+}
+
+/* Lists ------------------------------------------------------------------ */
+
+.yd-recurrences__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  /* Two columns of recurrences above 900px, one below. `minmax(0, 1fr)` and
+     not `1fr`: a 76-character raw bank label sets the track's minimum width
+     otherwise and pushes the grid past the viewport. */
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--yd-space-md);
+}
+
+@media (min-width: 900px) {
+  .yd-recurrences__list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    /* Cards in a row keep the row's height rather than each stretching to it:
+       a two-line card beside a six-line one would otherwise grow a third of a
+       card's worth of dead space, and at 1440 the last odd card would sit
+       alone in a column three times its neighbour's height. */
+    align-items: start;
+  }
+}
+
+/* One recurrence. A GRID, not an auto-width flex column: everything inside is
+   full-bleed text and `minmax(0, 1fr)` is what lets a long label wrap instead
+   of setting the track's width. */
+.yd-recurrence {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--yd-space-2xs);
+  padding: var(--yd-space-sm);
+  border-radius: var(--yd-radius-sm);
+  border: 1px solid var(--yd-border);
+  background: var(--yd-surface);
+}
+
+.yd-recurrence__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--yd-space-2xs) var(--yd-space-xs);
+}
+
+.yd-recurrence__label {
+  /* Raw bank labels reach 76 characters. Wrap rather than clip: the reader
+     needs to recognise the merchant, and an ellipsis at 375px would cut every
+     one of them at "PRELEVEMENT SEPA...". */
+  overflow-wrap: anywhere;
+  min-width: 0;
+  font-weight: 600;
+  color: var(--yd-text);
+}
+
+.yd-recurrence__dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: var(--yd-space-2xs);
+  border-radius: 50%;
+  /* Decorative only: the category is written out beside it, so this carries no
+     information of its own and needs no contrast ratio. */
+  flex-shrink: 0;
+}
+
+.yd-recurrence__amount {
+  flex: 0 0 auto;
+  margin-left: auto;
+  font-size: 0.95rem;
+  font-weight: 600;
+  white-space: nowrap;
+  color: var(--yd-text);
+}
+
+.yd-recurrence__meta,
+.yd-recurrence__span,
+.yd-recurrence__annual,
+.yd-recurrence__observed,
+.yd-recurrence__spread,
+.yd-recurrence__status,
+.yd-recurrence__confidence,
+.yd-recurrence__change,
+.yd-recurrence__excluded {
+  margin: 0;
+  font-size: 0.84rem;
+  color: var(--yd-text-muted);
+}
+
+.yd-recurrence__periodicity {
+  font-weight: 600;
+  color: var(--yd-text);
+}
+
+.yd-recurrence__annual,
+.yd-recurrence__change {
+  color: var(--yd-text);
+}
+
+/* The window that replaces an annual figure the engine will not vouch for.
+   Deliberately the same size and weight as the figure it stands in for, so
+   nothing about the layout suggests a missing number. */
+.yd-recurrence__observed {
+  color: var(--yd-text);
+}
+
+.yd-recurrence__spread--unstable {
+  color: var(--yd-text);
+}
+
+/* Status colour reinforces the word, never replaces it (WCAG 1.4.1): every
+   badge already carries "Actif" / "Prélèvement manquant" / "Sans prélèvement
+   récent". */
+.yd-recurrence__badge {
+  font-weight: 600;
+  color: var(--yd-text);
+}
+
+.yd-recurrence__badge--missing {
+  color: var(--yd-warning);
+}
+
+.yd-recurrence__badge--ended {
+  color: var(--yd-text-muted);
+}
+
+.yd-recurrence--missing {
+  border-color: var(--yd-warning);
+}
+
+/* A scattered amount is the one thing on this screen that says "this is
+   probably not a subscription at all". The left rule is what makes it visible
+   in a list of ten cards; the sentence inside says it in words. */
+.yd-recurrence--unstable {
+  border-left: 3px solid var(--yd-warning);
+}
+
+.yd-recurrence__excluded {
+  padding-top: var(--yd-space-2xs);
+  border-top: 1px solid var(--yd-border);
+  font-style: normal;
+  color: var(--yd-text-muted);
+}
+
+/* Alert ------------------------------------------------------------------ */
+
+.yd-recurrences__alert {
+  margin: 0;
+  padding: var(--yd-space-sm) var(--yd-space-md);
+  border-radius: var(--yd-radius-sm);
+  background: color-mix(in srgb, var(--yd-negative) 14%, transparent);
+  border: 1px solid var(--yd-negative);
+  color: var(--yd-negative);
+  font-size: 0.9rem;
+}
+
+/* Skeletons -------------------------------------------------------------- */
+
+/* The bar itself is design/Skeleton.css's; these are only the sizes, each one
+   the line box of the block it stands in for, so the cells are as tall before
+   the data lands as after and nothing on the page moves. */
+
+/* .yd-panel__title, at the line-height Bento.css pins on it. */
+.yd-skeleton--rec-title {
+  height: calc(0.95rem * 1.5);
+  width: 38%;
+}
+
+/* The annual figure, its note and the three caption lines under it. */
+.yd-skeleton--rec-figure {
+  height: calc(
+    clamp(1.8rem, 4vw, 2.4rem) * 1.5 + 0.86rem * 1.5 * 4 + var(--yd-space-sm) * 3
+  );
+}
+
+/* Four alert lines and their gaps. */
+.yd-skeleton--rec-alerts {
+  height: calc(0.9rem * 1.5 * 4 + var(--yd-space-xs) * 3);
+}
+
+/* Two recurrence cards: seven text lines and the card padding, twice over. */
+.yd-skeleton--rec-list {
+  height: calc(
+    (0.84rem * 1.5 * 6 + 0.95rem * 1.5 + var(--yd-space-2xs) * 6 + var(--yd-space-sm) * 2) * 2 +
+      var(--yd-space-md)
+  );
+}

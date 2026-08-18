@@ -39,6 +39,7 @@ function renderShell(initialPath: string) {
             <Route index element={<p>Écran vue d'ensemble</p>} />
             <Route path="transactions" element={<p>Écran transactions</p>} />
             <Route path="budgets" element={<p>Écran budgets</p>} />
+            <Route path="recurrences" element={<p>Écran récurrences</p>} />
             <Route path="categories" element={<p>Écran catégories</p>} />
             <Route path="import" element={<p>Écran import</p>} />
             <Route path="reglages" element={<p>Écran réglages</p>} />
@@ -84,7 +85,28 @@ describe("AppShell", () => {
       within(screen.getByRole("navigation", { name: NAV_LABEL }))
         .getAllByRole("link")
         .map((link) => link.textContent),
-    ).toEqual(["Vue d'ensemble", "Transactions", "Budgets", "Catégories", "Import", "Réglages"]);
+    ).toEqual([
+      "Vue d'ensemble",
+      "Transactions",
+      "Budgets",
+      "Récurrences",
+      "Catégories",
+      "Import",
+      "Réglages",
+    ]);
+  });
+
+  it("routes the Récurrences nav entry to the recurrences screen", async () => {
+    const user = userEvent.setup();
+    renderShell("/");
+
+    await user.click(screen.getByRole("link", { name: "Récurrences" }));
+
+    expect(screen.getByRole("main")).toHaveTextContent("Écran récurrences");
+    expect(screen.getByRole("link", { name: "Récurrences" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
   });
 
   it("routes the Budgets nav entry to the budgets screen", async () => {

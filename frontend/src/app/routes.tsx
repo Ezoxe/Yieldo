@@ -7,6 +7,7 @@ import { RegisterPage } from "../features/auth/RegisterPage";
 import { RequireAuth } from "../features/auth/RequireAuth";
 import { ImportPage } from "../features/import/ImportPage";
 import { OverviewPage } from "../features/overview/OverviewPage";
+import { RecurrencesPage } from "../features/recurrences/RecurrencesPage";
 import { SettingsPage } from "../features/settings/SettingsPage";
 import { TransactionsPage } from "../features/transactions/TransactionsPage";
 import { AppShellRoute, HomeRoute } from "./HomeRoute";
@@ -50,6 +51,7 @@ export const router = createBrowserRouter([
         children: [
           { path: "transactions", element: <TransactionsPage /> },
           { path: "budgets", element: <BudgetsPage /> },
+          { path: "recurrences", element: <RecurrencesPage /> },
           { path: "categories", element: <CategoriesPlaceholder /> },
           { path: "import", element: <ImportPage /> },
           { path: "reglages", element: <SettingsPage /> },

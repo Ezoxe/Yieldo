@@ -272,3 +272,84 @@ export interface BudgetReport {
   total_spent_cents: number;
   history: History | null;
 }
+
+// Recurrences — mirrors backend/app/schemas/recurrences.py. Closed sets rather
+// than `string`, because the backend types them off the engine's own Literals.
+export type Periodicity = "weekly" | "biweekly" | "monthly" | "quarterly" | "yearly";
+export type RecurrenceStatus = "active" | "missing" | "ended";
+export type RecurrenceConfidence = "probable" | "confirmed";
+
+export interface PriceChange {
+  previous_cents: number;
+  current_cents: number;
+  changed_on: string;
+  /** Signed ratio, not money: 0.185 renders as "+18,5 %". */
+  ratio: number;
+}
+
+export interface Recurrence {
+  label: string;
+  label_key: string;
+  category_id: number | null;
+  category_name: string | null;
+  category_color: string | null;
+  periodicity: Periodicity;
+  occurrences: number;
+  first_on: string;
+  last_on: string;
+  median_interval_days: number;
+  /** The level billed now, signed. After a rise this is the new price. */
+  amount_cents: number;
+  /**
+   * MAD of the amounts at the current level. The only defence against a
+   * clockwork non-subscription: `normalize_label` strips card suffixes, so
+   * every withdrawal collapses into one weekly-looking group of wildly
+   * varying amounts. A screen that hides this presents it as a subscription.
+   */
+  amount_spread_cents: number;
+  /**
+   * The current level times its occurrences per year, signed. Published
+   * whether or not it may be used — see `annualisable`, which is the gate.
+   */
+  annual_cents: number;
+  /** How much of the calendar the analysed run covers, in days. */
+  observed_span_days: number;
+  /**
+   * Whether `annual_cents` may be read as a yearly cost at all. False below
+   * the engine's quarter-year floor: the row is still detected and listed,
+   * but its `annual_cents` must never be displayed as a yearly figure and it
+   * takes no part in any total. Recurrences arrive sorted on the *un-gated*
+   * `annual_cents`, so the largest figure in the payload is routinely one
+   * this flag excludes.
+   */
+  annualisable: boolean;
+  expected_next_on: string;
+  status: RecurrenceStatus;
+  confidence: RecurrenceConfidence;
+  price_change: PriceChange | null;
+}
+
+export interface RecurrenceReport {
+  recurrences: Recurrence[];
+  /** Live, annualisable expense recurrences only. Signed (negative). */
+  annual_subscription_cents: number;
+  monthly_subscription_cents: number;
+  analysed_groups: number;
+  rejected_thin: number;
+  rejected_irregular: number;
+  /**
+   * French, non-null whenever nothing was detected *or* nothing cleared the
+   * annualisation bar. Print it — a zero total with no reason reads as "your
+   * subscriptions cost nothing", which is a different claim.
+   */
+  notice: string | null;
+  missing_count: number;
+  price_change_count: number;
+  /**
+   * The last date in the user's whole ledger — and the `today` the backend
+   * hands the engine. A recurrence that stops here has run out of imported
+   * statements, not necessarily been cancelled, and every stale status on
+   * screen has to be phrased against this date. Null on an empty ledger.
+   */
+  ledger_last_on: string | null;
+}

@@ -77,6 +77,21 @@ MIN_INTERVAL_MAD_DAYS = 2
 # cannot be claimed across a hole.
 MAX_GAP_PERIODS = 2
 
+# You may not multiply to a year what you watched for less than a quarter.
+#
+# Detection and annualisation are different claims and this engine had been
+# treating them as one. Six card purchases three weeks apart in December are
+# genuinely a weekly-shaped series -- refusing to detect them would be its own
+# lie -- but multiplying their median by 52 turns three weeks of Christmas
+# shopping into an 8 365 EUR "subscription". So the series is still reported;
+# only the extrapolation is withheld, along with a place in any total and in
+# `recurring_keys`, which is what carries a label into the cash-flow forecast.
+#
+# One quarter, reusing the quarterly period's own nominal rather than inventing
+# a number: below it, not one full billing quarter of the behaviour has been
+# seen, and there is nothing to project twelve months from.
+MIN_ANNUALISATION_SPAN_DAYS = PERIOD_BOUNDS["quarterly"][0]
+
 # A level change below 2 % is rounding, a VAT tweak or a partial month -- not a
 # price rise worth telling anyone about.
 PRICE_CHANGE_MIN_RATIO = 0.02
@@ -120,6 +135,16 @@ class Recurrence:
     # recurrence itself -- the report's subscription total decides separately
     # which of these to add up.
     annual_cents: int
+    # How much of the calendar the analysed run actually covers. After a lapse
+    # this is the trailing run's span, not the whole group's.
+    observed_span_days: int
+    # Whether `annual_cents` may be extrapolated from at all. False when the run
+    # spans less than `MIN_ANNUALISATION_SPAN_DAYS`. `annual_cents` is published
+    # either way -- the rate is a fact about what was seen -- but when this is
+    # False the report keeps it out of every total and out of `recurring_keys`,
+    # and the screen must present the recurrence as observed, not as a yearly
+    # cost. A subscription is not the same claim as a rhythm.
+    annualisable: bool
     expected_next_on: date
     status: RecurrenceStatus
     confidence: Confidence
@@ -133,6 +158,14 @@ class RecurrenceReport:
     # forecast subtracts these rows from the historical series before measuring
     # its residual, so a rent payment is not counted once as a recurrence and
     # again inside the month's average.
+    # Only the annualisable ones: a label that has not been watched for a
+    # quarter cannot be projected forward either, and letting it through here
+    # would push the same unearned claim into the forecast by another door.
+    #
+    # A key is authoritative only over its own recurrence's `[first_on, last_on]`
+    # window, never over every row that ever carried the label. After a lapse
+    # the analysis ran on the trailing run alone, so a consumer that subtracts
+    # by key would remove pre-lapse rows the analysis deliberately excluded.
     recurring_keys: frozenset[str]
     # Live expense recurrences only, annualised. Signed (negative).
     annual_subscription_cents: int
@@ -262,6 +295,12 @@ def detect_recurrences(
 ) -> RecurrenceReport:
     """Group, test for regularity, and describe what survives.
 
+    Detecting a rhythm and costing a year are two different claims, and only the
+    first is made from a short window: **you may not multiply to a year what you
+    watched for less than a quarter.** A run under `MIN_ANNUALISATION_SPAN_DAYS`
+    is still detected and still returned, carrying `annualisable=False`, but it
+    is kept out of the subscription totals and out of `recurring_keys`.
+
     Grouping is by label key **alone**, never by label and amount together: a
     price rise is a change of amount inside one recurrence, and grouping on
     amount would split Netflix in two and then be unable to notice that one
@@ -343,6 +382,7 @@ def detect_recurrences(
         else:
             status = "ended"
 
+        observed_span_days = (dates[-1] - dates[0]).days
         categories = Counter(row.category_id for row in rows if row.category_id is not None)
         category_id = categories.most_common(1)[0][0] if categories else None
 
@@ -358,6 +398,8 @@ def detect_recurrences(
             amount_cents=amount_cents,
             amount_spread_cents=level_spread.mad,
             annual_cents=amount_cents * OCCURRENCES_PER_YEAR[periodicity],
+            observed_span_days=observed_span_days,
+            annualisable=observed_span_days >= MIN_ANNUALISATION_SPAN_DAYS,
             expected_next_on=expected_next,
             status=status,
             confidence="confirmed" if len(rows) >= CONFIRMED_OCCURRENCES else "probable",
@@ -370,7 +412,7 @@ def detect_recurrences(
     annual = sum(
         item.annual_cents
         for item in recurrences
-        if item.annual_cents < 0 and item.status != "ended"
+        if item.annualisable and item.annual_cents < 0 and item.status != "ended"
     )
 
     notice: str | None = None
@@ -380,10 +422,22 @@ def detect_recurrences(
             "opérations portant le même libellé, espacées d'intervalles réguliers. "
             "Importez davantage de relevés et cette liste se remplira."
         )
+    elif not any(item.annualisable for item in recurrences):
+        # Detected something, annualised nothing. Without this the screen shows
+        # rows and no total and explains neither -- which reads as a bug, or
+        # worse, as "your subscriptions cost nothing".
+        notice = (
+            "Rien d'annualisable : tout ce qui a été repéré est observé sur moins "
+            f"de {MIN_ANNUALISATION_SPAN_DAYS} jours, une fenêtre trop courte pour "
+            "en déduire un coût annuel. Ces lignes sont affichées telles qu'elles "
+            "ont été observées. Importez un historique plus long."
+        )
 
     return RecurrenceReport(
         recurrences=recurrences,
-        recurring_keys=frozenset(item.label_key for item in recurrences),
+        recurring_keys=frozenset(
+            item.label_key for item in recurrences if item.annualisable
+        ),
         annual_subscription_cents=annual,
         monthly_subscription_cents=_divide(annual, 12),
         analysed_groups=len(groups),

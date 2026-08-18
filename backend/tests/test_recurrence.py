@@ -3,6 +3,7 @@ from datetime import date, timedelta
 import pytest
 
 from app.engines.recurrence import (
+    MIN_ANNUALISATION_SPAN_DAYS,
     MIN_OCCURRENCES,
     RecurringTx,
     classify_period,
@@ -429,3 +430,140 @@ def test_a_weekly_charge_is_held_to_a_two_day_wobble_not_one_and_three_quarters(
     report = detect_recurrences(rows, date(2026, 7, 8))
     assert [r.periodicity for r in report.recurrences] == ["weekly"]
     assert report.recurrences[0].annual_cents == -1200 * 52
+
+
+# --- The annualisation bar: you may not multiply to a year what you watched
+# --- for less than a quarter.
+
+
+def test_the_operators_december_burst_is_listed_but_never_annualised():
+    """The FNAC vector from the operator's own fixture, transcribed exactly: six
+    card purchases between 13 December and 4 January, 41 EUR to 236 EUR apiece,
+    five days apart on median. It is a real weekly-shaped series and the engine
+    detects it -- but 22 days of December shopping is not evidence of anything
+    yearly, and `annual_cents` here would be 8 365,76 EUR of "abonnement".
+
+    `today` is the ledger's own last day, so the recurrence is `active` and
+    nothing but the span bar stands between it and the total.
+    """
+    days = [date(2025, 12, 13), date(2025, 12, 15), date(2025, 12, 22),
+            date(2025, 12, 23), date(2025, 12, 28), date(2026, 1, 4)]
+    amounts = [-13625, -19362, -4108, -18551, -23655, -11000]
+    rows = [
+        RecurringTx(on=on, amount_cents=amount, label_key="x1234 fnac darty",
+                    label_raw="CARTE X1234 FNAC DARTY", category_id=None)
+        for on, amount in zip(days, amounts, strict=True)
+    ]
+    report = detect_recurrences(rows, date(2026, 1, 9))
+
+    assert len(report.recurrences) == 1
+    found = report.recurrences[0]
+    assert found.status == "active"
+    assert found.observed_span_days == 22
+    assert found.annualisable is False
+    # Still published on the recurrence -- it is a fact about what was seen --
+    # but it must not reach any total.
+    assert found.annual_cents == -16088 * 52
+    assert report.annual_subscription_cents == 0
+    assert report.monthly_subscription_cents == 0
+    assert report.recurring_keys == frozenset()
+    assert report.notice is not None
+
+
+def test_a_perfectly_stable_amount_does_not_buy_its_way_past_the_span_bar():
+    """The account-fee vector from the same fixture: five charges of exactly
+    2,00 EUR over 32 days. Its `amount_spread_cents` is zero -- flawless amount
+    stability -- so a filter built on the spread alone would wave it straight
+    through into "vos abonnements". The span is what refuses it."""
+    days = [date(2025, 12, 4), date(2025, 12, 20), date(2025, 12, 26),
+            date(2026, 1, 1), date(2026, 1, 5)]
+    rows = [
+        RecurringTx(on=on, amount_cents=-200, label_key="frais de tenue de compte",
+                    label_raw="FRAIS DE TENUE DE COMPTE", category_id=None)
+        for on in days
+    ]
+    found = detect_recurrences(rows, date(2026, 1, 9)).recurrences[0]
+
+    assert found.amount_spread_cents == 0
+    assert found.status == "active"
+    assert found.observed_span_days == 32
+    assert found.annualisable is False
+
+
+def test_a_run_spanning_exactly_a_quarter_is_annualised():
+    """The bar is inclusive. Four monthly charges from 13 May to 12 August span
+    91 days to the day, which is `MIN_ANNUALISATION_SPAN_DAYS`, and a full
+    quarter of observation is the agreed price of an annual claim."""
+    days = [date(2026, 5, 13), date(2026, 6, 12), date(2026, 7, 12), date(2026, 8, 12)]
+    rows = [
+        RecurringTx(on=on, amount_cents=-1549, label_key="netflix",
+                    label_raw="NETFLIX", category_id=None)
+        for on in days
+    ]
+    report = detect_recurrences(rows, date(2026, 8, 12))
+    found = report.recurrences[0]
+
+    assert found.observed_span_days == MIN_ANNUALISATION_SPAN_DAYS == 91
+    assert found.annualisable is True
+    assert report.annual_subscription_cents == -1549 * 12
+    assert report.monthly_subscription_cents == -1549
+    assert report.recurring_keys == frozenset({"netflix"})
+    assert report.notice is None
+
+
+def test_a_run_one_day_short_of_a_quarter_is_not_annualised():
+    """The same subscription observed a single day less. Nothing about it is
+    different except that the bar is not met, and the total says nothing rather
+    than something unearned."""
+    days = [date(2026, 5, 14), date(2026, 6, 13), date(2026, 7, 13), date(2026, 8, 12)]
+    rows = [
+        RecurringTx(on=on, amount_cents=-1549, label_key="netflix",
+                    label_raw="NETFLIX", category_id=None)
+        for on in days
+    ]
+    report = detect_recurrences(rows, date(2026, 8, 12))
+    found = report.recurrences[0]
+
+    assert found.observed_span_days == 90
+    assert found.annualisable is False
+    assert report.annual_subscription_cents == 0
+    assert report.recurring_keys == frozenset()
+
+
+def test_a_short_run_beside_a_long_one_is_listed_but_not_totalled():
+    """The mixed case, which is what a real ledger looks like. Both are
+    returned, both are true; only the one with a quarter behind it is allowed to
+    speak about a year, and the notice stays silent because something did."""
+    long_run = _monthly("netflix", -1549, date(2026, 3, 10), 6)
+    burst = [
+        RecurringTx(on=on, amount_cents=-16088, label_key="fnac",
+                    label_raw="FNAC", category_id=None)
+        for on in (date(2026, 7, 15), date(2026, 7, 22), date(2026, 7, 29), date(2026, 8, 5))
+    ]
+    report = detect_recurrences(long_run + burst, TODAY)
+
+    assert {r.label_key for r in report.recurrences} == {"netflix", "fnac"}
+    assert {r.label_key for r in report.recurrences if r.annualisable} == {"netflix"}
+    assert report.annual_subscription_cents == -1549 * 12
+    assert report.recurring_keys == frozenset({"netflix"})
+    assert report.notice is None
+
+
+def test_a_recurring_key_is_only_authoritative_over_its_own_run():
+    """`recurring_keys` is a set of labels, but the analysis behind each key ran
+    on a *run*. Here the key says "netflix recurs" while the recurrence says the
+    claim begins on 2024-10-10 -- the six charges before the lapse were
+    explicitly excluded from the analysis that produced the key.
+
+    Task 11 must therefore subtract rows inside `[first_on, last_on]` for the
+    key, never every row that ever carried it. The window it needs is on the
+    recurrence; this pins that it is there and that it excludes the old episode.
+    """
+    lapsed = _monthly("netflix", -1349, date(2024, 1, 10), 6)
+    resumed = _monthly("netflix", -1599, date(2024, 10, 10), 9)
+    report = detect_recurrences(lapsed + resumed, date(2025, 7, 1))
+
+    assert report.recurring_keys == frozenset({"netflix"})
+    found = report.recurrences[0]
+    assert (found.first_on, found.last_on) == (date(2024, 10, 10), date(2025, 6, 9))
+    assert all(row.on < found.first_on for row in lapsed)

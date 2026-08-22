@@ -7,10 +7,13 @@ from app.engines.forecast import (
     MAX_HORIZON_MONTHS,
     MIN_MONTHS_FOR_FORECAST,
     LedgerEntry,
+    ResidualHistory,
+    build_observations,
     project_cashflow,
     residual_entries,
 )
 from app.engines.recurrence import Recurrence, RecurringTx, detect_recurrences
+from app.engines.robust import P90_SIGMAS, quantile_offset_cents
 
 TODAY = date(2026, 8, 12)
 
@@ -44,6 +47,17 @@ def _observations(count: int, net_per_month: int, start_month: int = 1):
     return complete_months(entries, date(2025, start_month, 1), date(2025, 12, 31))
 
 
+def _history(count: int, net_per_month: int, start_month: int = 1,
+             ledger_months: int | None = None) -> ResidualHistory:
+    """`_observations`, paired with the ledger month count it came from. Equal
+    unless a test is specifically about the two counts differing."""
+    observations = _observations(count, net_per_month, start_month)
+    return ResidualHistory(
+        observations=observations,
+        ledger_months_observed=count if ledger_months is None else ledger_months,
+    )
+
+
 def _rent() -> Recurrence:
     return Recurrence(
         label_key="loyer", label="VIREMENT SEPA LOYER", category_id=None,
@@ -65,7 +79,7 @@ def test_five_observed_months_is_not_enough_and_the_engine_says_so():
     """The operator has three. Six is the floor at which a seasonal pattern can
     even be looked for, and a twelve-month projection off five points would be
     a straight line with a decorative band around it."""
-    report = project_cashflow(100_000, _observations(5, -10_000), [], TODAY)
+    report = project_cashflow(100_000, _history(5, -10_000), [], TODAY)
     assert report.months == []
     assert report.insufficient_reason is not None
     assert "6 mois" in report.insufficient_reason
@@ -115,13 +129,16 @@ def test_the_operators_own_ledger_is_refused_end_to_end():
         ],
         ledger_end,
     )
-    observations = complete_months(
-        residual_entries(entries, detected.recurrences), ledger_start, ledger_end
+    history = build_observations(
+        entries, detected.recurrences, ledger_start, ledger_end
     )
     # April to November hold nothing, and January at either end is partial.
-    assert len(observations) == 3
+    assert len(history.observations) == 3
+    assert history.ledger_months_observed == 3
 
-    report = project_cashflow(1_000_000, observations, detected.recurrences, ledger_end)
+    report = project_cashflow(
+        1_000_000, history, detected.recurrences, ledger_end
+    )
     assert report.months == []
     assert report.months_observed == 3
     assert report.insufficient_reason is not None
@@ -141,7 +158,7 @@ def test_a_long_ledger_with_a_thin_residual_is_told_the_real_cause():
     Task 10's review fixed exactly this shape of defect in `runway.py`.
     """
     report = project_cashflow(
-        100_000, _observations(3, -10_000), [], TODAY, ledger_months_observed=12
+        100_000, _history(3, -10_000, ledger_months=12), [], TODAY
     )
     assert report.months == []
     assert report.months_observed == 3
@@ -153,11 +170,13 @@ def test_a_long_ledger_with_a_thin_residual_is_told_the_real_cause():
     # Zero is the likeliest value of all -- a household whose every charge is
     # recurring leaves no residual month at all -- and it must still read as
     # French rather than as "seuls 0 d'entre eux".
-    empty = project_cashflow(100_000, [], [], TODAY, ledger_months_observed=12)
+    empty = project_cashflow(
+        100_000, ResidualHistory([], 12), [], TODAY
+    )
     assert "aucun ne porte d'opération non récurrente" in empty.insufficient_reason
 
     lone = project_cashflow(
-        100_000, _observations(1, -10_000), [], TODAY, ledger_months_observed=12
+        100_000, _history(1, -10_000, ledger_months=12), [], TODAY
     )
     assert "mais un seul porte des opérations" in lone.insufficient_reason
 
@@ -166,12 +185,12 @@ def test_a_genuinely_short_ledger_is_still_told_to_import_more():
     """The other branch, so the two causes are mutually exclusive by
     construction rather than by hope."""
     report = project_cashflow(
-        100_000, _observations(3, -10_000), [], TODAY, ledger_months_observed=3
+        100_000, _history(3, -10_000, ledger_months=3), [], TODAY
     )
     assert "Importez" in report.insufficient_reason
     assert "non récurrentes" not in report.insufficient_reason
     # And the same when the caller does not distinguish the two counts at all.
-    silent = project_cashflow(100_000, _observations(3, -10_000), [], TODAY)
+    silent = project_cashflow(100_000, _history(3, -10_000), [], TODAY)
     assert silent.ledger_months_observed == 3
     assert "Importez" in silent.insufficient_reason
 
@@ -182,7 +201,7 @@ def test_a_residual_wider_than_the_ledger_it_came_from_is_rejected():
     quietly picking whichever branch reads better."""
     with pytest.raises(ValueError, match="ne peut pas"):
         project_cashflow(
-            100_000, _observations(6, -10_000), [], TODAY, ledger_months_observed=4
+            100_000, _history(6, -10_000, ledger_months=4), [], TODAY
         )
 
 
@@ -196,19 +215,19 @@ def test_a_history_with_no_variation_at_all_is_refused_rather_than_drawn_flat():
         for month in range(1, 7)
     ]
     flat = complete_months(entries, date(2025, 1, 1), date(2025, 12, 31))
-    report = project_cashflow(100_000, flat, [], TODAY)
+    report = project_cashflow(100_000, ResidualHistory(flat, len(flat)), [], TODAY)
     assert report.months == []
     assert report.insufficient_reason is not None
     assert "intervalle de confiance" in report.insufficient_reason
 
 
 def test_an_impossible_horizon_is_refused_in_french():
-    observations = _observations(6, -10_000)
+    history = _history(6, -10_000)
     with pytest.raises(ValueError, match="horizon"):
-        project_cashflow(100_000, observations, [], TODAY, horizon_months=0)
+        project_cashflow(100_000, history, [], TODAY, horizon_months=0)
     with pytest.raises(ValueError, match="horizon"):
         project_cashflow(
-            100_000, observations, [], TODAY, horizon_months=MAX_HORIZON_MONTHS + 1
+            100_000, history, [], TODAY, horizon_months=MAX_HORIZON_MONTHS + 1
         )
 
 
@@ -218,26 +237,26 @@ def test_an_impossible_horizon_is_refused_in_french():
 
 
 def test_six_observed_months_produce_twelve_projected_ones():
-    report = project_cashflow(100_000, _observations(6, -10_000), [], TODAY)
+    report = project_cashflow(100_000, _history(6, -10_000), [], TODAY)
     assert len(report.months) == 12
     assert report.insufficient_reason is None
 
 
 def test_the_projection_starts_the_month_after_today():
-    report = project_cashflow(100_000, _observations(6, -10_000), [], TODAY)
+    report = project_cashflow(100_000, _history(6, -10_000), [], TODAY)
     assert report.months[0].key == "2026-09"
     assert report.months[-1].key == "2027-08"
 
 
 def test_the_horizon_is_configurable():
-    report = project_cashflow(100_000, _observations(6, -10_000), [], TODAY, horizon_months=6)
+    report = project_cashflow(100_000, _history(6, -10_000), [], TODAY, horizon_months=6)
     assert len(report.months) == 6
 
 
 def test_every_monetary_field_is_an_integer_number_of_cents():
-    report = project_cashflow(1_000_000, _observations(6, -10_000), [_rent()], TODAY)
+    report = project_cashflow(1_000_000, _history(6, -10_000), [_rent()], TODAY)
     assert isinstance(report.opening_balance_cents, int)
-    assert isinstance(report.residual_scale_cents, int)
+    assert isinstance(report.pooled_scale_cents, int)
     for month in report.months:
         for value in (
             month.recurring_cents, month.residual_cents, month.net_p50_cents,
@@ -247,7 +266,7 @@ def test_every_monetary_field_is_an_integer_number_of_cents():
 
 
 def test_the_running_balance_is_the_opening_balance_plus_every_net_so_far():
-    report = project_cashflow(1_000_000, _observations(6, -10_000), [_rent()], TODAY)
+    report = project_cashflow(1_000_000, _history(6, -10_000), [_rent()], TODAY)
     running = report.opening_balance_cents
     for month in report.months:
         assert month.net_p50_cents == month.recurring_cents + month.residual_cents
@@ -261,7 +280,7 @@ def test_the_running_balance_is_the_opening_balance_plus_every_net_so_far():
 
 
 def test_the_band_is_never_a_single_line():
-    report = project_cashflow(100_000, _observations(6, -10_000), [], TODAY)
+    report = project_cashflow(100_000, _history(6, -10_000), [], TODAY)
     first = report.months[0]
     assert first.balance_p10_cents < first.balance_p50_cents < first.balance_p90_cents
 
@@ -269,7 +288,7 @@ def test_the_band_is_never_a_single_line():
 def test_the_band_widens_with_distance():
     """Twelve months out is less certain than one month out, and the shape has
     to say so. A constant-width band would claim otherwise."""
-    report = project_cashflow(100_000, _observations(8, -10_000, start_month=1), [], TODAY)
+    report = project_cashflow(100_000, _history(8, -10_000, start_month=1), [], TODAY)
     widths = [
         month.balance_p90_cents - month.balance_p10_cents for month in report.months
     ]
@@ -286,9 +305,9 @@ def test_the_band_is_wider_when_fewer_months_were_observed():
     Both samples are built from the same six-value jitter, so their measured
     scale is identical to the cent -- only the sample size differs.
     """
-    thin = project_cashflow(100_000, _observations(6, -10_000), [], TODAY)
-    thick = project_cashflow(100_000, _observations(12, -10_000), [], TODAY)
-    assert thin.residual_scale_cents == thick.residual_scale_cents
+    thin = project_cashflow(100_000, _history(6, -10_000), [], TODAY)
+    thick = project_cashflow(100_000, _history(12, -10_000), [], TODAY)
+    assert thin.pooled_scale_cents == thick.pooled_scale_cents
     assert thin.months_observed == 6 and thick.months_observed == 12
 
     thin_width = thin.months[5].balance_p90_cents - thin.months[5].balance_p10_cents
@@ -322,8 +341,10 @@ def _two_years_with_a_costly_december():
 def test_a_calendar_month_seen_twice_gets_its_own_seasonal_residual():
     """December costs more than March in most households. Two Decembers is the
     floor at which that can be claimed."""
+    observations = _two_years_with_a_costly_december()
     report = project_cashflow(
-        1_000_000, _two_years_with_a_costly_december(), [], date(2026, 1, 15)
+        1_000_000, ResidualHistory(observations, len(observations)), [],
+        date(2026, 1, 15),
     )
 
     december = next(month for month in report.months if month.key.endswith("-12"))
@@ -335,8 +356,103 @@ def test_a_calendar_month_seen_twice_gets_its_own_seasonal_residual():
     assert report.seasonality_used is True
 
 
+def _eighteen_months_with_half_the_calendar_doubled():
+    """January 2024 to June 2025. January through June are each observed twice;
+    July through December only once.
+
+    Even calendar months cost eight times an odd one, so the spread *between*
+    months is enormous; each calendar month repeats within 2 EUR of itself, so
+    the spread *within* a calendar month is tiny. The two scales are therefore
+    impossible to confuse, which is the point.
+    """
+    entries = [
+        MonthlyEntry(
+            on=date(year, month, 15),
+            amount_cents=(-80_000 if month % 2 == 0 else -10_000)
+            + (200 if year == 2024 else -200),
+        )
+        for year, month in [(2024, m) for m in range(1, 13)]
+        + [(2025, m) for m in range(1, 7)]
+    ]
+    observations = complete_months(entries, date(2024, 1, 1), date(2025, 6, 30))
+    return ResidualHistory(observations, len(observations))
+
+
+def _width(month) -> int:
+    return month.balance_p90_cents - month.balance_p10_cents
+
+
+def test_a_month_with_no_seasonal_estimate_is_priced_against_the_pooled_spread():
+    """Seasonality half-on. With eighteen observed months, six calendar months
+    have two samples and six have one -- and the six that fall back to the
+    pooled median are the *least* known months in the horizon.
+
+    Measuring one scale over the mixed deviation set lets the tight,
+    seasonally-explained months dominate the MAD, so the fallback months get
+    wrapped in a band sized by the jitter of the months the model *did* explain.
+    `ForecastMonth.seasonal` says False for them, but a band that does not widen
+    where the estimate is weakest is decoration.
+
+    Isolated by projecting a single month from two different anchors over the
+    same eighteen observations, so the only thing that differs between the two
+    numbers is which centre that month gets.
+    """
+    history = _eighteen_months_with_half_the_calendar_doubled()
+    fallback = project_cashflow(
+        1_000_000, history, [], date(2025, 6, 20), horizon_months=1
+    )
+    seasonal = project_cashflow(
+        1_000_000, history, [], date(2025, 12, 20), horizon_months=1
+    )
+    assert fallback.months[0].key == "2025-07"
+    assert fallback.months[0].seasonal is False
+    assert seasonal.months[0].key == "2026-01"
+    assert seasonal.months[0].seasonal is True
+
+    # July's centre is the pooled median of months costing 100 EUR and months
+    # costing 800 EUR. January's is two Januaries agreeing within 4 EUR. July is
+    # the less knowable of the two and its band has to say so.
+    assert _width(fallback.months[0]) > _width(seasonal.months[0])
+
+    # Ordering alone is too weak to pin this, and proving that took a mutation:
+    # the centre term is sized on the pooled scale for *any* fallback month, so
+    # July stays the wider of the two even when its own noise term is wrongly
+    # collapsed to the seasonal scale. So assert each side against the scale it
+    # must have been priced with.
+    #
+    # One month out, a fallback month's noise term alone is one pooled sigma, so
+    # its half-width cannot be narrower than that sigma's own P10/P90 offset.
+    pooled_offset = quantile_offset_cents(fallback.pooled_scale_cents, P90_SIGMAS)
+    assert _width(fallback.months[0]) // 2 >= pooled_offset
+    # And a seasonal month must be nowhere near it -- it is priced on two
+    # Januaries agreeing within 4 EUR, not on the spread between a 100 EUR month
+    # and an 800 EUR one.
+    assert _width(seasonal.months[0]) // 2 < pooled_offset
+
+
+def test_the_two_scales_are_measured_over_their_own_populations():
+    """Each scale answers a different question -- "what does a month vary by"
+    and "what does *this* calendar month vary by" -- so each is measured over
+    the observations that bear on it, and both are published."""
+    report = project_cashflow(
+        1_000_000, _eighteen_months_with_half_the_calendar_doubled(), [],
+        date(2025, 6, 20),
+    )
+    # Between-month spread: half the months cost 700 EUR more than the other half.
+    assert report.pooled_scale_cents == 51_891
+    # Within-month spread: every calendar month repeats within 2 EUR of itself.
+    assert report.seasonal_scale_cents == 297
+
+
+def test_the_seasonal_scale_is_absent_when_no_month_has_one():
+    report = project_cashflow(100_000, _history(6, -10_000), [], TODAY)
+    assert report.seasonality_used is False
+    assert report.seasonal_scale_cents is None
+    assert report.pooled_scale_cents > 0
+
+
 def test_one_observation_of_a_calendar_month_falls_back_to_the_pooled_median():
-    report = project_cashflow(1_000_000, _observations(6, -10_000), [], TODAY)
+    report = project_cashflow(1_000_000, _history(6, -10_000), [], TODAY)
     assert all(month.seasonal is False for month in report.months)
     assert report.seasonality_used is False
     # Every month gets the same pooled figure, because none of them has a
@@ -354,7 +470,7 @@ def test_a_monthly_charge_lands_exactly_once_in_every_month_it_is_due():
     by its median interval of 30 days yields 12,17 charges a year: one month in
     the horizon is silently billed twice and the chart grows a spike that no
     bank statement will ever show."""
-    report = project_cashflow(1_000_000, _observations(6, 0), [_rent()], TODAY)
+    report = project_cashflow(1_000_000, _history(6, 0), [_rent()], TODAY)
     assert [month.recurring_cents for month in report.months] == [-78_000] * 12
 
 
@@ -368,7 +484,7 @@ def test_a_quarterly_charge_lands_four_times_in_twelve_months():
         expected_next_on=date(2026, 9, 15),
         status="active", confidence="confirmed", price_change=None,
     )
-    report = project_cashflow(1_000_000, _observations(6, 0), [insurance], TODAY)
+    report = project_cashflow(1_000_000, _history(6, 0), [insurance], TODAY)
     charged = [month.key for month in report.months if month.recurring_cents]
     assert charged == ["2026-09", "2026-12", "2027-03", "2027-06"]
     assert all(
@@ -386,7 +502,7 @@ def test_a_weekly_charge_lands_four_or_five_times_a_month():
         expected_next_on=date(2026, 9, 4),
         status="active", confidence="confirmed", price_change=None,
     )
-    report = project_cashflow(1_000_000, _observations(6, 0), [pass_navigo], TODAY)
+    report = project_cashflow(1_000_000, _history(6, 0), [pass_navigo], TODAY)
     counts = {month.recurring_cents // -2_300 for month in report.months}
     assert counts <= {4, 5}
     assert 4 in counts and 5 in counts
@@ -402,7 +518,7 @@ def test_a_cancelled_recurrence_is_not_projected_forward():
         expected_next_on=date(2025, 6, 9),
         status="ended", confidence="confirmed", price_change=None,
     )
-    report = project_cashflow(100_000, _observations(6, -10_000), [ended], TODAY)
+    report = project_cashflow(100_000, _history(6, -10_000), [ended], TODAY)
     assert all(month.recurring_cents == 0 for month in report.months)
     assert report.recurrences_projected == 0
 
@@ -421,9 +537,84 @@ def test_a_recurrence_watched_for_less_than_a_quarter_is_not_projected():
         expected_next_on=date(2026, 9, 5),
         status="active", confidence="probable", price_change=None,
     )
-    report = project_cashflow(100_000, _observations(6, -10_000), [fresh], TODAY)
+    report = project_cashflow(100_000, _history(6, -10_000), [fresh], TODAY)
     assert all(month.recurring_cents == 0 for month in report.months)
     assert report.recurrences_projected == 0
+
+
+# --------------------------------------------------------------------------
+# One call that cannot be got wrong
+# --------------------------------------------------------------------------
+
+
+def _a_year_with_one_all_recurring_month() -> list[LedgerEntry]:
+    """Twelve months of rent, and ordinary purchases in eleven of them.
+    December holds nothing but the rent, so it carries no residual at all and
+    `complete_months` never emits it -- twelve ledger months, eleven residual
+    ones."""
+    entries = [
+        LedgerEntry(on=date(2025, month, 5), amount_cents=-78_000, label_key="loyer")
+        for month in range(1, 13)
+    ]
+    for month in range(1, 12):
+        entries += [
+            LedgerEntry(
+                on=date(2025, month, 10 + index),
+                amount_cents=-4_000 - index * 300 - month * 150,
+                label_key=f"achat {month}-{index}",
+            )
+            for index in range(3)
+        ]
+    return entries
+
+
+def _detect(entries: list[LedgerEntry], today: date):
+    return detect_recurrences(
+        [
+            RecurringTx(on=e.on, amount_cents=e.amount_cents, label_key=e.label_key,
+                        label_raw=e.label_key, category_id=None)
+            for e in entries
+        ],
+        today,
+    ).recurrences
+
+
+def test_the_history_helper_returns_both_counts_from_one_call():
+    """The two counts come from the same pass over the same bounds, so a caller
+    cannot filter one and forget the other -- nor pass the unfiltered ledger as
+    the residual and double-count the rent."""
+    entries = _a_year_with_one_all_recurring_month()
+    recurrences = _detect(entries, date(2025, 12, 31))
+    history = build_observations(
+        entries, recurrences, date(2025, 1, 1), date(2025, 12, 31)
+    )
+    assert history.ledger_months_observed == 12
+    assert len(history.observations) == 11
+    assert all(month.key != "2025-12" for month in history.observations)
+    # The rent is gone from the residual -- it is projected instead.
+    assert all(month.net_cents > -78_000 for month in history.observations)
+
+
+def test_the_two_counts_reach_the_report_without_the_caller_restating_either():
+    entries = _a_year_with_one_all_recurring_month()
+    recurrences = _detect(entries, date(2025, 12, 31))
+    history = build_observations(
+        entries, recurrences, date(2025, 1, 1), date(2025, 12, 31)
+    )
+    report = project_cashflow(1_000_000, history, recurrences, date(2025, 12, 31))
+    assert report.insufficient_reason is None
+    assert report.ledger_months_observed == 12
+    assert report.months_observed == 11
+    assert len(report.months) == 12
+    assert report.recurrences_projected == 1
+
+
+def test_a_history_cannot_claim_fewer_ledger_months_than_it_holds():
+    """A residual cannot hold more complete months than the ledger it was
+    filtered out of. The invariant now lives on the type, so it is checked once
+    at construction rather than at every call that consumes one."""
+    with pytest.raises(ValueError, match="ne peut pas"):
+        ResidualHistory(observations=_observations(6, -10_000), ledger_months_observed=4)
 
 
 # --------------------------------------------------------------------------
@@ -559,7 +750,7 @@ def test_what_is_not_projected_is_not_subtracted_either():
 
 
 def test_a_month_whose_low_estimate_falls_under_the_threshold_is_flagged():
-    report = project_cashflow(50_000, _observations(6, -10_000), [], TODAY, threshold_cents=0)
+    report = project_cashflow(50_000, _history(6, -10_000), [], TODAY, threshold_cents=0)
     breached = [month for month in report.months if month.below_threshold]
     assert breached
     assert report.first_breach_key == breached[0].key
@@ -573,11 +764,11 @@ def test_the_flag_uses_the_low_estimate_not_the_median():
     median, so that month is by definition not below it on the median and is
     below it on the low estimate, whatever the arithmetic works out to.
     """
-    observations = _observations(6, -10_000)
-    baseline = project_cashflow(200_000, observations, [], TODAY)
+    history = _history(6, -10_000)
+    baseline = project_cashflow(200_000, history, [], TODAY)
     threshold = baseline.months[5].balance_p50_cents
 
-    report = project_cashflow(200_000, observations, [], TODAY, threshold_cents=threshold)
+    report = project_cashflow(200_000, history, [], TODAY, threshold_cents=threshold)
     month = report.months[5]
     assert month.balance_p50_cents >= threshold
     assert month.balance_p10_cents < threshold
@@ -585,7 +776,7 @@ def test_the_flag_uses_the_low_estimate_not_the_median():
 
 
 def test_no_breach_reports_no_breach_rather_than_the_first_month():
-    report = project_cashflow(10_000_000, _observations(6, -10_000), [], TODAY)
+    report = project_cashflow(10_000_000, _history(6, -10_000), [], TODAY)
     assert report.first_breach_key is None
     assert all(month.below_threshold is False for month in report.months)
     assert report.threshold_cents == 0

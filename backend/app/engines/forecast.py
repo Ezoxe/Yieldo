@@ -21,7 +21,7 @@ from dataclasses import dataclass
 from datetime import date, timedelta
 
 from app.engines.aggregate import bucket_bounds, bucket_key
-from app.engines.capacity import MonthlyEntry, MonthObservation
+from app.engines.capacity import MonthlyEntry, MonthObservation, complete_months
 from app.engines.recurrence import PERIOD_BOUNDS, Periodicity, Recurrence
 from app.engines.robust import P90_SIGMAS, describe, median_cents, quantile_offset_cents
 
@@ -74,6 +74,30 @@ class LedgerEntry:
 
 
 @dataclass(frozen=True)
+class ResidualHistory:
+    """The measured history `project_cashflow` runs on: the residual months, and
+    how many complete months the ledger they came out of actually covers.
+
+    The two travel together **on purpose**. They are different numbers (a month
+    whose whole activity was recurring carries no residual and is absent from
+    `observations`), the engine needs both to name the right cause when it
+    refuses, and a caller holding two loose values will eventually pass one and
+    forget the other. Build it with `build_observations` rather than by hand.
+    """
+
+    observations: list[MonthObservation]
+    ledger_months_observed: int
+
+    def __post_init__(self) -> None:
+        if self.ledger_months_observed < len(self.observations):
+            raise ValueError(
+                f"L'historique ne peut pas compter moins de mois complets "
+                f"({self.ledger_months_observed}) que le résidu qui en a été "
+                f"extrait ({len(self.observations)})."
+            )
+
+
+@dataclass(frozen=True)
 class ForecastMonth:
     key: str
     start: date
@@ -107,12 +131,21 @@ class ForecastReport:
     # detected. The screen needs the difference to explain what is in the chart:
     # ended and too-young recurrences are deliberately absent from it.
     recurrences_projected: int
-    # The measured month-to-month scale of the residual, after the seasonal or
-    # pooled centre has been taken out. What the band's width is built from,
-    # published so a screen can explain the band without re-measuring it.
+    # The two scales the band is built from, published so a screen can explain a
+    # band without re-measuring it. They answer different questions and are
+    # measured over different populations -- see `project_cashflow`.
+    #
+    # What a month varies by, month to month, seasonal swing included. The scale
+    # for every projected month that has no seasonal estimate of its own.
     # 0 on a refusal, where nothing was measured -- read `insufficient_reason`
     # first, never this field on its own.
-    residual_scale_cents: int
+    pooled_scale_cents: int
+    # What a given calendar month varies by against itself, year on year. The
+    # scale for months projected seasonally. None when no observed calendar month
+    # reached `MIN_OBSERVATIONS_FOR_SEASONALITY`, so nothing measured it -- None
+    # rather than 0, because "not measured" and "measured as zero" are different
+    # answers and only the second is a reason to refuse.
+    seasonal_scale_cents: int | None
     threshold_cents: int
     first_breach_key: str | None
     opening_balance_cents: int
@@ -174,6 +207,44 @@ def residual_entries(
             continue
         residual.append(MonthlyEntry(on=entry.on, amount_cents=entry.amount_cents))
     return residual
+
+
+def build_observations(
+    entries: list[LedgerEntry],
+    recurrences: list[Recurrence],
+    ledger_start: date,
+    ledger_end: date,
+) -> ResidualHistory:
+    """Everything `project_cashflow` needs from a ledger, in one call.
+
+    This is the whole of what a caller has to do, and it exists so that the two
+    ways of getting the split wrong are unrepresentable rather than merely
+    documented: the residual is windowed here (see `residual_entries`), and the
+    ledger's own month count is measured here over the *same* bounds, so it
+    cannot be forgotten, mismatched, or filled in with the residual count.
+
+    **`ledger_start` / `ledger_end` must be the actual extent of the imported
+    data** -- the minimum and maximum transaction date genuinely covered by
+    imported statements -- never a requested display window such as a "last 12
+    months" filter or a date-range picker. `complete_months` cannot tell the two
+    apart: it only checks a month's calendar bounds against these, so bounds
+    wider than the data really covers silently admit a month holding one week of
+    statements as a complete one. That defeats the partial-month guard from the
+    caller's side and makes every rate measured downstream a fraction of the
+    truth. Task 10 carried this precondition forward; it binds here too, and it
+    binds both of the counts below at once.
+    """
+    ledger = complete_months(
+        [MonthlyEntry(on=entry.on, amount_cents=entry.amount_cents) for entry in entries],
+        ledger_start,
+        ledger_end,
+    )
+    residual = complete_months(
+        residual_entries(entries, recurrences), ledger_start, ledger_end
+    )
+    return ResidualHistory(
+        observations=residual, ledger_months_observed=len(ledger)
+    )
 
 
 def _month_index(on: date) -> int:
@@ -287,7 +358,8 @@ def _refusal(
         ledger_months_observed=ledger_months,
         seasonality_used=False,
         recurrences_projected=0,
-        residual_scale_cents=0,
+        pooled_scale_cents=0,
+        seasonal_scale_cents=None,
         threshold_cents=threshold_cents,
         first_breach_key=None,
         opening_balance_cents=balance_cents,
@@ -297,28 +369,19 @@ def _refusal(
 
 def project_cashflow(
     balance_cents: int,
-    residual_observations: list[MonthObservation],
+    history: ResidualHistory,
     recurrences: list[Recurrence],
     today: date,
     horizon_months: int = DEFAULT_HORIZON_MONTHS,
     threshold_cents: int = 0,
-    ledger_months_observed: int | None = None,
 ) -> ForecastReport:
     """Project the balance forward as a P10/P50/P90 band.
 
-    `residual_observations` must be `complete_months` over `residual_entries` --
-    the ledger with the projected recurring rows windowed out. Feed it the whole
-    history and the rent is counted twice, once as a recurrence and again inside
-    the month's own average.
-
-    `ledger_months_observed` is `complete_months` over the *unfiltered* ledger,
-    and callers should pass it. The two counts differ whenever a month's whole
-    activity was recurring: that month carries no residual, so it is absent from
-    `residual_observations` entirely. Without the real ledger count a refusal
-    would tell a reader holding a year of statements to import more of them --
-    naming a cause that is not the cause, which is the defect task 10's review
-    fixed in `runway.py`. Omitted, it defaults to the residual count and the
-    engine simply cannot tell the two cases apart.
+    `history` comes from `build_observations`, which is the only call a caller
+    needs to make. It carries the residual months -- the ledger with the
+    projected recurring rows windowed out -- together with the ledger's own
+    complete-month count, because the engine needs both and they are not the same
+    number.
 
     **How wide the band is, and why.** Write the balance at month *k* as the
     opening balance plus the recurring charges plus *k* draws from the residual,
@@ -341,9 +404,28 @@ def project_cashflow(
 
     Pooled months all share one estimate, so their centre errors add before being
     squared; seasonal months are estimated from disjoint samples, so theirs add
-    after. `sigma` is measured on the deviations from whichever centre each month
-    actually used, so a genuine seasonal swing counts as signal once it has been
-    modelled, and not a second time as noise.
+    after.
+
+    **Two scales, because there are two different claims.** A month projected
+    from its own calendar month's median is uncertain by how much that month
+    varies year on year (`seasonal_scale_cents`). A month projected from the
+    pooled median is uncertain by how much *any* month varies, seasonal swing
+    included, because that swing is precisely what has not been explained for it
+    (`pooled_scale_cents`). Each is measured over the observations that bear on
+    it, and each month is priced against the one whose centre it actually got.
+
+    Measuring a single scale across both populations is the trap: with, say,
+    eighteen observed months, six calendar months have two samples and six have
+    one, and the tight seasonally-explained deviations dominate a MAD taken over
+    the mixture. The six fallback months -- the least knowable months in the
+    horizon -- would then be wrapped in a band sized by the jitter of the months
+    the model *did* explain. `ForecastMonth.seasonal` would say False for them,
+    but the band would not widen to say so, and a band that fails to widen where
+    the estimate is weakest is decoration.
+
+    Both cases degenerate to a single scale exactly as before: with no
+    seasonality every month uses the pooled scale, and with every horizon month
+    seasonal every month uses the seasonal one.
 
     The estimated scale is treated as known. At six observations it carries
     roughly 30 % relative error of its own, which nothing here prices in -- that
@@ -355,13 +437,9 @@ def project_cashflow(
             f"{MAX_HORIZON_MONTHS} mois (reçu : {horizon_months})."
         )
 
+    residual_observations = history.observations
     observed = len(residual_observations)
-    ledger_months = observed if ledger_months_observed is None else ledger_months_observed
-    if ledger_months < observed:
-        raise ValueError(
-            f"L'historique ne peut pas compter moins de mois complets "
-            f"({ledger_months}) que le résidu qui en a été extrait ({observed})."
-        )
+    ledger_months = history.ledger_months_observed
 
     if observed < MIN_MONTHS_FOR_FORECAST:
         # Two distinct causes, and the reader can only act on one of them.
@@ -374,6 +452,10 @@ def project_cashflow(
 
     nets = [observation.net_cents for observation in residual_observations]
     pooled = median_cents(nets)
+    # What a month varies by, month to month. Seasonal swing is *included*: for a
+    # calendar month we cannot explain, "how much does a month cost" is exactly
+    # the uncertainty we carry.
+    pooled_scale = describe(nets).sigma
 
     by_calendar_month: dict[int, list[int]] = {}
     for observation in residual_observations:
@@ -388,61 +470,83 @@ def project_cashflow(
             return median_cents(samples), True, len(samples)
         return pooled, False, observed
 
-    # The scale of what the model does *not* explain: each month's distance from
-    # the centre that month will actually be projected with. Identical to the
-    # dispersion of the nets themselves when no seasonality is used, and properly
-    # narrower when it is.
-    deviations = [
+    # What a calendar month varies by against *itself*, measured only over the
+    # observations that have such a centre. Measuring one scale across both
+    # populations would let these tight, seasonally-explained deviations dominate
+    # the MAD and then price the fallback months -- the least known months in the
+    # horizon -- with it.
+    seasonal_deviations = [
         observation.net_cents - centre_of(observation.start.month)[0]
         for observation in residual_observations
+        if centre_of(observation.start.month)[1]
     ]
-    sigma = describe(deviations).sigma
-    if sigma == 0:
-        # No dispersion at all. `robust.modified_z` refuses the same input for
-        # the same reason: with every observation identical there is no scale to
-        # measure against, and any band drawn here would be manufactured.
-        return _refusal(
-            balance_cents, observed, ledger_months, threshold_cents,
-            _reason_no_dispersion(observed),
-        )
+    seasonal_scale = describe(seasonal_deviations).sigma if seasonal_deviations else None
 
     keys = _future_month_keys(today, horizon_months)
     horizon_start = bucket_bounds(keys[0], "month")[0]
     horizon_end = bucket_bounds(keys[-1], "month")[1]
     recurring = _recurring_by_month(recurrences, keys, horizon_start, horizon_end)
 
+    # Refuse on a scale of zero, but only for a scale this horizon actually uses:
+    # a degenerate seasonal scale is irrelevant to a horizon projected entirely
+    # from the pooled one, and vice versa. `robust.modified_z` refuses the same
+    # input for the same reason -- with every observation identical there is no
+    # scale to measure against, and any band drawn here would be manufactured.
+    horizon_is_seasonal = [
+        centre_of(bucket_bounds(key, "month")[0].month)[1] for key in keys
+    ]
+    degenerate = (not all(horizon_is_seasonal) and pooled_scale == 0) or (
+        any(horizon_is_seasonal) and seasonal_scale == 0
+    )
+    if degenerate:
+        return _refusal(
+            balance_cents, observed, ledger_months, threshold_cents,
+            _reason_no_dispersion(observed),
+        )
+
     months: list[ForecastMonth] = []
     seasonality_used = False
     running = balance_cents
     first_breach: str | None = None
     # Months so far drawing on the single pooled estimate: their centre errors
-    # are the same error and add before squaring.
+    # are the same error, so they add before squaring.
     pooled_months = 0
-    # Months so far drawing on their own calendar month's estimate: independent,
-    # so their variances add directly. A ratio, not money -- float is correct.
-    seasonal_variance_units = 0.0
+    # Accumulated variance, in cents squared. Two scales now flow into it, so
+    # neither can be factored out of the sqrt the way a single one could.
+    noise_variance = 0.0
+    seasonal_centre_variance = 0.0
 
-    for index, key in enumerate(keys):
+    for key in keys:
         start, end = bucket_bounds(key, "month")
         residual, seasonal, samples = centre_of(start.month)
         seasonality_used = seasonality_used or seasonal
+        # Each month is priced against the scale of the centre it actually got:
+        # a month with no seasonal estimate is projected from the pooled median,
+        # so its uncertainty is the full month-to-month spread, not the tight
+        # year-on-year one that belongs to months the model did explain.
         if seasonal:
-            seasonal_variance_units += 1 / samples
+            month_scale = seasonal_scale
+            seasonal_centre_variance += (
+                MEDIAN_VARIANCE_FACTOR * month_scale**2 / samples
+            )
         else:
+            month_scale = pooled_scale
             pooled_months += 1
+        noise_variance += month_scale**2
 
         recurring_cents = recurring[key]
         net = recurring_cents + residual
         running += net
 
-        centre_units = MEDIAN_VARIANCE_FACTOR * (
-            pooled_months**2 / observed + seasonal_variance_units
+        centre_variance = (
+            MEDIAN_VARIANCE_FACTOR * pooled_months**2 * pooled_scale**2 / observed
+            + seasonal_centre_variance
         )
-        spread_factor = math.sqrt((index + 1) + centre_units)
-        # One rounding, straight back to integer cents: `quantile_offset_cents`
-        # takes the number of sigmas precisely so a caller can scale the band
-        # without ever holding a monetary float.
-        half_width = quantile_offset_cents(sigma, P90_SIGMAS * spread_factor)
+        # Back to integer cents at the combined standard deviation, which is
+        # itself a cents quantity, before `quantile_offset_cents` turns it into a
+        # band half-width. No monetary value is ever stored as a float.
+        combined_scale = round(math.sqrt(noise_variance + centre_variance))
+        half_width = quantile_offset_cents(combined_scale, P90_SIGMAS)
         low = running - half_width
         high = running + half_width
 
@@ -471,7 +575,8 @@ def project_cashflow(
         ledger_months_observed=ledger_months,
         seasonality_used=seasonality_used,
         recurrences_projected=sum(1 for item in recurrences if _is_projected(item)),
-        residual_scale_cents=sigma,
+        pooled_scale_cents=pooled_scale,
+        seasonal_scale_cents=seasonal_scale,
         threshold_cents=threshold_cents,
         first_breach_key=first_breach,
         opening_balance_cents=balance_cents,

@@ -141,10 +141,24 @@ class ForecastReport:
     # first, never this field on its own.
     pooled_scale_cents: int
     # What a given calendar month varies by against itself, year on year. The
-    # scale for months projected seasonally. None when no observed calendar month
-    # reached `MIN_OBSERVATIONS_FOR_SEASONALITY`, so nothing measured it -- None
-    # rather than 0, because "not measured" and "measured as zero" are different
-    # answers and only the second is a reason to refuse.
+    # scale for months projected seasonally.
+    #
+    # None means no month is, which happens two ways: no observed calendar month
+    # reached `MIN_OBSERVATIONS_FOR_SEASONALITY`, so there was nothing to
+    # measure; or the eligible months were measured and came out cent-exact, so
+    # the measurement carries no information about how such a month varies.
+    # **Neither is a reason to refuse** -- both send every month to the pooled
+    # centre and scale, and the projection runs normally.
+    #
+    # The two causes are deliberately not distinguished: both mean "no seasonal
+    # estimate is in use", and neither changes what a screen should draw.
+    # `seasonality_used` and the per-month `ForecastMonth.seasonal` flag carry
+    # everything a consumer needs. Pinned by
+    # `test_the_seasonal_scale_is_absent_when_no_month_has_one` and
+    # `test_a_cent_exact_calendar_month_falls_back_instead_of_killing_the_forecast`.
+    #
+    # Never 0: a measured zero is collapsed to None at source, so a consumer
+    # never has to tell an absent scale from a degenerate one.
     seasonal_scale_cents: int | None
     threshold_cents: int
     first_breach_key: str | None

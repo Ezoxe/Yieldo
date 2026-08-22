@@ -62,6 +62,44 @@ interface Split {
   falls: number;
 }
 
+interface UncomputableCopy {
+  headline: string;
+  /**
+   * Null when the engine sends a notice of its own for this state, so the
+   * screen does not say the same thing twice in two voices.
+   */
+  reason: string | null;
+}
+
+/**
+ * What stands in for the annual figure when nothing is counted, in the two
+ * registers the two states actually deserve.
+ *
+ * They are different claims and one sentence cannot carry both. "Pas encore
+ * calculable" is true when nothing has been watched for a quarter: there is no
+ * yearly cost to state yet. It is false the moment a recurrence *has* cleared
+ * that bar and simply is not a live subscription cost — a salary, or an
+ * expense that has gone quiet. There the figure is perfectly calculable; it is
+ * the total that has nothing in it, and saying otherwise sends the reader
+ * looking for more statements to import that would change nothing.
+ *
+ * The second register also carries its own reason, because the engine writes
+ * `notice` only when *nothing* is annualisable (`engines/recurrence.py`): in
+ * this state it sends none, and an empty total with no explanation is exactly
+ * what this screen exists to refuse.
+ */
+function uncomputableCopy(anyAnnualisable: boolean): UncomputableCopy {
+  if (!anyAnnualisable) {
+    return { headline: "Pas encore calculable", reason: null };
+  }
+  return {
+    headline: "Aucun abonnement en cours dans ce total",
+    reason:
+      "Des récurrences ont bien été détectées, mais aucune n'entre dans le total des " +
+      "abonnements : chaque ligne, plus bas, dit ce qui l'en écarte.",
+  };
+}
+
 /**
  * The list, cut along the one line that matters, and re-sorted where the
  * backend's order would mislead.
@@ -176,17 +214,27 @@ export function RecurrencesPage() {
       </BentoGrid>
     );
   } else {
-    const computable = report.recurrences.some((item) => item.annualisable);
+    // The gate has to be the very set the figure is summed over. The engine
+    // sums `annualisable && annual_cents < 0 && status != "ended"`, which is
+    // `split.counted` and nothing wider: on `some(annualisable)` a single
+    // recurring salary past the 91-day bar — or a lone annualisable expense
+    // that has gone quiet — leaves the total empty while the gate reads true,
+    // and `CountUp(0)` prints "0,00 €" under a heading that says subscriptions
+    // cost this much a year.
+    const computable = split.counted.length > 0;
+    const uncomputable = uncomputableCopy(report.recurrences.some((item) => item.annualisable));
 
     body = (
       <BentoGrid as={motion.div} {...staggerProps(reduced)}>
         <BentoCell as={motion.div} span={SPAN.cost} className="yd-panel" {...entryProps(reduced)}>
           <h2 className="yd-panel__title">Coût des abonnements</h2>
 
-          {/* A total of zero is a claim, and here it would be the wrong one:
-              nothing was watched long enough to cost a year, which is not the
-              same as costing nothing. The engine's own notice says why, just
-              below. */}
+          {/* A total of zero is a claim, and it is never the claim this screen
+              means: an empty sum says either "nothing has been watched long
+              enough to cost a year" or "nothing in this list is a live
+              subscription", and neither of them is "your subscriptions cost
+              nothing". `uncomputableCopy` picks which, and supplies the reason
+              in the state where the engine sends no notice of its own. */}
           {computable ? (
             <>
               <CountUp
@@ -199,7 +247,12 @@ export function RecurrencesPage() {
               </p>
             </>
           ) : (
-            <p className="yd-recurrences__uncomputable">Pas encore calculable</p>
+            <>
+              <p className="yd-recurrences__uncomputable">{uncomputable.headline}</p>
+              {uncomputable.reason !== null ? (
+                <p className="yd-recurrences__notice">{uncomputable.reason}</p>
+              ) : null}
+            </>
           )}
 
           {report.notice !== null ? (
@@ -230,8 +283,13 @@ export function RecurrencesPage() {
               {/* Split by sign rather than reported as one count: a fall is
                   as real a result as a rise, and calling both "hausses" would
                   be a small lie repeated on every screen that shows them. */}
+              {/* "sur la période analysée", not "depuis le début de
+                  l'historique": `find_price_change` only ever sees the
+                  analysed run, which `_analysable_run` cuts at the last hole,
+                  so on a ledger with a lapse the changes before it were never
+                  examined. */}
               {split.rises === 0 && split.falls === 0
-                ? "Aucun changement de prix détecté."
+                ? "Aucun changement de prix détecté sur la période analysée."
                 : [
                     split.rises > 0
                       ? `${split.rises} ${plural(split.rises, "hausse de prix", "hausses de prix")}`
@@ -241,7 +299,7 @@ export function RecurrencesPage() {
                       : "",
                   ]
                     .filter(Boolean)
-                    .join(", ") + " depuis le début de l'historique."}
+                    .join(", ") + " sur la période analysée."}
             </li>
             <li>
               {/* The clockwork non-subscription. `normalize_label` strips the
@@ -306,12 +364,15 @@ export function RecurrencesPage() {
             <p className="yd-recurrences__caption">
               {`Un prélèvement n'entre dans le total qu'une fois ${ANNUALISATION_FLOOR_DAYS} jours d'historique écoulés entre sa première et sa dernière échéance. Un abonnement souscrit ce trimestre est donc bien détecté et affiché ici, mais il n'entre dans le total qu'à partir de sa quatrième ou cinquième échéance mensuelle.`}
             </p>
-            {/* Not "par coût annuel" — that is precisely the key this list may
-                not be ordered on, since the rows that fail the 91-day bar have
-                no annual cost to be ordered by. */}
+            {/* "montant de l'opération" and not "montant prélevé": this list
+                holds the recurring income too, and nothing was prélevé there.
+                Not "par coût annuel" either — that is precisely the key this
+                list may not be ordered on, since `annual_cents` is computed
+                for every row but vouched for only past the 91-day bar, which
+                is why the verb is "retenu" and not "calculé". */}
             <p className="yd-recurrences__caption">
-              Classés par montant prélevé, et non par coût annuel : celui-ci n'est pas calculé
-              pour les lignes observées moins de {ANNUALISATION_FLOOR_DAYS} jours.
+              Classés par montant de l'opération, et non par coût annuel : celui-ci n'est pas
+              retenu pour les lignes observées moins de {ANNUALISATION_FLOOR_DAYS} jours.
             </p>
             <ul className="yd-recurrences__list" aria-label={EXCLUDED_LIST_LABEL}>
               {split.excluded.map((item) => (

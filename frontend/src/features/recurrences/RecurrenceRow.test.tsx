@@ -156,27 +156,21 @@ describe("RecurrenceRow", () => {
     expect(screen.getByText(/janvier 2026/)).toBeInTheDocument();
   });
 
+  // 2026-05-20, not the default ledger date: `missing` means the engine's
+  // `today` — the ledger's own last date — is already past `expected_next_on`
+  // plus its grace period, so a ledger stopping on 2 May could never have
+  // produced this status. The payload a test exhibits has to be one the
+  // backend can send.
   it("says when an expected debit did not arrive", () => {
-    renderRow({ ...base, status: "missing" });
-    expect(screen.getByText(/Attendu le 10 mai 2026/)).toBeInTheDocument();
+    renderRow({ ...base, status: "missing" }, "2026-05-20");
+    const status = screen.getByText(/Attendu le 10 mai 2026/);
+    expect(status).toHaveTextContent(/il n'est pas arrivé/);
+    expect(status).toHaveTextContent(/10 jours après l'échéance attendue/);
   });
 
-  // `ended` is a statement about the ledger, never about the merchant. Here
-  // the ledger (2 May) stops before the expected charge (10 May): nothing at
-  // all has been observed about it.
-  it("blames the missing statements, not the subscription, when the ledger stops first", () => {
-    renderRow({ ...base, status: "ended" });
-    expect(screen.getByText(/Aucun prélèvement depuis le 10 avril 2026/)).toBeInTheDocument();
-    expect(screen.getByText(/2 mai 2026/)).toBeInTheDocument();
-    expect(screen.getByText(/dernière date de votre historique/)).toBeInTheDocument();
-    expect(screen.getByText(/aucun relevé plus récent n'ait été importé/)).toBeInTheDocument();
-    expect(screen.queryByText(/résilié/)).not.toBeInTheDocument();
-    expect(screen.queryByText(/Interrompu/)).not.toBeInTheDocument();
-  });
-
-  // The other direction, which the same sentence must not get wrong: the
-  // statements kept arriving for months and the charge did not. That is a
-  // real observation, and blaming the import here would bury it.
+  // `ended` is a statement about the ledger, never about the merchant: the
+  // statements kept arriving for months and the charge did not. That is a real
+  // observation, and blaming the import here would bury it.
   it("reports the gap in days when the ledger ran on without the charge", () => {
     renderRow(
       { ...base, status: "ended", last_on: "2025-09-14", expected_next_on: "2025-10-14" },
@@ -186,6 +180,28 @@ describe("RecurrenceRow", () => {
     expect(status).toHaveTextContent(/200 jours après l'échéance attendue/);
     expect(status).toHaveTextContent(/vos relevés se sont poursuivis sans ce prélèvement/);
     expect(screen.queryByText(/aucun relevé plus récent/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/résilié/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Interrompu/)).not.toBeInTheDocument();
+  });
+
+  // The guard branch, and it is exhibited here **as a guard**: `ledgerClause`
+  // documents why the current API cannot emit this payload — the route passes
+  // `ledger_last_on` as the engine's `today`, and both stale statuses require
+  // that date to be past `expected_next_on`. This test pins what the guard
+  // would say the day that coupling changes; it is not prose the operator sees
+  // today, and no other test should read as though it were.
+  it("blames the missing statements when the ledger stops before the due date", () => {
+    renderRow({ ...base, status: "ended" }, "2026-05-02");
+    expect(screen.getByText(/Aucun prélèvement depuis le 10 avril 2026/)).toBeInTheDocument();
+    expect(screen.getByText(/2 mai 2026/)).toBeInTheDocument();
+    expect(screen.getByText(/dernière date de votre historique/)).toBeInTheDocument();
+    expect(screen.getByText(/aucun relevé plus récent n'ait été importé/)).toBeInTheDocument();
+    // Whatever the clock, the sentence never asserts a cancellation.
+    expect(screen.queryByText(/résilié/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Interrompu/)).not.toBeInTheDocument();
+    // And never a negative day count, which is what dropping the guard would
+    // print on this payload.
+    expect(screen.queryByText(/−8 jours|-8 jours/)).not.toBeInTheDocument();
   });
 
   it("still says something honest about a silence when the ledger is unknown", () => {

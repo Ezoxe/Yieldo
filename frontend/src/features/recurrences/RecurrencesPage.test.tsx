@@ -15,16 +15,16 @@ const netflix: Recurrence = {
   category_name: "Streaming",
   category_color: "#7ee2d6",
   periodicity: "monthly",
-  occurrences: 8,
+  occurrences: 9,
   first_on: "2025-09-10",
-  last_on: "2026-04-10",
+  last_on: "2026-05-10",
   median_interval_days: 30,
   amount_cents: -1599,
   amount_spread_cents: 0,
   annual_cents: -19188,
-  observed_span_days: 212,
+  observed_span_days: 242,
   annualisable: true,
-  expected_next_on: "2026-05-10",
+  expected_next_on: "2026-06-09",
   status: "active",
   confidence: "confirmed",
   price_change: {
@@ -35,11 +35,21 @@ const netflix: Recurrence = {
   },
 };
 
+// Every date below is anchored so the whole payload is one the backend could
+// actually emit against `ledger_last_on` = 2026-05-20, which is also the
+// `today` the route hands the engine. `missing` needs the ledger past
+// `expected_next_on` + grace (6 days on a 30-day rhythm); `ended` needs it past
+// `last_on` + two intervals + grace. A fixture that ignores that renders prose
+// the operator can never see.
 const gym: Recurrence = {
   ...netflix,
   label: "PRELEVEMENT SEPA SALLE DE SPORT",
   label_key: "salle",
   category_name: "Sport",
+  occurrences: 8,
+  last_on: "2026-04-08",
+  observed_span_days: 210,
+  expected_next_on: "2026-05-08",
   amount_cents: -3990,
   annual_cents: -47880,
   status: "missing",
@@ -66,6 +76,9 @@ const burst: Recurrence = {
   price_change: null,
 };
 
+/** The same burst, seen from a ledger that ran on for four months after it. */
+const staleBurst: Recurrence = { ...burst, status: "ended" };
+
 const salary: Recurrence = {
   ...netflix,
   label: "VIREMENT SEPA RECU SALAIRE",
@@ -83,7 +96,11 @@ const oldFee: Recurrence = {
   category_name: "Assurance",
   amount_cents: -1000,
   annual_cents: -12000,
+  occurrences: 12,
+  first_on: "2024-07-10",
   last_on: "2025-06-10",
+  observed_span_days: 335,
+  expected_next_on: "2025-07-10",
   status: "ended",
   price_change: null,
 };
@@ -92,7 +109,7 @@ const oldFee: Recurrence = {
 // ignored. salary 3 000 000 > burst 836 576 > gym 47 880 > netflix 19 188 >
 // oldFee 12 000.
 const report: RecurrenceReport = {
-  recurrences: [salary, burst, gym, netflix, oldFee],
+  recurrences: [salary, staleBurst, gym, netflix, oldFee],
   annual_subscription_cents: -67068,
   monthly_subscription_cents: -5589,
   analysed_groups: 25,
@@ -101,7 +118,35 @@ const report: RecurrenceReport = {
   notice: null,
   missing_count: 1,
   price_change_count: 1,
-  ledger_last_on: "2026-05-02",
+  ledger_last_on: "2026-05-20",
+};
+
+/**
+ * One annualisable row, and it is a salary. The state the old gate got wrong:
+ * `some(annualisable)` is true, the engine's summing set is empty, and
+ * `annual_subscription_cents` is 0. The engine sends **no notice** here — it
+ * only writes one when nothing at all is annualisable — so the zero would have
+ * arrived on screen with nothing to explain it.
+ */
+const incomeOnly: RecurrenceReport = {
+  ...report,
+  recurrences: [salary, staleBurst],
+  annual_subscription_cents: 0,
+  monthly_subscription_cents: 0,
+  notice: null,
+  missing_count: 0,
+  price_change_count: 0,
+};
+
+/** The other way in: annualisable expenses exist, and every one has gone quiet. */
+const allEnded: RecurrenceReport = {
+  ...report,
+  recurrences: [oldFee, staleBurst],
+  annual_subscription_cents: 0,
+  monthly_subscription_cents: 0,
+  notice: null,
+  missing_count: 0,
+  price_change_count: 0,
 };
 
 /** The operator's own fixture: four bursts, nothing annualisable, total zero. */
@@ -201,7 +246,10 @@ describe("RecurrencesPage", () => {
     setupFetch();
     renderPage();
     expect(await screen.findByText(/1 prélèvement attendu et jamais arrivé/)).toBeInTheDocument();
-    expect(screen.getByText(/1 hausse de prix/)).toBeInTheDocument();
+    // Scoped, and not "depuis le début de l'historique": `find_price_change`
+    // runs on the analysed run only, which the engine cuts at the last hole, so
+    // a change sitting before a lapse was never examined.
+    expect(screen.getByText(/1 hausse de prix sur la période analysée/)).toBeInTheDocument();
   });
 
   // The sort trap: recurrences arrive on descending un-gated `annual_cents`,
@@ -245,7 +293,20 @@ describe("RecurrencesPage", () => {
     // Specific on purpose: the rows name the same date in their own status
     // sentences, which is the point — this asserts the page states the clock
     // once, up front, as well.
-    expect(await screen.findByText(/Statuts jugés au 2 mai 2026/)).toBeInTheDocument();
+    expect(await screen.findByText(/Statuts jugés au 20 mai 2026/)).toBeInTheDocument();
+  });
+
+  // Two slips this caption used to carry: the list also holds income rows,
+  // where nothing was "prélevé", and `annual_cents` *is* calculated for every
+  // row — it is simply not vouched for, so it is not what the list is ordered
+  // on and not what is displayed.
+  it("captions the excluded list without claiming more than it can", async () => {
+    setupFetch();
+    renderPage();
+    await screen.findByText(/NETFLIX/);
+    const caption = screen.getByText(/Classés par montant de l'opération/);
+    expect(caption).toHaveTextContent(/n'est pas retenu/);
+    expect(screen.queryByText(/Classés par montant prélevé/)).not.toBeInTheDocument();
   });
 
   it("counts the labels whose amount is too scattered to be one price", async () => {
@@ -262,6 +323,39 @@ describe("RecurrencesPage", () => {
     expect(await screen.findByText(/Pas encore calculable/)).toBeInTheDocument();
     expect(screen.queryByText(/0,00/)).not.toBeInTheDocument();
     expect(screen.getByText(/Rien d'annualisable/)).toBeInTheDocument();
+    // The other register would be wrong here: nothing has been watched long
+    // enough to be an abonnement en cours or anything else.
+    expect(screen.queryByText(/Aucun abonnement en cours/)).not.toBeInTheDocument();
+  });
+
+  // The gate has to be the set the figure is summed over — live annualisable
+  // *expenses* — and not "something in the payload is annualisable". One
+  // recurring salary past the 91-day bar is enough to satisfy the wider test
+  // while the total stays empty, and the screen would print 0,00 € under a
+  // heading that says subscriptions cost this much a year.
+  it("refuses a zero total when the only annualisable recurrence is income", async () => {
+    setupFetch(() => jsonResponse(incomeOnly));
+    renderPage();
+    expect(await screen.findByText(/Aucun abonnement en cours dans ce total/)).toBeInTheDocument();
+    expect(screen.queryByText(/par an, soit/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Pas encore calculable/)).not.toBeInTheDocument();
+  });
+
+  // The engine writes its notice only when *nothing* is annualisable, so in
+  // this state it sends none and the screen owes the reader the reason itself.
+  it("says why the total is empty when the engine sends no notice", async () => {
+    setupFetch(() => jsonResponse(incomeOnly));
+    renderPage();
+    expect(
+      await screen.findByText(/aucune n'entre dans le total des abonnements/),
+    ).toBeInTheDocument();
+  });
+
+  it("refuses a zero total when every annualisable expense has stopped", async () => {
+    setupFetch(() => jsonResponse(allEnded));
+    renderPage();
+    expect(await screen.findByText(/Aucun abonnement en cours dans ce total/)).toBeInTheDocument();
+    expect(screen.queryByText(/par an, soit/)).not.toBeInTheDocument();
   });
 
   it("still lists what it detected when it can annualise none of it", async () => {

@@ -127,23 +127,37 @@ function daysBetween(fromIso: string, toIso: string): number {
  * of the two readings that supports depends entirely on *where* the data ran
  * out relative to the charge that was due:
  *
- * - The ledger stops on or before the expected date. Nothing has been observed
- *   about that charge at all; the silence is the import history's, not the
- *   merchant's. Asserting a cancellation here would be pure invention — the
- *   operator has simply not imported a statement since.
- * - The ledger runs on past the expected date. Now the statements *did* keep
+ * - The ledger runs on past the expected date. The statements *did* keep
  *   arriving and the charge did not, which is a real, data-backed observation
  *   — so the sentence reports the gap in days and stops there. Still not a
  *   cancellation: a card could have been re-issued under a new label. The
- *   reader is given the fact and left to draw the conclusion.
+ *   reader is given the fact and left to draw the conclusion. **This is the
+ *   only branch reachable through the current API**, and therefore the only
+ *   sentence the operator sees: `api/recurrences.py` hands the engine
+ *   `today = history.date_to` and returns that same date as `ledger_last_on`,
+ *   while `missing` needs `today > expected_next + grace` and `ended` needs
+ *   `today > last_on + 2 * interval + grace`. Both put `ledger_last_on`
+ *   strictly past `expected_next_on`, so `after` is always positive.
+ * - The ledger stops on or before the expected date. Kept deliberately, as a
+ *   guard rather than as live copy. It becomes reachable the moment the two
+ *   dates stop being the same one — and that is not a hypothetical: the
+ *   route's own docstring weighs passing the real `date.today()` as the
+ *   engine's clock and rejects it for this release, and any other caller
+ *   rendering a row against a clock of its own lands here immediately. What it
+ *   guards is a lie of a different kind: the branch above would otherwise
+ *   print "soit −8 jours après l'échéance attendue". Nothing has been observed
+ *   about that charge at all, so the sentence blames the import history and
+ *   not the merchant, which is the honest reading in the world where it fires.
  */
 function ledgerClause(recurrence: Recurrence, ledgerLastOn: string | null): string {
   if (ledgerLastOn === null) return "";
   const after = daysBetween(recurrence.expected_next_on, ledgerLastOn);
-  if (after <= 0) {
-    return ` Le ${frenchDate(ledgerLastOn)} est la dernière date de votre historique, antérieure à cette échéance : rien ne dit que le prélèvement a cessé, il se peut simplement qu'aucun relevé plus récent n'ait été importé.`;
+  if (after > 0) {
+    return ` Le ${frenchDate(ledgerLastOn)} est la dernière date de votre historique, soit ${after} ${plural(after, "jour", "jours")} après l'échéance attendue : vos relevés se sont poursuivis sans ce prélèvement.`;
   }
-  return ` Le ${frenchDate(ledgerLastOn)} est la dernière date de votre historique, soit ${after} ${plural(after, "jour", "jours")} après l'échéance attendue : vos relevés se sont poursuivis sans ce prélèvement.`;
+  // The guard. Unreachable through `api/recurrences.py` as it stands -- see
+  // above for why it is kept and what it prevents.
+  return ` Le ${frenchDate(ledgerLastOn)} est la dernière date de votre historique, antérieure à cette échéance : rien ne dit que le prélèvement a cessé, il se peut simplement qu'aucun relevé plus récent n'ait été importé.`;
 }
 
 function statusSentence(recurrence: Recurrence, ledgerLastOn: string | null): string {

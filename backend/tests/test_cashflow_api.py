@@ -166,6 +166,40 @@ def test_forecast_projects_from_the_ledgers_own_last_date_not_the_real_clock(
     assert any(month["recurring_cents"] != 0 for month in body["months"])
 
 
+def test_forecast_reports_the_scales_and_recurrence_count_the_band_is_built_from(
+    client, imported
+):
+    """`ForecastReport`'s own docstring: these fields exist "so a screen can
+    explain a band without re-measuring it" and "the screen needs the
+    difference to explain what is in the chart" -- dropping them forces task
+    13 to re-derive methodology the engine already measured."""
+    headers, account_id = imported
+    _import_months(client, headers, account_id, "PRELEVEMENT SEPA LOYER", -70_000,
+                   (2025, 1), 10, day=15)
+    _import_unique_months(client, headers, account_id, "ACHAT DIVERS", _VARIED_AMOUNTS,
+                          (2025, 1), day=5)
+
+    body = client.get("/api/cashflow/forecast", headers=headers).json()
+    assert body["recurrences_projected"] == 1
+    assert body["pooled_scale_cents"] > 0
+    assert body["seasonal_scale_cents"] is None or body["seasonal_scale_cents"] >= 0
+
+
+def test_both_payloads_name_their_own_projection_anchor(client, imported):
+    """The forecast and the runway project from two different dates on
+    purpose (see `api/cashflow.py`'s module docstring). Neither payload can
+    leave the screen to infer its anchor from a backend docstring it will
+    never read."""
+    headers, account_id = imported
+    _import_unique_months(client, headers, account_id, "ACHAT DIVERS", _VARIED_AMOUNTS, (2025, 1))
+
+    forecast_body = client.get("/api/cashflow/forecast", headers=headers).json()
+    runway_body = client.get("/api/cashflow/runway", headers=headers).json()
+
+    assert forecast_body["projected_from"] == forecast_body["ledger_last_on"]
+    assert runway_body["projected_from"] == str(date.today())
+
+
 def test_runway_refuses_on_two_observed_months(client, imported):
     headers, _ = imported
     body = client.get("/api/cashflow/runway", headers=headers).json()
@@ -190,6 +224,50 @@ def test_runway_reports_both_scenarios_when_it_can(client, imported):
     assert body["essentials"] is not None
     # Cutting to essentials always costs less than not cutting.
     assert body["essentials"]["monthly_burn_cents"] <= body["normal"]["monthly_burn_cents"]
+
+
+def test_runway_scenarios_carry_their_own_independent_sample_size(client, imported):
+    """`runway.RunwayScenario.rate` publishes the band AND the scenario's OWN
+    sample size -- `essentials` is measured over its own, self-selected set
+    of months, which can be narrower than `normal`'s. A restaurant charge (not
+    essential) runs six months; the essential grocery charge only runs the
+    first four of those -- so `essentials.rate.months` must come out smaller
+    than `normal.rate.months`, and a single combined `months_observed` could
+    never say so."""
+    headers, account_id = imported
+    _import_months(client, headers, account_id, "CARTE X1234 CARREFOUR COURSES",
+                   -20_000, (2025, 1), 4)
+    _import_months(client, headers, account_id, "CARTE X1234 RESTAURANT LE COMPTOIR",
+                   -15_000, (2025, 1), 6)
+
+    body = client.get("/api/cashflow/runway", headers=headers).json()
+    assert body["normal"]["rate"]["months"] == 4
+    assert body["essentials"]["rate"]["months"] == 3
+    assert body["essentials"]["rate"]["months"] < body["normal"]["rate"]["months"]
+    for scenario in (body["normal"], body["essentials"]):
+        rate = scenario["rate"]
+        assert rate["low_cents"] <= rate["median_cents"] <= rate["high_cents"]
+
+
+def test_an_uncategorised_transaction_counts_toward_normal_but_not_essentials(
+    client, imported
+):
+    """Task 10's precondition, carried into task 12: `category_id IS NULL` is
+    not essential. It can only shorten the essentials runway, never inflate
+    it. A label matching no builtin rule stays uncategorised; its spend must
+    widen `normal`'s burn without ever reaching `essentials`'."""
+    headers, account_id = imported
+    _import_months(client, headers, account_id, "CARTE X1234 CARREFOUR COURSES",
+                   -20_000, (2025, 1), 6)
+    _import_months(client, headers, account_id, "ZQXJVK OPERATION 5591 REF 8823",
+                   -50_000, (2025, 1), 6)
+
+    transactions = client.get("/api/transactions?limit=200", headers=headers).json()["items"]
+    unmatched = [t for t in transactions if "ZQXJVK" in t["label_raw"]]
+    assert unmatched and all(t["category_id"] is None for t in unmatched)
+
+    body = client.get("/api/cashflow/runway", headers=headers).json()
+    assert body["normal"]["monthly_burn_cents"] > body["essentials"]["monthly_burn_cents"]
 
 
 def test_runway_reports_how_many_categories_are_marked_essential(client, imported):
@@ -252,7 +330,11 @@ def test_the_operators_own_data_shape_forecast_refuses_and_runway_computes(
     """The operator's real ledger has 3 complete observed months (2025-01 and
     2026-01 are partial; the nine months between are an unimported hole, never
     counted as zero-spend). The forecast's floor is 6, so it refuses; the
-    runway's floor is 3, so it computes and is measured on exactly that count."""
+    runway's floor is 3, so it computes and is measured on exactly that count.
+    The ledger's dates still span thirteen distinct calendar months
+    (2025-01..2026-01 inclusive) -- `ledger_span_months` is what lets the
+    screen tell this dense-looking "3 mois mesurés" apart from a genuinely
+    dense three-month ledger with no hole at all."""
     monkeypatch.setattr(settings, "data_dir", tmp_path)
     settings.uploads_dir.mkdir(parents=True, exist_ok=True)
 
@@ -306,3 +388,4 @@ def test_the_operators_own_data_shape_forecast_refuses_and_runway_computes(
     assert forecast_body["months"] == []
     assert "6 mois" in forecast_body["insufficient_reason"]
     assert runway_body["months_observed"] == 3
+    assert runway_body["ledger_span_months"] == 13

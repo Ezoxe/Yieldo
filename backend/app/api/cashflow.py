@@ -43,7 +43,7 @@ from sqlalchemy.orm import Session
 from app.api.common import liquid_balance_cents, recurrence_points
 from app.api.history import user_history
 from app.db import get_db
-from app.engines.capacity import MonthlyEntry, MonthObservation, complete_months
+from app.engines.capacity import MeasuredRate, MonthlyEntry, MonthObservation, complete_months
 from app.engines.forecast import (
     DEFAULT_HORIZON_MONTHS,
     MAX_HORIZON_MONTHS,
@@ -57,6 +57,7 @@ from app.models import Category, User
 from app.schemas.cashflow import (
     ForecastMonthOut,
     ForecastOut,
+    MeasuredRateOut,
     RunwayOut,
     RunwayScenarioOut,
 )
@@ -87,6 +88,21 @@ def _months(points: list[RecurringTx], start: date, end: date) -> list[MonthObse
         start,
         end,
     )
+
+
+def _ledger_span_months(history: HistoryOut | None) -> int:
+    """The number of distinct calendar months between the ledger's first and
+    last transaction, inclusive -- complete or partial, with or without a
+    hole in between. Deliberately not `complete_months`' notion of
+    "observed": this is raw calendar arithmetic on the ledger's own bounds, so
+    a screen can tell "3 complete months out of a dense 3-month ledger" apart
+    from "3 complete months out of a ledger spanning thirteen calendar months
+    with a nine-month import gap" -- the operator's actual situation.
+    """
+    if history is None:
+        return 0
+    start, end = history.date_from, history.date_to
+    return (end.year - start.year) * 12 + (end.month - start.month) + 1
 
 
 @router.get("/forecast", response_model=ForecastOut)
@@ -147,11 +163,25 @@ def forecast(
         months_observed=report.months_observed,
         ledger_months_observed=report.ledger_months_observed,
         seasonality_used=report.seasonality_used,
+        recurrences_projected=report.recurrences_projected,
+        pooled_scale_cents=report.pooled_scale_cents,
+        seasonal_scale_cents=report.seasonal_scale_cents,
         threshold_cents=report.threshold_cents,
         first_breach_key=report.first_breach_key,
         opening_balance_cents=report.opening_balance_cents,
         insufficient_reason=report.insufficient_reason,
+        projected_from=today,
         ledger_last_on=history.date_to if history is not None else None,
+    )
+
+
+def _rate_out(rate: MeasuredRate) -> MeasuredRateOut:
+    return MeasuredRateOut(
+        months=rate.months,
+        median_cents=rate.median_cents,
+        spread_cents=rate.spread_cents,
+        low_cents=rate.low_cents,
+        high_cents=rate.high_cents,
     )
 
 
@@ -161,6 +191,7 @@ def _scenario_out(scenario: RunwayScenario | None) -> RunwayScenarioOut | None:
     return RunwayScenarioOut(
         name=scenario.name,
         monthly_burn_cents=scenario.monthly_burn_cents,
+        rate=_rate_out(scenario.rate),
         months=scenario.months,
         depleted_on=scenario.depleted_on,
     )
@@ -203,10 +234,12 @@ def runway(
     return RunwayOut(
         balance_cents=report.balance_cents,
         months_observed=report.months_observed,
+        ledger_span_months=_ledger_span_months(history),
         normal=_scenario_out(report.normal),
         essentials=_scenario_out(report.essentials),
         normal_unavailable_reason=report.normal_unavailable_reason,
         essentials_unavailable_reason=report.essentials_unavailable_reason,
         essential_category_count=len(essential_ids),
+        projected_from=today,
         ledger_last_on=history.date_to if history is not None else None,
     )

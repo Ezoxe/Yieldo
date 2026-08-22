@@ -41,8 +41,10 @@ def test_two_months_of_history_measures_nothing_and_says_so():
     report = compute_runway(600_000, months, months, TODAY)
     assert report.normal is None
     assert report.essentials is None
-    assert report.insufficient_reason is not None
-    assert "3 mois" in report.insufficient_reason
+    assert report.normal_unavailable_reason is not None
+    assert "3 mois" in report.normal_unavailable_reason
+    assert report.essentials_unavailable_reason is not None
+    assert "3 mois" in report.essentials_unavailable_reason
     assert report.months_observed == 2
 
 
@@ -73,7 +75,51 @@ def test_a_household_that_spends_nothing_has_no_runway_to_quote():
     months = _months((2025, 2, 100_000), (2025, 3, 100_000), (2025, 4, 100_000))
     report = compute_runway(600_000, months, months, TODAY)
     assert report.normal is None
-    assert report.insufficient_reason is not None
+    assert report.normal_unavailable_reason is not None
+    # Three months WERE observed here -- the failure is that nothing was spent,
+    # not that history is short. The message must name the actual cause and
+    # must not claim a month-count shortfall it does not have -- the exact
+    # self-contradiction the code review flagged: "il faut au moins 3 mois
+    # ... et l'historique en compte 3", produced on this very branch before
+    # the fix (3 months were observed, yet the message demanded 3 months).
+    assert "il faut au moins" not in report.normal_unavailable_reason
+    assert "déficitaire" in report.normal_unavailable_reason
+
+
+def test_essentials_gets_its_own_reason_when_only_it_is_unmeasurable():
+    """`essentials` is measured over its own, self-selected set of months --
+    it can fail on its own even when `normal` succeeds, and the screen needs
+    a reason to display next to it rather than a blank next to a working
+    `normal` scenario."""
+    all_months = _months((2025, 2, -190_000), (2025, 3, -190_000), (2025, 4, -190_000))
+    essential_months = _months((2025, 2, -80_000), (2025, 3, -80_000))  # only 2 months
+    report = compute_runway(600_000, all_months, essential_months, TODAY)
+    assert report.normal is not None
+    assert report.normal_unavailable_reason is None
+    assert report.essentials is None
+    assert report.essentials_unavailable_reason is not None
+    assert "3 mois" in report.essentials_unavailable_reason
+
+
+def test_each_scenario_exposes_its_own_measured_rate_and_sample_size():
+    """A screen wanting the band ("entre 5 et 7,5 mois") must not have to call
+    `measure_expense_rate` a second time on the same months, and since
+    `essentials` is measured over a different, self-selected set of months
+    than `normal`, its own sample size has to be visible on the scenario
+    itself rather than only on the report's single `months_observed`."""
+    # Varied amounts, not constant ones: a constant sample has zero MAD by
+    # construction (see robust.py), which would collapse low/median/high to
+    # the same point and prove nothing about the band being exposed.
+    all_months = _months((2025, 2, -90_000), (2025, 3, -100_000), (2025, 4, -110_000))
+    essential_months = _months(
+        (2025, 2, -45_000), (2025, 3, -50_000), (2025, 4, -50_000), (2025, 5, -55_000)
+    )
+    report = compute_runway(600_000, all_months, essential_months, TODAY)
+    assert report.normal.rate.months == 3
+    band = report.normal.rate
+    assert band.low_cents < band.median_cents < band.high_cents
+    assert report.essentials.rate.months == 4
+    assert report.essentials.rate.months != report.normal.rate.months
 
 
 def test_an_improbably_long_runway_states_the_months_but_no_date():

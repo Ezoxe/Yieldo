@@ -154,3 +154,34 @@ def test_the_operators_eight_empty_months_are_excluded_not_zeroed():
     naive_median = naive_outflows_with_zeros[len(naive_outflows_with_zeros) // 2]
     assert naive_median == 0
     assert rate.median_cents > naive_median
+
+
+def test_ledger_bounds_must_reflect_actual_data_coverage_not_a_requested_window():
+    """`complete_months` only checks whether a month's calendar bounds fall
+    inside [ledger_start, ledger_end] -- it has no independent way to know
+    whether those two dates are where the data actually starts and ends, or
+    merely a display window the caller asked for. That is a precondition on
+    the caller, not something this function can verify itself.
+
+    Passing the true data extent (the min/max date actually covered by
+    imported statements) is what makes the partial-month guard work, exactly
+    as the other tests in this module show. Passing a *requested* window
+    instead -- wider than what the data actually covers -- silently defeats
+    that guard: a month that only holds one week of real statements gets
+    admitted as "complete" because it no longer straddles the (too generous)
+    bounds. This is the caller-side reintroduction of the "quarter of the
+    truth" failure this module exists to prevent, and it is one-directional:
+    a wider window can only ever admit extra, partial months, never drop a
+    genuine one.
+    """
+    entries = [MonthlyEntry(on=date(2025, 1, 24), amount_cents=-50_000)]  # one week only
+
+    # Correct usage: bounds are the true extent of the data (a single week).
+    honest = complete_months(entries, date(2025, 1, 24), date(2025, 1, 24))
+    assert honest == []
+
+    # Misuse: bounds are a requested display window (the calendar year),
+    # wider than what the data actually covers.
+    requested_window = complete_months(entries, date(2025, 1, 1), date(2025, 12, 31))
+    assert requested_window[0].key == "2025-01"
+    assert requested_window[0].count == 1  # one week of statements, called "complete"

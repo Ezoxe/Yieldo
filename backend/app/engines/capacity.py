@@ -69,7 +69,23 @@ class MeasuredRate:
 def complete_months(
     entries: list[MonthlyEntry], ledger_start: date, ledger_end: date
 ) -> list[MonthObservation]:
-    """Every whole calendar month inside the ledger that actually holds activity."""
+    """Every whole calendar month inside the ledger that actually holds activity.
+
+    Precondition on `ledger_start` / `ledger_end`: they must be the *actual*
+    extent of the caller's data -- the minimum and maximum date genuinely
+    covered by imported statements -- never a requested display window (a
+    "last 12 months" filter, a custom date-range picker, etc). This function
+    has no way to tell the two apart: it only checks whether a month's
+    calendar bounds fall inside [ledger_start, ledger_end], so passing bounds
+    wider than what the data actually covers silently defeats the
+    partial-month guard below and admits a month holding only a week of real
+    statements as "complete". Widening the bounds can only ever *admit* extra,
+    partial months this way -- it can never drop a genuine one -- which is
+    exactly the module docstring's "quarter of the truth" failure,
+    reintroduced from the caller's side. See
+    `test_ledger_bounds_must_reflect_actual_data_coverage_not_a_requested_window`
+    in `test_capacity.py` for both sides of this side by side.
+    """
     buckets: dict[str, list[int]] = {}
     for entry in entries:
         if entry.on < ledger_start or entry.on > ledger_end:

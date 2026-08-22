@@ -424,10 +424,14 @@ def test_a_month_with_no_seasonal_estimate_is_priced_against_the_pooled_spread()
     # its half-width cannot be narrower than that sigma's own P10/P90 offset.
     pooled_offset = quantile_offset_cents(fallback.pooled_scale_cents, P90_SIGMAS)
     assert _width(fallback.months[0]) // 2 >= pooled_offset
-    # And a seasonal month must be nowhere near it -- it is priced on two
-    # Januaries agreeing within 4 EUR, not on the spread between a 100 EUR month
-    # and an 800 EUR one.
-    assert _width(seasonal.months[0]) // 2 < pooled_offset
+
+    # The seasonal side needs an upper bound against its *own* scale, not merely
+    # "less than the pooled one": that weaker form leaves 130x of slack and would
+    # pass unchanged if seasonal months were priced at half the pooled scale.
+    # One month out the exact multiplier is sqrt(1 + (pi/2)/2) = 1.336, so twice
+    # the seasonal scale's own offset is a ceiling nothing mis-priced fits under.
+    seasonal_offset = quantile_offset_cents(seasonal.seasonal_scale_cents, P90_SIGMAS)
+    assert _width(seasonal.months[0]) // 2 <= 2 * seasonal_offset
 
 
 def test_the_two_scales_are_measured_over_their_own_populations():
@@ -442,6 +446,74 @@ def test_the_two_scales_are_measured_over_their_own_populations():
     assert report.pooled_scale_cents == 51_891
     # Within-month spread: every calendar month repeats within 2 EUR of itself.
     assert report.seasonal_scale_cents == 297
+
+
+def _thirteen_months_with_one_cent_exact_calendar_month() -> ResidualHistory:
+    """January 2025 to January 2026. January is the only calendar month observed
+    twice, and the two Januaries agree to the cent. The eleven other months vary
+    perfectly normally."""
+    jitter = [0, 1_500, -1_200, 800, -900, 2_000, -1_700, 600, -400, 1_100, -1_300]
+    entries = (
+        [MonthlyEntry(on=date(2025, 1, 15), amount_cents=-10_000)]
+        + [
+            MonthlyEntry(
+                on=date(2025, month, 15), amount_cents=-10_000 + jitter[month - 2]
+            )
+            for month in range(2, 13)
+        ]
+        + [MonthlyEntry(on=date(2026, 1, 15), amount_cents=-10_000)]
+    )
+    observations = complete_months(entries, date(2025, 1, 1), date(2026, 1, 31))
+    return ResidualHistory(observations, len(observations))
+
+
+def test_a_cent_exact_calendar_month_falls_back_instead_of_killing_the_forecast():
+    """A calendar month whose two samples never move carries no information about
+    how *that* month varies -- so there is no seasonal estimate to price it
+    against, and it belongs on the pooled centre and scale like any other month
+    the model cannot explain.
+
+    Refusing the whole twelve-month projection because one calendar month came
+    out cent-exact would be a total feature loss for a condition that says
+    nothing about the other eleven months, all of which have a perfectly healthy
+    pooled scale. It is reachable at thirteen observed months, which is one
+    import away from the operator.
+    """
+    history = _thirteen_months_with_one_cent_exact_calendar_month()
+    assert len(history.observations) == 13
+
+    report = project_cashflow(1_000_000, history, [], date(2026, 1, 20))
+    assert report.insufficient_reason is None
+    assert len(report.months) == 12
+    assert report.pooled_scale_cents > 0
+    # No usable seasonal estimate exists, so none is claimed.
+    assert report.seasonal_scale_cents is None
+    assert report.seasonality_used is False
+    assert all(month.seasonal is False for month in report.months)
+    assert all(month.residual_cents == report.months[0].residual_cents
+               for month in report.months)
+
+
+def test_the_no_dispersion_refusal_is_only_used_when_it_is_true():
+    """`_reason_no_dispersion` claims the observed months "ne varient pas d'un
+    mois à l'autre". That must be reachable only when it is actually so -- a
+    degenerate *seasonal* scale sitting on top of a healthy pooled one is a
+    different situation and telling the reader that would be the wrong-cause
+    defect all over again."""
+    healthy = project_cashflow(
+        1_000_000, _thirteen_months_with_one_cent_exact_calendar_month(), [],
+        date(2026, 1, 20),
+    )
+    assert healthy.insufficient_reason is None
+
+    entries = [
+        MonthlyEntry(on=date(2025, month, 15), amount_cents=-10_000)
+        for month in range(1, 7)
+    ]
+    flat = complete_months(entries, date(2025, 1, 1), date(2025, 12, 31))
+    refused = project_cashflow(100_000, ResidualHistory(flat, len(flat)), [], TODAY)
+    assert "ne varient pas d'un mois à l'autre" in refused.insufficient_reason
+    assert refused.pooled_scale_cents == 0
 
 
 def test_the_seasonal_scale_is_absent_when_no_month_has_one():

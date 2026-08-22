@@ -423,9 +423,19 @@ def project_cashflow(
     but the band would not widen to say so, and a band that fails to widen where
     the estimate is weakest is decoration.
 
-    Both cases degenerate to a single scale exactly as before: with no
-    seasonality every month uses the pooled scale, and with every horizon month
-    seasonal every month uses the seasonal one.
+    Both cases collapse back to a single scale: with no seasonality every month
+    uses the pooled one, and with every horizon month seasonal every month uses
+    the seasonal one. The algebra is identical to the single-scale form that
+    preceded it -- subtracting a constant from every value shifts the median by
+    that same constant, leaving the MAD untouched -- but the arithmetic is not
+    quite: the variance is now accumulated and rounded to whole cents before
+    `quantile_offset_cents` scales it, where a single factored-out sigma was
+    rounded once. A published band can therefore sit one cent off the figure the
+    single-scale form produced. Same model, one extra rounding.
+
+    A calendar month eligible for a seasonal centre whose samples never actually
+    move yields no usable scale, and falls back to the pooled centre and scale
+    rather than refusing -- see the `seasonal_scale` assignment.
 
     The estimated scale is treated as known. At six observations it carries
     roughly 30 % relative error of its own, which nothing here prices in -- that
@@ -463,12 +473,24 @@ def project_cashflow(
             observation.net_cents
         )
 
-    def centre_of(calendar_month: int) -> tuple[int, bool, int]:
-        """(residual, seasonal, sample size) for one calendar month."""
+    if pooled_scale == 0:
+        # Every observed month is identical to the cent, so there is no scale to
+        # measure against anywhere and any band drawn would be manufactured.
+        # `robust.modified_z` refuses the same input for the same reason. This is
+        # the *only* degenerate case that can refuse: a degenerate seasonal scale
+        # is handled by falling back, below, and `pooled_scale == 0` implies every
+        # seasonal deviation is 0 too, so this branch subsumes it.
+        return _refusal(
+            balance_cents, observed, ledger_months, threshold_cents,
+            _reason_no_dispersion(observed),
+        )
+
+    def eligible(calendar_month: int) -> bool:
+        """Whether this calendar month has been seen often enough to have a
+        centre of its own. Eligibility is about sample *count*; whether a usable
+        scale came out of those samples is decided once, below."""
         samples = by_calendar_month.get(calendar_month, [])
-        if len(samples) >= MIN_OBSERVATIONS_FOR_SEASONALITY:
-            return median_cents(samples), True, len(samples)
-        return pooled, False, observed
+        return len(samples) >= MIN_OBSERVATIONS_FOR_SEASONALITY
 
     # What a calendar month varies by against *itself*, measured only over the
     # observations that have such a centre. Measuring one scale across both
@@ -476,33 +498,34 @@ def project_cashflow(
     # the MAD and then price the fallback months -- the least known months in the
     # horizon -- with it.
     seasonal_deviations = [
-        observation.net_cents - centre_of(observation.start.month)[0]
+        observation.net_cents - median_cents(by_calendar_month[observation.start.month])
         for observation in residual_observations
-        if centre_of(observation.start.month)[1]
+        if eligible(observation.start.month)
     ]
-    seasonal_scale = describe(seasonal_deviations).sigma if seasonal_deviations else None
+    seasonal_scale: int | None = None
+    if seasonal_deviations:
+        # `describe(...).sigma` is 0 only when every value is identical, so a zero
+        # here means every doubled calendar month repeated to the cent. A calendar
+        # month whose samples never move tells us nothing about how *that* month
+        # varies, so there is no seasonal estimate to price it against and it
+        # belongs on the pooled centre and scale like any other month the model
+        # cannot explain. Refusing the whole projection instead would be a total
+        # feature loss over a condition that says nothing about the validity of
+        # the other months -- and it is reachable at thirteen observed months,
+        # where a single doubled calendar month decides it.
+        seasonal_scale = describe(seasonal_deviations).sigma or None
+
+    def centre_of(calendar_month: int) -> tuple[int, bool, int]:
+        """(residual, seasonal, sample size) for one calendar month."""
+        if seasonal_scale is not None and eligible(calendar_month):
+            samples = by_calendar_month[calendar_month]
+            return median_cents(samples), True, len(samples)
+        return pooled, False, observed
 
     keys = _future_month_keys(today, horizon_months)
     horizon_start = bucket_bounds(keys[0], "month")[0]
     horizon_end = bucket_bounds(keys[-1], "month")[1]
     recurring = _recurring_by_month(recurrences, keys, horizon_start, horizon_end)
-
-    # Refuse on a scale of zero, but only for a scale this horizon actually uses:
-    # a degenerate seasonal scale is irrelevant to a horizon projected entirely
-    # from the pooled one, and vice versa. `robust.modified_z` refuses the same
-    # input for the same reason -- with every observation identical there is no
-    # scale to measure against, and any band drawn here would be manufactured.
-    horizon_is_seasonal = [
-        centre_of(bucket_bounds(key, "month")[0].month)[1] for key in keys
-    ]
-    degenerate = (not all(horizon_is_seasonal) and pooled_scale == 0) or (
-        any(horizon_is_seasonal) and seasonal_scale == 0
-    )
-    if degenerate:
-        return _refusal(
-            balance_cents, observed, ledger_months, threshold_cents,
-            _reason_no_dispersion(observed),
-        )
 
     months: list[ForecastMonth] = []
     seasonality_used = False
@@ -545,6 +568,16 @@ def project_cashflow(
         # Back to integer cents at the combined standard deviation, which is
         # itself a cents quantity, before `quantile_offset_cents` turns it into a
         # band half-width. No monetary value is ever stored as a float.
+        #
+        # Bare `round()` is banker's rounding, which this repository otherwise
+        # avoids -- `robust._half` and `recurrence._divide` both exist because
+        # rounding a signed amount to even biases a series of expenses one way
+        # and a series of incomes the other. Nothing to bias here: this is a
+        # square root of a sum of squares, so it is non-negative by construction
+        # and never a signed amount. A half-cent tie resolves to even rather than
+        # away from zero, which moves a band edge by at most one cent and cannot
+        # accumulate a direction. `robust.describe` rounds its own sigma the same
+        # way, for the same reason.
         combined_scale = round(math.sqrt(noise_variance + centre_variance))
         half_width = quantile_offset_cents(combined_scale, P90_SIGMAS)
         low = running - half_width

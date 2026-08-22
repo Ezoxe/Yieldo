@@ -353,3 +353,130 @@ export interface RecurrenceReport {
    */
   ledger_last_on: string | null;
 }
+
+// Cash-flow forecast and runway — mirrors backend/app/schemas/cashflow.py.
+// Both engines are measured, never asserted: a forecast month carries a band
+// (P10/P50/P90), never a single line, and a runway scenario carries its own
+// measured rate rather than a bare number.
+
+export interface ForecastMonth {
+  key: string;
+  start: string;
+  end: string;
+  /** Recurring flows due this month, signed. */
+  recurring_cents: number;
+  /** Everything else, signed. */
+  residual_cents: number;
+  net_p50_cents: number;
+  balance_p10_cents: number;
+  balance_p50_cents: number;
+  balance_p90_cents: number;
+  below_threshold: boolean;
+  /** True when this month's estimate came from observations of this same
+   *  calendar month rather than from the pooled median. */
+  seasonal: boolean;
+}
+
+export interface Forecast {
+  months: ForecastMonth[];
+  /** Months carrying residual (non-recurring) activity — what the band was
+   *  actually measured over. */
+  months_observed: number;
+  /** Complete months the ledger itself covers, independent of whether any of
+   *  them carried residual activity. Not the same number as `months_observed`
+   *  — a month whose whole activity was recurring carries no residual and is
+   *  absent from it. */
+  ledger_months_observed: number;
+  seasonality_used: boolean;
+  /** How many recurrences were actually projected forward — not how many
+   *  were detected. An ended or too-young recurrence is deliberately absent
+   *  from the chart. */
+  recurrences_projected: number;
+  threshold_cents: number;
+  first_breach_key: string | null;
+  opening_balance_cents: number;
+  /** French, non-null exactly when `months` is empty. Print it. */
+  insufficient_reason: string | null;
+  /** The date this projection actually starts counting from — the ledger's
+   *  own last transaction date, not necessarily today's real calendar date.
+   *  Read this field rather than assume "today" means the real date. */
+  projected_from: string;
+  /** The ledger's own last transaction date, or null on an empty ledger. */
+  ledger_last_on: string | null;
+  /** The two scales the band is built from, published so a screen can
+   *  explain the band without re-measuring it.
+   *  0 on a refusal (`months` empty); read `insufficient_reason` first,
+   *  never this field on its own in that case. */
+  pooled_scale_cents: number;
+  /**
+   * Null for two different reasons, and neither is a refusal: no calendar
+   * month reached the seasonality sample floor, so nothing was there to
+   * measure; or the eligible months were measured and came out cent-exact,
+   * so the measurement carries no information. Either way every projected
+   * month falls back to the pooled centre and scale, and the projection
+   * runs normally — see `app/engines/forecast.py`'s `seasonal_scale_cents`
+   * comment. Never a reason on its own to treat the forecast as unavailable.
+   */
+  seasonal_scale_cents: number | null;
+}
+
+/** Mirrors `MeasuredRateOut`: a rate measured from history, with its
+ *  variability. `low_cents` / `high_cents` are the P10 / P90 equivalents —
+ *  a rate quoted without them invites the reader to treat a median as a
+ *  certainty. */
+export interface MeasuredRate {
+  /** How many months THIS rate was measured over — not the same as
+   *  `Runway.months_observed`, which is `normal`'s own sample size.
+   *  `essentials` is measured over its own, self-selected set of months
+   *  (only those carrying essential-tagged spending), which can be
+   *  narrower. */
+  months: number;
+  median_cents: number;
+  spread_cents: number;
+  low_cents: number;
+  high_cents: number;
+}
+
+export interface RunwayScenario {
+  name: "normal" | "essentials";
+  monthly_burn_cents: number;
+  /** The full measured rate this scenario's burn was derived from. */
+  rate: MeasuredRate;
+  /** A duration in months, not money. Fractional on purpose: a runway of
+   *  0,4 mois is a real and important answer. */
+  months: number;
+  /** null when the runway is longer than fifty years, where a calendar date
+   *  would be noise. */
+  depleted_on: string | null;
+}
+
+export interface Runway {
+  balance_cents: number;
+  /** Complete months the whole ledger covers — `normal`'s own sample size.
+   *  `essentials`' own sample size lives on `essentials.rate.months`
+   *  instead, since it is measured over a different, self-selected set of
+   *  months. */
+  months_observed: number;
+  /** The number of distinct calendar months the ledger's dates touch, from
+   *  its first transaction's month to its last's, inclusive. Not the same
+   *  claim as `months_observed`: a ledger spanning thirteen calendar months
+   *  but measuring only three complete ones looks identical to a dense
+   *  three-month ledger unless this field is read alongside it. 0 on an
+   *  empty ledger. */
+  ledger_span_months: number;
+  normal: RunwayScenario | null;
+  essentials: RunwayScenario | null;
+  /** French. Set exactly when `normal` is null. */
+  normal_unavailable_reason: string | null;
+  /** French. Set exactly when `essentials` is null — `essentials` is
+   *  measured over its own set of months and can fail on its own even when
+   *  `normal` succeeds. */
+  essentials_unavailable_reason: string | null;
+  /** How many categories the reduced scenario rests on. A scenario built on
+   *  an empty essential list is not a scenario. */
+  essential_category_count: number;
+  /** The date `depleted_on` counts forward from — the real calendar date,
+   *  unlike `Forecast.projected_from`. */
+  projected_from: string;
+  ledger_last_on: string | null;
+}

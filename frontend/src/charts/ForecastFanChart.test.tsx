@@ -72,6 +72,51 @@ describe("buildForecastOption", () => {
     expect(band?.data).toEqual([40000, 100000, 200000]);
   });
 
+  it("keeps the band anchored on P10 when P10 is negative", () => {
+    // The last fixture month has P10 = -20 000 c and a positive height. Under
+    // ECharts' DEFAULT `stackStrategy: "samesign"` a stacked value is only
+    // chained onto the previous series' when both share a sign, so a negative
+    // floor plus a positive height is not chained at all: the band would be
+    // drawn from the axis' zero baseline instead of from P10, erasing exactly
+    // the overdraft the P10 estimate exists to warn about. Only "all" stacks
+    // unconditionally. This pins the option; the drawn result was verified in
+    // a browser (see the task 13 report).
+    const { option } = buildForecastOption(months, 0, tokens);
+    const series = option.series as Array<{ stack?: string; stackStrategy?: string }>;
+    const stacked = series.filter((s) => s.stack === "confidence");
+    expect(stacked).toHaveLength(2);
+    for (const s of stacked) expect(s.stackStrategy).toBe("all");
+    expect(months.some((m) => m.balance_p10_cents < 0)).toBe(true);
+  });
+
+  it("paints the band's legend swatch with the same wash as the band", () => {
+    // ECharts' legend itemStyle defaults every property to "inherit" and reads
+    // them off the series' `itemStyle` -- never off `areaStyle`, which is where
+    // the band's real translucency lives. Without a matching opacity the key
+    // shows a solid teal block for a pale wash.
+    const { option } = buildForecastOption(months, 0, tokens);
+    const series = option.series as Array<{
+      name?: string;
+      areaStyle?: { color?: string; opacity?: number };
+      itemStyle?: { color?: string; opacity?: number };
+    }>;
+    const band = series.find((s) => s.name === "Intervalle P10–P90");
+    expect(band?.itemStyle?.color).toBe(band?.areaStyle?.color);
+    expect(band?.itemStyle?.opacity).toBe(band?.areaStyle?.opacity);
+  });
+
+  it("gives the median's legend entry the series' own mark, not a block", () => {
+    // `charts/theme.ts` forces `legend.icon: "roundRect"` app-wide, which would
+    // render both entries as near-identical teal blocks (accent against
+    // accentStrong is ~1.32:1). "inherit" routes this entry through
+    // LineSeriesModel.getLegendIcon, which draws the dashed stroke and its
+    // round symbol -- so the two entries differ by shape, not only by hue.
+    const { option } = buildForecastOption(months, 0, tokens);
+    const data = (option.legend as { data?: Array<{ name?: string; icon?: string }> }).data ?? [];
+    expect(data.find((entry) => entry.name === "Solde projeté (médiane)")?.icon).toBe("inherit");
+    expect(data.find((entry) => entry.name === "Intervalle P10–P90")?.icon).toBeUndefined();
+  });
+
   it("marks the threshold so the reader can see where the floor is", () => {
     const { option } = buildForecastOption(months, 0, tokens);
     const series = option.series as Array<{ name?: string; markLine?: unknown }>;

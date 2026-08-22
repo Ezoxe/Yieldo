@@ -40,6 +40,11 @@ export interface ForecastOptionResult {
  * from P10 to (P10 + P90) and put the shaded region roughly twice as high as
  * the truth.
  *
+ * That technique is only correct with `stackStrategy: "all"` on the stack.
+ * ECharts' default refuses to chain a positive height onto a negative floor,
+ * which silently re-anchors the band at zero on exactly the months the reader
+ * most needs to see — the ones dipping into overdraft. See the band series.
+ *
  * The median is dashed on purpose. `charts/theme.ts` reserves solid strokes
  * for measured reference lines and dashes for anything projected; every
  * value on this chart is projected.
@@ -54,7 +59,17 @@ export function buildForecastOption(
 
   const option: EChartsOption = {
     legend: {
-      data: ["Intervalle P10–P90", "Solde projeté (médiane)"],
+      data: [
+        { name: "Intervalle P10–P90" },
+        // `charts/theme.ts` forces `legend.icon: "roundRect"` app-wide, which
+        // would draw both entries as blocks of two teals that sit ~1.32:1
+        // apart -- legible only because the labels differ. "inherit" routes
+        // this entry through ECharts' LineSeriesModel.getLegendIcon, which
+        // draws the series' actual mark: the dashed stroke and its round
+        // symbol. The band keeps the block, so the two entries now differ by
+        // shape as well as by hue, which is how they differ on the plot.
+        { name: "Solde projeté (médiane)", icon: "inherit" },
+      ],
       top: 0,
       // These two labels are longer than any other chart's legend in this
       // app (French, and there are two of them) -- reserving the export
@@ -97,6 +112,10 @@ export function buildForecastOption(
         name: "P10",
         type: "line",
         stack: "confidence",
+        // Inert on the first series of a stack (nothing below it to chain
+        // onto) but declared here so the whole stack group states one
+        // strategy -- see the band series below for why it matters.
+        stackStrategy: "all",
         symbol: "none",
         lineStyle: { opacity: 0 },
         areaStyle: { opacity: 0 },
@@ -107,13 +126,28 @@ export function buildForecastOption(
         name: "Intervalle P10–P90",
         type: "line",
         stack: "confidence",
+        // Load-bearing. ECharts' default is `stackStrategy: "samesign"`, which
+        // only chains a stacked value onto the one below it when both share a
+        // sign. This series carries a HEIGHT (always >= 0) sitting on a FLOOR
+        // that goes negative the moment the projection dips into overdraft --
+        // opposite signs, so "samesign" refuses to chain them, leaves the
+        // stacked-over value NaN, and ECharts falls back to the axis' value
+        // start, which is 0 whenever the axis spans both signs. The band would
+        // then be drawn from 0 upward: the right width, anchored in the wrong
+        // place, hiding the very overdraft the P10 estimate exists to warn
+        // about. "all" stacks unconditionally.
+        stackStrategy: "all",
         symbol: "none",
         lineStyle: { opacity: 0 },
         areaStyle: { color: tokens.accent, opacity: 0.18 },
-        // Without this, ECharts' legend swatch falls back to the theme's
-        // default categorical color (the palette's second entry, an orange)
-        // instead of matching the area actually drawn on the chart.
-        itemStyle: { color: tokens.accent },
+        // ECharts' legend defaults every itemStyle property to "inherit" and
+        // resolves them off the SERIES' itemStyle -- never off areaStyle,
+        // where this band's real colour and translucency live. Left unset,
+        // the swatch falls back to the theme's default categorical colour (an
+        // orange); set to the colour alone, it renders that teal at full
+        // saturation for what is drawn as a pale wash. Both values are
+        // mirrored so the key shows the band as the reader actually sees it.
+        itemStyle: { color: tokens.accent, opacity: 0.18 },
         // The band's HEIGHT, not its top edge — see the doc comment above.
         data: months.map((month) => month.balance_p90_cents - month.balance_p10_cents),
       },

@@ -5481,20 +5481,36 @@ def forecast(
 ) -> ForecastOut:
     """Twelve months of projected balance, as a P10/P50/P90 band.
 
-    The recurring half and the residual half are kept disjoint: the residual
-    observations are built from rows whose label key is NOT in the detected
-    recurrence set, so rent is projected once, from its own schedule, and never
-    a second time inside a monthly average.
+    The recurring half and the residual half are kept disjoint by
+    `forecast.build_observations`, which windows the subtraction per
+    recurrence. Do NOT filter on `recurring_keys` here: a key is authoritative
+    only over its own recurrence's [first_on, last_on], because
+    `_analysable_run` cuts a group at its last hole, so a subscription that
+    lapsed and resumed would lose its pre-lapse rows from the residual on the
+    authority of a run that excluded them.
+
+    `_ledger_bounds` must return the min/max of actually-imported transaction
+    dates, never a requested window. Wider bounds never add empty months, but
+    they admit PARTIAL ones as complete, which is the failure the capacity
+    engine exists to prevent.
     """
     today = date.today()
     points = recurrence_points(db, user.id)
     detected = detect_recurrences(points, today)
     start, end = _ledger_bounds(db, user.id, today)
 
-    residual_points = [p for p in points if p.label_key not in detected.recurring_keys]
+    history = build_observations(
+        entries=[
+            LedgerEntry(on=p.on, amount_cents=p.amount_cents, label_key=p.label_key)
+            for p in points
+        ],
+        recurrences=detected.recurrences,
+        ledger_start=start,
+        ledger_end=end,
+    )
     report = project_cashflow(
         balance_cents=liquid_balance_cents(db, user.id),
-        residual_observations=_months(residual_points, start, end),
+        history=history,
         recurrences=detected.recurrences,
         today=today,
         horizon_months=months,

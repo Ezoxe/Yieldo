@@ -303,6 +303,20 @@ describe("AnalysisPage — anomalies", () => {
     expect(screen.getByText(/prime d'assurance annuelle/)).toBeInTheDocument();
   });
 
+  // With MAD 0 the score falls back to the mean absolute deviation, rounded to
+  // integer cents (`engines/robust.py`). Six cents inside a twelve-row group
+  // gives `mean_ad = 1` and a z of about 4.8; the same six cents inside a
+  // thirty-row group rounds `mean_ad` to 0, `modified_z` returns `None`, and no
+  // line appears. The caption must not promise the reader a size it cannot
+  // always deliver.
+  it("does not promise that six cents always surfaces a line", async () => {
+    setupFetch();
+    renderPage();
+    const caption = await screen.findByText(/n'est pas un reproche/);
+    expect(caption).toHaveTextContent(/quelques centimes peuvent suffire/);
+    expect(caption.textContent).not.toMatch(/six centimes/);
+  });
+
   // Requirement 3: `category_median_cents` is a magnitude, `amount_cents` is
   // signed. The gap is |‖amount‖ − median|, and the screen states it so the
   // reader never subtracts the two figures as printed.
@@ -351,10 +365,26 @@ describe("AnalysisPage — anomalies", () => {
     expect(screen.getByText(/1 groupe non analysé/)).toBeInTheDocument();
   });
 
+  // `scored_groups: 0` with an empty `skipped` is NOT proof of an empty window.
+  // `detect_anomalies` drops every `category_id is None` row before grouping and
+  // `anomaly_points` filters transfers out of the query, so a window holding
+  // only uncategorised rows — every ledger between import and categorisation —
+  // or only internal transfers produces exactly the same pair of values. The
+  // sentence has to say what is actually true of all three cases, and must never
+  // tell the reader to import statements they have already imported.
   it("tells an empty window apart from a ledger with no usable history", async () => {
     setupFetch({ anomalies: () => jsonResponse(emptyWindow) });
     renderPage();
-    expect(await screen.findByText(/Aucune opération sur cette période/)).toBeInTheDocument();
+    const sentence = await screen.findByText(/Aucune opération catégorisée sur cette période/);
+    expect(sentence).toHaveTextContent(/virements internes/);
+    expect(sentence.textContent).not.toMatch(/importez des relevés/);
+  });
+
+  it("names categorisation, not importing, as what an unscored window may be missing", async () => {
+    setupFetch({ anomalies: () => jsonResponse(emptyWindow) });
+    renderPage();
+    const sentence = await screen.findByText(/Aucune opération catégorisée sur cette période/);
+    expect(sentence).toHaveTextContent(/catégoris/);
   });
 
   it("says nothing stood out when groups were scored and none qualified", async () => {
@@ -381,13 +411,33 @@ describe("AnalysisPage — loading and failures", () => {
     expect(await screen.findByLabelText("+20,0 %")).toBeInTheDocument();
   });
 
+  // A 422 is not a failure. `compute_inflation` answered — deliberately, with a
+  // reason — and the router forwarded that French sentence. Rendering it in the
+  // negative-coloured alert reserved for a load failure, beside "Ce panneau n'a
+  // pas pu être chargé.", tells the reader something broke when nothing did.
   it("reports a range the engine refuses as the explanation it is", async () => {
     setupFetch({
       inflation: () =>
         jsonResponse({ detail: "La période demandée dépasse douze mois : …" }, 422),
     });
     renderPage();
-    expect(await screen.findByRole("alert")).toHaveTextContent(/dépasse douze mois/);
+    const basket = await screen.findByTestId("yd-analysis-basket");
+    const refusal = within(basket).getByText(/dépasse douze mois/);
+    // The warning treatment a refusal gets everywhere on this screen, never the
+    // negative colour, which is reserved for something having gone wrong.
+    expect(refusal).toHaveClass("yd-analysis__insufficient");
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    // The panel WAS loaded. Nothing on the screen may say otherwise.
+    expect(screen.queryByText(/n'a pas pu être chargé/)).not.toBeInTheDocument();
+  });
+
+  it("still treats a genuine inflation failure as a failure", async () => {
+    setupFetch({ inflation: () => jsonResponse({ detail: "Base indisponible" }, 500) });
+    renderPage();
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("Base indisponible");
+    expect(alert).toHaveTextContent(/Inflation personnelle indisponible/);
+    expect(screen.getAllByText(/n'a pas pu être chargé/).length).toBeGreaterThan(0);
   });
 });
 
@@ -400,6 +450,32 @@ describe("AnalysisPage — period", () => {
     const urls = fetchMock.mock.calls.map(([url]) => String(url));
     expect(urls).toContain("/api/analysis/inflation");
     expect(urls).toContain("/api/analysis/anomalies");
+  });
+
+  // Clicking "Personnalisé" writes `periode=custom&du=&au=`, `buildUrl` drops
+  // both empty params, and the two engines fall back to their two DIFFERENT
+  // defaults — the last twelve complete ledger months against the whole ledger.
+  // The banner claiming both panels answer on "la période choisie ci-dessus" is
+  // false twice over there: no period was chosen, and the panels do not agree.
+  it("keeps the two-windows warning on a custom period with no bounds yet", async () => {
+    setupFetch();
+    renderPage("/analyse?periode=custom&du=&au=");
+    await screen.findByLabelText("+20,0 %");
+
+    expect(screen.getByText(/Aucune période imposée/)).toBeInTheDocument();
+    expect(
+      screen.queryByText(/Les deux panneaux répondent sur la période choisie/),
+    ).not.toBeInTheDocument();
+  });
+
+  it("says both panels agree once a custom period actually has bounds", async () => {
+    setupFetch();
+    renderPage("/analyse?periode=custom&du=2025-01-01&au=2025-06-30");
+    await screen.findByLabelText("+20,0 %");
+
+    expect(
+      screen.getByText(/Les deux panneaux répondent sur la période choisie/),
+    ).toBeInTheDocument();
   });
 
   it("passes an explicit period on to both routes", async () => {

@@ -87,6 +87,31 @@ function messageFor(err: unknown): string {
 }
 
 /**
+ * A refusal the inflation engine chose to make, told apart from a load that
+ * failed.
+ *
+ * `compute_inflation` raises in French when the requested range exceeds twelve
+ * months — the previous-year window would overlap the current one and count
+ * some months twice — and `api/analysis.py` forwards that exact sentence as a
+ * 422. Nothing was down: the engine was asked a question and answered with a
+ * reason. Shown in the negative-coloured alert, beside "Ce panneau n'a pas pu
+ * être chargé.", it would report a working system as a broken one, and this
+ * screen's own rule is that the negative colour is reserved for something
+ * having gone wrong.
+ *
+ * Status, not the sentence: matching on wording would break the moment the
+ * engine rephrased its guard. 422 is the only status this route returns for an
+ * answer rather than a failure. The one other 422 it can produce is FastAPI's
+ * own bound-parsing error, reachable only by hand-editing `du`/`au` in the URL
+ * to something the `type="date"` inputs cannot emit; its message is Pydantic's
+ * English, which is a pre-existing leak either way, so the sentence rendered
+ * beside a refusal below never presumes WHICH refusal this is.
+ */
+function refusalReason(err: unknown): string | null {
+  return err instanceof ApiError && err.status === 422 ? err.detail : null;
+}
+
+/**
  * The two windows, in the mood the comparison has earned.
  *
  * A refusal still names them: "il n'y a pas assez de données" without saying
@@ -181,16 +206,30 @@ function anomalySentence(item: Anomaly): string {
  * What "rien à signaler" means here, which is three different things.
  *
  * `scored_groups === 0` alone cannot say whether the ledger holds no category
- * with enough history or whether the window on screen is simply empty — the
- * whole report is window-scoped, so an empty window empties `skipped` too.
- * Telling the reader "no category has enough history" over an empty August is
- * a diagnosis of the wrong illness.
+ * with enough history or whether the window on screen has nothing this engine
+ * would ever look at — the whole report is window-scoped, so such a window
+ * empties `skipped` too. Telling the reader "no category has enough history"
+ * over an empty August is a diagnosis of the wrong illness.
+ *
+ * But `scored_groups === 0 && skipped.length === 0` is NOT "the window is
+ * empty" either, and saying so was the same wrong diagnosis one step further
+ * in. `detect_anomalies` drops every `category_id is None` row before it
+ * groups anything (`engines/anomaly.py`), and `anomaly_points` filters
+ * transfers out of the query (`api/common.py`): a window holding only
+ * uncategorised operations — the state of every ledger between an import and
+ * the categorisation that follows it — or only internal transfers arrives here
+ * with exactly the same two values as a window holding nothing at all. Telling
+ * that reader to import statements they have just imported is the failure this
+ * screen exists to avoid. So the sentence claims only what all three cases
+ * share: nothing CATEGORISED, transfers aside, fell inside the window.
  */
 function nothingFoundSentence(report: AnomalyReport): string {
   if (report.scored_groups === 0 && report.skipped.length === 0) {
     return (
-      "Aucune opération sur cette période : il n'y a rien à examiner. Élargissez la période " +
-      "ou importez des relevés qui la couvrent."
+      "Aucune opération catégorisée sur cette période, virements internes exclus : il n'y a " +
+      "rien à examiner. Une opération sans catégorie n'est jamais analysée ici — c'est sa " +
+      "catégorie qui lui donne un historique auquel se comparer. Élargissez la période, ou " +
+      "catégorisez les opérations qu'elle contient."
     );
   }
   if (report.scored_groups === 0) {
@@ -264,6 +303,10 @@ export function AnalysisPage() {
   const reduced = useReducedMotion();
 
   const [inflation, setInflation] = useState<Inflation | null>(null);
+  // The engine's own refusal sentence, when it refused. Held apart from
+  // `errors.inflation` because the two are not the same event and must not look
+  // alike: see `refusalReason`.
+  const [inflationRefusal, setInflationRefusal] = useState<string | null>(null);
   const [anomalies, setAnomalies] = useState<AnomalyReport | null>(null);
   const [indexPoints, setIndexPoints] = useState<PriceIndexPoint[]>([]);
   const [errors, setErrors] = useState<LoadErrors>({});
@@ -287,10 +330,16 @@ export function AnalysisPage() {
       if (cancelled) return;
 
       const nextErrors: LoadErrors = {};
-      if (inflationResult.status === "fulfilled") setInflation(inflationResult.value);
-      else {
+      if (inflationResult.status === "fulfilled") {
+        setInflation(inflationResult.value);
+        setInflationRefusal(null);
+      } else {
         setInflation(null);
-        nextErrors.inflation = messageFor(inflationResult.reason);
+        // A deliberate refusal is content and belongs inside the panel; only a
+        // real failure becomes a page-level alert.
+        const refusal = refusalReason(inflationResult.reason);
+        setInflationRefusal(refusal);
+        if (refusal === null) nextErrors.inflation = messageFor(inflationResult.reason);
       }
       if (anomalyResult.status === "fulfilled") setAnomalies(anomalyResult.value);
       else {
@@ -371,7 +420,17 @@ export function AnalysisPage() {
           {...entryProps(reduced)}
         >
           <h2 className="yd-panel__title">Votre panier</h2>
-          {inflation === null ? (
+          {inflationRefusal !== null ? (
+            // Not an error state: the engine answered. Same warning treatment
+            // as the refusal below, and no figure of any kind beside it.
+            <>
+              <p className="yd-analysis__insufficient">{inflationRefusal}</p>
+              <p className="yd-analysis__note">
+                Aucun chiffre n'est affiché : le moteur a refusé cette période plutôt que d'en
+                tirer une comparaison qu'elle ne permet pas. Changez la période ci-dessus.
+              </p>
+            </>
+          ) : inflation === null ? (
             <p className="yd-analysis__note">Ce panneau n'a pas pu être chargé.</p>
           ) : inflation.comparable && inflation.basket_ratio !== null ? (
             <>
@@ -414,7 +473,16 @@ export function AnalysisPage() {
 
         <BentoCell as={motion.div} span={SPAN.lines} className="yd-panel" {...entryProps(reduced)}>
           <h2 className="yd-panel__title">Où l'argent part davantage qu'avant</h2>
-          {inflation === null ? (
+          {inflationRefusal !== null ? (
+            // The refusal itself is stated once, in the basket cell. Repeating
+            // it here would make one answer look like two, so this cell says
+            // only what is true of it — that there is no category list because
+            // nothing was computed — and points at where the reason is.
+            <p className="yd-analysis__note">
+              Aucune catégorie n'est comparée : le moteur a refusé cette période, pour la raison
+              donnée dans « Votre panier ».
+            </p>
+          ) : inflation === null ? (
             <p className="yd-analysis__note">Ce panneau n'a pas pu être chargé.</p>
           ) : inflation.lines.length === 0 ? (
             <p className="yd-analysis__note">
@@ -519,13 +587,23 @@ export function AnalysisPage() {
                   accusations without this paragraph, and both are reachable on
                   ordinary data: a size-based exemption for the annual premium
                   would be exactly the arbitrary threshold the design forbids,
-                  and the six-cent case is what "cannot say" turning into "can
-                  say" looks like the moment a never-varying charge varies. */}
+                  and the few-cents case is what "cannot say" turning into "can
+                  say" looks like the moment a never-varying charge varies.
+
+                  "Quelques centimes peuvent suffire", not "six centimes
+                  suffisent": with MAD 0 the score falls back to the mean
+                  absolute deviation, ROUNDED TO INTEGER CENTS
+                  (`engines/robust.py`). Six cents in a twelve-row group gives
+                  `mean_ad = 1` and a z near 4.8; the same six cents in a
+                  thirty-row group rounds `mean_ad` to 0, `modified_z` returns
+                  `None`, and no line appears at all. The size that surfaces a
+                  line depends on how long the group's history is, so no
+                  particular number of cents can be promised here. */}
               <p className="yd-analysis__caption">
                 Une anomalie n'est pas un reproche. C'est une opération qui s'écarte de
                 l'historique de sa propre catégorie, rien de plus : une prime d'assurance
                 annuelle au milieu de petites mensualités y figure, et dans une catégorie dont
-                les montants ne bougent jamais, six centimes d'écart suffisent à faire
+                les montants ne bougent jamais, quelques centimes peuvent suffire à faire
                 apparaître une ligne.
               </p>
 
@@ -613,12 +691,21 @@ export function AnalysisPage() {
 
       <PeriodSelector period={period} />
 
-      {/* The selector governs both panels, but "Tout" does not mean the same
-          window on each side, and neither engine can honestly stretch to the
-          other's. Said here once; each panel then names the period it actually
-          used. */}
+      {/* The selector governs both panels, but an ABSENT period does not mean
+          the same window on each side, and neither engine can honestly stretch
+          to the other's. Said here once; each panel then names the period it
+          actually used.
+
+          Keyed on the bounds, not on `preset === "all"`: clicking
+          "Personnalisé" calls `setPreset("custom")`, which writes
+          `periode=custom&du=&au=` because `periodBounds("custom")` returns two
+          empty strings, and `buildUrl` then drops both params. That state sends
+          no bound either — so the two engines diverge exactly as they do under
+          "Tout" — while `preset` says "custom". Claiming there that both panels
+          answer on "la période choisie ci-dessus" is false twice over: no
+          period has been chosen yet, and the panels do not agree. */}
       <p className="yd-analysis__scope">
-        {period.preset === "all"
+        {period.from === "" && period.to === ""
           ? "Aucune période imposée : l'inflation compare les douze derniers mois complets de votre historique — au-delà, la période et celle d'un an plus tôt se chevaucheraient — tandis que les anomalies couvrent tout l'historique. Chaque panneau nomme la période qu'il a réellement utilisée."
           : "Les deux panneaux répondent sur la période choisie ci-dessus, et chacun nomme celle qu'il a réellement utilisée. L'inflation la compare à la même période un an plus tôt, ce qui lui interdit de dépasser douze mois."}
       </p>

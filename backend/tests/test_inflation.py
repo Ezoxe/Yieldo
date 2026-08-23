@@ -72,7 +72,14 @@ def test_the_comparison_is_per_month_not_per_total():
 
 def test_a_window_with_too_few_months_is_not_comparable_and_says_why():
     """The operator's own case: everything twelve months back is empty. The line
-    must appear with a reason, not silently vanish and not report -100 %."""
+    must appear with a reason, not silently vanish and not report -100 %.
+
+    Also pins that `current_cost_cents` and `delta_cents` are populated here,
+    not zero: a `comparable=False` line still carries its real current-side
+    median (30 000 c, not 0), because it is measured from six genuine months
+    of spend -- only the OTHER side is missing. A reader trusting a stale
+    field comment claiming "0 when not comparable" would be shown the
+    opposite of the truth on exactly this line."""
     entries = _six_months(2026, 1, -30_000)
     lines = compute_inflation(entries, CURRENT, []).lines
     line = next(item for item in lines if item.category_id == 1)
@@ -83,6 +90,32 @@ def test_a_window_with_too_few_months_is_not_comparable_and_says_why():
     assert line.reason is not None
     assert "3 mois" in line.reason
     assert MIN_MONTHS_PER_WINDOW == 3
+    assert line.current_cost_cents == 30_000
+    assert line.previous_cost_cents == 0
+    assert line.delta_cents == 30_000
+
+
+def test_the_cost_is_the_median_month_not_the_mean():
+    """Robustness against a single outlier month is the entire reason this
+    engine consumes `robust.median_cents` rather than averaging -- see
+    `robust.py`'s own module docstring, which the design brief requires so
+    that a single large purchase does not redefine what a normal month costs.
+
+    Three ordinary months at 10 000 c and one 90 000 c outlier median to
+    10 000 c but average (integer floor) to 30 000 c. A "simplification" of
+    `median_cents(current_months)` to `sum(current_months) // len(current_months)`
+    would report 30 000 c here and this test would go red -- verified by hand
+    by making that exact substitution and re-running."""
+    entries = [
+        _spend(2026, 1, 1, -10_000),
+        _spend(2026, 2, 1, -10_000),
+        _spend(2026, 3, 1, -10_000),
+        _spend(2026, 4, 1, -90_000),
+    ] + _six_months(2025, 1, -10_000)
+    lines = compute_inflation(entries, CURRENT, []).lines
+    line = next(item for item in lines if item.category_id == 1)
+    assert line.comparable is True
+    assert line.current_cost_cents == 10_000
 
 
 def test_a_category_dropped_entirely_is_not_reported_as_deflation():

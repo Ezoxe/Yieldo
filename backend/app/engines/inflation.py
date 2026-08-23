@@ -24,6 +24,17 @@ carry `_cost_` so the departure from the codebase's negative-outflow convention
 is visible at every call site. `delta_cents` is signed and positive when the
 basket got more expensive.
 
+**Transfers are the caller's responsibility.** `CategorySpend` carries no
+`is_transfer` flag, and `_monthly_costs` applies no such filter -- unlike
+`aggregate.aggregate_by_category`, which this module is otherwise modelled on
+and which excludes transfers by default via its own `include_transfers` flag.
+Callers MUST filter transfers out before constructing `CategorySpend` rows,
+the way `api/common.py`'s `user_history` already does for every other
+cashflow engine here (`Transaction.is_transfer.is_(False)`). Fed in
+unfiltered, a standing order into savings or a credit-card settlement becomes
+a "cost" that repeats every month and can dominate the "où mon argent
+part-il davantage qu'avant ?" ranking. See `CategorySpend`'s own docstring.
+
 Pure: no session, no network, no implicit clock.
 """
 
@@ -46,6 +57,22 @@ class Window:
 
 @dataclass(frozen=True)
 class CategorySpend:
+    """One row's date, amount and category. Deliberately minimal, like
+    `capacity.MonthlyEntry` and `forecast.LedgerEntry` -- callers build these
+    from whatever row shape they already hold.
+
+    **No `is_transfer` field, and `_monthly_costs` applies no such filter.**
+    Unlike `aggregate.aggregate_by_category`, which this module is otherwise
+    modelled on and which excludes transfers by default via its own
+    `include_transfers` flag, this engine has no way to tell a standing order
+    into savings or a credit-card settlement from ordinary spending. Callers
+    MUST exclude transfers before constructing these -- the same exclusion
+    `api/common.py`'s `user_history` already applies for every other
+    cashflow engine in this codebase (`Transaction.is_transfer.is_(False)`).
+    Fed in unfiltered, an internal transfer enters the basket as a monthly
+    cost that repeats every month and can dominate the ranking.
+    """
+
     on: date
     amount_cents: int
     category_id: int | None
@@ -54,10 +81,27 @@ class CategorySpend:
 @dataclass(frozen=True)
 class CategoryInflation:
     category_id: int | None
-    # Median monthly cost, positive. 0 when not comparable.
+    # Median monthly cost over whichever months this category actually had
+    # qualifying spend in, on this side -- positive, and OFTEN NON-ZERO even
+    # when `comparable` is False: a category with six months of current
+    # spend and none a year earlier still carries its real current-side
+    # median here (see `test_a_window_with_too_few_months_is_not_comparable_
+    # and_says_why`, which pins `current_cost_cents == 30_000` on a
+    # `comparable=False` line). 0 means "no month with qualifying spend on
+    # this side at all", never a measured cost of zero.
     current_cost_cents: int
+    # Same rule as `current_cost_cents`, mirrored onto the previous window.
     previous_cost_cents: int
-    # Signed: positive when this category got more expensive.
+    # Signed, current minus previous: positive when this category got more
+    # expensive. Computed and populated the same way on an incomparable
+    # line as on a comparable one -- see `current_cost_cents` above.
+    #
+    # Neither this field nor `current_cost_cents` / `previous_cost_cents` may
+    # be rendered as a change, a price, or a trend when `comparable` is
+    # False. `ratio is None` is the only trustworthy signal that no honest
+    # comparison exists; these three fields exist even then because a
+    # screen may still want to show "vous avez dépensé X ce mois-ci" without
+    # implying a rate of change came with it.
     delta_cents: int
     # None whenever no honest ratio exists -- never 0, which would read as
     # "unchanged".

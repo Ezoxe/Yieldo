@@ -95,4 +95,45 @@ describe("api client", () => {
     fetchMock.mockResolvedValue(new Response(null, { status: 204 }));
     await expect(api.delete("/transactions/1")).resolves.toBeUndefined();
   });
+
+  it("sends a PUT with its body serialized as JSON", async () => {
+    fetchMock.mockResolvedValue(jsonResponse([]));
+    await api.put("/analysis/price-index", { points: [{ month: "2025-01", value: "118.42" }] });
+
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe("/api/analysis/price-index");
+    expect(init.method).toBe("PUT");
+    expect(init.headers["Content-Type"]).toBe("application/json");
+    expect(JSON.parse(init.body)).toEqual({
+      points: [{ month: "2025-01", value: "118.42" }],
+    });
+  });
+
+  // FastAPI answers with two different `detail` shapes: a plain string from a
+  // route's own `HTTPException`, and a list of `{loc, msg, type}` objects when
+  // Pydantic rejects the body before the route runs. Rendering the second one
+  // straight into a message element prints "[object Object]"; this is the
+  // single place in the app that tells them apart, so it is pinned here rather
+  // than re-derived by every screen that can provoke a 422.
+  it("reads the message out of a schema-validation detail list", async () => {
+    fetchMock.mockResolvedValue(
+      jsonResponse(
+        {
+          detail: [
+            {
+              loc: ["body", "points", 0, "value"],
+              msg: "Input should be greater than 0",
+              type: "greater_than",
+            },
+          ],
+        },
+        422,
+      ),
+    );
+
+    await expect(api.put("/analysis/price-index", { points: [] })).rejects.toMatchObject({
+      status: 422,
+      detail: "Input should be greater than 0",
+    });
+  });
 });

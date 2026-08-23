@@ -41,6 +41,7 @@ function renderShell(initialPath: string) {
             <Route path="budgets" element={<p>Écran budgets</p>} />
             <Route path="recurrences" element={<p>Écran récurrences</p>} />
             <Route path="tresorerie" element={<p>Écran trésorerie</p>} />
+            <Route path="analyse" element={<p>Écran analyse</p>} />
             <Route path="categories" element={<p>Écran catégories</p>} />
             <Route path="import" element={<p>Écran import</p>} />
             <Route path="reglages" element={<p>Écran réglages</p>} />
@@ -92,10 +93,21 @@ describe("AppShell", () => {
       "Budgets",
       "Récurrences",
       "Trésorerie",
+      "Analyse",
       "Catégories",
       "Import",
       "Réglages",
     ]);
+  });
+
+  it("routes the Analyse nav entry to the analysis screen", async () => {
+    const user = userEvent.setup();
+    renderShell("/");
+
+    await user.click(screen.getByRole("link", { name: "Analyse" }));
+
+    expect(screen.getByRole("main")).toHaveTextContent("Écran analyse");
+    expect(screen.getByRole("link", { name: "Analyse" })).toHaveAttribute("aria-current", "page");
   });
 
   it("routes the Récurrences nav entry to the recurrences screen", async () => {

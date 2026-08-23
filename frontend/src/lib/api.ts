@@ -112,6 +112,11 @@ export const api = {
   get: <T>(path: string, params?: Record<string, QueryValue>) =>
     request<T>("GET", path, { params }),
   post: <T>(path: string, body?: unknown) => request<T>("POST", path, { body }),
+  // PUT and PATCH are both here because the backend genuinely uses both, and
+  // they are not interchangeable: PUT /analysis/price-index REPLACES the whole
+  // stored series (posting it twice is idempotent, and an empty list clears
+  // it), while PATCH amends the fields it is given.
+  put: <T>(path: string, body?: unknown) => request<T>("PUT", path, { body }),
   patch: <T>(path: string, body?: unknown) => request<T>("PATCH", path, { body }),
   delete: <T>(path: string) => request<T>("DELETE", path),
   upload: <T>(path: string, form: FormData) => request<T>("POST", path, { form }),

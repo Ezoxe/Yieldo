@@ -480,3 +480,133 @@ export interface Runway {
   projected_from: string;
   ledger_last_on: string | null;
 }
+
+// Personal inflation and anomaly detection — mirrors
+// backend/app/schemas/analysis.py. Two engines that mostly explain what they
+// cannot conclude, so read the field comments before rendering any of it.
+
+export interface CategoryInflation {
+  category_id: number | null;
+  name: string;
+  color: string;
+  /**
+   * POSITIVE magnitudes — a basket's price is a positive number, and
+   * `engines/inflation.py` says so explicitly: this is a named exception to
+   * the negative-outflow convention, which is why the fields say `_cost_`.
+   *
+   * OFTEN NON-ZERO even when `comparable` is false: a category with six
+   * months of current spend and none a year earlier still carries its real
+   * current-side median here. 0 means "no month with qualifying spend on
+   * this side", never a measured cost of zero.
+   */
+  current_cost_cents: number;
+  previous_cost_cents: number;
+  /**
+   * Signed, current minus previous: positive when this category got more
+   * expensive. Populated identically on an incomparable line.
+   *
+   * NEITHER this field NOR the two costs above may be rendered as a change,
+   * a price or a trend when `comparable` is false — the engine's own field
+   * docstring is that blunt. `ratio === null` is the only trustworthy signal
+   * that no honest comparison exists.
+   */
+  delta_cents: number;
+  /** null — never 0, which would read as "unchanged" — when no honest ratio
+   *  exists. */
+  ratio: number | null;
+  months_current: number;
+  months_previous: number;
+  comparable: boolean;
+  /** French. Non-null exactly when `comparable` is false. */
+  reason: string | null;
+}
+
+export interface Inflation {
+  current_from: string;
+  current_to: string;
+  previous_from: string;
+  previous_to: string;
+  /** Steepest rise first among the comparable lines; every incomparable line
+   *  falls to the bottom rather than being interleaved as if it were a zero. */
+  lines: CategoryInflation[];
+  /** Summed over the COMPARABLE lines alone, so on a refusal both are 0 —
+   *  which is an absence, not a basket that costs nothing. */
+  basket_current_cost_cents: number;
+  basket_previous_cost_cents: number;
+  basket_ratio: number | null;
+  /**
+   * The user's own pasted index, over the same two windows. Yieldo fetches
+   * nothing, ever. null when no series was entered AND when the series
+   * covers only one of the two windows — two different states that a screen
+   * has to tell apart, since only the second one means "you already typed
+   * something in". Never render it as 0.
+   */
+  reference_ratio: number | null;
+  comparable: boolean;
+  reason: string | null;
+}
+
+export interface Anomaly {
+  transaction_id: number;
+  date: string;
+  /** Signed, the usual convention: this one IS a transaction amount. */
+  amount_cents: number;
+  label: string;
+  category_id: number | null;
+  category_name: string | null;
+  category_color: string | null;
+  /**
+   * The category's usual amount, as a positive MAGNITUDE — unlike
+   * `amount_cents` beside it. Subtracting the two directly is wrong for an
+   * expense; the gap is `|‖amount_cents‖ − category_median_cents|`.
+   */
+  category_median_cents: number;
+  /**
+   * Iglewicz & Hoaglin's modified z-score. QUALIFIES, DOES NOT ORDER: it
+   * decided whether the row crossed the outlier threshold at all, and
+   * `AnomalyReport.anomalies` is NOT sorted by it. Two ranking metrics were
+   * tried and rejected on this branch before absolute cents was settled on
+   * (raw |z| ranked a 15-cent reprice above an 860 EUR spike; a relative
+   * ratio ranked a 5 EUR charge on a 1-cent baseline above the same spike).
+   * Never present it as a rank, and never re-sort the list.
+   */
+  modified_z: number;
+  direction: "high" | "low";
+}
+
+export interface SkippedCategory {
+  category_id: number | null;
+  name: string;
+  /** "expense" or "income" — the SIGN group, not `Anomaly.direction`'s
+   *  high/low vocabulary. One category can appear twice, once per side. */
+  direction: string;
+  observations: number;
+  reason: string;
+}
+
+export interface AnomalyReport {
+  /** Ranked by absolute cents moved, descending. Render as sent. */
+  anomalies: Anomaly[];
+  /**
+   * Window-scoped, exactly like `anomalies`: a group with no transaction
+   * inside the reported window appears here not at all, however much history
+   * it holds. The MIN_HISTORY decision itself still reads the group's WHOLE
+   * history — only whether the outcome is surfaced is gated by the window.
+   * So this list must never be described as "judged on the window's rows".
+   */
+  skipped: SkippedCategory[];
+  /** Category+sign groups visible in the window that met the history floor
+   *  and were scored — whether or not scoring found anything. Same
+   *  window-scoping as `skipped`. 0 can mean "no history anywhere" AND "no
+   *  operation at all inside this window"; `skipped` tells them apart. */
+  scored_groups: number;
+  date_from: string;
+  date_to: string;
+}
+
+export interface PriceIndexPoint {
+  /** "AAAA-MM". */
+  month: string;
+  /** An index level, not money: 118.42 arrives as 11842. */
+  value_hundredths: number;
+}

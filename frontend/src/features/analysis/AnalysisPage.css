@@ -1,0 +1,414 @@
+.yd-analysis {
+  max-width: 1280px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-lg);
+}
+
+.yd-analysis__header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-2xs);
+}
+
+.yd-analysis h1 {
+  margin: 0;
+  font-size: clamp(1.4rem, 2.2vw, 1.75rem);
+  letter-spacing: -0.015em;
+  color: var(--yd-text);
+}
+
+.yd-analysis__lead {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--yd-text-muted);
+}
+
+/* The statement that governs BOTH panels: what the period selector above it
+   actually does to each of the two engines. Sits above the grid rather than
+   inside either cell, with the info colour's left rule, exactly as
+   CashflowPage's two-clocks banner does — a standing condition of the screen,
+   not a caption. Never the negative colour: nothing has gone wrong. */
+.yd-analysis__scope {
+  margin: 0;
+  /* Capped like every block of prose here: the content column runs to ~1150px
+     at 1440, which at this size is about 175 characters a line. */
+  max-width: 96ch;
+  padding: var(--yd-space-sm) var(--yd-space-md);
+  border-radius: var(--yd-radius-sm);
+  border: 1px solid var(--yd-border-strong);
+  border-left: 3px solid var(--yd-info);
+  background: var(--yd-surface-strong);
+  color: var(--yd-text);
+  font-size: 0.88rem;
+  line-height: 1.55;
+}
+
+/* Basket ----------------------------------------------------------------- */
+
+/* The headline percentage. `.yd-num` comes from CountUp itself, which supplies
+   the mono face and tabular figures; this only sets the display size. */
+.yd-analysis__ratio {
+  font-size: clamp(1.6rem, 4.5vw, 2.4rem);
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--yd-text);
+}
+
+/* Every cell on this screen sizes to its content rather than stretching to its
+   row. Which of a pair is taller changes with the data AND with whether the
+   reader has opened a disclosure: at 1440 on the operator's own ledger the
+   basket cell held five sentences and a card and a half of blank surface under
+   them, and collapsing "17 catégories non comparables" moved the same blank
+   half-card to the cell beside it. Either way it reads as something having
+   failed to load. Sized to content, what shows under a short cell is the
+   page's own ground. Below 1200px every cell spans the full row and this is
+   inert. Applies to the skeletons too, so nothing resizes when data lands. */
+.yd-analysis .yd-bento__cell {
+  align-self: start;
+}
+
+/* Prose ------------------------------------------------------------------ */
+
+.yd-analysis__note,
+.yd-analysis__caption,
+.yd-analysis__line-detail,
+.yd-analysis__line-reason,
+.yd-analysis__anomaly-detail,
+.yd-index__state,
+.yd-index__note {
+  margin: 0;
+  font-size: 0.86rem;
+  line-height: 1.5;
+  color: var(--yd-text-muted);
+  max-width: 84ch;
+}
+
+/* A sentence that qualifies a figure enough to change how it is read stays at
+   full text colour rather than dropping to muted. */
+.yd-analysis__note--strong {
+  color: var(--yd-text);
+}
+
+/* Requirement 1's paragraph. It has to be read before the list under it, so it
+   keeps full text contrast and a quiet accent rule rather than sitting in the
+   muted grey the scope notes use. */
+.yd-analysis__caption {
+  padding-left: var(--yd-space-sm);
+  border-left: 3px solid var(--yd-accent);
+  color: var(--yd-text);
+}
+
+/* A refusal is content, not a failure: it says what is missing and what would
+   fix it. Informative block with the warning rule, never the negative colour,
+   which is reserved for something having gone wrong. Same treatment as
+   CashflowPage's own refusal so the two screens speak with one voice. */
+.yd-analysis__insufficient {
+  margin: 0;
+  max-width: 96ch;
+  padding: var(--yd-space-sm) var(--yd-space-md);
+  border-radius: var(--yd-radius-sm);
+  border: 1px solid var(--yd-border-strong);
+  border-left: 3px solid var(--yd-warning);
+  background: var(--yd-surface);
+  color: var(--yd-text);
+  font-size: 0.92rem;
+  line-height: 1.55;
+}
+
+/* Lists ------------------------------------------------------------------ */
+
+.yd-analysis__lines,
+.yd-analysis__anomalies {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-sm);
+}
+
+/* A grid, not a flex row: the name and the figure have to align down the
+   column, and `minmax(0, 1fr)` stops a long category name or a 76-character
+   raw bank label setting the track's minimum and pushing the page sideways.
+   The detail line spans both columns, so at 375 it wraps to its own full-width
+   row instead of colliding with the figure. */
+.yd-analysis__line,
+.yd-analysis__anomaly {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--yd-space-2xs) var(--yd-space-sm);
+  align-items: baseline;
+}
+
+.yd-analysis__line + .yd-analysis__line,
+.yd-analysis__anomaly + .yd-analysis__anomaly {
+  padding-top: var(--yd-space-sm);
+  border-top: 1px solid var(--yd-border);
+}
+
+.yd-analysis__line-name,
+.yd-analysis__anomaly-label {
+  overflow-wrap: anywhere;
+  min-width: 0;
+  font-weight: 600;
+  color: var(--yd-text);
+}
+
+.yd-analysis__line-ratio,
+.yd-analysis__anomaly-amount {
+  text-align: right;
+  white-space: nowrap;
+  color: var(--yd-text);
+}
+
+/* An incomparable line's two month counts. Roughly forty characters that must
+   not break, so below 640px they take their own full-width row: measured at
+   375, sharing the row with the name left "Internet et téléphone" a track four
+   characters wide, wrapping it to six lines of one syllable each. A ratio is
+   short enough to share the row at every width; this is not. */
+.yd-analysis__line-months {
+  grid-column: 1 / -1;
+  white-space: nowrap;
+  font-size: 0.8rem;
+  color: var(--yd-text-muted);
+}
+
+/* From 640px the cell is wide enough for the counts to align down the same
+   edge as the comparable lines' percentages, and the two lists read as one
+   table. */
+@media (min-width: 640px) {
+  .yd-analysis__line-months {
+    grid-column: 2;
+    text-align: right;
+  }
+}
+
+.yd-analysis__line-detail,
+.yd-analysis__line-reason,
+.yd-analysis__anomaly-detail {
+  grid-column: 1 / -1;
+}
+
+/* Dimmed on the NAME only. The reason is the entire point of keeping the line
+   on screen, so it stays at --yd-text-muted, which design/contrast.test.ts
+   measures at AA against the ground in both themes — not at a third, lighter
+   value invented here. */
+.yd-analysis__line--incomparable .yd-analysis__line-name {
+  font-weight: 400;
+  color: var(--yd-text-muted);
+}
+
+/* Disclosures ------------------------------------------------------------ */
+
+.yd-analysis__disclosure {
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-sm);
+  padding-top: var(--yd-space-sm);
+  border-top: 1px solid var(--yd-border);
+}
+
+.yd-analysis__disclosure summary {
+  cursor: pointer;
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: var(--yd-text);
+  /* A summary is focusable, and the default UA ring is invisible on the dark
+     theme's surface. */
+  border-radius: var(--yd-radius-sm);
+}
+
+.yd-analysis__disclosure summary:focus-visible {
+  outline: 2px solid var(--yd-accent);
+  outline-offset: 2px;
+}
+
+/* Rows carry their separator on `+ .yd-analysis__line`, so the FIRST one has
+   none and runs straight into the paragraph above it — measured at 1440, the
+   intro sentence and "Loyer" read as one block. The rule belongs to the list,
+   not to the row. */
+.yd-analysis__disclosure .yd-analysis__lines {
+  padding-top: var(--yd-space-sm);
+  border-top: 1px solid var(--yd-border);
+}
+
+.yd-analysis__skipped {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-sm);
+  font-size: 0.86rem;
+  line-height: 1.5;
+  color: var(--yd-text-muted);
+  max-width: 84ch;
+}
+
+.yd-analysis__skipped strong {
+  color: var(--yd-text);
+}
+
+/* Price index form ------------------------------------------------------- */
+
+.yd-index {
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-sm);
+}
+
+.yd-index__note code {
+  font-family: var(--yd-font-mono);
+  color: var(--yd-text);
+}
+
+/* A GRID, not a flex column. The textarea below is `width: 100%`, and a
+   percentage inside an auto-width flex column has nothing definite to resolve
+   against; `minmax(0, 1fr)` gives it a track that is exactly the cell's inner
+   width and can never exceed it. */
+.yd-index__field {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--yd-space-2xs);
+}
+
+.yd-index__field label {
+  font-size: 0.86rem;
+  color: var(--yd-text-muted);
+}
+
+.yd-index__field textarea {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  background: var(--yd-surface);
+  border: 1px solid var(--yd-border);
+  border-radius: var(--yd-radius-sm);
+  padding: var(--yd-space-2xs) var(--yd-space-sm);
+  color: var(--yd-text);
+  font: inherit;
+  font-family: var(--yd-font-mono);
+  font-size: 0.86rem;
+  line-height: 1.6;
+  resize: vertical;
+}
+
+.yd-index__field textarea:focus-visible {
+  outline: 2px solid var(--yd-accent);
+  outline-offset: 1px;
+}
+
+.yd-index__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--yd-space-sm);
+}
+
+.yd-index__save,
+.yd-index__clear {
+  border: 1px solid var(--yd-border-strong);
+  border-radius: var(--yd-radius-sm);
+  padding: var(--yd-space-2xs) var(--yd-space-md);
+  background: transparent;
+  font: inherit;
+  font-size: 0.86rem;
+  cursor: pointer;
+  transition: border-color var(--yd-motion-fast) var(--yd-ease);
+}
+
+.yd-index__save {
+  color: var(--yd-accent);
+}
+
+.yd-index__clear {
+  color: var(--yd-text-muted);
+}
+
+.yd-index__save:hover,
+.yd-index__clear:hover {
+  border-color: var(--yd-accent);
+}
+
+.yd-index__save:focus-visible,
+.yd-index__clear:focus-visible {
+  outline: 2px solid var(--yd-accent);
+  outline-offset: 2px;
+}
+
+.yd-index__save:disabled,
+.yd-index__clear:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Errors ----------------------------------------------------------------- */
+
+.yd-index__error,
+.yd-analysis__alert {
+  margin: 0;
+  padding: var(--yd-space-sm) var(--yd-space-md);
+  border-radius: var(--yd-radius-sm);
+  border: 1px solid var(--yd-negative);
+  background: color-mix(in srgb, var(--yd-negative) 14%, transparent);
+  color: var(--yd-negative);
+  font-size: 0.86rem;
+  line-height: 1.5;
+}
+
+.yd-analysis__alert {
+  font-size: 0.9rem;
+}
+
+.yd-index__error p {
+  margin: 0;
+}
+
+/* One refused line per bullet. Joined into a paragraph, four refusals read as
+   one block in which no line number stands out — and the line number is the
+   only part the reader needs to act on. */
+.yd-index__error ul {
+  margin: 0;
+  padding-left: var(--yd-space-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-2xs);
+}
+
+/* Skeletons -------------------------------------------------------------- */
+
+/* The bar itself is design/Skeleton.css's; these are only the sizes, each one
+   the line box of the block it stands in for, so the cells are as tall before
+   the data lands as after and nothing on the page moves. */
+
+/* .yd-panel__title, at the line-height Bento.css pins on it. */
+.yd-skeleton--an-title {
+  height: calc(0.95rem * 1.5);
+  width: 38%;
+}
+
+/* The headline percentage plus the four sentences qualifying it. */
+.yd-skeleton--an-figure {
+  height: calc(
+    clamp(1.6rem, 4.5vw, 2.4rem) * 1.2 + 0.86rem * 1.5 * 7 + var(--yd-space-sm) * 4
+  );
+}
+
+/* A caption, three or four rows, and the disclosure under them. */
+.yd-skeleton--an-list {
+  height: calc(0.86rem * 1.5 * 12 + var(--yd-space-sm) * 6);
+}
+
+/* Two sentences, a five-row textarea, and the button row. */
+.yd-skeleton--an-form {
+  height: calc(
+    0.86rem * 1.5 * 6 + 0.86rem * 1.6 * 5 + var(--yd-space-sm) * 4 + var(--yd-space-md) * 2
+  );
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .yd-index__save,
+  .yd-index__clear {
+    transition: none;
+  }
+}

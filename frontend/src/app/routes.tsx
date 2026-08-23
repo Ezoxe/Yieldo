@@ -1,5 +1,6 @@
 import { createBrowserRouter } from "react-router";
 
+import { AnalysisPage } from "../features/analysis/AnalysisPage";
 import { LoginPage } from "../features/auth/LoginPage";
 import { BudgetsPage } from "../features/budgets/BudgetsPage";
 import { CashflowPage } from "../features/cashflow/CashflowPage";
@@ -54,6 +55,7 @@ export const router = createBrowserRouter([
           { path: "budgets", element: <BudgetsPage /> },
           { path: "recurrences", element: <RecurrencesPage /> },
           { path: "tresorerie", element: <CashflowPage /> },
+          { path: "analyse", element: <AnalysisPage /> },
           { path: "categories", element: <CategoriesPlaceholder /> },
           { path: "import", element: <ImportPage /> },
           { path: "reglages", element: <SettingsPage /> },

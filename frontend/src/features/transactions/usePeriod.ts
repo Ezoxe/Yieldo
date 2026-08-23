@@ -50,10 +50,19 @@ export interface UsePeriodResult {
 // The period lives in the URL (?periode=&du=&au=) rather than component state so
 // the transactions view survives a reload and can be shared as a link — and so
 // task 20's dashboard can read the exact same period through this same hook.
-export function usePeriod(): UsePeriodResult {
+//
+// `defaultPreset` is what a screen opens on when the URL names no period at
+// all; the URL always wins over it. It exists because "this month" is not the
+// right opening question everywhere. The analysis screen passes "all", whose
+// empty bounds are dropped by `api.get` so each backend route resolves its own
+// window from the ledger (the last twelve complete months for inflation, the
+// ledger's own span for anomalies). Pointed at the real calendar month instead,
+// a ledger whose statements stopped months ago answers with a refusal whose
+// stated cause — too few months of data — is not the real one.
+export function usePeriod(defaultPreset: PeriodPreset = "month"): UsePeriodResult {
   const [params, setParams] = useSearchParams();
   const rawPreset = params.get("periode");
-  const preset: PeriodPreset = isPreset(rawPreset) ? rawPreset : "month";
+  const preset: PeriodPreset = isPreset(rawPreset) ? rawPreset : defaultPreset;
   const bounds =
     preset === "custom"
       ? { from: params.get("du") ?? "", to: params.get("au") ?? "" }

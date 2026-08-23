@@ -268,3 +268,129 @@ def test_an_annual_premium_among_monthly_charges_is_flagged():
     rows = _rows(1, [monthly_premium] * 11 + [annual_premium])
     report = detect_anomalies(rows, WINDOW_START, WINDOW_END)
     assert [a.amount_cents for a in report.anomalies] == [annual_premium]
+
+
+def test_the_ranking_metric_is_relative_deviation_not_raw_modified_z():
+    """Review round 1 finding: raw `modified_z` is not safe to compare across
+    categories whenever a group's MAD is 0 (the mean-absolute-deviation
+    fallback) -- checked directly against `robust.describe`/`modified_z`
+    before writing this fixture. A 15-cent repricing inside a 30-row,
+    entirely-fixed-amount subscription category scores z ~= 11.97; an 860 EUR
+    grocery spike inside a 12-row category scores only z ~= 9.57 -- HIGHER
+    for the fifteen-cent change, because in the "n-1 identical, one
+    different" shape the mean-AD fallback's score works out to approximately
+    `group_size / MODIFIED_Z_MEAN_AD_CONSTANT`, independent of how large the
+    differing value actually is. Sorted by raw z, the fifteen-cent change
+    would sit at the top of the feed, above the grocery spike. `anomalies`
+    must instead rank by how far a transaction departed, PROPORTIONALLY, from
+    its own category's usual amount -- the reading a person actually wants
+    first."""
+    tiny_reprice = _rows(1, [-1549] * 29 + [-1564])
+    big_spike = _renumber(_rows(2, [-4000] * 11 + [-90000], start=date(2025, 2, 1)), 100)
+    report = detect_anomalies(tiny_reprice + big_spike, WINDOW_START, WINDOW_END)
+
+    by_category = {a.category_id: a for a in report.anomalies}
+    # Raw z ranks them the OTHER way -- pinning this so the ranking fix isn't
+    # accidentally validated by a fixture where both metrics happen to agree.
+    assert by_category[1].modified_z > by_category[2].modified_z
+    # But the report puts the real spike first.
+    assert [a.category_id for a in report.anomalies] == [2, 1]
+
+
+def test_a_category_whose_median_is_zero_ranks_first_rather_than_crashing():
+    """A category built almost entirely of zero-amount rows has a median of
+    0 -- reachable whenever at least half the group's magnitudes are 0 (the
+    even/odd split in `robust.median_cents` lands on the zero side). Zero
+    counts as "income" under this module's sign convention, so the eleven
+    zero rows and the one large row must share that sign to land in the same
+    group -- an income category that is usually a no-op and then, once,
+    isn't (e.g. a cashback or interest line that is normally 0,00 EUR).
+    Ranking by relative deviation would divide by that 0; instead it must
+    rank first, infinitely far from a centre that has never moved, rather
+    than raising."""
+    zero_heavy = _rows(1, [0] * 11 + [50000])
+    ordinary_with_outlier = _renumber(
+        _rows(2, [-4000, -4200, -3900, -4100, -4050, -3950, -4150, -4000, -4300, -3800,
+                  -90000], start=date(2025, 2, 1)),
+        100,
+    )
+    report = detect_anomalies(zero_heavy + ordinary_with_outlier, WINDOW_START, WINDOW_END)
+    assert len(report.anomalies) == 2
+    assert report.anomalies[0].category_id == 1
+    assert report.anomalies[0].category_median_cents == 0
+
+
+def test_a_low_anomaly_ranks_by_the_size_of_its_gap_not_its_sign():
+    """`_unusualness` takes `abs()` of the numerator so a "low" anomaly
+    (magnitude below the median, a negative `value - median`) doesn't rank
+    as if it were LESS unusual than a "high" one just because its raw
+    difference is negative. This category's charge collapses to 100 cents
+    against a 40 000-cent median -- 99.75% below normal, the largest
+    possible gap short of 0 -- while the other category's charge is only
+    10% above its own median. The 99.75% gap must rank first regardless of
+    direction."""
+    barely_anything = _rows(1, [-40000] * 11 + [-100])
+    slightly_more = _renumber(_rows(2, [-4000] * 11 + [-4400], start=date(2025, 2, 1)), 100)
+    report = detect_anomalies(barely_anything + slightly_more, WINDOW_START, WINDOW_END)
+    assert [a.category_id for a in report.anomalies] == [1, 2]
+    assert report.anomalies[0].direction == "low"
+    assert report.anomalies[1].direction == "high"
+
+
+def test_the_skip_reason_names_the_sign_groups_own_count_not_the_categorys():
+    """Review round 1 finding: a category with eleven ordinary expenses and
+    one refund is entirely routine -- refunds landing in an expense category
+    are normal. The old wording said "il faut au moins 10 opérations dans
+    cette catégorie ... et celle-ci en compte {n}" where `n` was the SIGN
+    GROUP's count, not the category's: this category holds twelve
+    transactions and is simultaneously counted as scored (its expense side),
+    while its skip reason claimed the category "en compte 1" -- true only of
+    the one-row income side. The reason must name the sign group `direction`
+    already carries."""
+    expenses = _rows(1, [-4000] * 11)
+    refund = [AnomalyTx(id=101, on=date(2025, 6, 1), amount_cents=4000,
+                         label="REMBOURSEMENT", category_id=1)]
+    report = detect_anomalies(expenses + refund, WINDOW_START, WINDOW_END)
+
+    assert report.scored_groups == 1
+    assert len(report.skipped) == 1
+    skip = report.skipped[0]
+    assert skip.category_id == 1
+    assert skip.direction == "income"
+    assert skip.observations == 1
+    # Names the income side specifically -- not "dépense", and not a bare
+    # claim about "cette catégorie" that would read as the whole category.
+    assert "recette" in skip.reason
+    assert "dépense" not in skip.reason
+
+
+def test_a_category_entirely_outside_the_window_is_neither_scored_nor_skipped():
+    """Review round 1 finding: with every row dated 2024 and the window set
+    to 2026, the engine used to return `scored_groups=1, skipped=1,
+    anomalies=0` -- a category with zero transactions in the displayed
+    period still counted as "analysed" or "ignorée". Decision: `scored_
+    groups` and `skipped` are scoped to the window exactly like `anomalies`
+    is. The underlying statistics (median, MAD, the MIN_HISTORY gate) still
+    read the category's WHOLE history -- only whether a group is reported at
+    all, in either list, now depends on it having at least one transaction
+    inside [window_start, window_end]."""
+    rows = _rows(1, [-4000] * 8 + [-90000], start=date(2024, 1, 1))
+    report = detect_anomalies(rows, date(2026, 1, 1), date(2026, 12, 31))
+    assert report.anomalies == []
+    assert report.skipped == []
+    assert report.scored_groups == 0
+
+
+def test_a_group_visible_in_the_window_is_still_judged_on_its_whole_history():
+    """The flip side of the previous test: a group with rows both inside and
+    outside the window is still measured against its FULL history -- only
+    the reporting gate is window-scoped, not the statistics themselves. Nine
+    of these ten rows predate the window; if MIN_HISTORY were checked against
+    the in-window count alone (one row) this would wrongly be skipped as
+    "1 dépense" instead of scored as the ten-row category it actually is."""
+    rows = _rows(1, [-4000] * 9, start=date(2024, 1, 1))
+    in_window_row = AnomalyTx(id=200, on=date(2026, 6, 1), amount_cents=-4050,
+                               label="ACHAT", category_id=1)
+    report = detect_anomalies(rows + [in_window_row], date(2026, 1, 1), date(2026, 12, 31))
+    assert report.scored_groups == 1
+    assert report.skipped == []

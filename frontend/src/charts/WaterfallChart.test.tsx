@@ -109,6 +109,54 @@ describe("buildWaterfallOption", () => {
     const fallback = steps.find((s) => s.name === "Divers")?.color;
     expect(fallback).toBe(seriesColors("dark")[0]);
   });
+
+  // --- the running balance dipping below zero -------------------------------
+  // A month whose expenses outrun its income: 1 000 € in, 3 000 € out, so the
+  // cascade crosses zero on the second step and rests at -2 000 €. That is the
+  // operator's own shape, not a contrived one.
+  const deficit: Summary = {
+    ...summary,
+    inflow_cents: 100000,
+    outflow_cents: -300000,
+    net_cents: -200000,
+  };
+  const deficitCategories: CategoryBreakdown[] = [
+    { category_id: 9, name: "Logement", color: "#7ee2d6", total_cents: -300000, count: 1, share: 1 },
+  ];
+
+  it("carries the true floor of each bar, including the ones below zero", () => {
+    const { option } = buildWaterfallOption(deficit, deficitCategories, tokens);
+    const series = option.series as Array<{ name?: string; data?: unknown[] }>;
+    const support = series.find((s) => s.name === "support");
+    // Revenus rises 0 -> 100 000; Logement falls 100 000 -> -200 000, so its
+    // floor is -200 000; Épargne spans from -200 000 up to zero.
+    expect(support?.data).toEqual([0, -200000, -200000]);
+  });
+
+  it("keeps every bar anchored on its own floor when the running balance goes negative", () => {
+    // Same defect as the forecast fan chart's band, through the bar path.
+    // ECharts' DEFAULT `stackStrategy: "samesign"` only chains a stacked value
+    // onto the series below when both share a sign. Here the visible series
+    // carries a HEIGHT (always >= 0) sitting on a FLOOR that goes negative the
+    // moment the cascade crosses zero -- opposite signs, so "samesign" refuses
+    // to chain, the stack result stays equal to the raw height, and
+    // `layout/barGrid.js:398-399` computes `stackStartValue = stackResult -
+    // rawValue` = 0. Both the deficit step and the negative Épargne total would
+    // then be drawn UPWARD from the zero baseline: the right height, the wrong
+    // anchor, and a loss rendered as a gain. Only "all" stacks unconditionally.
+    // This pins the option; the drawn result was verified in a browser (see the
+    // task 19 report).
+    const { option } = buildWaterfallOption(deficit, deficitCategories, tokens);
+    const series = option.series as Array<{ stack?: string; stackStrategy?: string }>;
+    const stacked = series.filter((s) => s.stack === "waterfall");
+    expect(stacked).toHaveLength(2);
+    for (const s of stacked) expect(s.stackStrategy).toBe("all");
+
+    // Guards the fixture itself: if a later edit makes this cascade stay
+    // positive throughout, the test above would pass while proving nothing.
+    const support = series[0] as { data?: number[] };
+    expect(support.data?.some((value) => value < 0)).toBe(true);
+  });
 });
 
 describe("WaterfallChart", () => {

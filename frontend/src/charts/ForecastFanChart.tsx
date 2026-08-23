@@ -79,7 +79,19 @@ export function buildForecastOption(
       right: 84,
     },
     grid: { left: 8, right: 8, top: 56, bottom: 32, containLabel: true },
-    xAxis: { type: "category", data: labels, boundaryGap: false },
+    // `boundaryGap` is left at the category default (true), like the two
+    // sibling charts. With `false` the first and last ticks sit exactly ON the
+    // grid's edges, and a label centred on the last tick overflows to the
+    // right by half its own width -- "janv. 2027" rendered as "janv. 20" at
+    // 1440. `containLabel` does not rescue it: `coord/cartesian/Grid.js:150`
+    // subtracts only the label's HEIGHT for a horizontal axis, never its
+    // width. Reserving pixels in `grid.right` instead would be a magic number
+    // tuned to one label at one font size, and `alignMaxLabel` would misalign
+    // the last VISIBLE label at the narrow widths where ECharts thins the
+    // extreme tick away (`coord/axisTickLabelBuilder.js:327` -- `showMaxLabel`
+    // is off by default). The default insets every tick by half a band, so no
+    // label can overflow at any width.
+    xAxis: { type: "category", data: labels },
     yAxis: {
       type: "value",
       axisLabel: { formatter: (value: number) => formatCompactCents(value) },

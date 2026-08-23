@@ -73,6 +73,11 @@ export function buildWaterfallOption(
   // carries each bar up to its starting height, a visible series draws only
   // the delta on top of it. The final (total) step spans from the zero
   // baseline instead of chaining off the running total.
+  //
+  // That technique is only correct with `stackStrategy: "all"` on the stack --
+  // see the series below. ECharts' default refuses to chain a positive height
+  // onto a negative floor, which re-anchors every bar below zero at the
+  // baseline and draws a deficit as though it were a gain.
   let cumulative = 0;
   const base: number[] = [];
   const visible: number[] = [];
@@ -108,6 +113,10 @@ export function buildWaterfallOption(
         name: "support",
         type: "bar",
         stack: "waterfall",
+        // Inert on the first series of a stack (nothing below it to chain
+        // onto) but declared here so the whole stack group states one
+        // strategy -- see the visible series below for why it matters.
+        stackStrategy: "all",
         itemStyle: { color: "transparent" },
         emphasis: { itemStyle: { color: "transparent" } },
         silent: true,
@@ -118,6 +127,18 @@ export function buildWaterfallOption(
         name: "montant",
         type: "bar",
         stack: "waterfall",
+        // Load-bearing. ECharts' default is `stackStrategy: "samesign"`
+        // (processor/dataStack.js:84,115-118), which only chains a stacked
+        // value onto the one below it when both share a sign. This series
+        // carries a HEIGHT (always >= 0) sitting on a FLOOR that goes negative
+        // the moment the cascade crosses zero -- opposite signs, so "samesign"
+        // refuses to chain, the stack result is left equal to the raw height,
+        // and `layout/barGrid.js:398-399` computes `stackStartValue =
+        // stackResult - rawValue` = 0. The bar is then drawn UPWARD from the
+        // zero baseline: the right height, the wrong anchor, and a month
+        // ending in the red rendered as one ending in the black. "all" stacks
+        // unconditionally. Same defect the fan chart's band carried.
+        stackStrategy: "all",
         data: visible.map((value, index) => ({ value, itemStyle: { color: steps[index].color } })),
         barMaxWidth: 40,
         label: {

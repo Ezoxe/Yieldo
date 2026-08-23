@@ -65,6 +65,20 @@ describe("buildForecastOption", () => {
     expect(median?.data).toEqual([100000, 90000, 80000]);
   });
 
+  it("insets the extreme category ticks so the last month's label cannot overflow the grid", () => {
+    // `boundaryGap: false` puts the first and last ticks exactly ON the grid's
+    // edges, and a label centred on the last tick then overflows to the right
+    // by half its own width -- "janv. 2027" rendered as "janv. 20" at 1440,
+    // reproduced in a browser (see the task 19 report). `containLabel` does
+    // not rescue it: `coord/cartesian/Grid.js:150` subtracts only the label's
+    // HEIGHT for a horizontal axis. The category default insets every tick by
+    // half a band, which is what the two sibling charts already do.
+    const { option } = buildForecastOption(months, 0, tokens);
+    const xAxis = option.xAxis as { type?: string; boundaryGap?: boolean };
+    expect(xAxis.type).toBe("category");
+    expect(xAxis.boundaryGap).not.toBe(false);
+  });
+
   it("stacks the band as a height above P10, not as an absolute P90", () => {
     const { option } = buildForecastOption(months, 0, tokens);
     const series = option.series as Array<{ name?: string; data?: number[] }>;

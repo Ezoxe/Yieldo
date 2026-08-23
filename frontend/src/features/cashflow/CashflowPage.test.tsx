@@ -330,6 +330,22 @@ describe("CashflowPage", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("Base indisponible");
   });
 
+  // A database outage takes both routes down with the same `detail`. Repeated
+  // verbatim that is one sentence twice over, saying nothing about which half
+  // of the screen is missing — and a duplicate React key besides.
+  it("names which panel failed when both fail with the same message", async () => {
+    setupFetch({
+      forecast: () => jsonResponse({ detail: "Base indisponible" }, 500),
+      runway: () => jsonResponse({ detail: "Base indisponible" }, 500),
+    });
+    renderPage();
+
+    const alerts = await screen.findAllByRole("alert");
+    expect(alerts).toHaveLength(2);
+    expect(alerts[0]).toHaveTextContent("Autonomie indisponible : Base indisponible");
+    expect(alerts[1]).toHaveTextContent("Prévision indisponible : Base indisponible");
+  });
+
   // One endpoint failing must not blank the other: they are two independent
   // questions behind two independent routes.
   it("keeps the forecast on screen when only the runway fails", async () => {

@@ -109,8 +109,15 @@
   border-style: dashed;
 }
 
+/* An h3 carrying no heading typography of its own: the figure under it is the
+   thing the eye should land on, so the label stays the quiet line it was as a
+   span. Margin and weight are reset explicitly because a bare h3 brings the
+   user agent's own. */
 .yd-runway__label {
+  margin: 0;
   font-size: 0.86rem;
+  font-weight: 400;
+  line-height: 1.5;
   color: var(--yd-text-muted);
 }
 

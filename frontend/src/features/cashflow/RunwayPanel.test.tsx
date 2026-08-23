@@ -48,6 +48,20 @@ describe("formatMonths", () => {
 });
 
 describe("RunwayPanel", () => {
+  // The two scenarios are the sub-sections of the cell's own h2, so a reader
+  // navigating by heading has to be able to land on either one directly.
+  it("gives each scenario a heading, whether or not it could be measured", () => {
+    const { rerender } = render(
+      <RunwayPanel scenario={makeScenario()} label="Rythme actuel" unavailableReason={null} />,
+    );
+    expect(screen.getByRole("heading", { name: "Rythme actuel", level: 3 })).toBeInTheDocument();
+
+    rerender(
+      <RunwayPanel scenario={null} label="Rythme actuel" unavailableReason="Indisponible." />,
+    );
+    expect(screen.getByRole("heading", { name: "Rythme actuel", level: 3 })).toBeInTheDocument();
+  });
+
   it("states the duration, the burn and the date", () => {
     render(<RunwayPanel scenario={makeScenario()} label="Rythme actuel" unavailableReason={null} />);
 

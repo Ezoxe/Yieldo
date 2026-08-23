@@ -102,8 +102,15 @@ export function CashflowPage() {
     };
   }, []);
 
-  const errorMessages = Object.values(errors).filter(
-    (message): message is string => Boolean(message),
+  // Keyed and labelled by which half failed, not by the message. A database
+  // outage takes both routes down with the same `detail`, which as a bare
+  // repeated sentence is a duplicate React key and tells the reader nothing
+  // about which of the two panels is the one that is missing.
+  const errorEntries: Array<{ field: "forecast" | "runway"; label: string; message: string }> = [
+    { field: "runway" as const, label: "Autonomie indisponible", message: errors.runway },
+    { field: "forecast" as const, label: "Prévision indisponible", message: errors.forecast },
+  ].filter((entry): entry is { field: "forecast" | "runway"; label: string; message: string } =>
+    Boolean(entry.message),
   );
 
   // Both routes report the same `liquid_balance_cents`; the runway calls it
@@ -122,7 +129,10 @@ export function CashflowPage() {
   if (isLoading) {
     body = (
       <BentoGrid role="status" aria-busy="true" aria-label="Chargement de la trésorerie">
-        <BentoCell span={SPAN.balance} className="yd-panel">
+        {/* Same class as the loaded cell: without it the skeleton stretches to
+            the row at lg while the loaded cell sizes to its content, and the
+            card visibly shrinks the moment the data lands. */}
+        <BentoCell span={SPAN.balance} className="yd-panel yd-cashflow__balance-cell">
           <div className="yd-skeleton yd-skeleton--cf-title" aria-hidden="true" />
           <div className="yd-skeleton yd-skeleton--cf-balance" aria-hidden="true" />
         </BentoCell>
@@ -322,9 +332,9 @@ export function CashflowPage() {
         </p>
       </div>
 
-      {errorMessages.map((message) => (
-        <p role="alert" className="yd-cashflow__alert" key={message}>
-          {message}
+      {errorEntries.map((entry) => (
+        <p role="alert" className="yd-cashflow__alert" key={entry.field}>
+          {`${entry.label} : ${entry.message}`}
         </p>
       ))}
 

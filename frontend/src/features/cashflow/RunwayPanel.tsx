@@ -63,7 +63,10 @@ export function RunwayPanel({ scenario, label, unavailableReason }: RunwayPanelP
   if (scenario === null) {
     return (
       <div className="yd-runway yd-runway--unavailable">
-        <span className="yd-runway__label">{label}</span>
+        {/* A heading, not a span: these are the two sub-sections of the cell's
+            own h2, and a screen-reader user navigating by heading needs to be
+            able to reach "Dépenses réduites à l'essentiel" directly. */}
+        <h3 className="yd-runway__label">{label}</h3>
         <span className="yd-runway__months yd-runway__months--words">Non mesurable</span>
         <p className="yd-runway__unavailable">
           {/* The contract is "set exactly when the scenario is null". A null
@@ -82,7 +85,7 @@ export function RunwayPanel({ scenario, label, unavailableReason }: RunwayPanelP
 
   return (
     <div className="yd-runway">
-      <span className="yd-runway__label">{label}</span>
+      <h3 className="yd-runway__label">{label}</h3>
       <span
         className={`yd-runway__months${undated || exhausted ? " yd-runway__months--words" : ""}`}
       >

@@ -16,7 +16,18 @@ Two decisions that carry the honesty of the whole module:
   marked not comparable, with the reason -- never dropped silently, and never
   reported as -100 %. A category bought every month a year ago and never since
   is this case exactly: it has zero qualifying months in the current window,
-  not a price that fell to zero.
+  not a price that fell to zero;
+* `current` must not exceed twelve months. `previous_year_window` shifts the
+  whole window back exactly one year, so any `current` longer than that
+  overlaps its own comparison period -- the shared months get counted on both
+  sides, blending two different years' prices into one ratio that neither
+  year actually stated, while still LOOKING like an honest year-over-year
+  figure. This is the same failure the first bullet above prevents, at the
+  window's other edge -- a per-window total that mixes calendar periods -- so
+  it is refused outright (`ValueError`, in French) rather than silently
+  computed. The router's own default (last twelve complete months of the
+  ledger, not its whole span) exists so an ordinary request never reaches
+  this guard; it is here for whatever range a caller explicitly types in.
 
 Sign convention, module-local and deliberate: every `*_cost_cents` here is a
 POSITIVE magnitude. A basket's price is a positive number, and the field names
@@ -211,6 +222,20 @@ def compute_inflation(
     index_points: list[tuple[date, int]],
 ) -> InflationReport:
     previous = previous_year_window(current)
+    # `previous.end >= current.start` is the exact overlap condition, not an
+    # approximation: `previous_year_window` shifts both bounds back by the
+    # SAME one-year rule (including its own leap-day handling), so comparing
+    # the shifted end against the original start catches every window longer
+    # than twelve months, calendar-aligned or not, without separately
+    # reimplementing "twelve months" as day or month arithmetic that could
+    # drift out of step with the shift it is checking.
+    if previous.end >= current.start:
+        raise ValueError(
+            "La période demandée dépasse douze mois : la comparaison "
+            "porterait alors sur la même période un an plus tôt, qui "
+            "chevaucherait la période choisie et compterait certains mois "
+            "deux fois."
+        )
     now = _monthly_costs(entries, current)
     before = _monthly_costs(entries, previous)
 

@@ -1,5 +1,7 @@
 from datetime import date, timedelta
 
+import pytest
+
 from app.engines.anomaly import MIN_HISTORY
 from app.models import Account, Transaction
 
@@ -179,6 +181,91 @@ def test_transfers_are_excluded_from_the_inflation_basket(client, db, imported):
                       headers=headers).json()
     category_ids = [line["category_id"] for line in body["lines"]]
     assert epargne["id"] not in category_ids
+
+
+def test_the_default_window_is_the_last_twelve_months_not_the_whole_ledger(client, db, imported):
+    """Review finding, phase 2A: the router's absent-bound default used to
+    reuse `period_range`'s own default -- the user's WHOLE ledger span. On
+    any ledger longer than twelve months, shifting that whole span back a
+    year (`previous_year_window`) makes it overlap itself, so the same
+    months get counted on both sides. Probed by the reviewer on a 36-month
+    ledger, groceries genuinely rising 10 %/year (2023 = 100 EUR/mo,
+    2024 = 110, 2025 = 121): the old default reported +4.76 %, flagged
+    `comparable: true`, `reason: null` -- a number the ledger never stated.
+    The fix defaults to the last twelve *complete calendar months* of the
+    ledger; this must reproduce the true, unblended +10 %."""
+    headers, account_id = imported
+    account = db.query(Account).filter(Account.id == account_id).first()
+    epicerie = client.post("/api/categories", headers=headers,
+                           json={"name": "Epicerie annuelle"}).json()
+
+    prices = {2023: -10_000, 2024: -11_000, 2025: -12_100}
+    for year in (2023, 2024, 2025):
+        for month in range(1, 13):
+            on = date(year, month, 10)
+            db.add(Transaction(
+                user_id=account.user_id, account_id=account_id,
+                date=on, value_date=on, amount_cents=prices[year],
+                label_raw=f"COURSES {year}-{month:02d}", label_clean="courses",
+                category_id=epicerie["id"], category_source="manual",
+                is_transfer=False, dedup_hash=f"epicerie-{year}-{month}", tags=[],
+            ))
+    db.commit()
+
+    body = client.get("/api/analysis/inflation", headers=headers).json()
+    assert body["current_from"] == "2025-01-01"
+    assert body["current_to"] == "2025-12-31"
+    assert body["previous_from"] == "2024-01-01"
+    assert body["previous_to"] == "2024-12-31"
+
+    line = next(item for item in body["lines"] if item["category_id"] == epicerie["id"])
+    assert line["comparable"] is True
+    assert line["ratio"] == pytest.approx(0.1)
+
+
+def test_an_explicit_window_over_twelve_months_refuses_rather_than_blending(client, imported):
+    """The router's default fix does not by itself close the hole: anyone
+    typing an explicit range wider than twelve months would still get a
+    blended figure without the engine's own guard. This is that guard,
+    reached through the API -- refuses before any transaction is even
+    scanned, so it fires on the bare `imported` fixture with no extra
+    setup."""
+    headers, _ = imported
+    response = client.get(
+        "/api/analysis/inflation?date_from=2024-01-01&date_to=2025-12-31",
+        headers=headers,
+    )
+    assert response.status_code == 422
+    assert "douze mois" in response.json()["detail"]
+
+
+def test_a_price_index_value_far_too_large_is_refused_not_a_500(client, imported):
+    """Review finding, phase 2A: `PriceIndexPointIn.value` had `gt=0` and no
+    upper bound. Three payload shapes 500'd: two from `Decimal.quantize()`
+    raising `InvalidOperation` once the rounded result needed more digits
+    than the default 28-digit context precision, one from `OverflowError`
+    when the resulting int no longer fit SQLite's 8-byte INTEGER at commit.
+    All three must now be refused at the schema boundary, in French, like
+    every other malformed input on this endpoint."""
+    headers, _ = imported
+    for bad_value in ("1e30", "9" * 27 + ".99", "1e20"):
+        response = client.put("/api/analysis/price-index", headers=headers,
+                              json={"points": [{"month": "2025-01", "value": bad_value}]})
+        assert response.status_code == 422, bad_value
+
+
+def test_a_price_index_value_rounding_to_zero_hundredths_is_refused(client, imported):
+    """Review finding, phase 2A: `gt=0` binds the raw `Decimal`, not the
+    rounded `value_hundredths` the router stores. `"0.004"` passes `gt=0`
+    (it IS positive) but rounds (ROUND_HALF_UP) to 0 hundredths -- a zero
+    *current-side* median divided into a positive previous one would
+    fabricate `ratio = -1.0`, a "-100 %" reference inflation nobody's
+    pasted series actually stated."""
+    headers, _ = imported
+    response = client.put("/api/analysis/price-index", headers=headers,
+                          json={"points": [{"month": "2025-01", "value": "0.004"}]})
+    assert response.status_code == 422
+    assert client.get("/api/analysis/price-index", headers=headers).json() == []
 
 
 def test_anomalies_are_scored_over_history_and_reported_for_the_period(client, imported):

@@ -89,8 +89,20 @@ class PriceIndexPointIn(BaseModel):
     # value would divide and return a sign-inverted ratio. An index point is
     # typed in by a human, so the schema boundary is where that is refused,
     # rather than trusting every future caller of the engine to re-derive the
-    # same guard.
-    value: Decimal = Field(gt=0)
+    # same guard. Note `gt=0` binds the raw `Decimal` the caller sent, not the
+    # rounded `value_hundredths` the router later stores -- a tiny positive
+    # value (e.g. "0.004") still rounds to 0 hundredths, so the router itself
+    # carries a second, post-rounding guard (see `replace_price_index`).
+    #
+    # `le=1_000_000` is a review fix, not an arbitrary ceiling: with no upper
+    # bound, "1e30", a 29-digit literal, and "1e20" each 500'd -- two from
+    # `Decimal.quantize()` raising `InvalidOperation` once the rounded result
+    # needs more digits than the default 28-digit context precision, one from
+    # `OverflowError` when the resulting int no longer fits SQLite's 8-byte
+    # INTEGER at commit. A million is generous headroom over any real index
+    # (INSEE's IPC sits around 100-140) while keeping every value this schema
+    # can ever produce (<= 100_000_000 hundredths) far under both ceilings.
+    value: Decimal = Field(gt=0, le=1_000_000)
 
 
 class PriceIndexIn(BaseModel):

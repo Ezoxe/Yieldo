@@ -5,14 +5,24 @@ Both read routes follow `api/common.py`'s two rules: every query filters on
 `user_id`, and the clock is read here, at the boundary, never inside
 `app.engines`.
 
-`inflation` decides "today" by re-using `period_range`, the same helper
-`analytics.py` already builds its own windows from: an absent
-`date_from`/`date_to` resolves to the user's own ledger span, not to the real
-calendar date, so a stale ledger still gets a window with data in it rather
-than an empty one anchored on `date.today()`. `budgets.py` and `cashflow.py`
-make the same *kind* of choice (read the clock at the boundary, default to
-where the data actually is rather than today) but through their own
-month/ledger-bound resolvers, not through `period_range` itself.
+`inflation` decides "today" differently depending on whether a range was
+asked for. An EXPLICIT `date_from`/`date_to` (either one) still goes through
+`period_range`, the same helper `analytics.py` builds its own windows from:
+an absent bound resolves to the user's own ledger span, not the real
+calendar date. But when BOTH bounds are absent, `period_range`'s own default
+-- "as far as there is data" -- cannot be reused here the way `analytics.py`
+reuses it: on any ledger longer than twelve months, `previous_year_window`
+shifts that whole span back a year and the two windows OVERLAP, so the same
+months get counted on both sides and the reported ratio is a blend neither
+year actually stated (review finding, phase 2A: a 36-month ledger with a
+true, constant 10 %/year rise reported 4.76 % by construction, flagged
+`comparable: true`, `reason: null`). `_default_current_window` is the fix:
+it defaults to the last twelve *complete calendar months* of the ledger --
+the only default whose previous window cannot overlap it, per
+`compute_inflation`'s own guard (see `inflation.py`'s module docstring). A
+caller who explicitly widens a range past twelve months still hits that
+guard and gets a French 422 rather than a blended figure; only the ABSENT-
+bounds default is special-cased here.
 
 `anomalies` does not call `period_range` for its *scoring* input -- see
 `anomaly_points`'s and `detect_anomalies`'s own docstrings: the statistics
@@ -23,6 +33,7 @@ user's own history" reason as `inflation`.
 """
 
 import re
+from calendar import monthrange
 from datetime import date
 from decimal import ROUND_HALF_UP, Decimal
 
@@ -30,6 +41,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.api.common import anomaly_points, period_range, tx_points
+from app.api.history import user_history
 from app.db import get_db
 from app.engines.anomaly import detect_anomalies
 from app.engines.inflation import (
@@ -48,6 +60,7 @@ from app.schemas.analysis import (
     PriceIndexPointOut,
     SkippedCategoryOut,
 )
+from app.schemas.history import HistoryOut
 from app.security.deps import get_current_user
 
 router = APIRouter(prefix="/analysis", tags=["analysis"])
@@ -85,6 +98,45 @@ def _category_names(db: Session, user_id: int) -> dict[int, Category]:
     return {c.id: c for c in db.query(Category).filter(Category.user_id == user_id).all()}
 
 
+def _last_day_of_month(first_of_month: date) -> date:
+    _, last_day = monthrange(first_of_month.year, first_of_month.month)
+    return date(first_of_month.year, first_of_month.month, last_day)
+
+
+def _shift_months(first_of_month: date, delta_months: int) -> date:
+    """`first_of_month`, moved `delta_months` calendar months (may be
+    negative), landing on the 1st of the target month. Plain integer
+    arithmetic on a zero-based month count rather than repeated
+    `date.replace` calls, so there is no day-31-does-not-exist-in-February
+    case to special-case at every step."""
+    total = first_of_month.year * 12 + (first_of_month.month - 1) + delta_months
+    year, month = divmod(total, 12)
+    return date(year, month + 1, 1)
+
+
+def _default_current_window(history: HistoryOut | None, today: date) -> Window:
+    """The last twelve *complete calendar months* the ledger covers.
+
+    `period_range`'s own absent-bound default -- "as far as there is data"
+    -- is exactly the window `compute_inflation` now refuses on any ledger
+    longer than a year (see that function's guard): shifted back a year by
+    `previous_year_window`, it overlaps itself. A twelve-calendar-month
+    window is the widest default that provably cannot: anchored on the
+    ledger's own last transaction (never `today` -- a ledger that stopped
+    months ago must not default to an empty window at the real calendar
+    date), spanning from the 1st of the month eleven months earlier through
+    the last day of the anchor month. An empty ledger (`history is None`)
+    falls back to `today`'s own twelve-month window, which is moot: there is
+    no data for `compute_inflation` to find inside it either way.
+    """
+    anchor = history.date_to if history is not None else today
+    end_month_start = anchor.replace(day=1)
+    return Window(
+        start=_shift_months(end_month_start, -11),
+        end=_last_day_of_month(end_month_start),
+    )
+
+
 @router.get("/inflation", response_model=InflationOut)
 def inflation(
     date_from: date | None = None,
@@ -92,9 +144,16 @@ def inflation(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> InflationOut:
-    """The user's own basket, now against the same window twelve months ago."""
-    start, end, _ = period_range(db, user.id, date_from, date_to)
-    current = Window(start=start, end=end)
+    """The user's own basket, now against the same window twelve months ago.
+
+    See the module docstring for why an absent range is not simply handed to
+    `period_range` here the way every other read route in this file uses it.
+    """
+    if date_from is None and date_to is None:
+        current = _default_current_window(user_history(db, user.id), date.today())
+    else:
+        start, end, _ = period_range(db, user.id, date_from, date_to)
+        current = Window(start=start, end=end)
     previous = previous_year_window(current)
 
     # One fetch covering both windows. `tx_points` does not filter transfers
@@ -106,14 +165,20 @@ def inflation(
     points = [
         CategorySpend(on=point.on, amount_cents=point.amount_cents,
                       category_id=point.category_id)
-        for point in tx_points(db, user.id, previous.start, end)
+        for point in tx_points(db, user.id, previous.start, current.end)
         if not point.is_transfer
     ]
-    report = compute_inflation(
-        points,
-        current,
-        [(item.month, item.value_hundredths) for item in _index_points(db, user.id)],
-    )
+    try:
+        report = compute_inflation(
+            points,
+            current,
+            [(item.month, item.value_hundredths) for item in _index_points(db, user.id)],
+        )
+    except ValueError as exc:
+        # `compute_inflation` raises in French already (see its own guard) --
+        # the same catch-and-forward idiom `imports.py` uses for an engine
+        # error that is already user-facing prose, not a stack trace to hide.
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
     names = _category_names(db, user.id)
     return InflationOut(
@@ -230,11 +295,20 @@ def replace_price_index(
     app makes no outbound call by default, and an index nobody typed in is an
     index that does not exist.
 
-    The value's positivity is already enforced by `PriceIndexPointIn` (schema
-    boundary); this function only still has to refuse a month appearing twice
-    in the same payload -- without this check, the second occurrence would
-    silently overwrite the first in `parsed`, keeping whichever came last
-    with no sign to the caller that a point was dropped.
+    `PriceIndexPointIn` enforces the raw `Decimal`'s positivity (`gt=0`) and
+    an upper bound (`le=1_000_000`) -- it does NOT enforce the positivity of
+    `value_hundredths`, the rounded integer actually stored: a small enough
+    positive value (review finding, phase 2A: `"0.004"`) rounds down to 0
+    hundredths. A zero *current-side* median divided into a positive
+    previous-side one in `reference_ratio_from_index` produces a fabricated
+    `ratio = -1.0` -- a "-100 %" reference inflation nobody's pasted series
+    actually stated. Guarded here, after rounding, because the schema cannot
+    see the rounded value.
+
+    This function also still has to refuse a month appearing twice in the
+    same payload -- without that check, the second occurrence would silently
+    overwrite the first in `parsed`, keeping whichever came last with no sign
+    to the caller that a point was dropped.
     """
     parsed: dict[date, int] = {}
     for point in payload.points:
@@ -245,9 +319,17 @@ def replace_price_index(
                 detail=f"Le mois {point.month} apparaît deux fois dans la série.",
             )
         # Exact: Decimal all the way to the integer. No float touches this.
-        parsed[month] = int(
-            (point.value * 100).quantize(Decimal("1"), rounding=ROUND_HALF_UP)
-        )
+        hundredths = int((point.value * 100).quantize(Decimal("1"), rounding=ROUND_HALF_UP))
+        if hundredths <= 0:
+            raise HTTPException(
+                status_code=422,
+                detail=(
+                    f"La valeur de l'indice pour {point.month} est trop proche de "
+                    "zéro : une fois arrondie au centième, elle doit rester "
+                    "strictement positive."
+                ),
+            )
+        parsed[month] = hundredths
 
     db.query(PriceIndexPoint).filter(PriceIndexPoint.user_id == user.id).delete(
         synchronize_session=False

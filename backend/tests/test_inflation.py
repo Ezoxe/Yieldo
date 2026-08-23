@@ -230,3 +230,34 @@ def test_an_empty_ledger_refuses_with_a_reason():
     assert report.lines == []
     assert report.comparable is False
     assert report.reason is not None
+
+
+def test_a_window_longer_than_twelve_months_refuses_rather_than_overlapping():
+    """`previous_year_window` shifts back exactly twelve months, so any
+    `current` window longer than that overlaps its own comparison period --
+    verified directly: a 24-month window's previous window ends
+    2024-12-31, one day INSIDE the 2024-01-01 start of the (supposedly
+    "current") window being measured, so 2024 would be counted on both
+    sides. Refused before either window is even scanned, regardless of
+    whether `entries` holds any data."""
+    current = Window(start=date(2024, 1, 1), end=date(2025, 12, 31))
+    with pytest.raises(ValueError, match="douze mois"):
+        compute_inflation([], current, [])
+
+
+def test_a_window_of_exactly_twelve_months_is_allowed():
+    """The boundary the router's own default relies on: a calendar-aligned
+    twelve-month window (1 January to 31 December) shifts back to a previous
+    window ending 31 December the year before -- one day short of touching
+    the current window's start, so this must NOT raise."""
+    current = Window(start=date(2025, 1, 1), end=date(2025, 12, 31))
+    report = compute_inflation([], current, [])
+    assert report.lines == []
+
+
+def test_a_window_one_day_over_twelve_months_refuses():
+    """The exact boundary from the other side: one extra day makes the
+    previous window's end land exactly ON the current window's start."""
+    current = Window(start=date(2025, 1, 1), end=date(2026, 1, 1))
+    with pytest.raises(ValueError, match="douze mois"):
+        compute_inflation([], current, [])

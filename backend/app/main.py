@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 
 from app.api import accounts as account_routes
+from app.api import analysis as analysis_routes
 from app.api import analytics as analytics_routes
 from app.api import auth as auth_routes
 from app.api import budgets as budget_routes
@@ -58,6 +59,7 @@ api.include_router(account_routes.router)
 api.include_router(import_routes.router)
 api.include_router(transaction_routes.router)
 api.include_router(category_routes.router)
+api.include_router(analysis_routes.router)
 api.include_router(analytics_routes.router)
 api.include_router(budget_routes.router)
 api.include_router(recurrence_routes.router)

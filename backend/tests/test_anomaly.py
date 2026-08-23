@@ -270,7 +270,7 @@ def test_an_annual_premium_among_monthly_charges_is_flagged():
     assert [a.amount_cents for a in report.anomalies] == [annual_premium]
 
 
-def test_the_ranking_metric_is_relative_deviation_not_raw_modified_z():
+def test_raw_modified_z_would_misrank_this_but_the_report_does_not():
     """Review round 1 finding: raw `modified_z` is not safe to compare across
     categories whenever a group's MAD is 0 (the mean-absolute-deviation
     fallback) -- checked directly against `robust.describe`/`modified_z`
@@ -282,9 +282,10 @@ def test_the_ranking_metric_is_relative_deviation_not_raw_modified_z():
     `group_size / MODIFIED_Z_MEAN_AD_CONSTANT`, independent of how large the
     differing value actually is. Sorted by raw z, the fifteen-cent change
     would sit at the top of the feed, above the grocery spike. `anomalies`
-    must instead rank by how far a transaction departed, PROPORTIONALLY, from
-    its own category's usual amount -- the reading a person actually wants
-    first."""
+    ranks by absolute cents moved instead (review round 2 -- see
+    `test_the_ranking_metric_is_absolute_cents_across_three_categories` for
+    why a relative/ratio metric was tried and rejected too), which is not
+    fooled by group size any more than by a small denominator."""
     tiny_reprice = _rows(1, [-1549] * 29 + [-1564])
     big_spike = _renumber(_rows(2, [-4000] * 11 + [-90000], start=date(2025, 2, 1)), 100)
     report = detect_anomalies(tiny_reprice + big_spike, WINDOW_START, WINDOW_END)
@@ -293,11 +294,11 @@ def test_the_ranking_metric_is_relative_deviation_not_raw_modified_z():
     # Raw z ranks them the OTHER way -- pinning this so the ranking fix isn't
     # accidentally validated by a fixture where both metrics happen to agree.
     assert by_category[1].modified_z > by_category[2].modified_z
-    # But the report puts the real spike first.
+    # But the report puts the real spike first: 86 000 cents moved beats 15.
     assert [a.category_id for a in report.anomalies] == [2, 1]
 
 
-def test_a_category_whose_median_is_zero_ranks_first_rather_than_crashing():
+def test_a_category_whose_median_is_zero_still_ranks_by_cents_moved():
     """A category built almost entirely of zero-amount rows has a median of
     0 -- reachable whenever at least half the group's magnitudes are 0 (the
     even/odd split in `robust.median_cents` lands on the zero side). Zero
@@ -305,9 +306,10 @@ def test_a_category_whose_median_is_zero_ranks_first_rather_than_crashing():
     zero rows and the one large row must share that sign to land in the same
     group -- an income category that is usually a no-op and then, once,
     isn't (e.g. a cashback or interest line that is normally 0,00 EUR).
-    Ranking by relative deviation would divide by that 0; instead it must
-    rank first, infinitely far from a centre that has never moved, rather
-    than raising."""
+    Absolute cents has no denominator for this to destabilise (unlike the
+    relative-ratio metric review round 2 rejected): 50 000 cents moved here
+    against 85 950 in the other category, so THIS one ranks second, plainly,
+    with no special-casing required."""
     zero_heavy = _rows(1, [0] * 11 + [50000])
     ordinary_with_outlier = _renumber(
         _rows(2, [-4000, -4200, -3900, -4100, -4050, -3950, -4150, -4000, -4300, -3800,
@@ -316,25 +318,55 @@ def test_a_category_whose_median_is_zero_ranks_first_rather_than_crashing():
     )
     report = detect_anomalies(zero_heavy + ordinary_with_outlier, WINDOW_START, WINDOW_END)
     assert len(report.anomalies) == 2
-    assert report.anomalies[0].category_id == 1
-    assert report.anomalies[0].category_median_cents == 0
+    assert [a.category_id for a in report.anomalies] == [2, 1]
+    by_category = {a.category_id: a for a in report.anomalies}
+    assert by_category[1].category_median_cents == 0
 
 
 def test_a_low_anomaly_ranks_by_the_size_of_its_gap_not_its_sign():
-    """`_unusualness` takes `abs()` of the numerator so a "low" anomaly
+    """`_deviation_cents` takes `abs()` of the difference so a "low" anomaly
     (magnitude below the median, a negative `value - median`) doesn't rank
     as if it were LESS unusual than a "high" one just because its raw
     difference is negative. This category's charge collapses to 100 cents
-    against a 40 000-cent median -- 99.75% below normal, the largest
-    possible gap short of 0 -- while the other category's charge is only
-    10% above its own median. The 99.75% gap must rank first regardless of
-    direction."""
+    against a 40 000-cent median -- a 39 900-cent gap, the largest of the
+    two -- while the other category's charge is only 400 cents away from its
+    own median. The bigger gap must rank first regardless of direction."""
     barely_anything = _rows(1, [-40000] * 11 + [-100])
     slightly_more = _renumber(_rows(2, [-4000] * 11 + [-4400], start=date(2025, 2, 1)), 100)
     report = detect_anomalies(barely_anything + slightly_more, WINDOW_START, WINDOW_END)
     assert [a.category_id for a in report.anomalies] == [1, 2]
     assert report.anomalies[0].direction == "low"
     assert report.anomalies[1].direction == "high"
+
+
+def test_the_ranking_metric_is_absolute_cents_across_three_categories():
+    """Coordinator ruling, review round 2: the round-1 fix (relative
+    deviation from the category's own median) just relocated the
+    instability from a degenerate `modified_z` to a degenerate ratio -- a
+    1-cent-baseline category dividing by its own tiny median explodes past a
+    genuine 860 EUR spike's ratio. Checked directly against
+    `robust.describe`/`modified_z` before writing this fixture:
+
+    - 1-cent baseline, one 5,00 EUR (500 cent) charge: median=1, z~=8.85,
+      the OLD relative ratio = 499/1 = 499.0 -- would rank ABOVE the real
+      spike.
+    - 50-cent baseline, one 50,00 EUR (5 000 cent) charge: median=50,
+      z~=8.78, OLD ratio = 4 950/50 = 99.0 -- also above the real spike.
+    - the `big_spike` fixture, an 860 EUR charge against a 40 EUR median:
+      z~=9.57, OLD ratio = 86 000/4 000 = 21.5 -- would rank LAST of the
+      three despite moving the most real money.
+
+    `modified_z` still decides WHETHER a row qualifies at all -- that stays
+    the robust, category-relative, no-arbitrary-threshold gate, unchanged.
+    Ranking among qualifying rows is by absolute cents moved, which has no
+    denominator for the data to destabilise: three different baselines, one
+    report, ordered strictly by euros, most first."""
+    tiny_baseline = _rows(1, [-1] * 10 + [-500])
+    mid_baseline = _renumber(_rows(2, [-50] * 10 + [-5000], start=date(2025, 2, 1)), 100)
+    big_spike = _renumber(_rows(3, [-4000] * 11 + [-90000], start=date(2025, 3, 1)), 200)
+
+    report = detect_anomalies(tiny_baseline + mid_baseline + big_spike, WINDOW_START, WINDOW_END)
+    assert [a.category_id for a in report.anomalies] == [3, 2, 1]
 
 
 def test_the_skip_reason_names_the_sign_groups_own_count_not_the_categorys():

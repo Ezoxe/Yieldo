@@ -61,10 +61,11 @@ class Anomaly:
     # z-score units. Signed: positive when the amount's magnitude sits above
     # the median, negative when below. A dimensionless ratio, not money --
     # the one field in this module allowed to be a float under CLAUDE.md's
-    # money rule. INFORMATIONAL ONLY: this is what decided whether the
-    # transaction crossed `OUTLIER_Z`, but `AnomalyReport.anomalies` is NOT
-    # ordered by it -- see that field's own comment for why raw z is unsafe
-    # to compare across categories.
+    # money rule. QUALIFIES, DOES NOT ORDER: this decided whether the
+    # transaction crossed `OUTLIER_Z` at all, and stays exactly that --
+    # `AnomalyReport.anomalies` is NOT sorted by it. See that field's own
+    # comment for the two ranking metrics this module tried and rejected
+    # before settling on absolute cents.
     modified_z: float
     direction: Direction
 
@@ -86,21 +87,35 @@ class SkippedCategory:
 
 @dataclass(frozen=True)
 class AnomalyReport:
-    # Sorted by relative deviation from the category's own median, descending
-    # -- the transaction that departed furthest, PROPORTIONALLY, from what
-    # its category usually costs, first. Deliberately NOT sorted by raw
-    # `|modified_z|`: whenever a group's MAD is 0 (the mean-absolute-
-    # deviation fallback -- the common case for a fixed-amount subscription,
-    # and the shape most of this module's own tests use), the resulting
-    # score is approximately `group_size / MODIFIED_Z_MEAN_AD_CONSTANT`,
-    # independent of how large the differing value actually is. Verified: a
-    # 15-cent subscription repricing in a 30-row category scores z ~= 11.97,
-    # HIGHER than an 860 EUR grocery spike in a 12-row category at z ~= 9.57
-    # (`test_the_ranking_metric_is_relative_deviation_not_raw_modified_z`).
-    # Sorting by raw z would put the fifteen-cent change at the top of the
-    # feed. A group whose median is 0 (reachable: at least half its
-    # magnitudes are themselves 0) ranks first rather than raising -- see
-    # `test_a_category_whose_median_is_zero_ranks_first_rather_than_crashing`.
+    # Sorted by ABSOLUTE CENTS moved -- `abs(abs(amount_cents) -
+    # category_median_cents)` -- descending: the transaction that moved the
+    # most real money first. `modified_z` already decided WHETHER a row
+    # belongs in this list at all (the robust, category-relative,
+    # no-arbitrary-threshold gate; every row here has already earned its
+    # place); ranking among qualifying rows is a different question, and
+    # this module has tried and rejected two other answers to it:
+    #
+    # 1. Raw `|modified_z|` (review round 1 finding): unsafe whenever a
+    #    group's MAD is 0 (the mean-absolute-deviation fallback -- the
+    #    common case for a fixed-amount subscription, and the shape most of
+    #    this module's own tests use). There, the score is approximately
+    #    `group_size / MODIFIED_Z_MEAN_AD_CONSTANT`, independent of how
+    #    large the differing value actually is. Verified: a 15-cent
+    #    subscription repricing in a 30-row category scores z ~= 11.97,
+    #    HIGHER than an 860 EUR grocery spike in a 12-row category at
+    #    z ~= 9.57 -- sorting by raw z put the fifteen-cent change at the
+    #    top of the feed.
+    # 2. Relative deviation from the median, `(...)/ category_median_cents`
+    #    (review round 2 finding): fixed (1) but is unsafe whenever the
+    #    median is small -- a 1-cent-baseline category with a single 5,00
+    #    EUR charge scores a ratio of 499.0, ABOVE the 860 EUR spike's 21.5.
+    #
+    # Absolute cents cannot be destabilised by a small denominator because
+    # there is no denominator: both failures above came from dividing by
+    # something the data controls. See
+    # `test_the_ranking_metric_is_absolute_cents_across_three_categories`.
+    # The relative figure is still fine to use for DISPLAY copy ("trois fois
+    # le montant habituel") -- it must simply never be the sort key.
     anomalies: list[Anomaly]
     # Scoped to the window exactly like `anomalies` is: a category+sign group
     # with zero transactions inside [window_start, window_end] appears in
@@ -209,22 +224,18 @@ def detect_anomalies(
                 direction="high" if abs(row.amount_cents) > spread.median else "low",
             ))
 
-    anomalies.sort(key=_unusualness, reverse=True)
+    anomalies.sort(key=_deviation_cents, reverse=True)
     return AnomalyReport(anomalies=anomalies, skipped=skipped, scored_groups=scored_groups)
 
 
-def _unusualness(item: Anomaly) -> float:
-    """How far `item` sits from its category's usual amount, as a fraction of
-    that usual amount -- the metric `AnomalyReport.anomalies` is ranked by.
-    See that field's comment for why raw `modified_z` is unsafe to compare
-    across categories.
+def _deviation_cents(item: Anomaly) -> int:
+    """How many cents `item` sits from its category's usual amount -- the
+    metric `AnomalyReport.anomalies` is ranked by. See that field's own
+    comment for the two other metrics tried here and rejected (raw
+    `modified_z`, then a relative ratio) and why each one destabilised.
 
-    A `category_median_cents` of 0 (reachable: at least half a group's
-    magnitudes are themselves 0, e.g. `test_a_category_whose_median_is_zero_
-    ranks_first_rather_than_crashing`) ranks first rather than dividing by
-    it: any nonzero amount against a centre that has never moved is
-    infinitely far away.
+    No denominator, so no value of `category_median_cents` -- including
+    0, reachable whenever at least half a group's magnitudes are themselves
+    0 -- can blow this up or require special-casing.
     """
-    if item.category_median_cents == 0:
-        return float("inf")
-    return abs(abs(item.amount_cents) - item.category_median_cents) / item.category_median_cents
+    return abs(abs(item.amount_cents) - item.category_median_cents)

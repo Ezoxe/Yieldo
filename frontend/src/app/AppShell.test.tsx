@@ -40,6 +40,7 @@ function renderShell(initialPath: string) {
             <Route path="transactions" element={<p>Écran transactions</p>} />
             <Route path="budgets" element={<p>Écran budgets</p>} />
             <Route path="recurrences" element={<p>Écran récurrences</p>} />
+            <Route path="tresorerie" element={<p>Écran trésorerie</p>} />
             <Route path="categories" element={<p>Écran catégories</p>} />
             <Route path="import" element={<p>Écran import</p>} />
             <Route path="reglages" element={<p>Écran réglages</p>} />
@@ -90,6 +91,7 @@ describe("AppShell", () => {
       "Transactions",
       "Budgets",
       "Récurrences",
+      "Trésorerie",
       "Catégories",
       "Import",
       "Réglages",
@@ -104,6 +106,19 @@ describe("AppShell", () => {
 
     expect(screen.getByRole("main")).toHaveTextContent("Écran récurrences");
     expect(screen.getByRole("link", { name: "Récurrences" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+  });
+
+  it("routes the Trésorerie nav entry to the treasury screen", async () => {
+    const user = userEvent.setup();
+    renderShell("/");
+
+    await user.click(screen.getByRole("link", { name: "Trésorerie" }));
+
+    expect(screen.getByRole("main")).toHaveTextContent("Écran trésorerie");
+    expect(screen.getByRole("link", { name: "Trésorerie" })).toHaveAttribute(
       "aria-current",
       "page",
     );

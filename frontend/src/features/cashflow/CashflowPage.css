@@ -1,0 +1,248 @@
+.yd-cashflow {
+  max-width: 1280px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-lg);
+}
+
+.yd-cashflow__header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-2xs);
+}
+
+.yd-cashflow h1 {
+  margin: 0;
+  font-size: clamp(1.4rem, 2.2vw, 1.75rem);
+  letter-spacing: -0.015em;
+  color: var(--yd-text);
+}
+
+.yd-cashflow__lead {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--yd-text-muted);
+}
+
+/* The two-clocks statement. It qualifies BOTH panels, so it sits above the
+   grid rather than inside either one, and it is given the info colour's left
+   rule so it reads as a standing condition of the screen and not as a caption
+   under the title. Never the negative colour: nothing has gone wrong. */
+.yd-cashflow__clocks {
+  margin: 0;
+  /* Capped, like every block of prose on this screen: the content column runs
+     to ~1150px at 1440, which at this size is about 175 characters a line.
+     Measured in a browser — the banner read as a wall. */
+  max-width: 96ch;
+  padding: var(--yd-space-sm) var(--yd-space-md);
+  border-radius: var(--yd-radius-sm);
+  border: 1px solid var(--yd-border-strong);
+  border-left: 3px solid var(--yd-info);
+  background: var(--yd-surface-strong);
+  color: var(--yd-text);
+  font-size: 0.88rem;
+  line-height: 1.55;
+}
+
+/* Balance ---------------------------------------------------------------- */
+
+/* From 1200px this cell sits beside the runway cell, which is roughly twice as
+   tall: stretched to the row it left ~230px of blank card under the last
+   sentence, which reads as something having failed to load. Sized to its
+   content instead, so what shows under it is the page's own ground. Below
+   1200px both cells span the full row and this is inert. */
+.yd-cashflow__balance-cell {
+  align-self: start;
+}
+
+.yd-cashflow__balance {
+  font-size: clamp(1.6rem, 4.5vw, 2.4rem);
+  font-weight: 600;
+  color: var(--yd-text);
+}
+
+/* Runway ----------------------------------------------------------------- */
+
+.yd-cashflow__scenarios {
+  display: grid;
+  /* minmax(0, 1fr) so a long duration string cannot set the track's minimum
+     and push the pair past the cell at 375. */
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--yd-space-md);
+}
+
+/* 640px, not the bento's 768: at md the runway cell already spans the full
+   six columns, so it has the width for two panels well before the grid itself
+   changes shape. */
+@media (min-width: 640px) {
+  .yd-cashflow__scenarios {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    /* Panels keep the row's height rather than each stretching to it: a
+       computed scenario beside a refused one would otherwise grow a card's
+       worth of dead space under the shorter of the two. */
+    align-items: start;
+  }
+}
+
+/* One scenario. A GRID, not an auto-width flex column: everything inside is
+   full-bleed text, and `minmax(0, 1fr)` is what lets a long French sentence
+   wrap instead of setting the track's width. */
+.yd-runway {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--yd-space-2xs);
+  padding: var(--yd-space-sm);
+  border-radius: var(--yd-radius-sm);
+  border: 1px solid var(--yd-border);
+  /* --yd-surface, not --yd-surface-strong: the panel is a compartment inside a
+     cell, and repeating the cell's own opaque surface would make the border the
+     only thing separating them. Muted text over this translucent layer,
+     composited over the cell and the halo behind it, is measured by
+     design/contrast.test.ts. */
+  background: var(--yd-surface);
+}
+
+/* A refused scenario keeps the same box and the same height rules as a
+   computed one — a card that shrinks when the answer is "not measurable" reads
+   as the answer being less important, and it is not. */
+.yd-runway--unavailable {
+  border-style: dashed;
+}
+
+.yd-runway__label {
+  font-size: 0.86rem;
+  color: var(--yd-text-muted);
+}
+
+.yd-runway__months {
+  font-family: var(--yd-font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+  font-size: clamp(1.5rem, 4vw, 2rem);
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--yd-text);
+}
+
+/* "Déjà épuisé", "Plus de cinquante ans", "Non mesurable" — words, not a
+   figure. Dropped out of the mono face and down a step so a sentence does not
+   wear a number's typography, and so it fits the panel at 375 without
+   wrapping to three lines. */
+.yd-runway__months--words {
+  font-family: var(--yd-font);
+  font-size: clamp(1.05rem, 2.6vw, 1.25rem);
+  letter-spacing: -0.005em;
+}
+
+.yd-runway__burn {
+  margin: 0;
+  font-size: 0.92rem;
+  color: var(--yd-text);
+}
+
+.yd-runway__detail,
+.yd-runway__band,
+.yd-runway__sample,
+.yd-runway__unavailable,
+.yd-cashflow__note,
+.yd-cashflow__caption {
+  margin: 0;
+  font-size: 0.86rem;
+  line-height: 1.5;
+  color: var(--yd-text-muted);
+}
+
+/* The forecast cell spans all twelve columns, so its prose has no natural
+   measure: at 1440 these sentences ran the full ~1150px content column, about
+   175 characters a line. Capped to a readable measure. The runway panels are
+   already narrow enough that this never binds on them. */
+.yd-cashflow__note,
+.yd-cashflow__caption {
+  max-width: 84ch;
+}
+
+/* The sample size sits last and quietest: it qualifies the two figures above
+   it rather than competing with them. */
+.yd-runway__sample {
+  padding-top: var(--yd-space-2xs);
+  border-top: 1px solid var(--yd-border);
+}
+
+/* A band whose low end is below zero means the dispersion is wider than the
+   median it surrounds. Given the warning colour's left rule because it
+   undercuts the duration printed above it — the reader has to see it. */
+.yd-runway__caveat {
+  margin: 0;
+  padding-left: var(--yd-space-sm);
+  border-left: 3px solid var(--yd-warning);
+  font-size: 0.84rem;
+  line-height: 1.5;
+  color: var(--yd-text);
+}
+
+/* A sentence that qualifies a figure enough to change how it is read stays at
+   full text colour rather than dropping to muted. */
+.yd-cashflow__note--strong {
+  color: var(--yd-text);
+}
+
+/* Forecast --------------------------------------------------------------- */
+
+/* A refusal is content, not an error: it says what is missing and how to fix
+   it. Styled as an informative block with the warning rule rather than in the
+   negative colour, which is reserved for something having gone wrong. */
+.yd-cashflow__insufficient {
+  margin: 0;
+  max-width: 96ch;
+  padding: var(--yd-space-sm) var(--yd-space-md);
+  border-radius: var(--yd-radius-sm);
+  border: 1px solid var(--yd-border-strong);
+  border-left: 3px solid var(--yd-warning);
+  background: var(--yd-surface);
+  color: var(--yd-text);
+  font-size: 0.92rem;
+  line-height: 1.55;
+}
+
+/* Alert ------------------------------------------------------------------ */
+
+.yd-cashflow__alert {
+  margin: 0;
+  padding: var(--yd-space-sm) var(--yd-space-md);
+  border-radius: var(--yd-radius-sm);
+  background: color-mix(in srgb, var(--yd-negative) 14%, transparent);
+  border: 1px solid var(--yd-negative);
+  color: var(--yd-negative);
+  font-size: 0.9rem;
+}
+
+/* Skeletons -------------------------------------------------------------- */
+
+/* The bar itself is design/Skeleton.css's; these are only the sizes, each one
+   the line box of the block it stands in for, so the cells are as tall before
+   the data lands as after and nothing on the page moves. */
+
+/* .yd-panel__title, at the line-height Bento.css pins on it. */
+.yd-skeleton--cf-title {
+  height: calc(0.95rem * 1.5);
+  width: 38%;
+}
+
+/* The balance figure and the two notes under it. */
+.yd-skeleton--cf-balance {
+  height: calc(clamp(1.6rem, 4.5vw, 2.4rem) * 1.2 + 0.86rem * 1.5 * 4 + var(--yd-space-sm) * 2);
+}
+
+/* Two scenario panels side by side, plus the three qualifying notes below. */
+.yd-skeleton--cf-scenarios {
+  height: calc(
+    clamp(1.5rem, 4vw, 2rem) * 1.2 + 0.86rem * 1.5 * 4 + 0.92rem * 1.5 +
+      var(--yd-space-2xs) * 5 + var(--yd-space-sm) * 2 + 0.86rem * 1.5 * 5 +
+      var(--yd-space-sm) * 3
+  );
+}
+
+/* The chart, at the height ForecastFanChart passes to <Chart>. */
+.yd-skeleton--cf-chart {
+  height: 340px;
+}

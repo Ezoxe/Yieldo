@@ -3,7 +3,8 @@ import { beforeAll, describe, expect, it, vi } from "vitest";
 
 import { ThemeProvider } from "../app/ThemeProvider";
 import type { Category, CategoryBreakdown } from "../lib/types";
-import { buildCategoryTreemapItems, CategoryTreemap } from "./CategoryTreemap";
+import { buildCategoryTreemapItems, CategoryTreemap, tileLabelColor } from "./CategoryTreemap";
+import { CHART_LABEL_INK, CHART_LABEL_PAPER, seriesColors } from "./theme";
 
 beforeAll(() => {
   Object.defineProperty(window, "matchMedia", {
@@ -56,6 +57,49 @@ describe("buildCategoryTreemapItems", () => {
   it("always sizes nodes by positive magnitude even though totals are negative", () => {
     const items = buildCategoryTreemapItems(breakdown, categories);
     for (const item of items) expect(item.valueCents).toBeGreaterThan(0);
+  });
+});
+
+describe("tileLabelColor", () => {
+  // Same WCAG 2.x arithmetic as design/contrast.test.ts, restated here so the
+  // assertion is a ratio rather than a colour name -- pinning "ink on #4fd6a8"
+  // would pass just as happily if the picker started returning ink on
+  // everything.
+  function lin(c: number): number {
+    const v = c / 255;
+    return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+  }
+  function lum(hex: string): number {
+    const v = hex.replace("#", "");
+    const [r, g, b] = [0, 2, 4].map((i) => parseInt(v.slice(i, i + 2), 16));
+    return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
+  }
+  function ratio(a: string, b: string): number {
+    const [x, y] = [lum(a), lum(b)];
+    return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05);
+  }
+
+  // The backend's own category colours, plus both themes' categorical ramps --
+  // every fill a tile can actually take.
+  const fills = [
+    "#8ab4f8", "#fb7185", "#64748b", "#f4a261", "#4fd6a8",
+    "#a78bfa", "#e5606b", "#7ee2d6", "#3b82f6",
+    ...seriesColors("dark"), ...seriesColors("light"),
+  ];
+
+  for (const fill of fills) {
+    it(`clears AA on a ${fill} tile`, () => {
+      // ECharts' treemap default is white on every tile: on the operator's own
+      // dashboard that measured 1.80:1 (#4fd6a8), 2.11:1 (#8ab4f8) and 2.69:1
+      // (#fb7185) -- see the task 19 report.
+      expect(ratio(tileLabelColor(fill), fill)).toBeGreaterThanOrEqual(4.5);
+    });
+  }
+
+  it("still prefers white where white is the better of the two", () => {
+    // The guard against a picker that simply always returns ink.
+    expect(tileLabelColor("#0b6d63")).toBe(CHART_LABEL_PAPER);
+    expect(tileLabelColor("#4fd6a8")).toBe(CHART_LABEL_INK);
   });
 });
 

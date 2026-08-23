@@ -66,6 +66,14 @@ export function chartTokens(resolved: Resolved): ChartTokens {
   return resolved === "dark" ? DARK_TOKENS : LIGHT_TOKENS;
 }
 
+// The two colours a label painted ON a categorical fill may take. Not part of
+// `ChartTokens` because they do not vary by theme: the ground under such a
+// label is the tile it sits on, not the page. Transcribed from
+// `--yd-chart-label-ink` / `--yd-chart-label-paper` and pinned to them by
+// theme.test.ts, like every other colour in this file.
+export const CHART_LABEL_INK = "#010305";
+export const CHART_LABEL_PAPER = "#ffffff";
+
 // -- Categorical palette ----------------------------------------------------
 //
 // tokens.css has no categorical ramp (it only names six semantic colors), so

@@ -57,7 +57,23 @@ export function buildCashflowOption(
   const labels = buckets.map((bucket) => bucketLabel(bucket, granularity));
 
   const option: EChartsOption = {
-    legend: { data: ["Entrées", "Sorties", "Solde net"], top: 0 },
+    legend: {
+      data: [
+        { name: "Entrées" },
+        { name: "Sorties" },
+        // `charts/theme.ts` forces `legend.icon: "roundRect"` app-wide, which
+        // draws this entry as a block of `accentStrong` beside "Entrées"'
+        // block of `positive` -- two teals 1.11:1 apart in the dark theme,
+        // 1.37:1 in the light one, telling apart only by their labels. This is
+        // a LINE over two stacked BARS, so "inherit" routes the entry through
+        // LineSeriesModel.getLegendIcon and draws the mark actually on the
+        // plot: the stroke and its round symbol. The two entries then differ
+        // by shape, which is how they differ on the chart. Same fix, same
+        // reason, as the forecast fan's median entry.
+        { name: "Solde net", icon: "inherit" },
+      ],
+      top: 0,
+    },
     grid: { left: 8, right: 8, top: 40, bottom: 64, containLabel: true },
     xAxis: { type: "category", data: labels },
     yAxis: { type: "value", axisLabel: { formatter: (value: number) => formatCompactCents(value) } },

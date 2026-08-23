@@ -3,7 +3,7 @@ import type { EChartsOption } from "echarts";
 import { formatCents } from "../design/theme";
 import type { Category, CategoryBreakdown } from "../lib/types";
 import { Chart, type ChartExportRow } from "./Chart";
-import { seriesColors } from "./theme";
+import { CHART_LABEL_INK, CHART_LABEL_PAPER, seriesColors } from "./theme";
 
 export interface CategoryTreemapNode {
   id: string;
@@ -108,11 +108,51 @@ export function buildCategoryTreemapItems(
   });
 }
 
+function srgbChannelToLinear(channel255: number): number {
+  const channel = channel255 / 255;
+  return channel <= 0.03928 ? channel / 12.92 : Math.pow((channel + 0.055) / 1.055, 2.4);
+}
+
+function relativeLuminance(hex: string): number {
+  const value = hex.trim().replace(/^#/, "");
+  const [r, g, b] = [0, 2, 4].map((i) => parseInt(value.slice(i, i + 2), 16));
+  return (
+    0.2126 * srgbChannelToLinear(r) +
+    0.7152 * srgbChannelToLinear(g) +
+    0.0722 * srgbChannelToLinear(b)
+  );
+}
+
+function contrastRatio(a: string, b: string): number {
+  const [la, lb] = [relativeLuminance(a), relativeLuminance(b)];
+  return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
+}
+
+/**
+ * The label colour for one tile: whichever of ink and paper reads better on
+ * that tile's own fill.
+ *
+ * ECharts' treemap default is white on every tile, whatever the tile is. The
+ * fills here are the backend's category colours -- pastels chosen to be
+ * distinguishable from each other, not to carry white text. Measured on the
+ * operator's own dashboard at 1440: white on #4fd6a8 is 1.80:1, on #8ab4f8
+ * 2.11:1, on #fb7185 2.69:1. Only the slate "Non catégorisé" tile cleared AA,
+ * at 4.63:1. Picking per tile takes every colour in the palette to at least
+ * 4.55:1, and the choice is derived from the fill rather than hand-listed, so
+ * a category colour the operator has never used cannot slip through.
+ */
+export function tileLabelColor(fill: string): string {
+  return contrastRatio(CHART_LABEL_PAPER, fill) >= contrastRatio(CHART_LABEL_INK, fill)
+    ? CHART_LABEL_PAPER
+    : CHART_LABEL_INK;
+}
+
 function toEchartsNode(node: CategoryTreemapNode): Record<string, unknown> {
   return {
     name: node.name,
     value: node.valueCents,
     itemStyle: { color: node.color },
+    label: { color: tileLabelColor(node.color) },
     children: node.children?.map(toEchartsNode),
   };
 }

@@ -130,7 +130,7 @@
 .yd-shell__theme-select select {
   background: var(--yd-surface);
   color: var(--yd-text);
-  border: 1px solid var(--yd-border);
+  border: 1px solid var(--yd-border-control);
   border-radius: var(--yd-radius-sm);
   padding: 6px 10px;
   font: inherit;

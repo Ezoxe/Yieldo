@@ -4,7 +4,14 @@ import { fileURLToPath } from "node:url";
 
 import { describe, expect, it } from "vitest";
 
-import { buildEchartsTheme, chartTokens, seriesColors, sequentialRamp } from "./theme";
+import {
+  buildEchartsTheme,
+  CHART_LABEL_INK,
+  CHART_LABEL_PAPER,
+  chartTokens,
+  seriesColors,
+  sequentialRamp,
+} from "./theme";
 
 describe("echarts theme", () => {
   it("uses readable text on a dark background", () => {
@@ -122,5 +129,17 @@ describe("theme.ts stays in sync with tokens.css", () => {
         expect(normalizeColor(chartValue)).toBe(normalizeColor(cssValue as string));
       });
     }
+  }
+  // Theme-agnostic, so they live in the bare `:root` block and are checked
+  // once rather than per theme.
+  for (const [name, value, cssVar] of [
+    ["CHART_LABEL_INK", CHART_LABEL_INK, "--yd-chart-label-ink"],
+    ["CHART_LABEL_PAPER", CHART_LABEL_PAPER, "--yd-chart-label-paper"],
+  ] as const) {
+    it(`${name} matches tokens.css's ${cssVar}`, () => {
+      const cssValue = rootTokens.get(cssVar);
+      expect(cssValue, `${cssVar} is not declared in tokens.css`).toBeDefined();
+      expect(normalizeColor(value)).toBe(normalizeColor(cssValue as string));
+    });
   }
 });

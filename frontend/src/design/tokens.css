@@ -6,6 +6,17 @@
   --yd-glass-blur: 18px;
   --yd-glass-saturate: 155%;
 
+  /* The two colours a label painted ON a categorical fill may take -- treemap
+     tiles today. Theme-agnostic on purpose: the ground under such a label is
+     the tile, not the page, so the light and dark themes have nothing to
+     disagree about. Their JS twins are CHART_LABEL_INK / CHART_LABEL_PAPER in
+     charts/theme.ts, pinned to these by charts/theme.test.ts. The ink is not
+     `--yd-text`: #2a78d6 in the light categorical ramp clears 4.5:1 against
+     neither white (4.42:1) nor #0d2029 (3.79:1), and only a near-black ink
+     takes every fill in both ramps over the line -- worst case 4.68:1. */
+  --yd-chart-label-ink: #010305;
+  --yd-chart-label-paper: #ffffff;
+
   --yd-accent: #7ee2d6;
   --yd-accent-strong: #4dc9ba;
   --yd-positive: #4fd6a8;
@@ -70,8 +81,31 @@
   --yd-surface-raised: rgba(30, 70, 94, 0.5);
   --yd-border: rgba(126, 226, 214, 0.18);
   --yd-border-strong: rgba(126, 226, 214, 0.34);
+  /* The visible boundary of a FORM CONTROL, and nothing else. WCAG 1.4.11
+     asks 3:1 of "visual information required to identify user interface
+     components": a select or an input whose fill is `--yd-surface` differs
+     from the surface behind it by 1.12:1, so its border is the only thing
+     saying "this is a control". Measured on the rendered header at 1440,
+     `--yd-border` came out at 1.55:1 dark / 1.30:1 light against the control's
+     own fill -- a hairline, not a boundary. Solid rather than translucent so
+     the ratio does not drift with whatever surface the control lands on:
+     4.28:1 over the composited header fill, 3.49:1 over the lightest card
+     surface, both clear. Card and panel edges keep `--yd-border` /
+     `--yd-border-strong`: a container is not a user interface component and
+     1.4.11 does not reach it. */
+  --yd-border-control: #63929d;
   --yd-text: #eef6f8;
   --yd-text-muted: #93a9b8;
+  /* Text sitting ON a negative-tinted panel, never anywhere else.
+     `--yd-negative` clears 4.5:1 against `--yd-bg`, which is all
+     `contrast.test.ts` can see -- but an alert paints its own panel from the
+     same colour at 14-16%, which LIGHTENS the ground under the text. Measured
+     on the rendered login alert at 1440: #e5606b on the composited #333446 is
+     3.61:1, below AA for the 0.9rem message it carries, and the same panel
+     recipe is repeated on eleven other screens. This value is 5.16:1 on that
+     panel and 6.20:1 on a bare card, so it is safe on both. The light theme
+     needs no twin: measured the same way it already reads 4.92:1. */
+  --yd-negative-text: #f08c94;
   --yd-shadow: 0 10px 34px rgba(0, 0, 0, 0.45);
   --yd-sheen: linear-gradient(160deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0) 44%);
   /* Atmospheric base. Never pure black: #050c14 is the darkest value allowed,
@@ -96,6 +130,10 @@
   --yd-surface-raised: rgba(255, 255, 255, 0.86);
   --yd-border: rgba(15, 60, 74, 0.14);
   --yd-border-strong: rgba(15, 60, 74, 0.26);
+  /* Same job as the dark theme's, measured against the light theme's own
+     surfaces: 3.96:1 over a white card, 3.46:1 over the deepest exposed
+     ground. See the dark block for why this token exists. */
+  --yd-border-control: #6f838d;
   --yd-text: #0d2029;
   /* Darkened twice, both times to survive the ground rather than to look right
      in isolation. #557184 cleared a flat --yd-bg by only 4.76:1, and the halo
@@ -114,6 +152,11 @@
   --yd-accent-strong: #085951;
   --yd-positive: #0e7150;
   --yd-negative: #b3232d;
+  /* Same role as the dark theme's, but the light theme's tint DARKENS nothing
+     -- a 14-16% wash of this red over white leaves #efdadb, on which
+     `--yd-negative` itself measures 4.92:1. Declared equal to it rather than
+     omitted, so a reader of either block sees the pairing stated. */
+  --yd-negative-text: #b3232d;
   --yd-warning: #8a4d08;
   --yd-info: #1d4ed8;
   --yd-shadow: 0 10px 30px rgba(13, 45, 60, 0.12);

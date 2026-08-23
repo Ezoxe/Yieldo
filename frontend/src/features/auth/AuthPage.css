@@ -48,7 +48,7 @@
 
 .yd-auth__field input {
   background: var(--yd-surface);
-  border: 1px solid var(--yd-border);
+  border: 1px solid var(--yd-border-control);
   border-radius: var(--yd-radius-sm);
   padding: 10px 12px;
   color: var(--yd-text);
@@ -90,7 +90,7 @@
   border-radius: var(--yd-radius-sm);
   background: color-mix(in srgb, var(--yd-negative) 16%, transparent);
   border: 1px solid var(--yd-negative);
-  color: var(--yd-negative);
+  color: var(--yd-negative-text);
   font-size: 0.9rem;
 }
 

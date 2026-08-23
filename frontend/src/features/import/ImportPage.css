@@ -90,7 +90,7 @@
 
 .yd-import__account select {
   background: var(--yd-surface);
-  border: 1px solid var(--yd-border);
+  border: 1px solid var(--yd-border-control);
   border-radius: var(--yd-radius-sm);
   padding: var(--yd-space-xs) var(--yd-space-sm);
   color: var(--yd-text);
@@ -147,7 +147,7 @@
 .yd-import__new-account-fields input,
 .yd-import__new-account-fields select {
   background: var(--yd-surface);
-  border: 1px solid var(--yd-border);
+  border: 1px solid var(--yd-border-control);
   border-radius: var(--yd-radius-sm);
   padding: var(--yd-space-xs) var(--yd-space-sm);
   color: var(--yd-text);
@@ -541,7 +541,7 @@
   border-radius: var(--yd-radius-sm);
   background: color-mix(in srgb, var(--yd-negative) 14%, transparent);
   border: 1px solid var(--yd-negative);
-  color: var(--yd-negative);
+  color: var(--yd-negative-text);
   font-size: 0.9rem;
 }
 
@@ -672,7 +672,7 @@
 .yd-dialect__field select,
 .yd-dialect__field input {
   background: var(--yd-surface);
-  border: 1px solid var(--yd-border);
+  border: 1px solid var(--yd-border-control);
   border-radius: var(--yd-radius-sm);
   padding: var(--yd-space-2xs) var(--yd-space-sm);
   color: var(--yd-text);
@@ -707,7 +707,7 @@
 
 .yd-dialect__save-row input {
   background: var(--yd-surface);
-  border: 1px solid var(--yd-border);
+  border: 1px solid var(--yd-border-control);
   border-radius: var(--yd-radius-sm);
   padding: var(--yd-space-2xs) var(--yd-space-sm);
   color: var(--yd-text);
@@ -777,7 +777,7 @@
   border-radius: var(--yd-radius-sm);
   background: color-mix(in srgb, var(--yd-negative) 14%, transparent);
   border: 1px solid var(--yd-negative);
-  color: var(--yd-negative);
+  color: var(--yd-negative-text);
   font-size: 0.85rem;
 }
 
@@ -816,7 +816,7 @@
 .yd-tagger__select {
   width: 100%;
   background: var(--yd-surface-raised);
-  border: 1px solid var(--yd-border);
+  border: 1px solid var(--yd-border-control);
   border-radius: var(--yd-radius-sm);
   padding: var(--yd-space-2xs) var(--yd-space-xs);
   color: var(--yd-text);
@@ -904,7 +904,7 @@
 }
 
 .yd-import-preview__row--error td {
-  color: var(--yd-negative);
+  color: var(--yd-negative-text);
   background: color-mix(in srgb, var(--yd-negative) 8%, transparent);
 }
 
@@ -931,7 +931,7 @@
 
 .yd-import-preview__category select {
   background: var(--yd-surface);
-  border: 1px solid var(--yd-border);
+  border: 1px solid var(--yd-border-control);
   border-radius: var(--yd-radius-sm);
   padding: var(--yd-space-2xs) var(--yd-space-xs);
   color: var(--yd-text);
@@ -1013,7 +1013,7 @@
   border-radius: var(--yd-radius-sm);
   background: color-mix(in srgb, var(--yd-negative) 14%, transparent);
   border: 1px solid var(--yd-negative);
-  color: var(--yd-negative);
+  color: var(--yd-negative-text);
   font-size: 0.85rem;
 }
 

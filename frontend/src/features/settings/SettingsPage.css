@@ -32,7 +32,7 @@
 
 .yd-settings__field select {
   background: var(--yd-surface);
-  border: 1px solid var(--yd-border);
+  border: 1px solid var(--yd-border-control);
   border-radius: var(--yd-radius-sm);
   padding: var(--yd-space-2xs) var(--yd-space-sm);
   color: var(--yd-text);
@@ -44,7 +44,14 @@
   width: 40px;
   height: 22px;
   border-radius: 999px;
-  background: var(--yd-border);
+  /* The OFF track. `--yd-border` put the whole control inside a 1.64:1 band
+     with the card behind it, measured on this screen at 1440 in the dark
+     theme: the track was invisible AND the knob (`--yd-surface-strong`) is the
+     card's own colour, so an off switch showed nothing at all. WCAG 1.4.11
+     wants 3:1 for both the boundary of a control and the visual information
+     carrying its state. This token is 4.28:1 against the card, and the knob
+     now reads against the track at the same ratio. */
+  background: var(--yd-border-control);
   position: relative;
   cursor: pointer;
   transition: background-color var(--yd-motion-fast) var(--yd-ease);

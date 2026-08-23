@@ -63,7 +63,7 @@
 
 .yd-period-selector__field input {
   background: var(--yd-surface);
-  border: 1px solid var(--yd-border);
+  border: 1px solid var(--yd-border-control);
   border-radius: var(--yd-radius-sm);
   padding: var(--yd-space-2xs) var(--yd-space-sm);
   color: var(--yd-text);

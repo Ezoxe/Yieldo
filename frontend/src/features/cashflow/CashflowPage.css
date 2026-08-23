@@ -219,7 +219,7 @@
   border-radius: var(--yd-radius-sm);
   background: color-mix(in srgb, var(--yd-negative) 14%, transparent);
   border: 1px solid var(--yd-negative);
-  color: var(--yd-negative);
+  color: var(--yd-negative-text);
   font-size: 0.9rem;
 }
 

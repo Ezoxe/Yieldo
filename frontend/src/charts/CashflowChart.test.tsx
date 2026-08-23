@@ -54,6 +54,18 @@ describe("buildCashflowOption", () => {
     const { ariaLabel } = buildCashflowOption(buckets, "month", tokens);
     expect(ariaLabel).toMatch(/janvier/i);
   });
+  it("distinguishes the net line's legend entry from the inflow bar's by shape, not by hue", () => {
+    // `--yd-positive` (the Entrées bar) and `--yd-accent-strong` (the Solde net
+    // line) sit 1.11:1 apart in the dark theme and 1.37:1 in the light one.
+    // App-wide `legend.icon: "roundRect"` would draw both as near-identical
+    // blocks; "inherit" makes the line entry draw its own mark instead.
+    const { option } = buildCashflowOption(buckets, "month", tokens);
+    const legend = option.legend as { data: Array<{ name: string; icon?: string }> };
+    const entries = new Map(legend.data.map((entry) => [entry.name, entry.icon]));
+    expect(entries.get("Solde net")).toBe("inherit");
+    expect(entries.get("Entrées")).toBeUndefined();
+    expect(entries.get("Sorties")).toBeUndefined();
+  });
 });
 
 describe("CashflowChart", () => {

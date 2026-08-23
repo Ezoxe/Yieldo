@@ -130,6 +130,41 @@ const staleRunway: Runway = {
   ledger_last_on: "2026-01-09",
 };
 
+/**
+ * A user's second month: two complete months against a floor of three, so
+ * `measure_expense_rate` returns nothing for either scenario and BOTH come
+ * back null. Everything the cell says about a measured rate is false here.
+ */
+const unmeasurableRunway: Runway = {
+  balance_cents: 148000,
+  months_observed: 2,
+  ledger_span_months: 13,
+  normal: null,
+  essentials: null,
+  normal_unavailable_reason:
+    "Pas assez d'historique pour mesurer l'ensemble des dépenses : il faut au moins 3 mois complets de relevés, et l'historique n'en compte que 2.",
+  essentials_unavailable_reason:
+    "Pas assez d'historique pour mesurer les dépenses essentielles : il faut au moins 3 mois complets de relevés, et l'historique n'en compte que 2.",
+  essential_category_count: 21,
+  projected_from: "2026-08-22",
+  ledger_last_on: "2026-01-09",
+};
+
+/**
+ * The other road to the same state: enough months, but neither median is a
+ * measurable burn (`runway.py`'s `rate.median_cents <= 0` branch). Three
+ * observed months, so the "bare minimum" sentence is in range too — and it
+ * must not claim a fragile rate exists when none was produced.
+ */
+const noBurnRunway: Runway = {
+  ...unmeasurableRunway,
+  months_observed: 3,
+  normal_unavailable_reason:
+    "Le solde net mesuré sur l'ensemble des dépenses n'est pas déficitaire (3 mois observés) : sans dépense nette à combler, aucune autonomie ne peut être calculée.",
+  essentials_unavailable_reason:
+    "Le solde net mesuré sur les dépenses essentielles n'est pas déficitaire (3 mois observés) : sans dépense nette à combler, aucune autonomie ne peut être calculée.",
+};
+
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
@@ -237,6 +272,116 @@ describe("CashflowPage", () => {
 
     await screen.findByText("Rythme actuel");
     expect(screen.queryByTestId("yd-cashflow-clocks")).not.toBeInTheDocument();
+  });
+
+  // Finding 1. The runway cell was gated only on `runway === null`, so when
+  // BOTH scenarios come back null — which is any user's second month — four
+  // sentences went on asserting a measured rate beside two "Non mesurable"
+  // panels. Nothing was measured; the cell must say so.
+  it("claims no measured rate when neither scenario could be measured", async () => {
+    setupFetch({
+      forecast: () => jsonResponse(thinForecast),
+      runway: () => jsonResponse(unmeasurableRunway),
+    });
+    renderPage();
+
+    expect(await screen.findAllByText("Non mesurable")).toHaveLength(2);
+    // The caption over the pair.
+    expect(screen.queryByText(/au rythme de dépenses mesuré/)).not.toBeInTheDocument();
+    // The scope note: two months that measured nothing were not "exploitables".
+    expect(screen.getByTestId("yd-runway-scope")).not.toHaveTextContent(/exploitable/);
+    // The anchor sentence: no autonomy is being counted from today.
+    expect(screen.queryByText(/^Autonomie comptée à partir du/)).not.toBeInTheDocument();
+    expect(screen.getByText(/^Aucune autonomie n'est comptée/)).toBeInTheDocument();
+  });
+
+  it("does not call two months the minimum, nor call a missing rate fragile", async () => {
+    setupFetch({
+      forecast: () => jsonResponse(thinForecast),
+      runway: () => jsonResponse(unmeasurableRunway),
+    });
+    renderPage();
+
+    // The guard was `months_observed <= MIN`, so at 0, 1 or 2 the screen said
+    // two months *is* the minimum. At two that sentence is arithmetically wrong.
+    const scope = await screen.findByTestId("yd-runway-scope");
+    expect(scope).not.toHaveTextContent(/C'est le minimum/);
+    expect(scope).toHaveTextContent(/au moins 3/);
+    expect(scope).not.toHaveTextContent(/fragile/);
+  });
+
+  // The other road into the same state: enough months, no measurable burn.
+  it("states the minimum without promising a rate when three months yielded none", async () => {
+    setupFetch({
+      forecast: () => jsonResponse(thinForecast),
+      runway: () => jsonResponse(noBurnRunway),
+    });
+    renderPage();
+
+    const scope = await screen.findByTestId("yd-runway-scope");
+    expect(scope).toHaveTextContent(/C'est le minimum/);
+    expect(scope).not.toHaveTextContent(/le rythme reste fragile/);
+  });
+
+  it("still calls a rate resting on exactly three months fragile", async () => {
+    setupFetch({
+      forecast: () => jsonResponse(thinForecast),
+      runway: () => jsonResponse(staleRunway),
+    });
+    renderPage();
+
+    const scope = await screen.findByTestId("yd-runway-scope");
+    expect(scope).toHaveTextContent(/exploitables pour mesurer un rythme/);
+    expect(scope).toHaveTextContent(
+      /C'est le minimum en dessous duquel rien n'est mesuré : le rythme reste fragile\./,
+    );
+  });
+
+  // Finding 2. `clocksDiverge` compared the two `projected_from` values and
+  // ignored `insufficient_reason`, so the first block of prose on the page
+  // announced a projection in the indicative while the cell below it printed
+  // a refusal and drew nothing.
+  it("puts the projection in the conditional when the forecast refuses", async () => {
+    setupFetch({
+      forecast: () => jsonResponse(thinForecast),
+      runway: () => jsonResponse(staleRunway),
+    });
+    renderPage();
+
+    const note = await screen.findByTestId("yd-cashflow-clocks");
+    expect(note).toHaveTextContent(/La prévision partirait du 9 janvier 2026/);
+    expect(note).not.toHaveTextContent(/La prévision part du/);
+    // Nothing was drawn, so there is no period the statements pronounced on.
+    expect(note).not.toHaveTextContent(/seule période/);
+  });
+
+  it("keeps the projection in the indicative when the forecast is actually drawn", async () => {
+    setupFetch({
+      forecast: () => jsonResponse(forecast),
+      // The same populated forecast, against a runway counting from the real
+      // calendar date rather than from the ledger's last one.
+      runway: () => jsonResponse({ ...runway, projected_from: "2026-09-04" }),
+    });
+    renderPage();
+
+    const note = await screen.findByTestId("yd-cashflow-clocks");
+    expect(note).toHaveTextContent(/La prévision part du 31 août 2026/);
+    expect(note).toHaveTextContent(/L'autonomie est comptée depuis le 4 septembre 2026/);
+    expect(note).not.toHaveTextContent(/partirait/);
+  });
+
+  it("does not say an autonomy is counted when neither scenario was measured", async () => {
+    setupFetch({
+      forecast: () => jsonResponse(thinForecast),
+      runway: () => jsonResponse(unmeasurableRunway),
+    });
+    renderPage();
+
+    const note = await screen.findByTestId("yd-cashflow-clocks");
+    expect(note).not.toHaveTextContent(/L'autonomie est comptée/);
+    // Both clocks are still named — the divergence is real either way.
+    expect(note).toHaveTextContent(/22 août 2026/);
+    expect(note).toHaveTextContent(/9 janvier 2026/);
   });
 
   it("says the burn rate is only as fresh as the last imported statement", async () => {

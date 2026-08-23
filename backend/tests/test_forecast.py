@@ -195,6 +195,43 @@ def test_a_genuinely_short_ledger_is_still_told_to_import_more():
     assert "Importez" in silent.insufficient_reason
 
 
+def test_the_short_ledger_refusal_counts_the_ledger_and_not_the_residual():
+    """This branch is chosen on the ledger's own month count, so that is the
+    number "l'historique n'en compte que N" must quote.
+
+    Quoting the residual count instead made a five-month ledger refuse with
+    "n'en compte que 3" -- and the Trésorerie screen prints that sentence
+    directly above its own note reading "Votre historique compte 5 mois
+    complets". Two numbers for one fact, on one screen, one of them wrong.
+    """
+    report = project_cashflow(
+        100_000, _history(3, -10_000, ledger_months=5), [], TODAY
+    )
+    assert report.ledger_months_observed == 5
+    assert report.months_observed == 3
+    assert "n'en compte que 5" in report.insufficient_reason
+    assert "n'en compte que 3" not in report.insufficient_reason
+    # The residual count is not dropped -- it is why importing a single extra
+    # month may still not be enough -- but it is a clause of its own rather
+    # than standing in for the ledger's count.
+    assert "dont 3 portent des opérations non récurrentes" in report.insufficient_reason
+    assert "Importez" in report.insufficient_reason
+
+
+def test_the_short_ledger_refusal_counts_in_french_at_zero_and_one():
+    """"l'historique n'en compte que 0" is not a sentence. An empty ledger is
+    the first thing a new account has, so this is the copy the very first
+    visitor reads."""
+    empty = project_cashflow(100_000, ResidualHistory([], 0), [], TODAY)
+    assert "n'en compte aucun." in empty.insufficient_reason
+    assert "0" not in empty.insufficient_reason.split("il faut au moins")[1]
+
+    lone = project_cashflow(
+        100_000, _history(1, -10_000, ledger_months=1), [], TODAY
+    )
+    assert "n'en compte qu'un seul." in lone.insufficient_reason
+
+
 def test_a_residual_wider_than_the_ledger_it_came_from_is_rejected():
     """A residual cannot hold more complete months than the ledger it was
     filtered out of. That is a caller error, and it surfaces rather than

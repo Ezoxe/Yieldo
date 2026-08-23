@@ -323,11 +323,40 @@ def _recurring_by_month(
     return totals
 
 
-def _reason_short_ledger(observed: int) -> str:
+def _reason_short_ledger(observed: int, ledger_months: int) -> str:
+    """The ledger itself is too short.
+
+    This branch is chosen on `ledger_months`, so `ledger_months` is the number
+    "l'historique n'en compte que N" must quote. It used to quote `observed`,
+    the residual count -- a five-month ledger carrying three residual months
+    refused with "n'en compte que 3", and the Trésorerie screen prints that
+    sentence directly above its own note reading "Votre historique compte 5
+    mois complets". Two numbers for one fact, on one screen.
+
+    The residual count is still stated, as its own clause, because it is why
+    importing a single extra month may land on `_reason_thin_residual` rather
+    than on a projection.
+    """
+    if ledger_months == 0:
+        held = "n'en compte aucun"
+    elif ledger_months == 1:
+        held = "n'en compte qu'un seul"
+    else:
+        held = f"n'en compte que {ledger_months}"
+
+    if observed == ledger_months:
+        detail = ""
+    elif observed == 0:
+        detail = ", dont aucun ne porte d'opération non récurrente"
+    elif observed == 1:
+        detail = ", dont un seul porte des opérations non récurrentes"
+    else:
+        detail = f", dont {observed} portent des opérations non récurrentes"
+
     return (
         f"Pas assez de données pour projeter : il faut au moins "
         f"{MIN_MONTHS_FOR_FORECAST} mois complets de relevés, et l'historique "
-        f"n'en compte que {observed}. Importez des relevés supplémentaires pour "
+        f"{held}{detail}. Importez des relevés supplémentaires pour "
         "obtenir une prévision."
     )
 
@@ -470,7 +499,7 @@ def project_cashflow(
         reason = (
             _reason_thin_residual(observed, ledger_months)
             if ledger_months >= MIN_MONTHS_FOR_FORECAST
-            else _reason_short_ledger(observed)
+            else _reason_short_ledger(observed, ledger_months)
         )
         return _refusal(balance_cents, observed, ledger_months, threshold_cents, reason)
 

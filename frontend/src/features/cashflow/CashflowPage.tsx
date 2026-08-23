@@ -23,11 +23,116 @@ const GENERIC_ERROR = "Une erreur inattendue est survenue.";
  * `capacity.MIN_MONTHS_FOR_RATE`. Three complete months is the floor at which a
  * median exists at all — saying so is the difference between a measurement and
  * a claim, which is why the screen flags a rate resting on exactly three.
+ *
+ * Compared with `===`, never `<=`: below three nothing is measured at all, and
+ * "c'est le minimum" said over two months is arithmetically false as well as
+ * misleading.
  */
 const MIN_MONTHS_FOR_RATE = 3;
 
 function messageFor(err: unknown): string {
   return err instanceof ApiError ? err.detail : GENERIC_ERROR;
+}
+
+/**
+ * The ledger's last transaction date, when it is genuinely behind the date the
+ * runway counts from. Null when the two coincide, where naming it twice says
+ * nothing.
+ */
+function staleLedgerDate(runway: Runway): string | null {
+  return runway.ledger_last_on !== null && runway.ledger_last_on !== runway.projected_from
+    ? frenchDate(runway.ledger_last_on)
+    : null;
+}
+
+/**
+ * The runway cell's scope note: what the ledger covers, how much of it could be
+ * measured, and — when nothing could — that nothing was.
+ *
+ * `measured` is not derivable from `monthsObserved`. Three complete months are
+ * enough to *attempt* a rate and still yield none, because `runway.py` refuses
+ * a median that is not a positive burn as well as a sample that is too short.
+ * The month count and the outcome are two separate claims, and this sentence
+ * used to make the second one on the strength of the first: at two observed
+ * months it read "dont 2 mois complets exploitables pour mesurer un rythme"
+ * beside two panels saying nothing had been measured.
+ */
+function runwayScopeSentence(runway: Runway, measured: boolean): string {
+  const span = runway.ledger_span_months;
+  const observed = runway.months_observed;
+
+  const scope = `Votre historique s'étend sur ${span} ${plural(span, "mois civil", "mois civils")}, dont ${observed} ${
+    measured
+      ? `${plural(observed, "mois complet exploitable", "mois complets exploitables")} pour mesurer un rythme.`
+      : `${plural(observed, "mois complet", "mois complets")}.`
+  }`;
+
+  let floor = "";
+  if (observed < MIN_MONTHS_FOR_RATE) {
+    // A statement about the threshold, not about this ledger's outcome — true
+    // whatever the two scenarios did with it.
+    floor = ` Il en faut au moins ${MIN_MONTHS_FOR_RATE} pour mesurer un rythme.`;
+  } else if (observed === MIN_MONTHS_FOR_RATE) {
+    floor = measured
+      ? " C'est le minimum en dessous duquel rien n'est mesuré : le rythme reste fragile."
+      : " C'est le minimum en dessous duquel rien n'est mesuré.";
+  }
+
+  // Position-neutral: each panel carries its own reason, and which one sits
+  // where changes with the viewport.
+  const outcome = measured ? "" : " Aucun rythme n'a pu en être tiré : chaque scénario dit pourquoi.";
+
+  return `${scope}${floor}${outcome}`;
+}
+
+/**
+ * Requirement 1, runway side: `depleted_on` counts forward from the real clock,
+ * but the burn behind it is only as fresh as the last imported statement.
+ *
+ * In the conditional when neither scenario computed — there is no autonomy
+ * being counted from today, and no rate that was measured up to anything.
+ */
+function runwayAnchorSentence(runway: Runway, measured: boolean): string {
+  const from = frenchDate(runway.projected_from);
+  const lastOn = staleLedgerDate(runway);
+
+  if (measured) {
+    return lastOn !== null
+      ? `Autonomie comptée à partir du ${from}, la date du jour, sur un rythme mesuré jusqu'au ${lastOn}, dernière date de votre historique.`
+      : `Autonomie comptée à partir du ${from}, la date du jour.`;
+  }
+  return lastOn !== null
+    ? `Aucune autonomie n'est comptée : elle le serait à partir du ${from}, la date du jour, sur des relevés qui s'arrêtent au ${lastOn}.`
+    : `Aucune autonomie n'est comptée : elle le serait à partir du ${from}, la date du jour.`;
+}
+
+/**
+ * The two-clocks banner, in the mood each half has earned.
+ *
+ * It used to be built from the two `projected_from` values alone, so on the
+ * operator's own data it announced "La prévision part du 9 janvier 2026 …
+ * c'est la seule période sur laquelle vos relevés peuvent se prononcer" while
+ * the cell underneath printed a refusal and drew nothing. The refusal branch
+ * of the forecast cell already knew to write "partirait"; this is the same
+ * sentence and takes the same mood.
+ */
+function clocksSentence(runway: Runway, forecast: Forecast, measured: boolean): string {
+  const projected = forecast.insufficient_reason === null;
+
+  const opening =
+    measured || projected
+      ? "Ces deux panneaux partent du même solde, mais pas de la même date."
+      : "Ces deux panneaux partiraient du même solde, mais pas de la même date.";
+
+  const runwayClause = measured
+    ? `L'autonomie est comptée depuis le ${frenchDate(runway.projected_from)}, la date du jour.`
+    : `L'autonomie serait comptée depuis le ${frenchDate(runway.projected_from)}, la date du jour, mais aucun rythme n'a pu être mesuré.`;
+
+  const forecastClause = projected
+    ? `La prévision part du ${frenchDate(forecast.projected_from)}, dernière date de votre historique : c'est la seule période sur laquelle vos relevés peuvent se prononcer.`
+    : `La prévision partirait du ${frenchDate(forecast.projected_from)}, dernière date de votre historique, mais elle n'est pas établie : la raison est donnée avec la projection.`;
+
+  return `${opening} ${runwayClause} ${forecastClause}`;
 }
 
 /** "2026-02" → "février 2026". */
@@ -125,6 +230,14 @@ export function CashflowPage() {
   const clocksDiverge =
     forecast !== null && runway !== null && forecast.projected_from !== runway.projected_from;
 
+  // Whether EITHER scenario produced a rate — a different question from
+  // whether the payload arrived. Below three observed months both come back
+  // null (`runway.py` via `capacity.py`), and so do two healthy-looking
+  // scenarios whose medians are not positive burns. Every sentence in the cell
+  // that speaks of a "rythme mesuré" is gated on this, not on `runway`.
+  const runwayMeasured =
+    runway !== null && (runway.normal !== null || runway.essentials !== null);
+
   let body: ReactNode;
   if (isLoading) {
     body = (
@@ -195,7 +308,9 @@ export function CashflowPage() {
           {runway === null ? null : (
             <>
               <p className="yd-cashflow__caption">
-                Si tout revenu s'arrêtait, au rythme de dépenses mesuré dans vos relevés.
+                {runwayMeasured
+                  ? "Si tout revenu s'arrêtait, au rythme de dépenses mesuré dans vos relevés."
+                  : "Si tout revenu s'arrêtait. Aucun des deux rythmes de dépenses n'a pu être mesuré dans vos relevés."}
               </p>
 
               <div className="yd-cashflow__scenarios">
@@ -219,20 +334,11 @@ export function CashflowPage() {
                   thirteen-month ledger with a nine-month import hole looks
                   identical to a dense three-month one without both numbers. */}
               <p className="yd-cashflow__note" data-testid="yd-runway-scope">
-                {`Votre historique s'étend sur ${runway.ledger_span_months} ${plural(runway.ledger_span_months, "mois civil", "mois civils")}, dont ${runway.months_observed} ${plural(runway.months_observed, "mois complet exploitable", "mois complets exploitables")} pour mesurer un rythme.`}
-                {runway.months_observed <= MIN_MONTHS_FOR_RATE
-                  ? ` C'est le minimum en dessous duquel rien n'est mesuré : le rythme reste fragile.`
-                  : ""}
+                {runwayScopeSentence(runway, runwayMeasured)}
               </p>
 
-              {/* Requirement 1, runway side: `depleted_on` counts forward from
-                  the real clock, but the burn behind it is only as fresh as the
-                  last imported statement. */}
               <p className="yd-cashflow__note">
-                {`Autonomie comptée à partir du ${frenchDate(runway.projected_from)}, la date du jour`}
-                {runway.ledger_last_on !== null && runway.ledger_last_on !== runway.projected_from
-                  ? `, sur un rythme mesuré jusqu'au ${frenchDate(runway.ledger_last_on)}, dernière date de votre historique.`
-                  : "."}
+                {runwayAnchorSentence(runway, runwayMeasured)}
               </p>
 
               <p className="yd-cashflow__note">
@@ -340,7 +446,7 @@ export function CashflowPage() {
 
       {clocksDiverge && forecast !== null && runway !== null ? (
         <p className="yd-cashflow__clocks" data-testid="yd-cashflow-clocks">
-          {`Ces deux panneaux partent du même solde, mais pas de la même date. L'autonomie est comptée depuis le ${frenchDate(runway.projected_from)}, la date du jour. La prévision part du ${frenchDate(forecast.projected_from)}, dernière date de votre historique : c'est la seule période sur laquelle vos relevés peuvent se prononcer.`}
+          {clocksSentence(runway, forecast, runwayMeasured)}
         </p>
       ) : null}
 

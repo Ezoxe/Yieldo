@@ -27,7 +27,9 @@ function srgbChannelToLinear(channel255: number): number {
   return channel <= 0.03928 ? channel / 12.92 : Math.pow((channel + 0.055) / 1.055, 2.4);
 }
 
-function hexToRgb(hex: string): [number, number, number] {
+type Rgb = [number, number, number];
+
+function hexToRgb(hex: string): Rgb {
   const normalized = hex.trim().replace(/^#/, "");
   if (!/^[0-9a-fA-F]{6}$/.test(normalized)) {
     throw new Error(`Not a 6-digit hex colour: "${hex}"`);
@@ -38,19 +40,62 @@ function hexToRgb(hex: string): [number, number, number] {
   return [r, g, b];
 }
 
-function relativeLuminance(hex: string): number {
-  const [r, g, b] = hexToRgb(hex);
+function relativeLuminanceFromRgb([r, g, b]: Rgb): number {
   const [rl, gl, bl] = [srgbChannelToLinear(r), srgbChannelToLinear(g), srgbChannelToLinear(b)];
   return 0.2126 * rl + 0.7152 * gl + 0.0722 * bl;
 }
 
 /** WCAG 2.x contrast ratio: (L_lighter + 0.05) / (L_darker + 0.05). */
-function contrastRatio(hexA: string, hexB: string): number {
-  const l1 = relativeLuminance(hexA);
-  const l2 = relativeLuminance(hexB);
+function contrastRatioRgb(a: Rgb, b: Rgb): number {
+  const l1 = relativeLuminanceFromRgb(a);
+  const l2 = relativeLuminanceFromRgb(b);
   const lighter = Math.max(l1, l2);
   const darker = Math.min(l1, l2);
   return (lighter + 0.05) / (darker + 0.05);
+}
+
+function contrastRatio(hexA: string, hexB: string): number {
+  return contrastRatioRgb(hexToRgb(hexA), hexToRgb(hexB));
+}
+
+/** Parses `rgb(r, g, b)` / `rgba(r, g, b, a)` -- the shape tokens.css uses for
+ * its translucent surface tokens -- into channel values and an alpha
+ * (defaulting to 1 when absent). */
+function parseRgba(value: string): { rgb: Rgb; alpha: number } {
+  const match = /^rgba?\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)\s*(?:,\s*([\d.]+)\s*)?\)$/.exec(value.trim());
+  if (!match) {
+    throw new Error(`Not an rgb()/rgba() colour: "${value}"`);
+  }
+  const [, r, g, b, a] = match;
+  return { rgb: [Number(r), Number(g), Number(b)], alpha: a === undefined ? 1 : Number(a) };
+}
+
+/** Extracts `--token: rgba(...);` declarations from a single CSS block body. */
+function parseRgbaDeclarations(block: string): Map<string, { rgb: Rgb; alpha: number }> {
+  const declarations = new Map<string, { rgb: Rgb; alpha: number }>();
+  const propertyPattern = /(--[\w-]+)\s*:\s*(rgba?\([^)]*\))\s*;/g;
+  for (const match of block.matchAll(propertyPattern)) {
+    const [, name, value] = match;
+    declarations.set(name, parseRgba(value));
+  }
+  return declarations;
+}
+
+/**
+ * Alpha-composites a translucent foreground over an opaque background,
+ * channel by channel, using the raw (fractional) blend rather than rounding
+ * to an integer pixel first. Matches how the ratios already documented in
+ * tokens.css's own comments were derived, and how a browser's flat
+ * `background-color` alpha blend actually lands.
+ */
+function compositeOverOpaque(fg: { rgb: Rgb; alpha: number }, bg: Rgb): Rgb {
+  const [fr, fgc, fb] = fg.rgb;
+  const [br, bgc, bb] = bg;
+  return [
+    fg.alpha * fr + (1 - fg.alpha) * br,
+    fg.alpha * fgc + (1 - fg.alpha) * bgc,
+    fg.alpha * fb + (1 - fg.alpha) * bb,
+  ];
 }
 
 /** Extracts `--token: #rrggbb;` declarations from a single CSS block body. */
@@ -98,6 +143,10 @@ const rootTokens = parseHexDeclarations(rootBlock);
 const darkTokens = new Map([...rootTokens, ...parseHexDeclarations(darkBlock)]);
 const lightTokens = new Map([...rootTokens, ...parseHexDeclarations(lightBlock)]);
 
+const rootRgbaTokens = parseRgbaDeclarations(rootBlock);
+const darkRgbaTokens = new Map([...rootRgbaTokens, ...parseRgbaDeclarations(darkBlock)]);
+const lightRgbaTokens = new Map([...rootRgbaTokens, ...parseRgbaDeclarations(lightBlock)]);
+
 const STATUS_TOKENS = [
   "--yd-accent",
   "--yd-accent-strong",
@@ -118,18 +167,80 @@ const STATUS_TOKENS = [
 const TEXT_TOKENS = ["--yd-text", "--yd-text-muted", "--yd-negative-text"] as const;
 
 // Boundaries of user interface components, held to 1.4.11's 3:1 rather than
-// to the text threshold, and measured against the app's opaque card surface
-// -- the lightest ground in the dark theme and the darkest in the light one,
-// so it is the worst case a control's edge actually lands on. `--yd-border`
-// and `--yd-border-strong` are deliberately NOT here: they are container
-// edges, they are translucent (so they have no fixed ratio at all), and
-// `design/controlBorders.test.ts` is what keeps them off controls.
+// to the text threshold. `--yd-border` and `--yd-border-strong` are
+// deliberately NOT here: they are container edges, they are translucent (so
+// they have no fixed ratio at all), and `design/controlBorders.test.ts` is
+// what keeps them off controls.
+//
+// An earlier version of this suite measured only against
+// `--yd-surface-strong` on the claim that it is "the lightest ground in the
+// dark theme and the darkest in the light one". That is false for the light
+// theme: `--yd-surface-strong` there is `#ffffff` (tokens.css:135), the
+// lightest possible value, not the darkest -- it was the easier of two
+// pairings tokens.css's own comments already measure (tokens.css:139-141).
+// `controlGroundsForTheme` below now tests every token in
+// CONTROL_BORDER_TOKENS against both `--yd-surface-strong` AND the genuine
+// worst-case ground per theme:
+//   - light: `--yd-bg` itself. Every light-theme surface token is a
+//     white/near-white overlay ON TOP of `--yd-bg` (rgba(255,255,255,*)), so
+//     nothing in the theme is darker -- `--yd-bg` is the deepest exposed
+//     ground, exactly what tokens.css:139-141 already calls "the deepest
+//     exposed ground".
+//   - dark: `--yd-surface-raised` (a 50% wash, tokens.css:81) composited over
+//     `--yd-bg`. The dark theme's translucent surfaces LIGHTEN the near-black
+//     page rather than darken it, so the lightest exposed ground -- not the
+//     opaque `--yd-surface-strong` card -- is the worst case for a border
+//     that is lighter than its ground.
 const CONTROL_BORDER_TOKENS = ["--yd-border-control"] as const;
 
-const THEMES: Array<{ name: string; tokens: Map<string, string> }> = [
-  { name: "light", tokens: lightTokens },
-  { name: "dark", tokens: darkTokens },
+const THEMES: Array<{
+  name: string;
+  tokens: Map<string, string>;
+  rgbaTokens: Map<string, { rgb: Rgb; alpha: number }>;
+}> = [
+  { name: "light", tokens: lightTokens, rgbaTokens: lightRgbaTokens },
+  { name: "dark", tokens: darkTokens, rgbaTokens: darkRgbaTokens },
 ];
+
+interface Ground {
+  label: string;
+  rgb: Rgb;
+}
+
+/** The set of grounds a control's edge can genuinely land on in a theme --
+ * see the CONTROL_BORDER_TOKENS comment above for why these two, and why
+ * they differ by theme rather than both being `--yd-surface-strong`. */
+function controlGroundsForTheme(
+  themeName: string,
+  tokens: Map<string, string>,
+  rgbaTokens: Map<string, { rgb: Rgb; alpha: number }>,
+): Ground[] {
+  const surfaceStrong = tokens.get("--yd-surface-strong");
+  const bg = tokens.get("--yd-bg");
+  if (!surfaceStrong) {
+    throw new Error(`--yd-surface-strong is not declared as a plain hex for the ${themeName} theme`);
+  }
+  if (!bg) {
+    throw new Error(`--yd-bg is not declared for the ${themeName} theme`);
+  }
+
+  const grounds: Ground[] = [{ label: "--yd-surface-strong (the opaque card)", rgb: hexToRgb(surfaceStrong) }];
+
+  if (themeName === "light") {
+    grounds.push({ label: "--yd-bg (the deepest exposed ground)", rgb: hexToRgb(bg) });
+  } else {
+    const surfaceRaised = rgbaTokens.get("--yd-surface-raised");
+    if (!surfaceRaised) {
+      throw new Error(`--yd-surface-raised is not declared as rgba(...) for the ${themeName} theme`);
+    }
+    grounds.push({
+      label: "--yd-surface-raised composited over --yd-bg (the lightest exposed ground)",
+      rgb: compositeOverOpaque(surfaceRaised, hexToRgb(bg)),
+    });
+  }
+
+  return grounds;
+}
 
 describe("contrast helper (WCAG 2.x formulas)", () => {
   it("matches the WCAG worked example of black on white (21:1)", () => {
@@ -170,24 +281,25 @@ describe("tokens.css contrast (WCAG 2.x AA, normal text, 4.5:1)", () => {
 });
 
 describe("tokens.css control boundaries (WCAG 2.x 1.4.11, non-text, 3:1)", () => {
-  for (const { name: themeName, tokens } of THEMES) {
-    const surface = tokens.get("--yd-surface-strong");
+  for (const { name: themeName, tokens, rgbaTokens } of THEMES) {
+    const grounds = controlGroundsForTheme(themeName, tokens, rgbaTokens);
 
     for (const tokenName of CONTROL_BORDER_TOKENS) {
-      it(`${themeName} theme: ${tokenName} clears 3:1 against --yd-surface-strong`, () => {
-        const hex = tokens.get(tokenName);
-        expect(hex, `${tokenName} is not declared (directly or via :root) for the ${themeName} theme`).toBeDefined();
-        expect(
-          surface,
-          `--yd-surface-strong is not declared as a plain hex for the ${themeName} theme`,
-        ).toBeDefined();
+      for (const ground of grounds) {
+        it(`${themeName} theme: ${tokenName} clears 3:1 against ${ground.label}`, () => {
+          const hex = tokens.get(tokenName);
+          expect(
+            hex,
+            `${tokenName} is not declared (directly or via :root) for the ${themeName} theme`,
+          ).toBeDefined();
 
-        const ratio = contrastRatio(hex as string, surface as string);
-        expect(
-          ratio,
-          `${themeName} ${tokenName} (${hex}) against --yd-surface-strong (${surface}) is only ${ratio.toFixed(2)}:1, below the ${AA_NON_TEXT}:1 threshold WCAG 1.4.11 sets for a control's boundary`,
-        ).toBeGreaterThanOrEqual(AA_NON_TEXT);
-      });
+          const ratio = contrastRatioRgb(hexToRgb(hex as string), ground.rgb);
+          expect(
+            ratio,
+            `${themeName} ${tokenName} (${hex}) against ${ground.label} is only ${ratio.toFixed(2)}:1, below the ${AA_NON_TEXT}:1 threshold WCAG 1.4.11 sets for a control's boundary`,
+          ).toBeGreaterThanOrEqual(AA_NON_TEXT);
+        });
+      }
     }
   }
 });

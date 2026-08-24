@@ -141,6 +141,23 @@ export function buildWaterfallOption(
         stackStrategy: "all",
         data: visible.map((value, index) => ({ value, itemStyle: { color: steps[index].color } })),
         barMaxWidth: 40,
+        // Two consecutive steps share a top level whenever a rise is followed
+        // by a fall from that same level -- on the operator's ledger "Revenus"
+        // (+10 220 €) and "Logement" (-3 900 €) both anchor at 10 220, so at
+        // 375 their two labels rendered on top of each other as
+        // "+10 2209 00 €": two figures printed, neither readable.
+        //
+        // Printing all of them is not available at that width. The plotting
+        // area is ~235px for eight bands and each label is ~55px, and a
+        // cascade offers no free level to move one to: bar i's BOTTOM is bar
+        // i+1's TOP by construction, so "put falls at the bottom instead" only
+        // moves the collision one step along. `hideOverlap` is ECharts' own
+        // answer -- it measures the laid-out label boxes and drops the ones
+        // that would collide. At 1440 nothing collides and every amount still
+        // prints; at 375 what prints is legible and what does not print is
+        // absent rather than garbled. The dropped figures remain in the
+        // tooltip and in the CSV export.
+        labelLayout: { hideOverlap: true },
         label: {
           show: true,
           position: "top",

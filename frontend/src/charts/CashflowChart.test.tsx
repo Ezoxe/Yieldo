@@ -66,6 +66,18 @@ describe("buildCashflowOption", () => {
     expect(entries.get("Entrées")).toBeUndefined();
     expect(entries.get("Sorties")).toBeUndefined();
   });
+
+  it("reserves the Exporter button's width so the legend cannot render underneath it", () => {
+    // Measured at 375: the chart box is 293px wide and the three entries run
+    // the full width, so "Solde net" rendered *under* the opaque "Exporter"
+    // button in the top-right corner and read as "Sold*Exporte*r". The legend
+    // is ECharts' own; it has no idea a DOM button is floated over its box.
+    // 84px is the same reservation ForecastFanChart.tsx already carries for
+    // exactly this collision -- the button is ~72px plus the toolbar's inset.
+    const { option } = buildCashflowOption(buckets, "month", tokens);
+    const legend = option.legend as { right?: number };
+    expect(legend.right).toBe(84);
+  });
 });
 
 describe("CashflowChart", () => {

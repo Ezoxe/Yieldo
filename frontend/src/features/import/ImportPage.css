@@ -105,7 +105,7 @@
 }
 
 .yd-import__new-account-toggle {
-  border: 1px solid var(--yd-border-strong);
+  border: 1px solid var(--yd-border-control);
   border-radius: var(--yd-radius-sm);
   padding: var(--yd-space-xs) var(--yd-space-md);
   background: transparent;
@@ -344,7 +344,7 @@
 }
 
 .yd-import-history__cancel {
-  border: 1px solid var(--yd-border-strong);
+  border: 1px solid var(--yd-border-control);
   border-radius: var(--yd-radius-sm);
   padding: var(--yd-space-2xs) var(--yd-space-md);
   background: transparent;
@@ -565,7 +565,7 @@
 }
 
 .yd-import__back {
-  border: 1px solid var(--yd-border-strong);
+  border: 1px solid var(--yd-border-control);
   border-radius: var(--yd-radius-sm);
   padding: var(--yd-space-xs) var(--yd-space-lg);
   background: transparent;
@@ -601,6 +601,13 @@
   text-align: center;
   cursor: pointer;
   border-style: dashed;
+  /* The import wizard's primary control, and a dashed hairline is all that
+     draws it: the edge comes from `.yd-glass--raised`, so no rule of its own
+     ever carried a border colour and design/controlBorders.test.ts -- which
+     reads one rule at a time -- cannot see it. Stated here rather than fixed
+     on `.yd-glass--raised`, which is a container tone used by the auth cards
+     too. */
+  border-color: var(--yd-border-control);
 }
 
 .yd-dropzone[data-over] {
@@ -690,7 +697,7 @@
 
 .yd-dialect__save,
 .yd-dialect__save-row button {
-  border: 1px solid var(--yd-border-strong);
+  border: 1px solid var(--yd-border-control);
   border-radius: var(--yd-radius-sm);
   padding: var(--yd-space-2xs) var(--yd-space-md);
   background: transparent;
@@ -742,7 +749,7 @@
 
 .yd-dialect__notice-dismiss {
   flex-shrink: 0;
-  border: 1px solid var(--yd-border-strong);
+  border: 1px solid var(--yd-border-control);
   border-radius: var(--yd-radius-sm);
   padding: var(--yd-space-2xs) var(--yd-space-sm);
   background: transparent;
@@ -1035,7 +1042,7 @@
 
 .yd-summary__cancel {
   align-self: flex-start;
-  border: 1px solid var(--yd-border-strong);
+  border: 1px solid var(--yd-border-control);
   border-radius: var(--yd-radius-sm);
   background: transparent;
   color: var(--yd-negative);

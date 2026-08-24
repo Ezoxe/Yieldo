@@ -157,6 +157,24 @@ describe("buildWaterfallOption", () => {
     const support = series[0] as { data?: number[] };
     expect(support.data?.some((value) => value < 0)).toBe(true);
   });
+
+  it("drops a bar label rather than overprinting it on its neighbour", () => {
+    // Two consecutive steps share a top whenever a rise is followed by a fall
+    // from the same level -- on the operator's ledger "Revenus" (+10 220 €)
+    // and "Logement" (-3 900 €) both anchor at 10 220, so at 375 the two
+    // labels rendered on top of each other as "+10 2209 00 €": two figures on
+    // screen, neither readable. Printing all of them is not available at that
+    // width -- the plotting area is 235px for eight bands, each label is
+    // ~55px, and a cascade's own geometry (bar i's bottom IS bar i+1's top)
+    // leaves no free level to move one to. `hideOverlap` is ECharts' own
+    // answer: it measures the laid-out label boxes and drops the ones that
+    // would collide, so at 1440 every amount still prints and at 375 what
+    // prints is legible. The dropped figures stay in the tooltip and the CSV.
+    const { option } = buildWaterfallOption(summary, categories, tokens);
+    const series = option.series as Array<{ name?: string; labelLayout?: { hideOverlap?: boolean } }>;
+    const visible = series.find((s) => s.name === "montant");
+    expect(visible?.labelLayout?.hideOverlap).toBe(true);
+  });
 });
 
 describe("WaterfallChart", () => {

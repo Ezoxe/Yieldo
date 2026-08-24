@@ -70,7 +70,12 @@
    browser — with `transform` here the hover did nothing at all. */
 .yd-bento__cell--interactive:hover {
   translate: 0 -2px;
-  border-color: var(--yd-border-strong);
+  /* `--yd-accent`, same reasoning as GlassCard's interactive hover: a cell
+     that is a control gets the app's one hover colour, not a hairline whose
+     1.2:1 → 1.5:1 step is invisible. The resting edge stays `--yd-border`
+     because a bento cell is a card first — its interactive variant is used by
+     the design-system page only, and nothing else in the app renders one. */
+  border-color: var(--yd-accent);
 }
 
 .yd-bento__cell--interactive:focus-visible {

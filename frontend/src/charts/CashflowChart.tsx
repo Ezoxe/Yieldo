@@ -73,6 +73,15 @@ export function buildCashflowOption(
         { name: "Solde net", icon: "inherit" },
       ],
       top: 0,
+      // The "Exporter" button is a DOM button absolutely positioned over this
+      // chart's top-right corner; ECharts lays the legend out across the full
+      // canvas width and has no idea it is there. At 375 the chart box is
+      // 293px and the three entries fill it, so "Solde net" rendered
+      // underneath the button's opaque background and read as
+      // "Sold*Exporte*r". Reserving the button's own width lets ECharts wrap
+      // the third entry onto its own line instead. Same number, same reason,
+      // as ForecastFanChart's legend.
+      right: 84,
     },
     grid: { left: 8, right: 8, top: 40, bottom: 64, containLabel: true },
     xAxis: { type: "category", data: labels },

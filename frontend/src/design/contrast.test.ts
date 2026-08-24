@@ -9,6 +9,11 @@ import { describe, expect, it } from "vitest";
 // 3:1 threshold).
 const AA_NORMAL_TEXT = 4.5;
 
+// WCAG 2.x 1.4.11 (non-text contrast): the visual information required to
+// identify a user interface component and its state. A control's boundary is
+// held to this, not to the 4.5:1 text figure.
+const AA_NON_TEXT = 3;
+
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const TOKENS_PATH = path.resolve(__dirname, "./tokens.css");
 
@@ -102,7 +107,24 @@ const STATUS_TOKENS = [
   "--yd-info",
 ] as const;
 
-const TEXT_TOKENS = ["--yd-text", "--yd-text-muted"] as const;
+// `--yd-negative-text` is here and not in STATUS_TOKENS on purpose: it is a
+// TEXT colour (the one an alert's message takes when the panel under it is
+// tinted from `--yd-negative` itself), so 4.5:1 is its floor, not 3:1. Listing
+// it is what stops it being quietly edited back towards `--yd-negative` --
+// the regression class the phase-wide contrast pass existed to find. This
+// check sees it against the bare page only; the tinted-panel composite that
+// motivated the token is measured in a browser, not here (tokens.css cannot
+// express a composite and this file cannot render one).
+const TEXT_TOKENS = ["--yd-text", "--yd-text-muted", "--yd-negative-text"] as const;
+
+// Boundaries of user interface components, held to 1.4.11's 3:1 rather than
+// to the text threshold, and measured against the app's opaque card surface
+// -- the lightest ground in the dark theme and the darkest in the light one,
+// so it is the worst case a control's edge actually lands on. `--yd-border`
+// and `--yd-border-strong` are deliberately NOT here: they are container
+// edges, they are translucent (so they have no fixed ratio at all), and
+// `design/controlBorders.test.ts` is what keeps them off controls.
+const CONTROL_BORDER_TOKENS = ["--yd-border-control"] as const;
 
 const THEMES: Array<{ name: string; tokens: Map<string, string> }> = [
   { name: "light", tokens: lightTokens },
@@ -142,6 +164,29 @@ describe("tokens.css contrast (WCAG 2.x AA, normal text, 4.5:1)", () => {
           ratio,
           `${themeName} ${tokenName} (${hex}) against --yd-bg (${bg}) is only ${ratio.toFixed(2)}:1, below the ${AA_NORMAL_TEXT}:1 AA threshold`,
         ).toBeGreaterThanOrEqual(AA_NORMAL_TEXT);
+      });
+    }
+  }
+});
+
+describe("tokens.css control boundaries (WCAG 2.x 1.4.11, non-text, 3:1)", () => {
+  for (const { name: themeName, tokens } of THEMES) {
+    const surface = tokens.get("--yd-surface-strong");
+
+    for (const tokenName of CONTROL_BORDER_TOKENS) {
+      it(`${themeName} theme: ${tokenName} clears 3:1 against --yd-surface-strong`, () => {
+        const hex = tokens.get(tokenName);
+        expect(hex, `${tokenName} is not declared (directly or via :root) for the ${themeName} theme`).toBeDefined();
+        expect(
+          surface,
+          `--yd-surface-strong is not declared as a plain hex for the ${themeName} theme`,
+        ).toBeDefined();
+
+        const ratio = contrastRatio(hex as string, surface as string);
+        expect(
+          ratio,
+          `${themeName} ${tokenName} (${hex}) against --yd-surface-strong (${surface}) is only ${ratio.toFixed(2)}:1, below the ${AA_NON_TEXT}:1 threshold WCAG 1.4.11 sets for a control's boundary`,
+        ).toBeGreaterThanOrEqual(AA_NON_TEXT);
       });
     }
   }

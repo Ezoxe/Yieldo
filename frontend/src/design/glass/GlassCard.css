@@ -40,8 +40,13 @@
    inline `transform: none` that Motion writes once the entry animation
    settles, and an inline declaration beats this rule: written as a transform,
    this lift did nothing at all wherever Motion was involved. */
+/* `--yd-accent` rather than `--yd-border-strong`. An interactive glass card is
+   a control (the import dropzone is the only one today), so its resting edge
+   is a solid control colour; raising it to a translucent hairline on hover
+   would have *lowered* the contrast, and a 1.2:1 → 1.5:1 step was feedback
+   nobody could see in the first place. */
 .yd-glass--interactive:hover {
-  border-color: var(--yd-border-strong);
+  border-color: var(--yd-accent);
   translate: 0 -2px;
 }
 

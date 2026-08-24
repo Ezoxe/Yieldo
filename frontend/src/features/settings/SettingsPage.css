@@ -85,7 +85,7 @@
 .yd-settings__logout {
   align-self: flex-start;
   margin-top: var(--yd-space-2xs);
-  border: 1px solid var(--yd-border-strong);
+  border: 1px solid var(--yd-border-control);
   border-radius: var(--yd-radius-sm);
   background: transparent;
   color: var(--yd-negative);

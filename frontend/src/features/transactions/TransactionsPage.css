@@ -182,7 +182,7 @@
 
 .yd-transactions__undo {
   align-self: flex-start;
-  border: 1px solid var(--yd-border-strong);
+  border: 1px solid var(--yd-border-control);
   border-radius: var(--yd-radius-sm);
   background: transparent;
   color: var(--yd-accent);
@@ -530,7 +530,7 @@
 }
 
 .yd-transactions__load-more {
-  border: 1px solid var(--yd-border-strong);
+  border: 1px solid var(--yd-border-control);
   border-radius: var(--yd-radius-sm);
   padding: var(--yd-space-2xs) var(--yd-space-lg);
   background: transparent;

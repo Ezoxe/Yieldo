@@ -9,8 +9,13 @@
   z-index: 3;
 }
 
+/* This button floats over a chart's own plotting area, so its fill is the
+   translucent `--yd-surface` and the border is the only thing separating it
+   from the canvas underneath. `--yd-border` measured 1.5:1 against that fill:
+   the same defect B5 fixed on inputs and selects, on the one control every
+   chart carries. */
 .yd-chart__export-toggle {
-  border: 1px solid var(--yd-border);
+  border: 1px solid var(--yd-border-control);
   border-radius: var(--yd-radius-sm);
   background: var(--yd-surface);
   color: var(--yd-text-muted);
@@ -21,10 +26,14 @@
   transition: color var(--yd-motion-fast) var(--yd-ease), border-color var(--yd-motion-fast) var(--yd-ease);
 }
 
+/* `--yd-accent`, not `--yd-border-strong`: the resting edge above is now the
+   solid control colour, so the old hairline would have made hovering the
+   button *weaker* than leaving it alone. Accent on hover is what every other
+   bordered control in this app does. */
 .yd-chart__export-toggle:hover,
 .yd-chart__export-toggle[aria-expanded="true"] {
   color: var(--yd-text);
-  border-color: var(--yd-border-strong);
+  border-color: var(--yd-accent);
 }
 
 .yd-chart__export-menu {

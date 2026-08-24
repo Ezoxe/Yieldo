@@ -307,7 +307,7 @@
 
 .yd-index__save,
 .yd-index__clear {
-  border: 1px solid var(--yd-border-strong);
+  border: 1px solid var(--yd-border-control);
   border-radius: var(--yd-radius-sm);
   padding: var(--yd-space-2xs) var(--yd-space-md);
   background: transparent;

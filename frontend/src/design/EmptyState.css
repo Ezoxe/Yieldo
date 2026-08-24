@@ -47,7 +47,7 @@
    period in place (a button). Styled identically on purpose: which element it
    is depends on what it does, and the reader should not have to care. */
 .yd-empty__action {
-  border: 1px solid var(--yd-border-strong);
+  border: 1px solid var(--yd-border-control);
   border-radius: var(--yd-radius-sm);
   padding: var(--yd-space-xs) var(--yd-space-md);
   background: transparent;

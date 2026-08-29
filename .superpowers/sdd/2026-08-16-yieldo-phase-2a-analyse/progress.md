@@ -968,3 +968,42 @@ every task report and the phase 2B carry-forward. Either the directory ships
 `review-*.diff` ignored) or the CLAUDE.md sentence goes. Not decided.
 
 ALL 19 TASKS COMPLETE. Backend 522 tests, frontend 632, build clean.
+
+## FINAL WHOLE-PHASE REVIEW (bf5c2cd..bfd5ad5, 45 commits)
+
+Verdict: fix before merge, ONE blocking item on 45 commits.
+
+B1: `runway._reason_insufficient_history` was called with `len(months)`. For
+`normal` that is the ledger's complete-month count and the sentence is true;
+for `essentials` it is the count of months carrying essential-tagged spending,
+so on a 12-month ledger the panel read "l'historique n'en compte que 2" six
+lines above CashflowPage's own "dont 12 mois complets". Two numbers for one
+fact on one screen. EXACTLY the defect task 14 fixed in
+`forecast._reason_short_ledger` and that task 19's report declared closed — it
+was not closed, it was live on the sibling engine, on the same screen. No
+single-task review could see it: it only becomes false when read against a
+sentence a DIFFERENT task wrote. Both covering tests survived the bug, one
+asserting a substring from "il faut au moins 3 mois", the other only the panel
+title.
+N1 (folded in): `_reason_no_measurable_burn` said "Le solde net ... n'est pas
+déficitaire" while the branch fires on a GROSS expense median being zero — and
+"Solde net" is already the name of a different quantity in this product. Its
+test ran on an income-only fixture where the false half was never exercised.
+
+Fixed in 0524ca6. `compute_runway` threads `ledger_months` into both scenarios;
+the reason splits on whether the sample equals the ledger and reserves
+"l'historique" for the ledger's own count; the zero-essential-category case got
+its own sentence, deliberately quoting NO month count, because the cause is
+categorical rather than temporal and any number there would either duplicate
+the scope note or imply history length matters when it structurally cannot.
+Re-review: all findings addressed, no new breakage.
+
+PHASE 2A COMPLETE AND MERGE-CLEAN.
+Backend 529 tests, frontend 634, build clean.
+Non-blocking, carried to 2B's after-merge list: flow queries not filtered to
+the liquid account set while the balance is; the budgets summary's two
+headline figures over different populations with no scope sentence;
+`formatRatio` typesetting `%` with a plain space where `formatCents` uses
+U+00A0; two general-purpose formatters living in component modules rather than
+design/theme.ts; and `budget_report` lacking a catch-and-forward for a
+provably-unreachable ValueError.

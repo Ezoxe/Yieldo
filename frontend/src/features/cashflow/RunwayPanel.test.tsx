@@ -165,12 +165,19 @@ describe("RunwayPanel", () => {
       <RunwayPanel
         scenario={null}
         label="Dépenses réduites à l'essentiel"
-        unavailableReason="Pas assez d'historique pour mesurer les dépenses essentielles : il faut au moins 3 mois complets de relevés, et l'historique n'en compte que 2."
+        unavailableReason="Pas assez de mois pour mesurer les dépenses essentielles : seuls 2 mois portent ce type de dépense sur les 9 mois complets de l'historique, et il en faut au moins 3."
       />,
     );
 
-    expect(screen.getByText(/dépenses essentielles/i)).toBeInTheDocument();
-    expect(screen.getByText(/au moins 3 mois complets/)).toBeInTheDocument();
+    // The whole sentence, verbatim. A `/dépenses essentielles/` match is
+    // satisfied by the label the reason opens with and says nothing about the
+    // claim that follows it — the reason this panel renders the backend's own
+    // string rather than a paraphrase.
+    expect(
+      screen.getByText(
+        "Pas assez de mois pour mesurer les dépenses essentielles : seuls 2 mois portent ce type de dépense sur les 9 mois complets de l'historique, et il en faut au moins 3.",
+      ),
+    ).toBeInTheDocument();
   });
 
   // No silent failure: the contract says the reason is set exactly when the

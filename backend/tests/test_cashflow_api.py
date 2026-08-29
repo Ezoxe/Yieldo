@@ -270,6 +270,33 @@ def test_an_uncategorised_transaction_counts_toward_normal_but_not_essentials(
     assert body["normal"]["monthly_burn_cents"] > body["essentials"]["monthly_burn_cents"]
 
 
+def test_the_essentials_refusal_quotes_the_ledgers_own_month_count(client, imported):
+    """B1, end to end. `essential_points` is a filtered entry list, so
+    `_months` over it counts months carrying essential-tagged spending, never
+    the ledger's complete months. `CashflowPage` prints `months_observed` --
+    the ledger's count -- six lines under this refusal, so a refusal quoting
+    its own sample size as the ledger's puts two numbers for one fact on one
+    screen. Six months of a non-essential charge against three of the
+    essential grocery one."""
+    headers, account_id = imported
+    _import_months(client, headers, account_id, "CARTE X1234 RESTAURANT LE COMPTOIR",
+                   -15_000, (2025, 1), 6)
+    _import_months(client, headers, account_id, "CARTE X1234 CARREFOUR COURSES",
+                   -20_000, (2025, 1), 3)
+
+    body = client.get("/api/cashflow/runway", headers=headers).json()
+    assert body["normal"] is not None
+    assert body["essentials"] is None
+    reason = body["essentials_unavailable_reason"]
+    observed = body["months_observed"]
+    # The ledger is long enough for `normal`; only the essentials sample is not.
+    assert observed >= 3
+    # The only month count this refusal attributes to "l'historique" is the one
+    # the payload publishes and the screen prints.
+    assert f"{observed} mois complets de l'historique" in reason
+    assert "l'historique n'en compte que" not in reason
+
+
 def test_runway_reports_how_many_categories_are_marked_essential(client, imported):
     """The reduced scenario is only as meaningful as that list, so the screen
     has to be able to say how many categories it rests on."""

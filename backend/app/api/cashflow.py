@@ -229,6 +229,10 @@ def runway(
         all_months=_months(points, start, end),
         essential_months=_months(essential_points, start, end),
         today=today,
+        # So the engine can tell "nothing is flagged essential" from "flagged
+        # categories carry no spending in any complete month". Both leave
+        # `essential_months` empty; only one of them is about the history.
+        essential_category_count=len(essential_ids),
     )
 
     return RunwayOut(

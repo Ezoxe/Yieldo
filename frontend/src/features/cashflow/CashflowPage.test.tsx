@@ -131,6 +131,35 @@ const staleRunway: Runway = {
 };
 
 /**
+ * A nine-month ledger whose essential-tagged spending only reaches two of
+ * those months. `normal` measures fine; `essentials` alone refuses, and its
+ * refusal is printed six lines above the cell's own "dont 9 mois complets".
+ *
+ * The string is the backend's, verbatim — `runway._reason_insufficient_history`
+ * on its `observed < ledger_months` branch.
+ */
+const thinEssentialsRunway: Runway = {
+  ...runway,
+  essentials: null,
+  essentials_unavailable_reason:
+    "Pas assez de mois pour mesurer les dépenses essentielles : seuls 2 mois portent ce type de dépense sur les 9 mois complets de l'historique, et il en faut au moins 3.",
+};
+
+/**
+ * The same ledger with nothing at all flagged essential — `runway.py`'s
+ * `_reason_no_essential_category`, which quotes no month count because none is
+ * relevant: no length of history produces essential spending when no category
+ * is flagged.
+ */
+const noEssentialCategoryRunway: Runway = {
+  ...runway,
+  essentials: null,
+  essentials_unavailable_reason:
+    "Ce scénario n'a aucune dépense à mesurer : aucune catégorie n'est marquée essentielle, et la longueur de l'historique n'y change rien.",
+  essential_category_count: 0,
+};
+
+/**
  * A user's second month: two complete months against a floor of three, so
  * `measure_expense_rate` returns nothing for either scenario and BOTH come
  * back null. Everything the cell says about a measured rate is false here.
@@ -160,9 +189,9 @@ const noBurnRunway: Runway = {
   ...unmeasurableRunway,
   months_observed: 3,
   normal_unavailable_reason:
-    "Le solde net mesuré sur l'ensemble des dépenses n'est pas déficitaire (3 mois observés) : sans dépense nette à combler, aucune autonomie ne peut être calculée.",
+    "Aucune autonomie mesurable pour l'ensemble des dépenses : sur les 3 mois complets de l'historique, la dépense médiane d'un mois est nulle, il n'y a donc aucune sortie d'argent à couvrir.",
   essentials_unavailable_reason:
-    "Le solde net mesuré sur les dépenses essentielles n'est pas déficitaire (3 mois observés) : sans dépense nette à combler, aucune autonomie ne peut être calculée.",
+    "Aucune autonomie mesurable pour les dépenses essentielles : sur les 3 mois complets de l'historique, la dépense médiane d'un mois est nulle, il n'y a donc aucune sortie d'argent à couvrir.",
 };
 
 function jsonResponse(body: unknown, status = 200) {
@@ -406,22 +435,59 @@ describe("CashflowPage", () => {
   // Requirement 5: the two unavailability reasons are independent. One may
   // never stand in for the other.
   it("renders each scenario's own unavailability reason beside that scenario", async () => {
-    setupFetch({
-      runway: () =>
-        jsonResponse({
-          ...runway,
-          essentials: null,
-          essentials_unavailable_reason:
-            "Pas assez d'historique pour mesurer les dépenses essentielles : il faut au moins 3 mois complets de relevés, et l'historique n'en compte que 2.",
-        }),
-    });
+    setupFetch({ runway: () => jsonResponse(thinEssentialsRunway) });
     renderPage();
 
-    expect(await screen.findByText(/dépenses essentielles/)).toBeInTheDocument();
+    // The WHOLE clause. `/dépenses essentielles/` alone matched the label the
+    // reason opens with and passed whatever the sentence went on to claim —
+    // which is how it went on rendering a refusal contradicting the note six
+    // lines below it for an entire phase.
+    expect(
+      await screen.findByText(
+        "Pas assez de mois pour mesurer les dépenses essentielles : seuls 2 mois portent ce type de dépense sur les 9 mois complets de l'historique, et il en faut au moins 3.",
+      ),
+    ).toBeInTheDocument();
     // `normal` computed, so nothing unavailable is said about it. 148 000 cents
     // against a 190 000-a-month burn is genuinely under a month.
     expect(screen.getByText("moins d'un mois")).toBeInTheDocument();
     expect(screen.getAllByText(/Non mesurable/)).toHaveLength(1);
+  });
+
+  // B1. The reason and the scope note are six lines apart on one screen, and
+  // both quote a count of the ledger's complete months. `essential_months` is
+  // built from a filtered entry list, so its length is the months carrying
+  // essential spending — never the ledger's. Quoting it as "l'historique n'en
+  // compte que 2" under a note reading "dont 9 mois complets" is two numbers
+  // for one fact.
+  it("agrees with the scope note on how many complete months the ledger holds", async () => {
+    setupFetch({ runway: () => jsonResponse(thinEssentialsRunway) });
+    renderPage();
+
+    const scope = await screen.findByTestId("yd-runway-scope");
+    expect(scope).toHaveTextContent(/dont 9 mois complets/);
+
+    const reason = screen.getByText(/Pas assez de mois pour mesurer/);
+    expect(reason).toHaveTextContent(/sur les 9 mois complets de l'historique/);
+    // The sentence that contradicted the note.
+    expect(reason).not.toHaveTextContent(/l'historique n'en compte que 2/);
+    // The essentials sample size is still stated — it is why the scenario
+    // failed — but as its own clause, never as the ledger's size.
+    expect(reason).toHaveTextContent(/seuls 2 mois portent ce type de dépense/);
+  });
+
+  // B1, the worse half: with nothing flagged essential the old refusal blamed
+  // a short history AND quoted 0 as the ledger's month count. The replacement
+  // carries no number at all, so it cannot contradict the note under it.
+  it("blames the empty essential list, not the ledger, when no category is flagged", async () => {
+    setupFetch({ runway: () => jsonResponse(noEssentialCategoryRunway) });
+    renderPage();
+
+    const reason = await screen.findByText(/Ce scénario n'a aucune dépense à mesurer/);
+    expect(reason).toHaveTextContent(
+      "Ce scénario n'a aucune dépense à mesurer : aucune catégorie n'est marquée essentielle, et la longueur de l'historique n'y change rien.",
+    );
+    expect(reason).not.toHaveTextContent(/mois complets de relevés/);
+    expect(screen.getByTestId("yd-runway-scope")).toHaveTextContent(/dont 9 mois complets/);
   });
 
   it("does not let the normal reason stand in for a missing essentials reason", async () => {
@@ -431,14 +497,22 @@ describe("CashflowPage", () => {
           ...runway,
           normal: null,
           normal_unavailable_reason:
-            "Le solde net mesuré sur l'ensemble des dépenses n'est pas déficitaire (9 mois observés) : sans dépense nette à combler, aucune autonomie ne peut être calculée.",
+            "Aucune autonomie mesurable pour l'ensemble des dépenses : sur les 9 mois complets de l'historique, la dépense médiane d'un mois est nulle, il n'y a donc aucune sortie d'argent à couvrir.",
         }),
     });
     renderPage();
 
-    expect(await screen.findByText(/n'est pas déficitaire/)).toBeInTheDocument();
+    // N1: the branch fires on a zero GROSS expense median. It never measured a
+    // "solde net" — which in this product is the name of `CashflowChart`'s
+    // third series — and must not report one.
+    const reason = await screen.findByText(/la dépense médiane d'un mois est nulle/);
+    expect(reason).toHaveTextContent(
+      "Aucune autonomie mesurable pour l'ensemble des dépenses : sur les 9 mois complets de l'historique, la dépense médiane d'un mois est nulle, il n'y a donc aucune sortie d'argent à couvrir.",
+    );
+    expect(reason).not.toHaveTextContent(/solde net/);
+    expect(reason).not.toHaveTextContent(/déficitaire/);
     // The essentials scenario computed; its panel must not repeat normal's reason.
-    expect(screen.getAllByText(/n'est pas déficitaire/)).toHaveLength(1);
+    expect(screen.getAllByText(/la dépense médiane d'un mois est nulle/)).toHaveLength(1);
     expect(screen.getByText("1,2 mois")).toBeInTheDocument();
   });
 

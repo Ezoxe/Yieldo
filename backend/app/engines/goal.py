@@ -133,9 +133,17 @@ def _reason_no_capacity() -> str:
 
 
 def _reason_capacity_not_positive() -> str:
+    """Worded about the HOUSEHOLD, not about one goal.
+
+    This cause is a property of the ledger, so every goal refuses with the
+    identical sentence and a screen may print it once above the list instead of
+    once per card. "cet objectif ne progresse pas" read as a claim about one
+    goal when hoisted there; "aucun objectif ne progresse" is true in both
+    positions.
+    """
     return (
         "Votre capacité d'épargne mesurée est négative ou nulle : au rythme "
-        "constaté dans vos relevés, cet objectif ne progresse pas, et aucune "
+        "constaté dans vos relevés, aucun objectif ne progresse, et aucune "
         "date d'atteinte ne peut être avancée."
     )
 

@@ -310,10 +310,9 @@ export function GoalsPage() {
             // shipped a screen that sent a household to fix a ledger that was
             // not broken.
             <p className="yd-goals__consequence">
-              À ce rythme vous dépensez plus que vous ne gagnez : aucun objectif ci-dessous ne peut
-              avancer, et aucune date d'atteinte n'est projetée. Les deux seules issues sont de
-              dépenser moins ou de gagner plus — importer davantage de relevés n'y changerait rien,
-              vos relevés sont complets et c'est bien ce qu'ils mesurent.
+              Les deux seules issues sont de dépenser moins ou de gagner plus — importer davantage
+              de relevés n'y changerait rien, vos relevés sont complets et c'est bien ce qu'ils
+              mesurent.
             </p>
           ) : null}
 

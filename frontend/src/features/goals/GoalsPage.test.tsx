@@ -19,7 +19,7 @@ import { GoalsPage, bandMarkers, fillWidth, progressPercent, ratioLabel } from "
 /** `_reason_capacity_not_positive` — THE OPERATOR'S OWN STATE. */
 const NEGATIVE_CAPACITY =
   "Votre capacité d'épargne mesurée est négative ou nulle : au rythme constaté dans vos " +
-  "relevés, cet objectif ne progresse pas, et aucune date d'atteinte ne peut être avancée.";
+  "relevés, aucun objectif ne progresse, et aucune date d'atteinte ne peut être avancée.";
 
 /** `_reason_no_capacity` — fewer than three complete observed months. */
 const NO_CAPACITY =
@@ -192,7 +192,7 @@ describe("GoalsPage — the capacity panel", () => {
     );
     renderPage();
 
-    expect(await screen.findByText(/ne progresse pas/)).toBeInTheDocument();
+    expect(await screen.findByText(/aucun objectif ne progresse/)).toBeInTheDocument();
     // The measured rate is stated as the negative figure it is, with its sample.
     expect(screen.getByText(/−746,19/)).toBeInTheDocument();
     expect(screen.getByText(/3 mois de relevés/)).toBeInTheDocument();
@@ -216,7 +216,7 @@ describe("GoalsPage — the capacity panel", () => {
     );
     renderPage();
 
-    await screen.findByText(/ne progresse pas/);
+    await screen.findByText(/aucun objectif ne progresse/);
     expect(screen.queryByRole("link", { name: /relevés/i })).not.toBeInTheDocument();
     expect(screen.queryByText(/trois mois complets/)).not.toBeInTheDocument();
     // And it says outright that importing more would change nothing.
@@ -239,7 +239,7 @@ describe("GoalsPage — the capacity panel", () => {
     // fallback both name this cause, and which of the two is on screen depends
     // on whether any goal is declared at all.
     expect((await screen.findAllByText(/trois mois complets/)).length).toBeGreaterThan(0);
-    expect(screen.queryByText(/ne progresse pas/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/aucun objectif ne progresse/)).not.toBeInTheDocument();
     // Here — and only here — the way out is the import screen.
     expect(screen.getByRole("link", { name: /relevés/i })).toHaveAttribute("href", "/import");
     // No figure is invented to stand in for the rate that could not be measured.

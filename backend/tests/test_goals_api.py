@@ -254,3 +254,65 @@ def test_progress_isolation_uses_only_the_requesting_users_own_capacity(client, 
     body = client.get("/api/goals", headers=alice).json()
     assert body["months_observed"] == 0
     assert body["capacity"] is None
+
+
+def _three_positive_months(db, client, email: str) -> dict[str, str]:
+    """A user with a real, small, POSITIVE measured capacity.
+
+    The mirror of `test_progress_against_a_negative_measured_capacity...`:
+    Feb, Mar and Apr 2025 are the three complete months, January and May bound
+    the ledger. 100 c a month is deliberately tiny, so a large target runs past
+    the fifty-year cap without needing an absurd target.
+    """
+    headers = _register(client, email)
+    user_id = _user_id(db, email)
+    account = Account(user_id=user_id, name="Courant", kind="checking", currency="EUR",
+                      opening_balance_cents=0, include_in_net_worth=True, archived=False)
+    db.add(account)
+    db.flush()
+    for month in (1, 2, 3, 4, 5):
+        _tx(db, user_id, account.id, date(2025, month, 10), 100_100, f"SALAIRE {month}")
+        _tx(db, user_id, account.id, date(2025, month, 15), -100_000, f"DEPENSE {month}")
+    db.commit()
+    return headers
+
+
+def test_a_target_past_the_fifty_year_cap_says_so_over_the_wire(client, db):
+    """The third of the engine's four refusals, exercised end to end. It was
+    only ever covered at the engine level, and task 9's screen has to render
+    what the API actually sends -- an assumed shape is how a screen ends up
+    printing a spinner where a sentence belongs.
+    """
+    headers = _three_positive_months(db, client, "trop-loin@example.fr")
+    _create(client, headers, name="Château", target_cents=500_000_000, saved_cents=0)
+    body = client.get("/api/goals", headers=headers).json()
+
+    assert body["capacity"]["median_cents"] > 0
+    progress = body["goals"][0]
+    assert progress["months_to_completion"] is None
+    assert progress["projected_completion_on"] is None
+    assert "50 ans" in progress["projection_unavailable_reason"]
+    assert "trois mois complets" not in progress["projection_unavailable_reason"]
+
+
+def test_a_goal_queued_behind_an_unreachable_one_says_which_one(client, db):
+    """The fourth refusal, end to end. Sequential funding means a goal behind
+    an unreachable one never starts either, and the sentence must name the
+    BLOCKER rather than blaming this goal's own size -- here a 20 EUR goal
+    stuck behind a 5 000 000 EUR one.
+    """
+    headers = _three_positive_months(db, client, "bloque@example.fr")
+    _create(client, headers, name="Château", target_cents=500_000_000,
+            saved_cents=0, priority=1)
+    _create(client, headers, name="Casque", target_cents=2_000, saved_cents=0, priority=2)
+    body = client.get("/api/goals", headers=headers).json()
+
+    chateau, casque = body["goals"]
+    assert chateau["name"] == "Château"
+    assert casque["name"] == "Casque"
+    assert casque["months_to_completion"] is None
+    assert "Château" in casque["projection_unavailable_reason"]
+    assert "plus urgent" in casque["projection_unavailable_reason"]
+    # The blocker's own horizon is named, so "50 ans" legitimately appears --
+    # what must NOT appear is the sentence blaming this goal's own size.
+    assert "ne serait pas atteint" not in casque["projection_unavailable_reason"]

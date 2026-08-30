@@ -107,9 +107,14 @@ class PayoffPlan:
 class StrategyComparison:
     snowball: PayoffPlan
     avalanche: PayoffPlan
-    # Snowball's interest minus avalanche's: positive when avalanche is cheaper,
-    # which it is whenever the two orders differ. None when either plan refused
-    # -- a difference between a number and a refusal is not a saving.
+    # Snowball's interest minus avalanche's. Usually positive -- attacking the
+    # dearest debt first is the cheaper order -- but NOT guaranteed to be, and a
+    # screen printing "vous économisez X" must handle X <= 0. Rounding each
+    # month's interest to the cent is enough to make the two orders tie (common:
+    # roughly one sweep fixture in nine), and on rare fixtures to put avalanche
+    # a cent BEHIND. `test_avalanche_can_tie_or_trail_by_a_cent` pins one.
+    # None when either plan refused -- a difference between a number and a
+    # refusal is not a saving.
     interest_saved_cents: int | None
     months_saved: int | None
 
@@ -132,9 +137,9 @@ def _ordered(debts: list[DebtInput], strategy: str) -> list[DebtInput]:
 def _reason_budget_too_small() -> str:
     return (
         "La mensualité totale disponible ne couvre pas les intérêts du premier "
-        "mois : le capital augmenterait au lieu de diminuer, et aucun échéancier "
-        "ne peut être établi. Augmentez le versement mensuel, ou renégociez le "
-        "taux de la dette la plus chère."
+        "mois : le capital ne diminuerait jamais, et aucun échéancier ne peut "
+        "être établi. Augmentez le versement mensuel, ou renégociez le taux de "
+        "la dette la plus chère."
     )
 
 
@@ -154,10 +159,33 @@ def build_payoff(
 ) -> PayoffPlan:
     """One strategy's full schedule. See the module docstring for both refusals."""
     order = _ordered(debts, strategy)
+    if extra_monthly_cents < 0:
+        # The budget is `sum(minimums) + extra`, so a negative extra funds LESS
+        # than the contractual minimums -- and nothing downstream notices: the
+        # aggregate can still clear the first month's interest, so neither
+        # refusal fires and a low-priority debt grows untouched under a plan
+        # reporting success. It also inverts the comparison this engine exists
+        # to make: starved of its minimums, avalanche can cost more interest
+        # than snowball.
+        raise ValueError(
+            "Le versement mensuel supplémentaire ne peut pas être négatif : "
+            "il s'ajoute aux mensualités minimales, il ne les remplace pas."
+        )
     for debt in order:
         if debt.principal_cents < 0:
             raise ValueError(
                 f"Le capital restant dû de « {debt.name} » ne peut pas être négatif."
+            )
+        if debt.annual_rate_bps < 0:
+            # A negative rate manufactures money: the balance falls with no
+            # payment covering it. Refused here for the same reason
+            # `amortization._validate` and `savings._validate_rate` refuse it.
+            raise ValueError(
+                f"Le taux de « {debt.name} » ne peut pas être négatif."
+            )
+        if debt.minimum_payment_cents < 0:
+            raise ValueError(
+                f"La mensualité minimale de « {debt.name} » ne peut pas être négative."
             )
     ids = [debt.id for debt in order]
     budget = sum(debt.minimum_payment_cents for debt in debts) + extra_monthly_cents

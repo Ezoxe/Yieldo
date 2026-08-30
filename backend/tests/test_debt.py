@@ -163,3 +163,79 @@ def test_comparing_strategies_when_the_budget_refuses_both():
     assert comparison.avalanche.months is None
     assert comparison.interest_saved_cents is None
     assert comparison.months_saved is None
+
+
+def test_a_negative_extra_contribution_is_refused():
+    """`extra_monthly_cents` is what goes on top of the minimums, so the budget
+    is `sum(minimums) + extra`. A negative extra silently funds LESS than the
+    contractual minimums, and nothing downstream notices: the aggregate can
+    still clear the first month's interest, so neither refusal fires, and the
+    plan comes back with `unavailable_reason=None` while a low-priority debt
+    grows untouched for years.
+
+    Worse, it inverts the comparison the whole screen exists to make. With two
+    minimums of 50 000 c and `extra=-90 000`, the budget is 10 000 c against
+    100 000 c of minimums; on some fixtures avalanche then costs MORE interest
+    than snowball, contradicting `interest_saved_cents`'s own contract.
+    Refusing the input is the fix -- there is no such thing as contributing a
+    negative amount.
+    """
+    debts = [_debt(1, 1_000_000, 50_000, rate=100), _debt(2, 1_000_000, 50_000, rate=100)]
+    with pytest.raises(ValueError, match="négatif"):
+        build_payoff(debts, -90_000, "snowball", TODAY)
+
+
+def test_a_negative_rate_is_refused():
+    """A negative rate manufactures money: the balance falls without any
+    payment covering it, and `total_interest_cents` comes back negative.
+    `amortization._validate` and `savings._validate_rate` both refuse it; this
+    engine multiplies the same rate into the same cents and must refuse it too.
+    """
+    with pytest.raises(ValueError, match="taux"):
+        build_payoff([_debt(1, 100_000, 10_000, rate=-500)], 0, "snowball", TODAY)
+
+
+def test_a_negative_minimum_payment_is_refused():
+    """A negative minimum is subtracted from the shared budget, which is the
+    same starvation as a negative extra, reached through the other input."""
+    with pytest.raises(ValueError, match="négative"):
+        build_payoff([_debt(1, 100_000, -10_000, rate=100)], 20_000, "snowball", TODAY)
+
+
+def test_an_interest_only_budget_is_refused_without_claiming_the_capital_grows():
+    """The refusal fires on `budget <= first_month_interest`, so it covers the
+    EQUALITY too -- and at equality the capital does not increase, it stays
+    flat forever. A sentence saying it "augmenterait" is false for an input
+    that reaches it, which is this project's most repeated defect: a French
+    sentence naming the wrong cause.
+    """
+    debt = _debt(1, 100_000, 1_000, rate=1200)  # 100 000 c at 12 %/an = 1 000 c/month
+    plan = build_payoff([debt], 0, "snowball", TODAY)
+    assert plan.months is None
+    assert plan.unavailable_reason is not None
+    assert "augmenterait" not in plan.unavailable_reason
+    assert "ne diminuerait jamais" in plan.unavailable_reason
+
+
+def test_avalanche_can_tie_or_trail_by_a_cent():
+    """Avalanche is the cheaper ORDER, not a cheaper number on every fixture.
+    Interest is rounded to the cent every month for every debt, and that
+    rounding is enough to erase the theoretical gap: over a 4 000-fixture
+    sweep with a non-negative extra, 450 pairs tied with different orders and
+    one put avalanche a single cent behind. This is that one.
+
+    Pinned so nobody "fixes" the sign later by clamping it, and so the screen
+    built in task 6 is written knowing `interest_saved_cents` can be 0 or
+    negative without either plan having failed.
+    """
+    debts = [
+        _debt(1, 2_316_377, 190_529, rate=3000),
+        _debt(2, 2_433_911, 163_393, rate=101),
+        _debt(3, 2_004_925, 166_265, rate=500),
+        _debt(4, 2_237_242, 184_798, rate=0),
+    ]
+    comparison = compare_strategies(debts, 1, TODAY)
+    assert comparison.snowball.order != comparison.avalanche.order
+    assert comparison.interest_saved_cents == -1
+    assert comparison.snowball.months is not None
+    assert comparison.avalanche.months is not None

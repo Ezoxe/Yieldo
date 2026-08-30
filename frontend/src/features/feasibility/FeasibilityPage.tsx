@@ -16,9 +16,15 @@ import type {
   FeasibilityContext,
   FeasibilityRequest,
   MeasuredRate,
+  Scenario,
 } from "../../lib/types";
 import "./FeasibilityPage.css";
+import { FinancingPanel } from "./FinancingPanel";
+import { ImpactPanel } from "./ImpactPanel";
+import { LeverList } from "./LeverList";
+import { OwnershipPanel } from "./OwnershipPanel";
 import { PurchaseForm } from "./PurchaseForm";
+import { ScenarioBar } from "./ScenarioBar";
 import { VerdictPanel } from "./VerdictPanel";
 
 const GENERIC_ERROR = "Une erreur inattendue est survenue.";
@@ -99,6 +105,7 @@ const SPAN = {
   full: { base: 1, md: 6, lg: 12 },
   form: { base: 1, md: 6, lg: 5 },
   verdict: { base: 1, md: 6, lg: 7 },
+  half: { base: 1, md: 6, lg: 6 },
 } satisfies Record<string, BentoSpan>;
 
 export function FeasibilityPage() {
@@ -115,6 +122,19 @@ export function FeasibilityPage() {
   const [reportRefusal, setReportRefusal] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [showLoa, setShowLoa] = useState(false);
+
+  // The question that produced `report`, kept so a scenario can store it. It is
+  // the REQUEST and never the answer: `POST /feasibility/scenarios` stores the
+  // question, and every read recomputes.
+  const [asked, setAsked] = useState<FeasibilityRequest | null>(null);
+  const [scenarios, setScenarios] = useState<Scenario[]>([]);
+  const [scenarioError, setScenarioError] = useState<string | null>(null);
+  const [scenarioToken, setScenarioToken] = useState(0);
+  // Remounts the form on a reopened question rather than syncing its fields
+  // through an effect, which would fight whatever the user is typing.
+  const [reopened, setReopened] = useState<{ request: FeasibilityRequest; key: number } | null>(
+    null,
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -140,6 +160,30 @@ export function FeasibilityPage() {
     };
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    async function load() {
+      try {
+        const body = await api.get<Scenario[]>("/feasibility/scenarios");
+        if (cancelled) return;
+        setScenarios(body);
+        setScenarioError(null);
+      } catch (err) {
+        if (cancelled) return;
+        // The list is a side panel: it failing is no reason to blank the
+        // verdict, so it reports against its own cell.
+        setScenarios([]);
+        setScenarioError(messageFor(err));
+      }
+    }
+
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, [scenarioToken]);
+
   async function ask(request: FeasibilityRequest) {
     setBusy(true);
     setReportError(null);
@@ -147,9 +191,11 @@ export function FeasibilityPage() {
     try {
       const body = await api.post<Feasibility>("/feasibility", request);
       setReport(body);
+      setAsked(request);
     } catch (err) {
       const refusal = refusalReason(err);
       setReport(null);
+      setAsked(null);
       if (refusal !== null) setReportRefusal(refusal);
       else setReportError(messageFor(err));
     } finally {
@@ -261,7 +307,9 @@ export function FeasibilityPage() {
         <BentoCell as={motion.div} span={SPAN.form} className="yd-panel" {...entryProps(reduced)}>
           <h2 className="yd-panel__title">Votre achat</h2>
           <PurchaseForm
+            key={reopened?.key ?? "new"}
             context={context}
+            initial={reopened?.request ?? null}
             busy={busy}
             showLoa={showLoa}
             onToggleLoa={setShowLoa}
@@ -293,6 +341,86 @@ export function FeasibilityPage() {
               detail="Renseignez un prix et une échéance à gauche. La réponse sera calculée à partir des rythmes mesurés ci-dessus, pas à partir de moyennes : si elle est négative, elle le dira."
             />
           )}
+        </BentoCell>
+
+        {report !== null && !busy ? (
+          <>
+            {/* EMPTY when the capacity could not be measured, and `LeverList`
+                renders nothing on an empty list — so the cell itself is not
+                mounted either, rather than shown as an empty card. */}
+            {report.levers.length > 0 ? (
+              <BentoCell
+                as={motion.div}
+                span={SPAN.full}
+                className="yd-panel"
+                {...entryProps(reduced)}
+              >
+                <h2 className="yd-panel__title">Ce qu'il faudrait changer</h2>
+                <LeverList levers={report.levers} />
+              </BentoCell>
+            ) : null}
+
+            <BentoCell
+              as={motion.div}
+              span={SPAN.full}
+              className="yd-panel"
+              {...entryProps(reduced)}
+            >
+              <h2 className="yd-panel__title">Comptant, crédit ou LOA</h2>
+              <FinancingPanel
+                financing={report.financing}
+                loanRateBps={report.assumptions.loan_rate_bps}
+                onAddLoa={() => setShowLoa(true)}
+              />
+            </BentoCell>
+
+            <BentoCell
+              as={motion.div}
+              span={SPAN.half}
+              className="yd-panel"
+              {...entryProps(reduced)}
+            >
+              <h2 className="yd-panel__title">Ce que la possession coûte</h2>
+              <OwnershipPanel
+                ownership={report.ownership}
+                opportunityCostCents={report.opportunity_cost_cents}
+                opportunityHorizonMonths={report.opportunity_horizon_months}
+              />
+            </BentoCell>
+
+            <BentoCell
+              as={motion.div}
+              span={SPAN.half}
+              className="yd-panel"
+              {...entryProps(reduced)}
+            >
+              <h2 className="yd-panel__title">Ce que cet achat change</h2>
+              <ImpactPanel
+                impact={report.impact}
+                targetCents={report.target_cents}
+                downPaymentCents={report.down_payment_cents}
+              />
+            </BentoCell>
+          </>
+        ) : null}
+
+        <BentoCell as={motion.div} span={SPAN.full} className="yd-panel" {...entryProps(reduced)}>
+          <h2 className="yd-panel__title">Scénarios enregistrés</h2>
+          {scenarioError !== null ? (
+            <p role="alert" className="yd-feas__alert">
+              {`Scénarios indisponibles : ${scenarioError}`}
+            </p>
+          ) : null}
+          <ScenarioBar
+            scenarios={scenarios}
+            current={asked}
+            onChanged={() => setScenarioToken((token) => token + 1)}
+            onReopen={(request) => {
+              setReopened({ request, key: Date.now() });
+              setShowLoa(request.loa !== undefined && request.loa !== null);
+              void ask(request);
+            }}
+          />
         </BentoCell>
       </BentoGrid>
     );

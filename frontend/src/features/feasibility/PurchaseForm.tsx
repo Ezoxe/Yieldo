@@ -48,6 +48,11 @@ type Errors = Partial<Record<FieldName, string>>;
 export interface PurchaseFormProps {
   /** Everything measured, so every hypothesis prefills from data. */
   context: FeasibilityContext;
+  /** A saved scenario's question, reopened. The caller remounts this form with
+   *  a new `key` when it changes: the fields are uncontrolled from the caller's
+   *  point of view, and syncing them through an effect would fight whatever the
+   *  user is in the middle of typing. */
+  initial?: FeasibilityRequest | null;
   /** A computation is in flight: the submit is disabled AND says so. */
   busy: boolean;
   /** Whether the LOA block is revealed. Lifted, because `FinancingPanel`'s
@@ -80,31 +85,44 @@ function parseCount(text: string, min: number, max: number): number | null {
  */
 export function PurchaseForm({
   context,
+  initial = null,
   busy,
   showLoa,
   onToggleLoa,
   onSubmit,
 }: PurchaseFormProps) {
   const baseId = useId();
-  const [target, setTarget] = useState("");
-  const [horizon, setHorizon] = useState("12");
-  const [down, setDown] = useState("0");
-  const [nature, setNature] = useState(context.natures[0] ?? "vehicle");
+  const [target, setTarget] = useState(
+    initial === null ? "" : centsToInput(initial.target_cents),
+  );
+  const [horizon, setHorizon] = useState(String(initial?.horizon_months ?? 12));
+  const [down, setDown] = useState(centsToInput(initial?.down_payment_cents ?? 0));
+  const [nature, setNature] = useState(initial?.nature ?? context.natures[0] ?? "vehicle");
   const [openAssumptions, setOpenAssumptions] = useState(false);
 
   const [annualReturn, setAnnualReturn] = useState(
-    bpsToInput(context.assumptions.annual_return_bps),
+    bpsToInput(initial?.annual_return_bps ?? context.assumptions.annual_return_bps),
   );
-  const [loanRate, setLoanRate] = useState(bpsToInput(context.assumptions.loan_rate_bps));
-  const [loanMonths, setLoanMonths] = useState(String(context.assumptions.loan_months));
+  const [loanRate, setLoanRate] = useState(
+    bpsToInput(initial?.loan_rate_bps ?? context.assumptions.loan_rate_bps),
+  );
+  const [loanMonths, setLoanMonths] = useState(
+    String(initial?.loan_months ?? context.assumptions.loan_months),
+  );
   const [ownershipYears, setOwnershipYears] = useState(
-    String(context.assumptions.ownership_years),
+    String(initial?.ownership_years ?? context.assumptions.ownership_years),
   );
 
-  const [loaDeposit, setLoaDeposit] = useState("");
-  const [loaMonthly, setLoaMonthly] = useState("");
-  const [loaMonths, setLoaMonths] = useState("48");
-  const [loaResidual, setLoaResidual] = useState("");
+  const [loaDeposit, setLoaDeposit] = useState(
+    initial?.loa ? centsToInput(initial.loa.deposit_cents) : "",
+  );
+  const [loaMonthly, setLoaMonthly] = useState(
+    initial?.loa ? centsToInput(initial.loa.monthly_cents) : "",
+  );
+  const [loaMonths, setLoaMonths] = useState(String(initial?.loa?.months ?? 48));
+  const [loaResidual, setLoaResidual] = useState(
+    initial?.loa ? centsToInput(initial.loa.residual_cents) : "",
+  );
 
   const [errors, setErrors] = useState<Errors>({});
 

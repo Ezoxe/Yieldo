@@ -138,7 +138,11 @@ describe("FeasibilityPage — asking the question", () => {
     renderPage();
     await askTheOperatorsQuestion(user);
 
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    // On the POST itself rather than on a call count, which changes whenever a
+    // panel adds a GET of its own.
+    await waitFor(() =>
+      expect(fetchMock.mock.calls.some(([, init]) => init?.method === "POST")).toBe(true),
+    );
     const post = fetchMock.mock.calls.find(([, init]) => init?.method === "POST");
     expect(JSON.parse(String(post?.[1]?.body)).target_cents).toBe(4_000_000);
   });

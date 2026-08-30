@@ -551,3 +551,787 @@
 .yd-skeleton--feas-verdict {
   height: 320px;
 }
+
+/* The five levers ----------------------------------------------------------- */
+
+.yd-levers {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--yd-space-md);
+}
+
+.yd-levers__lead,
+.yd-fin__lead,
+.yd-own__lead {
+  margin: 0;
+  max-width: 96ch;
+  font-size: 0.84rem;
+  line-height: 1.55;
+  color: var(--yd-text-muted);
+}
+
+/* One column at 375, two from 700, three from 1100. `auto-fit` is deliberately
+   NOT used: there are always exactly five cards, and auto-fit orphaned the
+   fifth on a row of its own at two widths out of three. */
+.yd-levers__grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--yd-space-sm);
+  align-items: start;
+}
+
+@media (min-width: 700px) {
+  .yd-levers__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1100px) {
+  .yd-levers__grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.yd-lever {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+  gap: var(--yd-space-xs);
+  padding: var(--yd-space-md);
+  border-radius: var(--yd-radius-sm);
+  border: 1px solid var(--yd-border);
+  background: var(--yd-surface);
+  min-width: 0;
+}
+
+/* Dashed and unfilled, never hidden: an option that cannot be taken is still
+   information, and its reason is the most useful sentence on the card. */
+.yd-lever--unavailable {
+  background: transparent;
+  border-style: dashed;
+}
+
+.yd-lever__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--yd-space-2xs) var(--yd-space-xs);
+}
+
+.yd-lever__title {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--yd-text);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.yd-lever__badge {
+  flex: none;
+  padding: 1px var(--yd-space-xs);
+  border-radius: 999px;
+  border: 1px solid var(--yd-border-strong);
+  font-size: 0.72rem;
+  color: var(--yd-text-muted);
+}
+
+.yd-lever__subtitle {
+  margin: 0;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: var(--yd-text-muted);
+}
+
+.yd-lever__figure {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--yd-space-2xs) var(--yd-space-sm);
+  padding-top: var(--yd-space-2xs);
+  border-top: 1px solid var(--yd-border);
+}
+
+.yd-lever__figure-label {
+  flex: 1 1 16ch;
+  min-width: 0;
+  font-size: 0.78rem;
+  line-height: 1.4;
+  color: var(--yd-text-muted);
+}
+
+.yd-lever__figure-value {
+  font-family: var(--yd-font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.86rem;
+  color: var(--yd-text);
+  overflow-wrap: anywhere;
+}
+
+.yd-lever__figure-value--strong {
+  font-size: 1.02rem;
+  font-weight: 600;
+  color: var(--yd-text);
+}
+
+/* The debt ratio, in its own block: the alarm has to be visible before the
+   sentence under it is read. */
+.yd-lever__ratio {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--yd-space-2xs) var(--yd-space-sm);
+  padding: var(--yd-space-xs) var(--yd-space-sm);
+  border-radius: var(--yd-radius-sm);
+  border: 1px solid var(--yd-border);
+  background: var(--yd-surface-strong);
+}
+
+/* `--yd-warning` is pinned at 4.5:1 against the page in design/contrast.test.ts
+   in BOTH themes, and it colours the figure rather than only the border — a
+   border alone would carry the alarm on hue with nothing for a reader who
+   cannot see it. The sentence beside it names the rule in words. */
+.yd-lever__ratio--exceeded {
+  border-color: var(--yd-warning);
+  background: color-mix(in srgb, var(--yd-warning) 12%, transparent);
+}
+
+.yd-lever__ratio--exceeded .yd-lever__figure-value {
+  color: var(--yd-warning);
+  font-weight: 600;
+}
+
+.yd-lever__ratio-note {
+  grid-column: 1 / -1;
+  font-size: 0.76rem;
+  line-height: 1.5;
+  color: var(--yd-text);
+}
+
+.yd-lever__history,
+.yd-lever__note {
+  margin: 0;
+  font-size: 0.78rem;
+  line-height: 1.5;
+  color: var(--yd-text);
+}
+
+/* A refusal is content: the warning rule, never the negative colour. */
+.yd-lever__reason {
+  margin: 0;
+  padding: var(--yd-space-xs) var(--yd-space-sm);
+  border-radius: var(--yd-radius-sm);
+  border: 1px solid var(--yd-border-strong);
+  border-left: 3px solid var(--yd-warning);
+  background: var(--yd-surface);
+  color: var(--yd-text);
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
+
+/* Comptant, credit, LOA ----------------------------------------------------- */
+
+.yd-fin {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--yd-space-md);
+}
+
+/* Stacked below 768, three abreast above. `minmax(0, 1fr)` on every track: the
+   LOA column carries a paragraph and would otherwise set all three widths. */
+.yd-fin__grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--yd-space-sm);
+  align-items: start;
+}
+
+@media (min-width: 768px) {
+  .yd-fin__grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.yd-fin__option {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+  gap: var(--yd-space-2xs);
+  padding: var(--yd-space-md);
+  border-radius: var(--yd-radius-sm);
+  border: 1px solid var(--yd-border);
+  background: var(--yd-surface);
+  min-width: 0;
+}
+
+.yd-fin__option--unavailable {
+  background: transparent;
+  border-style: dashed;
+}
+
+.yd-fin__option-title {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--yd-text);
+}
+
+.yd-fin__option-rule {
+  margin: 0 0 var(--yd-space-2xs);
+  font-size: 0.76rem;
+  line-height: 1.5;
+  color: var(--yd-text-muted);
+}
+
+/* Label above figure, at EVERY width. A space-between row looked right at 1440
+   and fell apart at 768: the long French labels pushed some figures onto a
+   second line and left others beside their label, so the same column mixed two
+   alignments. Stacked, the three columns read the same everywhere. */
+.yd-fin__line {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1px;
+  padding-top: var(--yd-space-xs);
+  border-top: 1px solid var(--yd-border);
+}
+
+.yd-fin__line-label {
+  min-width: 0;
+  font-size: 0.76rem;
+  line-height: 1.4;
+  color: var(--yd-text-muted);
+}
+
+.yd-fin__line-value {
+  font-family: var(--yd-font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.84rem;
+  color: var(--yd-text);
+  overflow-wrap: anywhere;
+}
+
+.yd-fin__reason {
+  margin: 0;
+  font-size: 0.78rem;
+  line-height: 1.5;
+  color: var(--yd-text);
+}
+
+.yd-fin__action {
+  justify-self: start;
+  min-height: 36px;
+  margin-top: var(--yd-space-2xs);
+  padding: 0 var(--yd-space-sm);
+  border: 1px solid var(--yd-border-control);
+  border-radius: var(--yd-radius-sm);
+  background: transparent;
+  color: var(--yd-text);
+  font: inherit;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: border-color var(--yd-motion-fast) var(--yd-ease);
+}
+
+.yd-fin__action:hover {
+  border-color: var(--yd-accent);
+}
+
+.yd-fin__action:focus-visible {
+  outline: 2px solid var(--yd-accent);
+  outline-offset: 2px;
+}
+
+.yd-fin__verdict {
+  margin: 0;
+  max-width: 96ch;
+  font-size: 0.95rem;
+  font-weight: 600;
+  line-height: 1.55;
+  color: var(--yd-text);
+}
+
+.yd-fin__crossover {
+  margin: 0;
+  max-width: 96ch;
+  padding: var(--yd-space-sm) var(--yd-space-md);
+  border-radius: var(--yd-radius-sm);
+  border: 1px solid var(--yd-border-strong);
+  border-left: 3px solid var(--yd-accent);
+  background: var(--yd-surface-strong);
+  color: var(--yd-text);
+  font-size: 0.88rem;
+  line-height: 1.55;
+}
+
+.yd-fin__note,
+.yd-own__note,
+.yd-own__empty,
+.yd-impact__note {
+  margin: 0;
+  max-width: 96ch;
+  font-size: 0.78rem;
+  line-height: 1.55;
+  color: var(--yd-text-muted);
+}
+
+/* Cout de possession -------------------------------------------------------- */
+
+.yd-own,
+.yd-impact {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--yd-space-md);
+}
+
+.yd-own__table {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1px;
+  border-radius: var(--yd-radius-sm);
+  border: 1px solid var(--yd-border);
+  overflow: hidden;
+  background: var(--yd-border);
+}
+
+/* Below 560px the three columns leave about 90px for an amount, and
+   "3 900,00 €" wrapped its euro sign onto a line of its own — a number broken
+   in half, caught in a browser at 375. The label takes its own line there and
+   the two figures share the next one, each with the inline label the hidden
+   header would have given it. */
+.yd-own__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--yd-space-2xs) var(--yd-space-sm);
+  align-items: baseline;
+  padding: var(--yd-space-xs) var(--yd-space-sm);
+  background: var(--yd-surface-strong);
+  font-size: 0.82rem;
+  color: var(--yd-text);
+}
+
+.yd-own__row-label {
+  grid-column: 1 / -1;
+}
+
+.yd-own__row-value:first-of-type {
+  text-align: left;
+}
+
+.yd-own__row--head {
+  display: none;
+  background: var(--yd-surface);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--yd-text-muted);
+}
+
+.yd-own__cell-label {
+  font-family: var(--yd-font);
+  font-size: 0.74rem;
+  color: var(--yd-text-muted);
+}
+
+@media (min-width: 560px) {
+  .yd-own__row {
+    grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr) minmax(0, 1fr);
+    gap: var(--yd-space-xs);
+  }
+
+  .yd-own__row-label {
+    grid-column: auto;
+  }
+
+  .yd-own__row-value:first-of-type {
+    text-align: right;
+  }
+
+  .yd-own__row--head {
+    display: grid;
+  }
+
+  .yd-own__cell-label {
+    display: none;
+  }
+}
+
+.yd-own__row--total {
+  background: var(--yd-surface);
+  font-weight: 600;
+}
+
+.yd-own__row-label {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.yd-own__row-value {
+  font-family: var(--yd-font-mono);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+.yd-own__row--head span:not(:first-child) {
+  text-align: right;
+}
+
+.yd-own__split {
+  margin: 0;
+  max-width: 96ch;
+  padding: var(--yd-space-sm) var(--yd-space-md);
+  border-radius: var(--yd-radius-sm);
+  border: 1px solid var(--yd-border-strong);
+  border-left: 3px solid var(--yd-accent);
+  background: var(--yd-surface-strong);
+  color: var(--yd-text);
+  font-size: 0.86rem;
+  line-height: 1.6;
+}
+
+.yd-own__figures {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--yd-space-sm);
+}
+
+@media (min-width: 640px) {
+  .yd-own__figures {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.yd-own__figure {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+  gap: var(--yd-space-2xs);
+  padding: var(--yd-space-sm) var(--yd-space-md);
+  border-radius: var(--yd-radius-sm);
+  border: 1px solid var(--yd-border);
+  background: var(--yd-surface);
+  min-width: 0;
+}
+
+.yd-own__figure-label {
+  font-size: 0.78rem;
+  line-height: 1.4;
+  color: var(--yd-text-muted);
+}
+
+.yd-own__figure-value {
+  font-family: var(--yd-font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  font-size: clamp(1.15rem, 3vw, 1.5rem);
+  font-weight: 600;
+  color: var(--yd-text);
+  overflow-wrap: anywhere;
+}
+
+.yd-own__figure-note {
+  font-size: 0.76rem;
+  line-height: 1.5;
+  color: var(--yd-text-muted);
+}
+
+/* L'impact ------------------------------------------------------------------ */
+
+.yd-impact__block {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--yd-space-xs);
+}
+
+.yd-impact__title {
+  margin: 0;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--yd-text);
+}
+
+.yd-impact__sentence {
+  margin: 0;
+  max-width: 96ch;
+  font-size: 0.88rem;
+  line-height: 1.6;
+  color: var(--yd-text);
+}
+
+.yd-impact__pair {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--yd-space-xs) var(--yd-space-md);
+}
+
+.yd-impact__side {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1px;
+  min-width: 0;
+}
+
+.yd-impact__side-label {
+  font-size: 0.76rem;
+  color: var(--yd-text-muted);
+}
+
+.yd-impact__side-value {
+  font-family: var(--yd-font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  font-size: clamp(1.05rem, 2.8vw, 1.35rem);
+  font-weight: 600;
+  color: var(--yd-text);
+  overflow-wrap: anywhere;
+}
+
+.yd-impact__side-value--negative {
+  color: var(--yd-negative-text);
+}
+
+.yd-impact__arrow {
+  font-size: 1.1rem;
+  color: var(--yd-text-muted);
+}
+
+/* The two components design §6.3 item 7 names and this phase does not compute.
+   The info rule, because it is a statement about the product's roadmap rather
+   than a refusal about this household's data. */
+.yd-impact__absent {
+  margin: 0;
+  max-width: 96ch;
+  padding: var(--yd-space-sm) var(--yd-space-md);
+  border-radius: var(--yd-radius-sm);
+  border: 1px solid var(--yd-border-strong);
+  border-left: 3px solid var(--yd-info);
+  background: var(--yd-surface);
+  color: var(--yd-text);
+  font-size: 0.84rem;
+  line-height: 1.55;
+}
+
+/* Scenarios ----------------------------------------------------------------- */
+
+.yd-scenarios {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--yd-space-sm);
+}
+
+.yd-scenarios__save {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--yd-space-sm);
+}
+
+.yd-scenarios__field {
+  /* `1 1 22ch`, never a percentage: this is a flex child in an auto-width row,
+     and a percentage basis there resolves against nothing. */
+  flex: 1 1 22ch;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--yd-space-2xs);
+  min-width: 0;
+}
+
+.yd-scenarios__field label {
+  font-size: 0.82rem;
+  color: var(--yd-text-muted);
+}
+
+.yd-scenarios__field input {
+  width: 100%;
+  min-height: 36px;
+  padding: 0 var(--yd-space-xs);
+  border: 1px solid var(--yd-border-control);
+  border-radius: var(--yd-radius-sm);
+  background: var(--yd-surface-strong);
+  color: var(--yd-text);
+  font: inherit;
+  font-size: 0.9rem;
+}
+
+.yd-scenarios__field input:focus-visible {
+  outline: 2px solid var(--yd-accent);
+  outline-offset: 1px;
+}
+
+.yd-scenarios__field input:disabled {
+  opacity: 0.5;
+}
+
+.yd-scenarios__submit,
+.yd-scenarios__action {
+  min-height: 36px;
+  padding: 0 var(--yd-space-md);
+  border: 1px solid var(--yd-border-control);
+  border-radius: var(--yd-radius-sm);
+  background: transparent;
+  color: var(--yd-text);
+  font: inherit;
+  font-size: 0.84rem;
+  cursor: pointer;
+  transition: border-color var(--yd-motion-fast) var(--yd-ease);
+}
+
+.yd-scenarios__submit {
+  border-color: var(--yd-accent);
+  color: var(--yd-accent);
+  font-weight: 600;
+}
+
+.yd-scenarios__submit:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.yd-scenarios__submit:hover:not(:disabled),
+.yd-scenarios__action:hover {
+  border-color: var(--yd-accent);
+}
+
+.yd-scenarios__submit:focus-visible,
+.yd-scenarios__action:focus-visible,
+.yd-scenarios__reopen:focus-visible {
+  outline: 2px solid var(--yd-accent);
+  outline-offset: 2px;
+}
+
+.yd-scenarios__action--danger {
+  border-color: var(--yd-negative);
+  color: var(--yd-negative-text);
+}
+
+.yd-scenarios__note {
+  margin: 0;
+  max-width: 96ch;
+  font-size: 0.8rem;
+  line-height: 1.55;
+  color: var(--yd-text-muted);
+}
+
+.yd-scenarios__table {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1px;
+  border-radius: var(--yd-radius-sm);
+  border: 1px solid var(--yd-border);
+  overflow: hidden;
+  background: var(--yd-border);
+}
+
+/* Stacked rows at 375 — a five-column table cannot be read there at any font
+   size — and a real grid from 900, where the header row appears with it. */
+.yd-scenarios__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--yd-space-2xs);
+  padding: var(--yd-space-sm);
+  background: var(--yd-surface-strong);
+  font-size: 0.82rem;
+  color: var(--yd-text);
+}
+
+.yd-scenarios__row--head {
+  display: none;
+}
+
+/* Below 900px the header row is hidden and every cell stacks, so each figure
+   carries its own inline label. Above it the header says the same thing once,
+   and repeating it in every cell would be noise. */
+.yd-scenarios__cell-label {
+  font-family: var(--yd-font);
+  font-size: 0.76rem;
+  color: var(--yd-text-muted);
+}
+
+@media (min-width: 900px) {
+  .yd-scenarios__row {
+    grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) auto;
+    gap: var(--yd-space-sm);
+    align-items: baseline;
+  }
+
+  .yd-scenarios__row--head {
+    display: grid;
+    background: var(--yd-surface);
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--yd-text-muted);
+  }
+
+  .yd-scenarios__cell-label {
+    display: none;
+  }
+}
+
+.yd-scenarios__name {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1px;
+  min-width: 0;
+}
+
+.yd-scenarios__reopen {
+  justify-self: start;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--yd-accent);
+  font: inherit;
+  font-size: 0.88rem;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+
+.yd-scenarios__question {
+  font-size: 0.76rem;
+  color: var(--yd-text-muted);
+}
+
+.yd-scenarios__verdict {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--yd-text-muted);
+}
+
+.yd-scenarios__verdict--out_of_reach {
+  color: var(--yd-negative-text);
+}
+
+.yd-scenarios__verdict--tight {
+  color: var(--yd-warning);
+}
+
+.yd-scenarios__verdict--comfortable {
+  color: var(--yd-positive);
+}
+
+.yd-scenarios__figure {
+  font-family: var(--yd-font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.82rem;
+  overflow-wrap: anywhere;
+}
+
+.yd-scenarios__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--yd-space-xs);
+}
+
+.yd-scenarios__confirm {
+  flex: 1 1 16ch;
+  font-size: 0.8rem;
+  line-height: 1.45;
+  color: var(--yd-text);
+}

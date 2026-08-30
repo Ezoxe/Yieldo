@@ -11,7 +11,9 @@ import type { Feasibility, Verdict } from "../../lib/types";
  */
 const MIN_MONTHS_FOR_RATE = 3;
 
-const VERDICT_LABEL: Record<Verdict, string> = {
+/** Shared with `ScenarioBar`, so a verdict is never worded two ways in one
+ *  screen. */
+export const VERDICT_LABEL: Record<Verdict, string> = {
   comfortable: "Atteignable confortablement",
   tight: "Atteignable en serrant",
   out_of_reach: "Hors de portée",

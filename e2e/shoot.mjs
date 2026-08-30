@@ -46,6 +46,36 @@ function ratio(a, b) {
 const problems = [];
 const notes = [];
 
+const API = process.env.YIELDO_API ?? "http://127.0.0.1:8000/api";
+
+async function api(path, init = {}, token) {
+  const response = await fetch(API + path, {
+    ...init,
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...init.headers,
+    },
+  });
+  if (!response.ok) throw new Error(`${response.status} ${path}`);
+  const text = await response.text();
+  return text.length > 0 ? JSON.parse(text) : null;
+}
+
+// Scenarios persist in the database across the six runs, and the router caps
+// them at ten. Cleared once, up front, so every run starts from the same list
+// and the save path is exercised exactly once rather than five times over.
+if (TASK === "task-16") {
+  const { access_token: token } = await api("/auth/login", {
+    method: "POST",
+    body: JSON.stringify({ email: "demo@yieldo-demo.fr", password: "MotDePasseDemo123!" }),
+  });
+  for (const scenario of await api("/feasibility/scenarios", {}, token)) {
+    await api(`/feasibility/scenarios/${scenario.id}`, { method: "DELETE" }, token);
+  }
+  console.log("cleared saved scenarios");
+}
+
 const browser = await chromium.launch();
 
 for (const theme of THEMES) {
@@ -97,6 +127,34 @@ for (const theme of THEMES) {
     await page.waitForSelector("text=Hors de portée", { timeout: 20000 });
     await page.waitForTimeout(700);
 
+    if (TASK === "task-16") {
+      await page.waitForSelector('[data-testid="yd-lever-borrow"]', { timeout: 20000 });
+      await page.waitForSelector('[data-testid="yd-impact-absent"]', { timeout: 20000 });
+
+      // Two saved questions, created through the UI on the first run only.
+      if ((await page.locator('[data-testid^="yd-scenario-"]').count()) < 2) {
+        await page.getByLabel(/Nom de ce scénario/).fill("Voiture 40 000 € en 12 mois");
+        await page.getByRole("button", { name: /Enregistrer la question/ }).click();
+        await page.waitForSelector("text=Voiture 40 000 € en 12 mois", { timeout: 20000 });
+
+        await page.getByLabel(/Prix du bien/).fill("15000");
+        await page.getByLabel(/Échéance \(mois\)/).fill("36");
+        await page.getByRole("button", { name: /Calculer la faisabilité/ }).click();
+        await page.waitForTimeout(900);
+        await page.getByLabel(/Nom de ce scénario/).fill("Occasion 15 000 € en 36 mois");
+        await page.getByRole("button", { name: /Enregistrer la question/ }).click();
+        await page.waitForSelector("text=Occasion 15 000 € en 36 mois", { timeout: 20000 });
+
+        // Back to the operator's own question for the screenshot.
+        await page.getByLabel(/Prix du bien/).fill("40000");
+        await page.getByLabel(/Échéance \(mois\)/).fill("12");
+        await page.getByRole("button", { name: /Calculer la faisabilité/ }).click();
+        await page.waitForTimeout(900);
+      }
+      await page.waitForSelector('[data-testid="yd-scenarios-table"]', { timeout: 20000 });
+      await page.waitForTimeout(400);
+    }
+
     await page.screenshot({
       path: path.join(OUT, `${TASK}-${viewport.name}-${theme}.png`),
       fullPage: true,
@@ -134,7 +192,12 @@ for (const theme of THEMES) {
         label: ".yd-verdict__label",
         amount: ".yd-verdict__amount",
         gap: ".yd-verdict__gap",
-        ratio: ".yd-lever__ratio--exceeded",
+        // The FIGURE, not its container: the container inherits the body text
+        // colour, and measuring it would report a pairing nobody painted.
+        ratio: ".yd-lever__ratio--exceeded .yd-lever__figure-value",
+        ratioNote: ".yd-lever__ratio--exceeded .yd-lever__ratio-note",
+        badge: ".yd-lever__badge",
+        absent: ".yd-impact__absent",
         leverReason: ".yd-lever__reason",
       })) {
         const el = document.querySelector(selector);

@@ -221,7 +221,7 @@ describe("DebtsPage", () => {
     renderPage();
 
     await screen.findByText(/ne couvre pas les intérêts du premier mois/);
-    expect(screen.queryByText(/d'intérêts en moins/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/de moins en intérêts/)).not.toBeInTheDocument();
   });
 
   it("says the two strategies cost the same rather than printing a 0 € saving", async () => {
@@ -237,7 +237,7 @@ describe("DebtsPage", () => {
     renderPage();
 
     expect(await screen.findByText(/coûtent exactement la même chose/)).toBeInTheDocument();
-    expect(screen.queryByText(/0,00 € d'intérêts en moins/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/0,00 € de moins en intérêts/)).not.toBeInTheDocument();
   });
 
   it("says so plainly when rounding leaves avalanche a cent behind", async () => {
@@ -256,7 +256,26 @@ describe("DebtsPage", () => {
     renderPage();
 
     expect(await screen.findByText(/coûte .* de plus/)).toBeInTheDocument();
-    expect(screen.queryByText(/d'intérêts en moins/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/de moins en intérêts/)).not.toBeInTheDocument();
+  });
+
+  it("states the saving when there is one, and how much sooner it clears", async () => {
+    // The three tests above only assert that the positive sentence is ABSENT.
+    // Without this one, renaming that sentence would leave them passing
+    // vacuously -- which is exactly what happened when it was reworded.
+    setupFetch({
+      payoff: () =>
+        jsonResponse({
+          snowball: plan("snowball", [1, 2], 31_000),
+          avalanche: plan("avalanche", [2, 1], 21_181),
+          interest_saved_cents: 9_819,
+          months_saved: 2,
+        }),
+    });
+    renderPage();
+
+    expect(await screen.findByText(/98,19 € de moins en intérêts/)).toBeInTheDocument();
+    expect(screen.getByText(/2 mois plus tôt/)).toBeInTheDocument();
   });
 
   it("shows each strategy's attack order by name, never by position on screen", async () => {

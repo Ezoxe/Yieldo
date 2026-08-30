@@ -95,7 +95,7 @@ export function savingSentence(interestSaved: number, monthsSaved: number): stri
         : ", sans changer la date de solde.";
 
   if (interestSaved > 0) {
-    return `Choisir l'avalanche plutôt que la boule de neige vous coûte ${formatCents(interestSaved)} d'intérêts en moins${timing}`;
+    return `Choisir l'avalanche plutôt que la boule de neige vous coûte ${formatCents(interestSaved)} de moins en intérêts${timing}`;
   }
   if (interestSaved < 0) {
     return (

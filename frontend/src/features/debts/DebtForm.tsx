@@ -152,7 +152,7 @@ export function DebtForm({ debt, onSaved, onCancel }: DebtFormProps) {
     }
 
     if (openedOn.length > 0 && !/^\d{4}-\d{2}-\d{2}$/.test(openedOn)) {
-      errors.opened = "Date illisible : attendue au format JJ/MM/AAAA.";
+      errors.opened = "Date illisible : attendue au format AAAA-MM-JJ.";
     }
 
     if (Object.keys(errors).length > 0) return { errors };

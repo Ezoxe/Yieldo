@@ -206,6 +206,38 @@ def _reason_no_measurable_burn(rate: MeasuredRate, ledger_months: int, label: st
     )
 
 
+def months_of_runway(balance_cents: int, monthly_burn_cents: int) -> float:
+    """How many months `balance_cents` lasts at `monthly_burn_cents` a month.
+
+    The single definition of this division. `_scenario` below and phase 2B's
+    `engines/feasibility.py` both call it, so the two cannot drift into
+    bucketing the same edge differently -- the failure `capacity.py` and
+    `aggregate.py` were flagged for in phase 2A.
+
+    Raises on a non-positive burn rather than returning a sentinel: dividing by
+    it is infinity, and an infinity rendered on screen reads as a promise. Both
+    callers establish `monthly_burn_cents > 0` before calling, each with its
+    own French explanation for the reader.
+
+    0.0 -- not a negative duration -- when the balance is already at or past
+    zero. There is no autonomy left, starting today; a negative number here
+    would render as a depletion date in the past.
+    """
+    if monthly_burn_cents <= 0:
+        # Deliberately not worded about a "dépense nette": both callers pass a
+        # median of `abs(outflow_cents)`, a GROSS rate that cannot be negative,
+        # so this fires on "the median month spends nothing" and never on a
+        # healthy net balance. `_reason_no_measurable_burn` above carries the
+        # same correction after the wrong wording shipped once.
+        raise ValueError(
+            "Aucune autonomie ne peut être calculée sans une dépense mensuelle "
+            "strictement positive."
+        )
+    if balance_cents <= 0:
+        return 0.0
+    return balance_cents / monthly_burn_cents
+
+
 def _scenario(
     name: str,
     label: str,
@@ -228,13 +260,14 @@ def _scenario(
         return None, _reason_no_measurable_burn(rate, ledger_months, label)
 
     burn = rate.median_cents
-    if balance_cents <= 0:
-        # Already at or past zero. Not a negative runway -- there is simply none
-        # left, starting today.
+    months_count = months_of_runway(balance_cents, burn)
+    if months_count == 0.0:
+        # Already at or past zero -- the only way `months_of_runway` returns
+        # exactly 0.0, since a positive balance over a positive burn cannot.
+        # Not a negative runway: there is simply none left, starting today.
         return RunwayScenario(name=name, monthly_burn_cents=burn, rate=rate, months=0.0,
                               depleted_on=today), None
 
-    months_count = balance_cents / burn
     if months_count > MAX_DATED_MONTHS:
         return RunwayScenario(name=name, monthly_burn_cents=burn, rate=rate,
                               months=months_count, depleted_on=None), None

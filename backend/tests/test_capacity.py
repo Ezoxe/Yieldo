@@ -5,6 +5,7 @@ from app.engines.capacity import (
     MonthlyEntry,
     complete_months,
     measure_expense_rate,
+    measure_income_rate,
     measure_savings_capacity,
 )
 
@@ -185,3 +186,65 @@ def test_ledger_bounds_must_reflect_actual_data_coverage_not_a_requested_window(
     requested_window = complete_months(entries, date(2025, 1, 1), date(2025, 12, 31))
     assert requested_window[0].key == "2025-01"
     assert requested_window[0].count == 1  # one week of statements, called "complete"
+
+
+def test_the_income_rate_is_measured_from_inflows_alone():
+    """Design §6.3 item 5 needs a taux d'endettement, and a taux d'endettement
+    needs an income. Measured like everything else here -- the median of the
+    complete observed months' inflows -- and `None` below the floor, never 0,
+    which would render as "0 % d'endettement" on a household whose income
+    simply could not be measured.
+
+    The debit sits in the MEDIAN month on purpose. Put it in the smallest
+    month instead and the median of the nets (210 000 c) coincides with the
+    median of the inflows, and the test passes just as happily on an
+    implementation reading `net_cents`. Here the two answers differ:
+    inflows [200 000, 250 000, 210 000] -> 210 000; nets
+    [200 000, 250 000, 160 000] -> 200 000. The mean of the inflows
+    (220 000 c) differs from both, so a mean is excluded too.
+    """
+    months = complete_months(
+        [MonthlyEntry(on=date(2025, 1, 10), amount_cents=200_000),
+         MonthlyEntry(on=date(2025, 2, 10), amount_cents=250_000),
+         MonthlyEntry(on=date(2025, 3, 10), amount_cents=210_000),
+         MonthlyEntry(on=date(2025, 3, 20), amount_cents=-50_000)],
+        date(2025, 1, 1), date(2025, 3, 31),
+    )
+    assert [m.net_cents for m in months] == [200_000, 250_000, 160_000]
+
+    rate = measure_income_rate(months)
+    assert rate is not None
+    assert rate.months == 3
+    assert rate.median_cents == 210_000
+
+
+def test_the_income_rate_refuses_below_three_observed_months():
+    months = complete_months(
+        [MonthlyEntry(on=date(2025, 1, 10), amount_cents=200_000),
+         MonthlyEntry(on=date(2025, 2, 10), amount_cents=250_000)],
+        date(2025, 1, 1), date(2025, 2, 28),
+    )
+    assert len(months) == MIN_MONTHS_FOR_RATE - 1
+    assert measure_income_rate(months) is None
+
+
+def test_the_three_measured_rates_answer_three_different_questions():
+    """One ledger, three medians, and no two of them agree.
+
+    A fixture where they coincide would let any of the three stand in for any
+    other. Here: inflows [300 000, 100 000, 200 000] -> 200 000; outflows
+    [-50 000, -400 000, -120 000] -> 120 000 gross; nets
+    [250 000, -300 000, 80 000] -> 80 000.
+    """
+    months = complete_months(
+        [MonthlyEntry(on=date(2025, 1, 10), amount_cents=300_000),
+         MonthlyEntry(on=date(2025, 1, 20), amount_cents=-50_000),
+         MonthlyEntry(on=date(2025, 2, 10), amount_cents=100_000),
+         MonthlyEntry(on=date(2025, 2, 20), amount_cents=-400_000),
+         MonthlyEntry(on=date(2025, 3, 10), amount_cents=200_000),
+         MonthlyEntry(on=date(2025, 3, 20), amount_cents=-120_000)],
+        date(2025, 1, 1), date(2025, 3, 31),
+    )
+    assert measure_income_rate(months).median_cents == 200_000
+    assert measure_expense_rate(months).median_cents == 120_000
+    assert measure_savings_capacity(months).median_cents == 80_000

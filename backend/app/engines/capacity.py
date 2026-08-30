@@ -131,6 +131,26 @@ def measure_expense_rate(months: list[MonthObservation]) -> MeasuredRate | None:
     return _measure([abs(month.outflow_cents) for month in months])
 
 
+def measure_income_rate(months: list[MonthObservation]) -> MeasuredRate | None:
+    """What a month brings in. None when unmeasurable.
+
+    The third sibling of `measure_expense_rate` and `measure_savings_capacity`,
+    over the same complete observed months and with the same floor. Phase 2B's
+    purchase-feasibility engine needs it for the taux d'endettement of design
+    §6.3 item 5 -- a ratio whose denominator must be measured from real
+    statements rather than declared, like everything else in this module.
+
+    `inflow_cents`, not `net_cents`: a household paying its rent out of its
+    salary has not been paid less. The three functions answer three different
+    questions and their medians do not generally agree.
+
+    `None`, never 0: a household whose income could not be measured has no debt
+    ratio at all, and `amortization.debt_ratio_bps` refuses in the same way for
+    the same reason.
+    """
+    return _measure([month.inflow_cents for month in months])
+
+
 def measure_savings_capacity(months: list[MonthObservation]) -> MeasuredRate | None:
     """What a month saves, signed. None when unmeasurable.
 

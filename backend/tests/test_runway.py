@@ -1,7 +1,9 @@
 from datetime import date
 
+import pytest
+
 from app.engines.capacity import MonthlyEntry, complete_months
-from app.engines.runway import compute_runway
+from app.engines.runway import compute_runway, months_of_runway
 
 TODAY = date(2026, 8, 12)
 START = date(2025, 2, 1)
@@ -327,3 +329,40 @@ def test_the_operators_own_numbers_produce_a_very_short_runway():
                             essential_category_count=SOME_ESSENTIAL_CATEGORIES)
     assert 0 < report.normal.months < 0.1
     assert report.normal.depleted_on is not None
+
+
+def test_months_of_runway_is_the_one_definition_both_engines_use():
+    assert months_of_runway(600_000, 200_000) == 3.0
+    # Already at or past zero: no autonomy left to count, starting now. NOT a
+    # negative duration, which would render as a date in the past.
+    assert months_of_runway(0, 200_000) == 0.0
+    assert months_of_runway(-220_963, 265_449) == 0.0
+
+
+def test_months_of_runway_raises_on_a_burn_that_is_not_positive():
+    """Dividing by it is infinity, and an infinity on screen reads as a
+    promise. Both callers guard before calling; this raises rather than
+    returning a sentinel, exactly like `robust.median_cents` on an empty
+    sample."""
+    with pytest.raises(ValueError, match="dépense"):
+        months_of_runway(600_000, 0)
+    with pytest.raises(ValueError, match="dépense"):
+        months_of_runway(600_000, -1)
+
+
+def test_the_runway_report_and_the_shared_definition_cannot_drift():
+    """`_scenario` must call `months_of_runway`, not re-derive the division.
+
+    Two engines quoting a different number of months for the same balance and
+    the same burn is exactly what extracting this function prevents, and the
+    only way to see the extraction is still wired is to compare the two on the
+    same inputs -- including the already-exhausted edge, where the two used to
+    be written out separately.
+    """
+    months = _months((2025, 2, -100_000), (2025, 3, -100_000), (2025, 4, -100_000))
+    for balance in (600_000, 250_000, 0, -220_963):
+        report = compute_runway(balance, months, months, TODAY,
+                                essential_category_count=SOME_ESSENTIAL_CATEGORIES)
+        assert report.normal.months == months_of_runway(
+            balance, report.normal.monthly_burn_cents
+        )

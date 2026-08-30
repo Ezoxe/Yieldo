@@ -86,9 +86,16 @@ class SavingsProjection:
     points: list[SavingsPoint]
 
 
-def _validate(annual_rate_bps: int, months: int) -> None:
+def _validate_rate(annual_rate_bps: int) -> None:
+    """The one rate check. `months_to_target` has no horizon to validate -- the
+    horizon is what it returns -- so it calls this rather than `_validate`, and
+    the refusal is worded identically because it is the same refusal."""
     if annual_rate_bps < 0:
         raise ValueError("Le taux de rendement ne peut pas être négatif.")
+
+
+def _validate(annual_rate_bps: int, months: int) -> None:
+    _validate_rate(annual_rate_bps)
     if not 1 <= months <= MAX_PROJECTION_MONTHS:
         raise ValueError(
             f"La durée d'une projection doit être comprise entre 1 et "
@@ -176,8 +183,7 @@ def months_to_target(
 
     0 when the target is already met, which is a real answer.
     """
-    if annual_rate_bps < 0:
-        raise ValueError("Le taux de rendement ne peut pas être négatif.")
+    _validate_rate(annual_rate_bps)
     if initial_cents >= target_cents:
         return 0
 

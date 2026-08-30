@@ -46,7 +46,7 @@ def test_every_essential_slug_exists_in_the_seed_tree(db):
     seed_categories(db, user.id)
     db.commit()
     known = {c.slug for c in db.query(Category).filter(Category.user_id == user.id)}
-    assert ESSENTIAL_SLUGS <= known
+    assert known >= ESSENTIAL_SLUGS
 
 
 def test_a_price_index_point_is_unique_per_user_and_month(db):

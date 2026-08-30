@@ -85,7 +85,7 @@ def test_analyze_proposes_amount_for_a_single_signed_column(client, auth, accoun
         "Date;Libellé;Débit/Crédit\r\n"
         "01/03/2025;CARREFOUR MARKET;-47,32\r\n"
         "03/03/2025;VIR SALAIRE ACME SAS;2450,00\r\n"
-    ).encode("utf-8")
+    ).encode()
     response = client.post("/api/imports/analyze", headers=auth,
                            files={"file": ("signe.csv", csv, "text/csv")},
                            data={"account_id": str(account_id)})

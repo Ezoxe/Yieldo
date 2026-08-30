@@ -3,7 +3,6 @@ from datetime import date
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.schemas.history import HistoryOut
-
 from app.schemas.patching import not_nullable
 
 

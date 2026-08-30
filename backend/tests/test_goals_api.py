@@ -254,6 +254,12 @@ def test_progress_isolation_uses_only_the_requesting_users_own_capacity(client, 
     body = client.get("/api/goals", headers=alice).json()
     assert body["months_observed"] == 0
     assert body["capacity"] is None
+    # Bob's side, so Alice's `None` cannot pass vacuously: if the seeding above
+    # had written nothing, her report would look identical.
+    _create(client, bob)
+    bob_body = client.get("/api/goals", headers=bob).json()
+    assert bob_body["months_observed"] == 3
+    assert bob_body["capacity"]["median_cents"] < 0
 
 
 def _three_positive_months(db, client, email: str) -> dict[str, str]:

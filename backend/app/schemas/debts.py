@@ -35,7 +35,10 @@ class DebtPatch(BaseModel):
     opened_on: date | None = None
     archived: bool | None = None
 
-    _no_null = not_nullable("name", "kind", "principal_cents", "annual_rate_bps", "minimum_payment_cents", "archived")
+    _no_null = not_nullable(
+        "name", "kind", "principal_cents", "annual_rate_bps",
+        "minimum_payment_cents", "archived",
+    )
 
 
 class DebtOut(BaseModel):

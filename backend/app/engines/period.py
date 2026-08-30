@@ -1,3 +1,4 @@
+import calendar
 from datetime import date
 
 
@@ -46,3 +47,22 @@ def resolve_range(
         start = end
 
     return start, end
+
+
+def month_end(anchor: date, offset: int) -> date:
+    """The last day of the month `offset` calendar months after `anchor`'s.
+
+    Four engines in this phase need the same arithmetic -- a debt cleared "in
+    3 months", a goal reached "in 10", a purchase horizon, a property's rent
+    comparison -- and money lands at month end. From an August anchor, offset 3
+    is 30 November.
+
+    Plain integer arithmetic on a zero-based month count, exactly like
+    `api/analysis._shift_months`, so there is no "31 February does not exist"
+    case to special-case at every step. A negative offset walks backwards.
+
+    Pure: the clock is the caller's `anchor`, never read here.
+    """
+    total = anchor.year * 12 + (anchor.month - 1) + offset
+    year, month = divmod(total, 12)
+    return date(year, month + 1, calendar.monthrange(year, month + 1)[1])

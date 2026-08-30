@@ -1,6 +1,6 @@
 from datetime import date
 
-from app.engines.period import resolve_range
+from app.engines.period import month_end, resolve_range
 
 TODAY = date(2026, 8, 12)
 EARLIEST = date(2025, 1, 24)
@@ -43,3 +43,20 @@ def test_an_explicit_start_after_the_history_does_not_invert_the_range():
     start, end = resolve_range(date(2027, 1, 1), None, EARLIEST, LATEST, TODAY)
     assert start <= end
     assert start == date(2027, 1, 1)
+
+
+def test_month_end_lands_on_the_last_day_of_the_target_month():
+    assert month_end(date(2026, 8, 25), 0) == date(2026, 8, 31)
+    assert month_end(date(2026, 8, 25), 3) == date(2026, 11, 30)
+
+
+def test_month_end_crosses_a_year_boundary_without_a_day_31_problem():
+    """Plain integer arithmetic on a zero-based month count, so there is no
+    "31 February does not exist" case to special-case at every step -- the same
+    approach `api/analysis._shift_months` already takes."""
+    assert month_end(date(2026, 12, 31), 2) == date(2027, 2, 28)
+    assert month_end(date(2027, 12, 1), 14) == date(2029, 2, 28)
+
+
+def test_month_end_accepts_a_negative_offset():
+    assert month_end(date(2026, 1, 15), -1) == date(2025, 12, 31)

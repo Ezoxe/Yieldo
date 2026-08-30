@@ -785,3 +785,262 @@ export interface GoalIn {
   due_on: string | null;
   priority: number;
 }
+
+// -- Faisabilité d'achat -----------------------------------------------------
+//
+// Mirrors backend/app/schemas/feasibility.py. Read `engines/feasibility.py` for
+// the ONE refusal this family has (an unmeasurable capacity — a NEGATIVE one is
+// a verdict), `engines/levers.py` for the five levers and the cash-versus-credit
+// crossover, and `engines/ownership.py` for the cost lines.
+
+/** Every hypothesis actually used, echoed back. Design §10: "Les hypothèses sont
+ *  toujours affichées à côté du résultat." */
+export interface Assumptions {
+  annual_return_bps: number;
+  loan_rate_bps: number;
+  loan_months: number;
+  ownership_years: number;
+  /** MEASURED, unlike the four above. null when it could not be measured over
+   *  three complete months — in which case there is no debt ratio either. */
+  monthly_income_cents: number | null;
+  existing_debt_payments_cents: number;
+}
+
+export interface CostLine {
+  key: string;
+  label: string;
+  total_cents: number;
+  monthly_average_cents: number;
+}
+
+export interface Ownership {
+  price_cents: number;
+  years: number;
+  lines: CostLine[];
+  depreciation_cents: number;
+  residual_value_cents: number;
+  /** Running costs ONLY. Depreciation is deliberately not in here: it is value
+   *  leaving the asset, not money leaving the account, and a screen adding the
+   *  two without saying so compares different things. */
+  running_cost_cents: number;
+  /** `running_cost_cents + depreciation_cents` — the sum a buyer should weigh. */
+  total_cost_cents: number;
+  monthly_average_cents: number;
+}
+
+export interface EmergencyImpact {
+  /** A duration in months, fractional on purpose. Both are `0.0` — not null — on
+   *  a balance already below zero, which is the operator's own case: "0,0 mois"
+   *  reads as a measurement of nothing and must not be printed. */
+  runway_months_before: number | null;
+  runway_months_after: number | null;
+  /** French. Both months are null exactly when this is set, and it names WHICH
+   *  of two causes applies: no measurable expense rate, or a rate whose median
+   *  month spends nothing. Print verbatim.
+   *
+   *  (`engines/feasibility.EmergencyImpact` also carries `monthly_burn_cents`;
+   *  `EmergencyImpactOut` does NOT forward it, so this screen cannot name the
+   *  burn beside the months.) */
+  unavailable_reason: string | null;
+}
+
+export interface Impact {
+  emergency: EmergencyImpact;
+  /** The LIQUID balance in five years, with and without the purchase. Both null
+   *  exactly when `liquid_unavailable_reason` is set. */
+  liquid_in_five_years_before_cents: number | null;
+  liquid_in_five_years_after_cents: number | null;
+  liquid_unavailable_reason: string | null;
+  // There is deliberately NO net-worth field and NO health-score field. Design
+  // §6.3 item 7 names both; neither exists yet (net worth is phase 3, the
+  // evolving health score is phase 2C). The screen states both absences.
+}
+
+export type LeverKind = "save_more" | "delay" | "reduce_target" | "borrow" | "cut_category";
+
+/** One way out, with its number. Every field below is populated on EXACTLY ONE
+ *  `kind` and null on the other four — `kind` decides which to read. */
+export interface Lever {
+  kind: LeverKind;
+  feasible: boolean;
+  /** French. Set exactly when `feasible` is false. Ten distinct wordings across
+   *  the five levers; print verbatim, never a shared sentence. */
+  unavailable_reason: string | null;
+  /** An extra remark on a FEASIBLE lever. Never a substitute for the above. */
+  note: string | null;
+
+  // save_more
+  extra_monthly_cents: number | null;
+  /** The extra as a fraction of the MEASURED capacity. **null when the capacity
+   *  is not positive**: a ratio against a negative denominator is not an effort,
+   *  it renders as "−540 % d'effort". Print a percentage only when it is set. */
+  effort_ratio: number | null;
+
+  // delay
+  reached_in_months: number | null;
+  delay_months: number | null;
+
+  // reduce_target
+  reduced_target_cents: number | null;
+
+  // borrow
+  borrow_cents: number | null;
+  loan_payment_cents: number | null;
+  loan_total_interest_cents: number | null;
+  /** null when no income could be measured. Read this BEFORE
+   *  `debt_ratio_exceeded`, which is false both under the threshold and when
+   *  there is no ratio at all and cannot tell the two apart. */
+  debt_ratio_bps: number | null;
+  debt_ratio_exceeded: boolean;
+
+  // cut_category
+  category_id: number | null;
+  category_name: string | null;
+  category_median_cents: number | null;
+  cut_monthly_cents: number | null;
+  /** How many observed months already sat at or below the post-cut level — the
+   *  history that says whether the cut is realistic. null on every branch that
+   *  proposes no cut, INCLUDING the refusal that still names a category. */
+  months_at_or_below: number | null;
+  months_observed: number | null;
+}
+
+export type FinancingKind = "cash" | "credit" | "loa";
+
+export interface FinancingOption {
+  kind: FinancingKind;
+  available: boolean;
+  unavailable_reason: string | null;
+  out_of_pocket_cents: number | null;
+  monthly_cents: number | null;
+  total_paid_cents: number | null;
+  interest_cents: number | null;
+  /** Always null on the LOA option, with `wealth_unavailable_reason` saying why.
+   *  Never render a null here as zero. */
+  wealth_at_end_cents: number | null;
+  /** Set exactly when `wealth_at_end_cents` is null on an AVAILABLE option. */
+  wealth_unavailable_reason: string | null;
+}
+
+export interface Financing {
+  /** The LOAN term, not the saving horizon: `assumptions.loan_months`. */
+  horizon_months: number;
+  options: FinancingOption[];
+  break_even_rate_bps: number | null;
+  /** French. Set exactly when `break_even_rate_bps` is null. */
+  break_even_reason: string | null;
+  /** "cash" or "credit". Compares ONLY those two — the LOA line is not in the
+   *  running, and the screen must say so rather than implying a three-way
+   *  verdict. "cash" ALSO on an exact tie, so read `wealth_gap_cents` first.
+   *  null when the credit option could not be priced at all. */
+  better_kind: "cash" | "credit" | null;
+  /** Credit's end wealth minus cash's, SIGNED. Zero is a tie, which
+   *  `better_kind` reports as "cash" and cannot distinguish from a win. null
+   *  exactly when `better_kind` is null. */
+  wealth_gap_cents: number | null;
+}
+
+export type Verdict = "comfortable" | "tight" | "out_of_reach";
+
+export interface Feasibility {
+  target_cents: number;
+  horizon_months: number;
+  down_payment_cents: number;
+  nature: string;
+  horizon_end_on: string;
+  assumptions: Assumptions;
+
+  /** The measured savings capacity behind the verdict, with its band and its
+   *  sample size. null below three complete observed months. **Signed** — a
+   *  negative `median_cents` is a household spending more than it earns, and it
+   *  produces a VERDICT, not a refusal. Never take its absolute value. */
+  capacity: MeasuredRate | null;
+  /** French. Set exactly when `capacity` is null, and it is the only reason this
+   *  endpoint declines to give a verdict. Print verbatim. */
+  capacity_unavailable_reason: string | null;
+  months_observed: number;
+  history: History | null;
+  balance_cents: number;
+
+  /** All five null exactly when `capacity_unavailable_reason` is set. */
+  verdict: Verdict | null;
+  saved_at_horizon_cents: number | null;
+  saved_at_horizon_low_cents: number | null;
+  /** Published so the screen can tell "dans un bon mois c'est jouable" from
+   *  "même un bon mois n'y suffit pas" without a fourth verdict value. */
+  saved_at_horizon_high_cents: number | null;
+  /** POSITIVE means short, NEGATIVE means a surplus. Branch on the sign —
+   *  "il vous manque −866,55 €" is not a sentence. */
+  gap_cents: number | null;
+
+  /** Over `opportunity_horizon_months` — the HOLDING period, not the saving
+   *  horizon. Never null: nothing about it depends on the capacity. */
+  opportunity_cost_cents: number;
+  opportunity_horizon_months: number;
+  ownership: Ownership;
+  impact: Impact;
+  /** EMPTY when `capacity` is null. Otherwise exactly five, FEASIBLE FIRST and
+   *  then the fixed order save_more, delay, reduce_target, borrow, cut_category
+   *  — never ranked by a score. */
+  levers: Lever[];
+  financing: Financing;
+}
+
+export interface FeasibilityContext {
+  capacity: MeasuredRate | null;
+  expense_rate: MeasuredRate | null;
+  income_rate: MeasuredRate | null;
+  months_observed: number;
+  history: History | null;
+  balance_cents: number;
+  existing_debt_payments_cents: number;
+  assumptions: Assumptions;
+  natures: string[];
+  default_ownership_years: number;
+  default_annual_return_bps: number;
+}
+
+/** One overridable running cost. Exactly ONE of the two amounts is set; both, or
+ *  neither, is a French 422 from the engine. */
+export interface CostItemIn {
+  key: string;
+  label: string;
+  monthly_cents: number | null;
+  annual_bps_of_value: number | null;
+}
+
+/** A location avec option d'achat, as quoted by a dealer. Every figure comes from
+ *  the user: Yieldo has no average for one specific contract. */
+export interface LoaIn {
+  deposit_cents: number;
+  monthly_cents: number;
+  months: number;
+  residual_cents: number;
+}
+
+/** What POST /feasibility accepts. The four assumption overrides are omitted
+ *  rather than sent as null when the user leaves the declared default alone. */
+export interface FeasibilityRequest {
+  target_cents: number;
+  horizon_months: number;
+  down_payment_cents: number;
+  nature: string;
+  annual_return_bps?: number;
+  loan_rate_bps?: number;
+  loan_months?: number;
+  ownership_years?: number;
+  ownership_items?: CostItemIn[];
+  loa?: LoaIn | null;
+}
+
+export interface Scenario {
+  id: number;
+  name: string;
+  created_at: string;
+  /** Exactly what was saved — the QUESTION, never the answer. */
+  request: FeasibilityRequest;
+  /** RECOMPUTED against the current ledger on every read, never stored. Two
+   *  scenarios listed side by side are therefore always answered from the same
+   *  statements, which is what makes them comparable at all. */
+  result: Feasibility;
+}

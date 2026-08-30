@@ -1,6 +1,6 @@
 import { useId, useState, type FormEvent, type ReactNode } from "react";
 
-import { parseCents } from "../../design/theme";
+import { centsToInput, parseCents } from "../../design/theme";
 import { ApiError, api } from "../../lib/api";
 import type { Debt, DebtIn } from "../../lib/types";
 
@@ -17,14 +17,6 @@ export const DEBT_KINDS: ReadonlyArray<{ value: string; label: string }> = [
   { value: "personal", label: "Prêt personnel" },
   { value: "other", label: "Autre" },
 ];
-
-/** Integer cents back into what the field shows, by integer arithmetic — 1 250 075
- *  is "12500,75". Never `cents / 100` formatted as a float. */
-function centsToInput(cents: number): string {
-  const sign = cents < 0 ? "-" : "";
-  const absolute = Math.abs(cents);
-  return `${sign}${Math.trunc(absolute / 100)},${String(absolute % 100).padStart(2, "0")}`;
-}
 
 /** Basis points back into a percentage: 490 is "4,90". */
 function bpsToInput(bps: number): string {

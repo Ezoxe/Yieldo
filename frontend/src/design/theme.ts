@@ -118,6 +118,44 @@ export function parseCents(text: string): number | null {
   return negative ? -cents : cents;
 }
 
+/**
+ * Basis points as a French percentage: 490 is "4,90 %".
+ *
+ * Integer arithmetic, like every amount here — not because a rate is money (it
+ * is not) but because the two digits after the comma ARE the basis points, and
+ * dividing by 100 to format them would be a float doing nothing a modulo cannot.
+ *
+ * Never clamped. The operator's own debt ratio is 19 610 bps — "196,10 %" — and
+ * a helper that capped it at the HCSF threshold would hide the whole answer.
+ *
+ * Lived in `features/debts/DebtsPage.tsx` until `/faisabilite` became its second
+ * caller.
+ */
+export function formatRateBps(bps: number): string {
+  const sign = bps < 0 ? MINUS : "";
+  const absolute = Math.abs(bps);
+  return `${sign}${Math.trunc(absolute / 100)},${String(absolute % 100).padStart(2, "0")}${NBSP}%`;
+}
+
+/**
+ * The inverse of {@link parseCents} for a form field's initial value: integer
+ * cents back into what the field shows, by integer arithmetic — 150 000 is
+ * "1500,00". Never `cents / 100` formatted as a float.
+ *
+ * No thousands separator and no "€": this is what goes INTO an `<input>`, and
+ * `parseCents` must be able to read it back unchanged. `formatCents` is for
+ * display.
+ *
+ * `DebtForm` and `GoalForm` each carried a private copy, the second of which
+ * documented that a third caller was the moment it moved here. `PurchaseForm`
+ * is that third caller.
+ */
+export function centsToInput(cents: number): string {
+  const sign = cents < 0 ? "-" : "";
+  const absolute = Math.abs(cents);
+  return `${sign}${Math.trunc(absolute / 100)},${String(absolute % 100).padStart(2, "0")}`;
+}
+
 export function formatCompactCents(cents: number, currency = "€"): string {
   const units = Math.abs(cents) / 100;
   const sign = cents < 0 ? MINUS : "";

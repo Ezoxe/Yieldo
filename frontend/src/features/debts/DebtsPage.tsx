@@ -8,7 +8,7 @@ import { EmptyState, frenchDate } from "../../design/EmptyState";
 import { useReducedMotion } from "../../design/motion/useReducedMotion";
 import { entryProps, staggerProps } from "../../design/motion/variants";
 import "../../design/Skeleton.css";
-import { formatCents, parseCents } from "../../design/theme";
+import { formatCents, formatRateBps, parseCents } from "../../design/theme";
 import { ApiError, api } from "../../lib/api";
 import { plural } from "../../lib/plural";
 import type { Debt, PayoffPlan, StrategyComparison } from "../../lib/types";
@@ -20,8 +20,6 @@ const GENERIC_ERROR = "Une erreur inattendue est survenue.";
 /** Long enough that a three-digit amount is typed before the first request
  *  leaves, short enough that the recomputation feels like a response. */
 const EXTRA_DEBOUNCE_MS = 350;
-
-const NBSP = " ";
 
 type Strategy = "snowball" | "avalanche";
 
@@ -41,20 +39,6 @@ function messageFor(err: unknown): string {
 
 function kindLabel(kind: string): string {
   return DEBT_KINDS.find((entry) => entry.value === kind)?.label ?? kind;
-}
-
-/**
- * Basis points as a French percentage: 490 is "4,90 %".
- *
- * Integer arithmetic, like every amount on this screen — not because a rate is
- * money (it is not) but because the two digits after the comma are exactly the
- * basis points, and dividing by 100 to format them would be a float doing
- * nothing a modulo cannot.
- */
-export function formatRateBps(bps: number): string {
-  const sign = bps < 0 ? "−" : "";
-  const absolute = Math.abs(bps);
-  return `${sign}${Math.trunc(absolute / 100)},${String(absolute % 100).padStart(2, "0")}${NBSP}%`;
 }
 
 /**

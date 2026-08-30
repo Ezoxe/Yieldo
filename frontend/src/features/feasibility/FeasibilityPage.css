@@ -1,0 +1,553 @@
+/* /faisabilite — the question, the measured capacity, and the verdict.
+   Structure and vocabulary follow GoalsPage.css and DebtsPage.css, so the three
+   decision screens read as one product. */
+
+.yd-feas {
+  max-width: 1280px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-lg);
+}
+
+.yd-feas__header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-2xs);
+}
+
+.yd-feas h1 {
+  margin: 0;
+  font-size: clamp(1.4rem, 2.2vw, 1.75rem);
+  letter-spacing: -0.015em;
+  color: var(--yd-text);
+}
+
+.yd-feas__lead {
+  margin: 0;
+  max-width: 84ch;
+  font-size: 0.9rem;
+  color: var(--yd-text-muted);
+}
+
+/* Cells size to their own content. This screen's panels differ wildly in height
+   — a verdict paragraph beside a four-field form — and a stretched cell leaves a
+   card's worth of blank surface, which reads as content having failed to load. */
+.yd-feas .yd-bento {
+  align-items: start;
+}
+
+/* Prose registers ---------------------------------------------------------- */
+
+/* A refusal is content, not an error: it says what is missing and how to fix it.
+   The warning rule, never the negative colour, which this screen reserves for
+   something having actually gone wrong. Same recipe as `.yd-goals__refusal`. */
+.yd-feas__refusal {
+  margin: 0;
+  max-width: 96ch;
+  padding: var(--yd-space-sm) var(--yd-space-md);
+  border-radius: var(--yd-radius-sm);
+  border: 1px solid var(--yd-border-strong);
+  border-left: 3px solid var(--yd-warning);
+  background: var(--yd-surface);
+  color: var(--yd-text);
+  font-size: 0.88rem;
+  line-height: 1.55;
+}
+
+/* What the measured rates MEAN for the question below — the sentence this
+   screen exists for on a household that cannot currently afford anything. */
+.yd-feas__consequence {
+  margin: 0;
+  max-width: 96ch;
+  padding: var(--yd-space-sm) var(--yd-space-md);
+  border-radius: var(--yd-radius-sm);
+  border: 1px solid var(--yd-border-strong);
+  border-left: 3px solid var(--yd-accent);
+  background: var(--yd-surface-strong);
+  color: var(--yd-text);
+  font-size: 0.92rem;
+  line-height: 1.55;
+}
+
+/* Reserved for something having gone wrong — a failed load, a rejected write.
+   An engine's refusal never lands here. */
+.yd-feas__alert {
+  margin: 0;
+  padding: var(--yd-space-sm) var(--yd-space-md);
+  border-radius: var(--yd-radius-sm);
+  background: color-mix(in srgb, var(--yd-negative) 14%, transparent);
+  border: 1px solid var(--yd-negative);
+  color: var(--yd-negative-text);
+  font-size: 0.9rem;
+}
+
+.yd-feas__link {
+  justify-self: start;
+  align-self: start;
+  min-height: 36px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 var(--yd-space-sm);
+  border: 1px solid var(--yd-border-control);
+  border-radius: var(--yd-radius-sm);
+  color: var(--yd-text);
+  font-size: 0.84rem;
+  text-decoration: none;
+  transition: border-color var(--yd-motion-fast) var(--yd-ease);
+}
+
+.yd-feas__link:hover {
+  border-color: var(--yd-accent);
+}
+
+.yd-feas__link:focus-visible {
+  outline: 2px solid var(--yd-accent);
+  outline-offset: 2px;
+}
+
+/* A visible busy state, not only `aria-busy`. */
+.yd-feas__busy {
+  margin: 0;
+  padding: var(--yd-space-lg) 0;
+  font-size: 0.9rem;
+  color: var(--yd-text-muted);
+}
+
+.yd-panel--busy {
+  opacity: 0.72;
+}
+
+/* The measured context ------------------------------------------------------ */
+
+.yd-context {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--yd-space-md);
+}
+
+/* One column at 375, three from 900px. `minmax(0, 1fr)` and never `auto`: the
+   band sentence inside is long, and a content-sized track lets one tile set the
+   width of all three. */
+.yd-context__measures {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--yd-space-sm);
+}
+
+@media (min-width: 900px) {
+  .yd-context__measures {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.yd-measure {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+  gap: var(--yd-space-2xs);
+  padding: var(--yd-space-sm) var(--yd-space-md);
+  border-radius: var(--yd-radius-sm);
+  border: 1px solid var(--yd-border);
+  background: var(--yd-surface);
+  min-width: 0;
+}
+
+.yd-measure__title {
+  margin: 0;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--yd-text);
+}
+
+.yd-measure__value {
+  margin: 0;
+  font-family: var(--yd-font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  font-size: clamp(1.25rem, 3.4vw, 1.6rem);
+  font-weight: 600;
+  line-height: 1.15;
+  color: var(--yd-text);
+  overflow-wrap: anywhere;
+}
+
+/* Only the savings capacity is toned. See `MeasureTile`'s `toned` prop. */
+.yd-measure__value--positive {
+  color: var(--yd-positive);
+}
+
+.yd-measure__value--neutral {
+  color: var(--yd-text);
+}
+
+/* `--yd-negative-text`, not `--yd-negative`: this is text on a card surface, and
+   contrast.test.ts pins the text variant at 4.5:1 in both themes while the raw
+   status colour is only guaranteed against the page background. */
+.yd-measure__value--negative {
+  color: var(--yd-negative-text);
+}
+
+/* "Non mesurable" is a phrase, not a figure: the mono face and the tabular
+   figures would give it a precision it does not have. */
+.yd-measure__value--words {
+  font-family: var(--yd-font);
+  font-size: clamp(1.05rem, 2.6vw, 1.25rem);
+  letter-spacing: normal;
+  color: var(--yd-text-muted);
+}
+
+.yd-measure__band,
+.yd-measure__detail {
+  margin: 0;
+  font-size: 0.78rem;
+  line-height: 1.5;
+  color: var(--yd-text-muted);
+}
+
+.yd-measure__detail {
+  padding-top: var(--yd-space-2xs);
+  border-top: 1px solid var(--yd-border);
+}
+
+.yd-context__facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--yd-space-xs) var(--yd-space-lg);
+}
+
+.yd-context__fact {
+  margin: 0;
+  font-size: 0.86rem;
+  color: var(--yd-text);
+}
+
+.yd-context__fact--negative {
+  color: var(--yd-negative-text);
+}
+
+.yd-context__note {
+  margin: 0;
+  max-width: 84ch;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  color: var(--yd-text-muted);
+}
+
+/* The question form --------------------------------------------------------- */
+
+.yd-purchase {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--yd-space-sm);
+}
+
+/* Stacked at 375, paired from 640. `minmax(0, 1fr)` keeps a long label inside
+   its column instead of letting it set the width. */
+.yd-purchase__grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--yd-space-sm);
+}
+
+@media (min-width: 640px) {
+  .yd-purchase__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.yd-purchase__field {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--yd-space-2xs);
+  min-width: 0;
+}
+
+.yd-purchase__field label {
+  font-size: 0.82rem;
+  line-height: 1.4;
+  color: var(--yd-text-muted);
+}
+
+.yd-purchase__field input,
+.yd-purchase__field select {
+  width: 100%;
+  min-height: 36px;
+  padding: 0 var(--yd-space-xs);
+  border: 1px solid var(--yd-border-control);
+  border-radius: var(--yd-radius-sm);
+  background: var(--yd-surface-strong);
+  color: var(--yd-text);
+  font: inherit;
+  font-size: 0.9rem;
+}
+
+.yd-purchase__field input:focus-visible,
+.yd-purchase__field select:focus-visible {
+  outline: 2px solid var(--yd-accent);
+  outline-offset: 1px;
+}
+
+.yd-purchase__field input[aria-invalid="true"] {
+  border-color: var(--yd-negative);
+}
+
+.yd-purchase__error {
+  margin: 0;
+  font-size: 0.8rem;
+  line-height: 1.45;
+  color: var(--yd-negative-text);
+}
+
+.yd-purchase__disclosure {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--yd-space-xs);
+}
+
+.yd-purchase__toggle {
+  min-height: 36px;
+  padding: 0 var(--yd-space-sm);
+  border: 1px solid var(--yd-border-control);
+  border-radius: var(--yd-radius-sm);
+  background: transparent;
+  color: var(--yd-text);
+  font: inherit;
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: border-color var(--yd-motion-fast) var(--yd-ease);
+}
+
+.yd-purchase__toggle:hover {
+  border-color: var(--yd-accent);
+}
+
+.yd-purchase__toggle:focus-visible {
+  outline: 2px solid var(--yd-accent);
+  outline-offset: 2px;
+}
+
+.yd-purchase__group {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--yd-space-sm);
+  margin: 0;
+  padding: var(--yd-space-md);
+  border: 1px solid var(--yd-border-strong);
+  border-radius: var(--yd-radius-sm);
+  background: var(--yd-surface);
+  min-width: 0;
+}
+
+.yd-purchase__group legend {
+  padding: 0 var(--yd-space-2xs);
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--yd-text);
+}
+
+.yd-purchase__note {
+  margin: 0;
+  font-size: 0.78rem;
+  line-height: 1.5;
+  color: var(--yd-text-muted);
+}
+
+.yd-purchase__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--yd-space-xs);
+}
+
+.yd-purchase__submit {
+  min-height: 40px;
+  padding: 0 var(--yd-space-lg);
+  border: 1px solid var(--yd-accent);
+  border-radius: var(--yd-radius-sm);
+  background: transparent;
+  color: var(--yd-accent);
+  font: inherit;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color var(--yd-motion-fast) var(--yd-ease);
+}
+
+.yd-purchase__submit:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.yd-purchase__submit:focus-visible {
+  outline: 2px solid var(--yd-accent);
+  outline-offset: 2px;
+}
+
+/* The verdict --------------------------------------------------------------- */
+
+.yd-verdict {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--yd-space-sm);
+  min-width: 0;
+}
+
+.yd-verdict__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--yd-space-xs);
+}
+
+/* The one accent on this screen belongs to the verdict. Each variant paints its
+   own badge from its own status token, and the TEXT colour is the AA-safe
+   variant — `--yd-negative-text`, and the light theme's already-darkened
+   `--yd-warning` / `--yd-positive`, all three pinned at 4.5:1 against the page
+   in design/contrast.test.ts. */
+.yd-verdict__label {
+  margin: 0;
+  padding: 2px var(--yd-space-sm);
+  border-radius: 999px;
+  border: 1px solid currentcolor;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--yd-text-muted);
+}
+
+.yd-verdict--out_of_reach .yd-verdict__label {
+  color: var(--yd-negative-text);
+  background: color-mix(in srgb, var(--yd-negative) 12%, transparent);
+}
+
+.yd-verdict--tight .yd-verdict__label {
+  color: var(--yd-warning);
+  background: color-mix(in srgb, var(--yd-warning) 14%, transparent);
+}
+
+.yd-verdict--comfortable .yd-verdict__label {
+  color: var(--yd-positive);
+  background: color-mix(in srgb, var(--yd-positive) 14%, transparent);
+}
+
+.yd-verdict__figure {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--yd-space-2xs);
+}
+
+.yd-verdict__figure-label {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--yd-text-muted);
+}
+
+.yd-verdict__amount {
+  margin: 0;
+  font-family: var(--yd-font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  /* Caps at 2.4rem so "−41 722,80 €" still fits one line of a 375px card. */
+  font-size: clamp(1.5rem, 6vw, 2.4rem);
+  font-weight: 600;
+  line-height: 1.1;
+  color: var(--yd-positive);
+  overflow-wrap: anywhere;
+}
+
+.yd-verdict__amount--negative {
+  color: var(--yd-negative-text);
+}
+
+.yd-verdict__gap {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  line-height: 1.5;
+  color: var(--yd-text);
+}
+
+.yd-verdict__explanation {
+  margin: 0;
+  max-width: 78ch;
+  font-size: 0.88rem;
+  line-height: 1.6;
+  color: var(--yd-text);
+}
+
+/* The two band ends against the price. A grid, not a flex row: the labels are
+   long French clauses and the figures must stay in one column at every width. */
+.yd-verdict__band {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1px;
+  border-radius: var(--yd-radius-sm);
+  border: 1px solid var(--yd-border);
+  overflow: hidden;
+  background: var(--yd-border);
+}
+
+.yd-verdict__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--yd-space-2xs) var(--yd-space-sm);
+  padding: var(--yd-space-xs) var(--yd-space-sm);
+  background: var(--yd-surface-strong);
+}
+
+.yd-verdict__row--target {
+  background: var(--yd-surface);
+}
+
+.yd-verdict__row-label {
+  flex: 1 1 14ch;
+  min-width: 0;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  color: var(--yd-text-muted);
+}
+
+.yd-verdict__row-value {
+  font-family: var(--yd-font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.86rem;
+  color: var(--yd-text);
+}
+
+.yd-verdict__capacity,
+.yd-verdict__sample,
+.yd-verdict__note {
+  margin: 0;
+  max-width: 84ch;
+  font-size: 0.82rem;
+  line-height: 1.55;
+  color: var(--yd-text-muted);
+}
+
+.yd-verdict__capacity {
+  color: var(--yd-text);
+}
+
+/* Skeletons ----------------------------------------------------------------- */
+
+/* The bar itself is design/Skeleton.css's; these are only the sizes, each one
+   the line box of the block it stands in for, so the cells are as tall before
+   the data lands as after and nothing on the page moves. */
+
+.yd-skeleton--feas-title {
+  height: calc(0.95rem * 1.5);
+  width: 38%;
+}
+
+.yd-skeleton--feas-context {
+  height: 210px;
+}
+
+.yd-skeleton--feas-form {
+  height: 280px;
+}
+
+.yd-skeleton--feas-verdict {
+  height: 320px;
+}

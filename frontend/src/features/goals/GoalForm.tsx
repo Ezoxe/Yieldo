@@ -1,6 +1,6 @@
 import { useId, useState, type FormEvent, type ReactNode } from "react";
 
-import { parseCents } from "../../design/theme";
+import { centsToInput, parseCents } from "../../design/theme";
 import { ApiError, api } from "../../lib/api";
 import type { GoalIn, GoalProgress } from "../../lib/types";
 
@@ -9,21 +9,6 @@ const GENERIC_ERROR = "Une erreur inattendue est survenue.";
 /** `schemas.GoalIn.priority`: `ge=1, le=999`. */
 const MIN_PRIORITY = 1;
 const MAX_PRIORITY = 999;
-
-/**
- * Integer cents back into what the field shows, by integer arithmetic — 150 000
- * is "1500,00". Never `cents / 100` formatted as a float.
- *
- * Twin of the private helper in `features/debts/DebtForm.tsx`. Kept local
- * rather than shared so this task does not reach into task 6's file; if a third
- * form needs it, that is the moment it moves next to `parseCents` in
- * `design/theme.ts`.
- */
-function centsToInput(cents: number): string {
-  const sign = cents < 0 ? "-" : "";
-  const absolute = Math.abs(cents);
-  return `${sign}${Math.trunc(absolute / 100)},${String(absolute % 100).padStart(2, "0")}`;
-}
 
 interface GoalFormProps {
   /**

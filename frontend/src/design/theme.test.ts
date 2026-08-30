@@ -1,6 +1,14 @@
 import { beforeEach, describe, expect, it } from "vitest";
 
-import { formatCents, formatCompactCents, parseCents, readStoredTheme, resolveTheme } from "./theme";
+import {
+  centsToInput,
+  formatCents,
+  formatCompactCents,
+  formatRateBps,
+  parseCents,
+  readStoredTheme,
+  resolveTheme,
+} from "./theme";
 
 describe("formatCents", () => {
   beforeEach(() => localStorage.clear());
@@ -35,6 +43,40 @@ describe("formatCompactCents", () => {
 
   it("keeps small amounts readable", () => {
     expect(formatCompactCents(4732)).toBe("47 €");
+  });
+});
+
+describe("formatRateBps", () => {
+  it("prints basis points as a French percentage", () => {
+    expect(formatRateBps(490)).toBe("4,90 %");
+    expect(formatRateBps(500)).toBe("5,00 %");
+  });
+
+  it("prints a debt ratio far past the HCSF threshold rather than clamping it", () => {
+    // The operator's own: 19 610 bps against a 3 500 bps threshold. A screen
+    // that clamped this would be hiding the whole answer.
+    expect(formatRateBps(19_610)).toBe("196,10 %");
+  });
+
+  it("uses the typographic minus, like formatCents", () => {
+    expect(formatRateBps(-125)).toBe("−1,25 %");
+  });
+});
+
+describe("centsToInput", () => {
+  it("renders integer cents as the text a euro field shows", () => {
+    expect(centsToInput(150_000)).toBe("1500,00");
+    expect(centsToInput(870)).toBe("8,70");
+  });
+
+  it("pads a single-digit cent rather than dropping it", () => {
+    expect(centsToInput(105)).toBe("1,05");
+  });
+
+  it("round-trips through parseCents, which is the only reason it exists", () => {
+    for (const cents of [0, 1, 870, 105, 150_000, 4_000_000, -74_619]) {
+      expect(parseCents(centsToInput(cents))).toBe(cents);
+    }
   });
 });
 

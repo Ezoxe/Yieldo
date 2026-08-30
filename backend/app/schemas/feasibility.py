@@ -6,7 +6,7 @@ balance -- because a verdict quoted without its provenance invites the reader
 to treat a median of three months as a certainty.
 """
 
-from datetime import date
+from datetime import date, datetime
 
 from pydantic import BaseModel, Field
 
@@ -247,3 +247,24 @@ class FeasibilityOut(BaseModel):
     # EMPTY when `capacity` is null. Otherwise exactly five, feasible first.
     levers: list[LeverOut]
     financing: FinancingOut
+
+
+class ScenarioIn(BaseModel):
+    name: str = Field(min_length=1, max_length=120)
+    # The QUESTION, not the answer. See `models.Scenario`'s docstring: the
+    # payload stored from this is re-validated through THIS SAME model on every
+    # read, never trusted straight from the row.
+    request: FeasibilityIn
+
+
+class ScenarioOut(BaseModel):
+    id: int
+    name: str
+    created_at: datetime
+    # Exactly what was saved, echoed back so the screen can reopen it in the
+    # form.
+    request: FeasibilityIn
+    # Recomputed against the CURRENT ledger on every read -- never stored. Two
+    # scenarios listed side by side are therefore always answered from the same
+    # statements, which is what makes them comparable at all.
+    result: FeasibilityOut

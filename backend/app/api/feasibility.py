@@ -1,4 +1,5 @@
-"""POST /api/feasibility and GET /api/feasibility/context.
+"""POST /api/feasibility, GET /api/feasibility/context, and the saved-scenario
+routes under /api/feasibility/scenarios (POST, GET, DELETE).
 
 **Why POST for a computation that writes nothing.** The request carries a
 purchase, four assumption overrides, an arbitrary list of running-cost items
@@ -22,9 +23,10 @@ ledger extent from a requested window, and bounds wider than the data really
 covers silently admit a partial month as complete.
 """
 
+import json
 from datetime import date
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.api.common import liquid_balance_cents, tx_points
@@ -46,7 +48,7 @@ from app.engines.ownership import (
     total_cost_of_ownership,
 )
 from app.engines.savings import DEFAULT_ANNUAL_RETURN_BPS
-from app.models import Category, Debt, User
+from app.models import Category, Debt, Scenario, User
 from app.schemas.feasibility import (
     AssumptionsOut,
     CostLineOut,
@@ -59,10 +61,19 @@ from app.schemas.feasibility import (
     ImpactOut,
     LeverOut,
     OwnershipOut,
+    ScenarioIn,
+    ScenarioOut,
 )
 from app.security.deps import get_current_user
 
 router = APIRouter(prefix="/feasibility", tags=["feasibility"])
+
+# The one `Scenario.kind` this router ever writes or reads. A row of any other
+# kind -- a future simulator's own saved scenario, sharing the same table --
+# must never surface here: parsing it through `FeasibilityIn` would either
+# raise on a payload shaped for a different question, or silently answer a
+# question this endpoint was never asked.
+SCENARIO_KIND = "feasibility"
 
 # Declared defaults, not measurements. Echoed back on every response so the
 # screen prints the hypothesis beside the figure it produced (design §10).
@@ -169,10 +180,11 @@ def context(user: User = Depends(get_current_user),
     )
 
 
-@router.post("", response_model=FeasibilityOut)
-def assess(payload: FeasibilityIn, user: User = Depends(get_current_user),
-           db: Session = Depends(get_db)) -> FeasibilityOut:
-    """Design §6.3, end to end. See the module docstring for the POST and the clock."""
+def _assess(payload: FeasibilityIn, user: User, db: Session) -> FeasibilityOut:
+    """Design §6.3, end to end. See the module docstring for the POST and the
+    clock. Shared by `POST /api/feasibility` and every scenario read below --
+    one computation, in one place, so a scenario's recomputed answer can never
+    drift from what asking the same question directly would return."""
     months = observed_months(db, user.id)
     assumptions = _assumptions(db, user, payload, months)
     request = PurchaseRequest(
@@ -267,3 +279,86 @@ def assess(payload: FeasibilityIn, user: User = Depends(get_current_user),
             better_kind=financing.better_kind,
             wealth_gap_cents=financing.wealth_gap_cents),
     )
+
+
+@router.post("", response_model=FeasibilityOut)
+def assess(payload: FeasibilityIn, user: User = Depends(get_current_user),
+           db: Session = Depends(get_db)) -> FeasibilityOut:
+    """Design §6.3, end to end. See the module docstring for the POST and the clock."""
+    return _assess(payload, user, db)
+
+
+# Each scenario read recomputes a full feasibility answer, which walks the
+# whole ledger. Ten is generous for a household comparing purchases and keeps
+# one page load to ten computations rather than an unbounded number.
+MAX_SCENARIOS = 10
+
+
+def _owned_scenario(db: Session, user: User, scenario_id: int) -> Scenario:
+    scenario = db.query(Scenario).filter(
+        Scenario.id == scenario_id, Scenario.user_id == user.id,
+        Scenario.kind == SCENARIO_KIND).first()
+    if scenario is None:
+        raise HTTPException(status_code=404, detail="Scénario introuvable")
+    return scenario
+
+
+@router.post("/scenarios", response_model=ScenarioOut,
+             status_code=status.HTTP_201_CREATED)
+def save_scenario(payload: ScenarioIn, user: User = Depends(get_current_user),
+                  db: Session = Depends(get_db)) -> ScenarioOut:
+    """Store the QUESTION. The answer is recomputed on every read -- see
+    `models.Scenario`'s docstring for why. `payload.request` is already
+    validated as a `FeasibilityIn` by FastAPI before this runs, so nothing
+    that could not itself answer `POST /api/feasibility` is ever persisted."""
+    existing = db.query(Scenario).filter(
+        Scenario.user_id == user.id, Scenario.kind == SCENARIO_KIND).count()
+    if existing >= MAX_SCENARIOS:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Vous ne pouvez pas enregistrer plus de {MAX_SCENARIOS} "
+                   "scénarios. Supprimez-en un pour en ajouter un autre.")
+    scenario = Scenario(user_id=user.id, name=payload.name, kind=SCENARIO_KIND,
+                        payload=payload.request.model_dump_json())
+    db.add(scenario)
+    db.commit()
+    db.refresh(scenario)
+    return ScenarioOut(id=scenario.id, name=scenario.name,
+                       created_at=scenario.created_at, request=payload.request,
+                       result=_assess(payload.request, user, db))
+
+
+@router.get("/scenarios", response_model=list[ScenarioOut])
+def list_scenarios(user: User = Depends(get_current_user),
+                   db: Session = Depends(get_db)) -> list[ScenarioOut]:
+    """Every saved scenario, each recomputed against the CURRENT ledger.
+
+    The stored payload is re-validated through `FeasibilityIn` rather than
+    trusted: the database is not an input this code controls, and a row that no
+    longer parses -- edited by hand, or written by a schema version this one
+    has moved past -- must surface as a French error naming the scenario,
+    rather than a 500 that takes the whole list down with it.
+    """
+    out: list[ScenarioOut] = []
+    for row in db.query(Scenario).filter(
+            Scenario.user_id == user.id, Scenario.kind == SCENARIO_KIND
+    ).order_by(Scenario.id).all():
+        try:
+            request = FeasibilityIn.model_validate(json.loads(row.payload))
+        except (ValueError, TypeError) as exc:
+            raise HTTPException(
+                status_code=422,
+                detail=f"Le scénario « {row.name} » n'est plus lisible et doit "
+                       "être supprimé puis recréé.") from exc
+        out.append(ScenarioOut(id=row.id, name=row.name, created_at=row.created_at,
+                               request=request, result=_assess(request, user, db)))
+    return out
+
+
+@router.delete("/scenarios/{scenario_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_scenario(scenario_id: int, user: User = Depends(get_current_user),
+                    db: Session = Depends(get_db)) -> None:
+    """A hard delete, unlike debts and goals: a scenario holds no history worth
+    keeping -- it is a question, and the same question can be asked again."""
+    db.delete(_owned_scenario(db, user, scenario_id))
+    db.commit()

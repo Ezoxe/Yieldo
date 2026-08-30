@@ -14,7 +14,7 @@ completes; the next starts then. `funding_starts_in_months` says when each
 goal's own clock begins, so a screen can explain a far-off date rather than
 leaving the user to wonder.
 
-**Three distinct refusals, mutually exclusive by construction**, because a
+**Four distinct refusals, mutually exclusive by construction**, because a
 household told the wrong cause takes the wrong action:
 
 * the capacity could not be measured at all (`None` -- fewer than three
@@ -24,7 +24,10 @@ household told the wrong cause takes the wrong action:
   progress. Remedy: spend less or earn more. Telling him "pas assez
   d'historique" here would send him to the import screen to fix something that
   is not broken;
-* the projection runs past fifty years.
+* the projection runs past fifty years;
+* a MORE URGENT goal is itself past fifty years, so this one never starts.
+  Repeating the sentence above would blame this goal's own size, which can be
+  a 1 000 EUR goal stuck behind a 10 000 000 EUR one. Remedy: re-prioritise.
 
 Pure: no session, no network, no implicit clock -- `today` is a parameter.
 """
@@ -99,7 +102,7 @@ class GoalProgress:
     months_to_completion: int | None
     projected_completion_on: date | None
     # French. Set exactly when `months_to_completion` is None, and it names
-    # WHICH of three causes applies. Never two at once.
+    # WHICH of four causes applies. Never two at once.
     projection_unavailable_reason: str | None
     due_on: date | None
     # Whole calendar months from today's month to the deadline's; negative when
@@ -145,6 +148,24 @@ def _reason_too_far() -> str:
     )
 
 
+def _reason_blocked_by(name: str) -> str:
+    """The queue, not this goal, is what refuses.
+
+    Funding is sequential, so a goal that is itself unreachable inside fifty
+    years absorbs the whole capacity for at least that long: nothing queued
+    behind it can start inside the horizon either. Repeating `_reason_too_far`
+    here would say this goal is too expensive, which may be false -- it can be
+    a 1 000 EUR goal stuck behind a 10 000 000 EUR one. The sentence names the
+    blocker so the user knows which goal to re-prioritise or drop.
+    """
+    return (
+        f"Cet objectif ne peut pas commencer à être financé : « {name} », plus "
+        f"urgent, n'est pas atteint dans les "
+        f"{MAX_PROJECTION_MONTHS // 12} ans projetés et mobilise toute la "
+        "capacité d'épargne d'ici là. Changez sa priorité pour le projeter."
+    )
+
+
 def _months_until(today: date, due_on: date | None) -> int | None:
     if due_on is None:
         return None
@@ -165,6 +186,9 @@ def evaluate_goals(
     ordered = sorted(goals, key=lambda goal: (goal.priority, goal.id))
     results: list[GoalProgress] = []
     offset_months = 0
+    # Set by the first goal that consumes the capacity without ever completing.
+    # Everything queued behind it inherits a refusal naming it.
+    blocked_by: str | None = None
 
     for goal in ordered:
         remaining = max(0, goal.target_cents - goal.saved_cents)
@@ -196,11 +220,14 @@ def evaluate_goals(
             reason = _reason_no_capacity()
         elif monthly_capacity_cents <= 0:
             reason = _reason_capacity_not_positive()
+        elif blocked_by is not None:
+            reason = _reason_blocked_by(blocked_by)
         else:
             own_months = _months_for(remaining, monthly_capacity_cents)
             if offset_months + own_months > MAX_PROJECTION_MONTHS:
                 reason = _reason_too_far()
                 own_months = None
+                blocked_by = goal.name
 
         milestones: list[Milestone] = []
         for percent in MILESTONE_PERCENTS:

@@ -134,3 +134,52 @@ def test_an_overfunded_goal_is_reported_as_it_is_not_clamped():
     assert progress.progress_ratio == 1.5
     assert progress.remaining_cents == 0
     assert all(m.reached for m in progress.milestones)
+
+
+def test_a_goal_behind_an_unreachable_one_is_not_projected_either():
+    """Funding is sequential: a goal waits for the more urgent ones. So when a
+    more urgent goal is refused because it would not be reached inside fifty
+    years, it absorbs the whole capacity for at least that long -- and every
+    goal queued behind it cannot start inside the horizon either.
+
+    Left unhandled, `offset_months` simply does not advance past the refused
+    goal, and the next one is projected as if the queue in front of it were
+    empty: a 1 000 € goal behind a 10 000 000 000 € one came back "atteint dans
+    2 mois". A date measured against a queue that was never accounted for is
+    the same defect this project has fixed in eight tasks: a French sentence
+    asserting a measurement that was not made.
+    """
+    goals = [
+        GoalInput(id=1, name="Immense", target_cents=10**12, saved_cents=0,
+                  due_on=None, priority=1),
+        GoalInput(id=2, name="Petit", target_cents=100_000, saved_cents=0,
+                  due_on=None, priority=2),
+    ]
+    immense, petit = evaluate_goals(goals, 50_000, date(2026, 8, 31))
+
+    assert immense.months_to_completion is None
+    assert petit.months_to_completion is None
+    assert petit.projected_completion_on is None
+    assert petit.on_track is None
+    assert petit.projection_unavailable_reason is not None
+    # And it must name the TRUE cause -- the queue -- not repeat the fifty-year
+    # sentence, which would say this small goal is itself too far away.
+    assert "Immense" in petit.projection_unavailable_reason
+    assert "plus urgent" in petit.projection_unavailable_reason
+    # No milestone may carry a date either.
+    assert all(m.months_away is None for m in petit.milestones)
+
+
+def test_a_completed_goal_does_not_block_the_queue_behind_it():
+    """The block travels only from a goal that actually consumes the capacity.
+    A goal already at its target consumes none, so the goals behind it keep
+    their dates -- the guard must not become a blanket."""
+    goals = [
+        GoalInput(id=1, name="Fait", target_cents=100_000, saved_cents=100_000,
+                  due_on=None, priority=1),
+        GoalInput(id=2, name="Suivant", target_cents=100_000, saved_cents=0,
+                  due_on=None, priority=2),
+    ]
+    _, suivant = evaluate_goals(goals, 50_000, date(2026, 8, 31))
+    assert suivant.months_to_completion == 2
+    assert suivant.projection_unavailable_reason is None

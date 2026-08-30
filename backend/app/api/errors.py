@@ -58,6 +58,10 @@ FIELD_SUBJECTS: dict[str, str] = {
     "minimum_payment_cents": "La mensualité",
     "term_months": "La durée",
     "extra_cents": "Le versement supplémentaire",
+    "target_cents": "Le montant cible",
+    "saved_cents": "Le montant déjà constitué",
+    "due_on": "L'échéance",
+    "priority": "La priorité",
 }
 
 # One template per pydantic error type, formatted with the field's subject.

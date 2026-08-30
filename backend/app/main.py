@@ -14,6 +14,7 @@ from app.api import budgets as budget_routes
 from app.api import cashflow as cashflow_routes
 from app.api import categories as category_routes
 from app.api import debts as debt_routes
+from app.api import goals as goal_routes
 from app.api import imports as import_routes
 from app.api import recurrences as recurrence_routes
 from app.api import transactions as transaction_routes
@@ -66,6 +67,7 @@ api.include_router(budget_routes.router)
 api.include_router(recurrence_routes.router)
 api.include_router(cashflow_routes.router)
 api.include_router(debt_routes.router)
+api.include_router(goal_routes.router)
 
 app.include_router(api)
 

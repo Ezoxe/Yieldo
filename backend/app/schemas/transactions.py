@@ -4,6 +4,8 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from app.schemas.history import HistoryOut
 
+from app.schemas.patching import not_nullable
+
 
 class TransactionOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -41,6 +43,8 @@ class TransactionPatch(BaseModel):
     is_transfer: bool | None = None
     tags: list[str] | None = None
 
+    _no_null = not_nullable("is_transfer", "tags")
+
 
 class TransactionPatchOut(TransactionOut):
     learned_rule_id: int | None = None
@@ -77,3 +81,6 @@ class CategoryPatch(BaseModel):
     icon: str | None = None
     monthly_budget_cents: int | None = None
     is_essential: bool | None = None
+
+
+    _no_null = not_nullable("name", "color", "icon", "is_essential")

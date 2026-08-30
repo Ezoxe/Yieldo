@@ -10,6 +10,8 @@ from datetime import date
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.schemas.patching import not_nullable
+
 
 class DebtIn(BaseModel):
     name: str = Field(min_length=1, max_length=120)
@@ -32,6 +34,8 @@ class DebtPatch(BaseModel):
     term_months: int | None = Field(default=None, ge=1, le=480)
     opened_on: date | None = None
     archived: bool | None = None
+
+    _no_null = not_nullable("name", "kind", "principal_cents", "annual_rate_bps", "minimum_payment_cents", "archived")
 
 
 class DebtOut(BaseModel):

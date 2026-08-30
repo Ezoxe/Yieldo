@@ -48,6 +48,11 @@ FIELD_SUBJECTS: dict[str, str] = {
     "original_filename": "Le nom du fichier",
     "overrides": "Les catégories corrigées",
     "keep_duplicates": "Les doublons à conserver",
+    "kind": "Le type",
+    "archived": "L'archivage",
+    "include_in_net_worth": "La prise en compte dans le patrimoine",
+    "is_essential": "Le caractère essentiel",
+    "is_transfer": "Le virement interne",
     "principal_cents": "Le capital restant dû",
     "annual_rate_bps": "Le taux annuel",
     "minimum_payment_cents": "La mensualité",
@@ -62,6 +67,8 @@ FIELD_SUBJECTS: dict[str, str] = {
 _SIMPLE: dict[str, str] = {
     "missing": "{subject} est obligatoire.",
     "value_error": "{subject} n'est pas valide.",
+    # A PATCH carrying an explicit `null` on a column the database requires.
+    "null_not_allowed": "{subject} ne peut pas être vidé.",
     "string_type": "{subject} doit être un texte.",
     "string_pattern_mismatch": "{subject} n'a pas le format attendu.",
     "int_type": "{subject} doit être un nombre entier.",

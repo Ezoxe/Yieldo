@@ -58,10 +58,28 @@ FIELD_SUBJECTS: dict[str, str] = {
     "minimum_payment_cents": "La mensualité",
     "term_months": "La durée",
     "extra_cents": "Le versement supplémentaire",
+    # Shared with `GoalIn.target_cents` ("Le montant cible" -- a savings goal,
+    # already shipped in task 7). `FeasibilityIn.target_cents` names a purchase
+    # price, and the brief this task was handed asks for "Le prix du bien"
+    # here -- but `FIELD_SUBJECTS` is one global dict keyed by bare field name,
+    # with no route or schema context, so the two meanings collide on the same
+    # key. Overwriting it would silently mislabel every future goal-creation
+    # 422. Kept as the existing, already-correct goals wording; a purchase
+    # price of zero still reads as a true, if generic, sentence. See the task
+    # report for this discrepancy.
     "target_cents": "Le montant cible",
     "saved_cents": "Le montant déjà constitué",
     "due_on": "L'échéance",
     "priority": "La priorité",
+    "horizon_months": "L'échéance",
+    "down_payment_cents": "L'apport",
+    "nature": "La nature du bien",
+    "loan_rate_bps": "Le taux du crédit",
+    "loan_months": "La durée du crédit",
+    "ownership_years": "La durée de possession",
+    "monthly_cents": "Le montant mensuel",
+    "residual_cents": "La valeur de rachat",
+    "deposit_cents": "L'apport initial",
 }
 
 # One template per pydantic error type, formatted with the field's subject.

@@ -48,6 +48,11 @@ FIELD_SUBJECTS: dict[str, str] = {
     "original_filename": "Le nom du fichier",
     "overrides": "Les catégories corrigées",
     "keep_duplicates": "Les doublons à conserver",
+    "principal_cents": "Le capital restant dû",
+    "annual_rate_bps": "Le taux annuel",
+    "minimum_payment_cents": "La mensualité",
+    "term_months": "La durée",
+    "extra_cents": "Le versement supplémentaire",
 }
 
 # One template per pydantic error type, formatted with the field's subject.

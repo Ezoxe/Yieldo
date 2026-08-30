@@ -362,6 +362,21 @@ def _reduce_target(report: FeasibilityReport) -> Lever:
     return _lever("reduce_target", reduced_target_cents=reachable)
 
 
+def _reason_gap_too_small_to_borrow(months: int) -> str:
+    """Names the AMOUNT and the term, never the household.
+
+    Nothing is wrong with the borrower here: the sum left to cover is simply
+    too small to be spread over that many months at that rate -- the monthly
+    instalment would round to less than the interest it owes.
+    """
+    return (
+        f"La somme qui reste à financer est trop faible pour être étalée sur "
+        f"{months} mois à ce taux : la mensualité serait inférieure aux "
+        "intérêts qu'elle doit couvrir, et le capital ne baisserait jamais. "
+        "Raccourcissez la durée du prêt, ou réglez ce reliquat sans crédit."
+    )
+
+
 def _borrow(report: FeasibilityReport) -> Lever:
     gap = report.gap_cents
     if gap <= 0:
@@ -371,7 +386,20 @@ def _borrow(report: FeasibilityReport) -> Lever:
     # One call, not `monthly_payment_cents` beside `build_schedule`: the
     # schedule computes the instalment itself, and reading it back off the
     # schedule is what makes the payment on screen the payment in the table.
-    schedule = build_schedule(gap, assumptions.loan_rate_bps, assumptions.loan_months)
+    try:
+        schedule = build_schedule(gap, assumptions.loan_rate_bps, assumptions.loan_months)
+    except ValueError:
+        # `amortization` refuses a loan whose instalment, rounded to the cent,
+        # would not cover the first month's interest -- true of a small amount
+        # spread over a long term at a high rate. Letting that raise out of
+        # here cost the household its whole report: the router answers any
+        # ValueError with a 422, so one unpriceable lever took the verdict, the
+        # capacity and the other four levers with it. It refuses on its own
+        # instead, naming the amount rather than the household.
+        return _lever("borrow", feasible=False,
+                      borrow_cents=gap,
+                      unavailable_reason=_reason_gap_too_small_to_borrow(
+                          assumptions.loan_months))
     # On ALL of the household's instalments, not only the new one: the HCSF
     # ratio is a debt-service ratio, and dropping what is already owed would
     # understate every ratio in the application.
@@ -514,10 +542,14 @@ class FinancingComparison:
     # a tie from a win, and a screen printing "payer comptant est préférable" on
     # a tie would be naming a preference that does not exist: read
     # `wealth_gap_cents == 0` first.
-    better_kind: str
+    # None when the credit option could not be priced at all -- there is then
+    # only one side carrying a wealth figure, and naming "cash" the better of
+    # one is a preference nobody established.
+    better_kind: str | None
     # Credit's end wealth minus cash's, in cents. Positive means borrowing
-    # leaves the household ahead. Signed, never absolute.
-    wealth_gap_cents: int
+    # leaves the household ahead. Signed, never absolute. None exactly when
+    # `better_kind` is None.
+    wealth_gap_cents: int | None
 
 
 def _reason_nothing_borrowed() -> str:
@@ -650,26 +682,46 @@ def compare_financing(
         _validate_loa(loa)
 
     borrowed = price_cents - down_payment_cents
-    # At the user's OWN rate. If that rate cannot be priced on this capital and
-    # term, `amortization` refuses here, in French, about the input the user
-    # actually typed -- and it propagates rather than being softened.
-    schedule = build_schedule(borrowed, assumptions.loan_rate_bps, assumptions.loan_months)
-    cash_wealth = _wealth_cash(borrowed, assumptions.loan_rate_bps, assumptions)
-    credit_wealth = _wealth_credit(borrowed, assumptions)
+    # At the user's OWN rate. `amortization` refuses a loan whose instalment,
+    # rounded to the cent, would not cover the first month's interest -- true
+    # of a small remainder spread over a long term. That refusal is about the
+    # input the user typed, but letting it raise cost them the whole
+    # feasibility report: the router answers any ValueError with a 422, so an
+    # unpriceable credit line took the verdict, the capacity and the levers
+    # with it. The credit option comes back unavailable instead, exactly as the
+    # LOA one does when no terms were supplied.
+    try:
+        schedule = build_schedule(
+            borrowed, assumptions.loan_rate_bps, assumptions.loan_months)
+    except ValueError:
+        schedule = None
+    # Under the income-constant framing the cash path invests exactly what the
+    # instalment would have been, so an unpriceable loan leaves BOTH end-wealth
+    # figures undefined. The cash option still answers on its cash figures --
+    # what it costs on day one, and in total -- which is all the comparison had
+    # to give up.
+    cash_wealth = (None if schedule is None
+                   else _wealth_cash(borrowed, assumptions.loan_rate_bps, assumptions))
+    credit_wealth = None if schedule is None else _wealth_credit(borrowed, assumptions)
 
     options = [
         FinancingOption(
             kind="cash", available=True, unavailable_reason=None,
             out_of_pocket_cents=price_cents,
             monthly_cents=0, total_paid_cents=price_cents, interest_cents=0,
-            wealth_at_end_cents=cash_wealth, wealth_unavailable_reason=None,
+            wealth_at_end_cents=cash_wealth,
+            wealth_unavailable_reason=None if cash_wealth is not None
+            else _reason_loan_too_small_for_its_term(),
         ),
         FinancingOption(
-            kind="credit", available=True, unavailable_reason=None,
-            out_of_pocket_cents=down_payment_cents,
-            monthly_cents=schedule.monthly_payment_cents,
-            total_paid_cents=down_payment_cents + schedule.total_paid_cents,
-            interest_cents=schedule.total_interest_cents,
+            kind="credit", available=schedule is not None,
+            unavailable_reason=None if schedule is not None
+            else _reason_loan_too_small_for_its_term(),
+            out_of_pocket_cents=down_payment_cents if schedule is not None else None,
+            monthly_cents=None if schedule is None else schedule.monthly_payment_cents,
+            total_paid_cents=None if schedule is None
+            else down_payment_cents + schedule.total_paid_cents,
+            interest_cents=None if schedule is None else schedule.total_interest_cents,
             wealth_at_end_cents=credit_wealth, wealth_unavailable_reason=None,
         ),
     ]
@@ -697,7 +749,10 @@ def compare_financing(
 
     break_even: int | None = None
     reason: str | None = None
-    if borrowed <= 0:
+    if schedule is None:
+        # No credit side to cross with: the same fact the option itself carries.
+        reason = _reason_loan_too_small_for_its_term()
+    elif borrowed <= 0:
         reason = _reason_nothing_borrowed()
     elif not _priceable_across_the_searched_range(borrowed, assumptions.loan_months):
         reason = _reason_loan_too_small_for_its_term()
@@ -723,6 +778,7 @@ def compare_financing(
     return FinancingComparison(
         horizon_months=assumptions.loan_months, options=options,
         break_even_rate_bps=break_even, break_even_reason=reason,
-        better_kind="credit" if credit_wealth > cash_wealth else "cash",
-        wealth_gap_cents=credit_wealth - cash_wealth,
+        better_kind=None if credit_wealth is None
+        else ("credit" if credit_wealth > cash_wealth else "cash"),
+        wealth_gap_cents=None if credit_wealth is None else credit_wealth - cash_wealth,
     )

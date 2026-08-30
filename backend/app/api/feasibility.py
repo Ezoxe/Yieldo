@@ -264,5 +264,6 @@ def assess(payload: FeasibilityIn, user: User = Depends(get_current_user),
                      for option in financing.options],
             break_even_rate_bps=financing.break_even_rate_bps,
             break_even_reason=financing.break_even_reason,
-            better_kind=financing.better_kind),
+            better_kind=financing.better_kind,
+            wealth_gap_cents=financing.wealth_gap_cents),
     )

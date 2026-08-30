@@ -439,3 +439,40 @@ def test_the_loan_months_bound_keeps_amortisations_refusal_unreachable():
 
     with pytest.raises(ValueError):
         monthly_payment_cents(20, rate_bps, MAX_LOAN_MONTHS + 1)
+
+
+def test_an_unpriceable_credit_line_does_not_cost_the_whole_report(client):
+    """`amortization` refuses a loan whose instalment would not cover the first
+    month's interest. Both `levers._borrow` and `compare_financing` let that
+    raise, and the router answers any `ValueError` with a 422 -- so a 20 000 €
+    car bought with a 19 990 € apport, asked about over fifteen years at
+    30 %/an, came back as an error with no verdict, no capacity and none of the
+    five levers.
+
+    The refusal belongs to the credit line alone. Everything else must still
+    answer, and `better_kind` must be null rather than naming cash the winner
+    of a race with one runner.
+    """
+    headers = _register(client, "reliquat@example.fr")
+    body = client.post("/api/feasibility", headers=headers, json={
+        "target_cents": 2_000_000, "horizon_months": 12,
+        "down_payment_cents": 1_999_000, "nature": "vehicle",
+        "loan_rate_bps": 3000, "loan_months": 180,
+    })
+    assert body.status_code == 200
+    payload = body.json()
+    # This user has no ledger, so the verdict itself refuses -- for its own
+    # cause, stated in French. What matters here is that the refusal is the
+    # CAPACITY's, not a 422 swallowing the entire answer.
+    assert payload["verdict"] is None
+    assert "trois mois complets" in payload["capacity_unavailable_reason"]
+
+    financing = payload["financing"]
+    assert financing["better_kind"] is None
+    assert financing["wealth_gap_cents"] is None
+    credit = next(o for o in financing["options"] if o["kind"] == "credit")
+    assert credit["available"] is False
+    assert "trop faible" in credit["unavailable_reason"]
+    cash = next(o for o in financing["options"] if o["kind"] == "cash")
+    assert cash["available"] is True
+    assert cash["total_paid_cents"] == 2_000_000

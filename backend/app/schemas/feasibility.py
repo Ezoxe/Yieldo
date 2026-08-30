@@ -186,7 +186,13 @@ class FinancingOut(BaseModel):
     break_even_rate_bps: int | None
     break_even_reason: str | None
     # Compares ONLY cash and credit -- the LOA line is not in the running.
-    better_kind: str
+    # None when the credit option could not be priced at all: with one side
+    # left, naming it "the better" is a preference nobody established.
+    better_kind: str | None
+    # Credit's end wealth minus cash's, signed. Read this BEFORE `better_kind`:
+    # a zero here is a tie, which `better_kind` reports as "cash" and cannot
+    # distinguish from a win. None exactly when `better_kind` is None.
+    wealth_gap_cents: int | None
 
 
 class FeasibilityContextOut(BaseModel):

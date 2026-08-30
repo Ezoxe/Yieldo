@@ -746,3 +746,78 @@ def test_without_loa_terms_the_option_says_so_rather_than_inventing_them():
     # An unavailable option carries no wealth refusal: there is no option to
     # refuse a wealth figure FOR. The two nulls mean different things.
     assert option.wealth_unavailable_reason is None
+
+
+def test_a_gap_too_small_to_amortise_refuses_only_the_borrow_lever():
+    """`amortization.build_schedule` refuses a loan whose instalment, rounded
+    to the cent, would not cover the first month's interest. That is a real
+    refusal -- such a loan never amortises -- but it arrives as a raised
+    `ValueError`, and `_borrow` used to let it out of `build_levers`.
+
+    The router turns any `ValueError` into a 422, so a household 30 EUR short
+    of its purchase who happened to ask about a fifteen-year loan at 30 %/an
+    lost the whole report: no verdict, no capacity, and none of the other four
+    levers, over one lever that could not be priced. A refusal that costs four
+    working answers is not a refusal, it is a crash with a French message.
+
+    The lever now refuses on its own, and the sentence names the true cause --
+    the amount is too small to be spread over that term at that rate, not
+    anything about the household.
+    """
+    assumptions = Assumptions(annual_return_bps=300, loan_rate_bps=3000,
+                              loan_months=180, ownership_years=5,
+                              monthly_income_cents=250_000,
+                              existing_debt_payments_cents=0)
+    # A household that reaches all but 1 000 c of its purchase on its own.
+    report = _report(HEALTHY_REACH + 1_000, HEALTHY, BURN, assumptions)
+    assert report.gap_cents == 1_000
+    levers = build_levers(report, [])
+
+    borrow = next(lever for lever in levers if lever.kind == "borrow")
+    assert borrow.feasible is False
+    assert borrow.loan_payment_cents is None
+    assert borrow.unavailable_reason is not None
+    assert "trop faible" in borrow.unavailable_reason
+    # The other four still answer.
+    assert len(levers) == 5
+    assert any(lever.unavailable_reason is None for lever in levers)
+
+
+def test_a_loan_too_small_for_its_term_leaves_the_comparison_without_a_credit_side():
+    """The twin of the borrow lever's refusal, on the financing comparison.
+
+    `amortization` refuses a loan whose instalment would not cover the first
+    month's interest. `compare_financing` let that raise, and the router turns
+    any `ValueError` into a 422 -- so a 20 000 EUR car bought with a 19 990 EUR
+    apport, asked about over fifteen years at 30 %/an, lost the entire
+    feasibility report rather than one comparison.
+
+    The credit option now comes back unavailable with its own reason, the way
+    the LOA option already did when no terms were supplied, and `better_kind`
+    is None: with only one option carrying a wealth figure there is nothing to
+    compare, and "cash" would name a preference nobody established.
+    """
+    assumptions = Assumptions(annual_return_bps=300, loan_rate_bps=3000,
+                              loan_months=180, ownership_years=5,
+                              monthly_income_cents=250_000,
+                              existing_debt_payments_cents=0)
+    comparison = compare_financing(2_000_000, 1_999_000, assumptions, None)
+
+    credit = next(o for o in comparison.options if o.kind == "credit")
+    assert credit.available is False
+    assert credit.monthly_cents is None
+    assert credit.wealth_at_end_cents is None
+    assert "trop faible" in credit.unavailable_reason
+    assert comparison.better_kind is None
+    assert comparison.break_even_rate_bps is None
+    assert comparison.break_even_reason is not None
+    # The cash side still answers on its CASH figures -- what it costs on day
+    # one and in total. Its end wealth goes with the credit side: under the
+    # income-constant framing it invests exactly the instalment that could not
+    # be priced, so that one figure is genuinely unknown and says so.
+    cash = next(o for o in comparison.options if o.kind == "cash")
+    assert cash.available is True
+    assert cash.out_of_pocket_cents == 2_000_000
+    assert cash.total_paid_cents == 2_000_000
+    assert cash.wealth_at_end_cents is None
+    assert cash.wealth_unavailable_reason is not None

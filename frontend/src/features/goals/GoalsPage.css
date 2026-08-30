@@ -1,0 +1,674 @@
+.yd-goals {
+  max-width: 1280px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-lg);
+}
+
+.yd-goals__header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-2xs);
+}
+
+.yd-goals h1 {
+  margin: 0;
+  font-size: clamp(1.4rem, 2.2vw, 1.75rem);
+  letter-spacing: -0.015em;
+  color: var(--yd-text);
+}
+
+.yd-goals__lead {
+  margin: 0;
+  max-width: 84ch;
+  font-size: 0.9rem;
+  color: var(--yd-text-muted);
+}
+
+/* Every cell sizes to its own content rather than stretching to the tallest in
+   its row. Goal cards hold very different amounts of content — one card can
+   carry a refusal paragraph while its neighbour carries a date — and a
+   stretched cell leaves a card's worth of blank surface under its last line,
+   which reads as something having failed to load. */
+.yd-goals .yd-bento {
+  align-items: start;
+}
+
+/* Prose ------------------------------------------------------------------ */
+
+.yd-goals__note {
+  margin: 0;
+  max-width: 84ch;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  color: var(--yd-text-muted);
+}
+
+/* A refusal is content, not an error: it says what is missing and how to fix
+   it. The warning rule, never the negative colour, which this screen reserves
+   for something having actually gone wrong. Same recipe as `.yd-plan__unavailable`
+   on /dettes, so the two screens read as one product. */
+.yd-goals__refusal {
+  margin: 0;
+  max-width: 96ch;
+  padding: var(--yd-space-sm) var(--yd-space-md);
+  border-radius: var(--yd-radius-sm);
+  border: 1px solid var(--yd-border-strong);
+  border-left: 3px solid var(--yd-warning);
+  background: var(--yd-surface);
+  color: var(--yd-text);
+  font-size: 0.88rem;
+  line-height: 1.55;
+}
+
+/* What the measured rate MEANS for the goals below — the sentence the screen
+   exists for on a household that cannot currently save anything. Full text
+   colour and the accent rule, the same weight /dettes gives "what avalanche
+   buys you". */
+.yd-goals__consequence {
+  margin: 0;
+  max-width: 96ch;
+  padding: var(--yd-space-sm) var(--yd-space-md);
+  border-radius: var(--yd-radius-sm);
+  border: 1px solid var(--yd-border-strong);
+  border-left: 3px solid var(--yd-accent);
+  background: var(--yd-surface-strong);
+  color: var(--yd-text);
+  font-size: 0.92rem;
+  line-height: 1.55;
+}
+
+.yd-goals__link {
+  /* `justify-self`, not `align-self`: the parent is a single-column grid, so
+     `align-self` moves it on the BLOCK axis and leaves it stretched across the
+     full column — a full-width link that reads as a banner rather than a
+     button. Caught in a browser at 1440. */
+  justify-self: start;
+  min-height: 36px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 var(--yd-space-sm);
+  border: 1px solid var(--yd-border-control);
+  border-radius: var(--yd-radius-sm);
+  color: var(--yd-text);
+  font-size: 0.84rem;
+  text-decoration: none;
+  transition: border-color var(--yd-motion-fast) var(--yd-ease);
+}
+
+.yd-goals__link:hover {
+  border-color: var(--yd-accent);
+}
+
+.yd-goals__link:focus-visible {
+  outline: 2px solid var(--yd-accent);
+  outline-offset: 2px;
+}
+
+/* Reserved for something having gone wrong — a failed load, a rejected write.
+   A refusal from the engine never lands here. */
+.yd-goals__alert {
+  margin: 0;
+  padding: var(--yd-space-sm) var(--yd-space-md);
+  border-radius: var(--yd-radius-sm);
+  background: color-mix(in srgb, var(--yd-negative) 14%, transparent);
+  border: 1px solid var(--yd-negative);
+  color: var(--yd-negative-text);
+  font-size: 0.9rem;
+}
+
+/* The action row when it carries nothing but the add button: no surface, no
+   border, so it sits under the grid as an action rather than as an empty card. */
+.yd-goals__addbar {
+  display: flex;
+  padding: 0;
+  background: none;
+  border: 0;
+}
+
+.yd-goals__add {
+  align-self: start;
+  min-height: 36px;
+  padding: 0 var(--yd-space-md);
+  border: 1px solid var(--yd-border-control);
+  border-radius: var(--yd-radius-sm);
+  background: transparent;
+  color: var(--yd-text);
+  font: inherit;
+  font-size: 0.84rem;
+  cursor: pointer;
+  transition: border-color var(--yd-motion-fast) var(--yd-ease);
+}
+
+.yd-goals__add:hover {
+  border-color: var(--yd-accent);
+}
+
+.yd-goals__add:focus-visible {
+  outline: 2px solid var(--yd-accent);
+  outline-offset: 2px;
+}
+
+/* The measured capacity ---------------------------------------------------- */
+
+.yd-capacity {
+  display: grid;
+  /* A single full-width column below 900px. `minmax(0, 1fr)` and never `auto`:
+     the band strip inside is sized in percentages, and a percentage inside a
+     content-sized track resolves against nothing. */
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--yd-space-md);
+}
+
+/* 900px, not the bento's 1200: this cell spans all six columns from md, so it
+   has the width for the figure beside its band well before the grid changes
+   shape. Measured in a browser at 768 — the figure and the strip both keep
+   their own line length there. */
+@media (min-width: 900px) {
+  .yd-capacity {
+    grid-template-columns: minmax(12rem, 17rem) minmax(0, 1fr);
+    gap: var(--yd-space-lg);
+    align-items: start;
+  }
+}
+
+.yd-capacity__figure {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--yd-space-2xs);
+}
+
+.yd-capacity__amount {
+  margin: 0;
+  font-family: var(--yd-font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  font-size: clamp(1.6rem, 5vw, 2.4rem);
+  font-weight: 600;
+  line-height: 1.1;
+  /* A user-set figure can be long; wrap rather than push the column. */
+  overflow-wrap: anywhere;
+}
+
+/* `--yd-negative-text` and not `--yd-negative`: this figure is text on a card
+   surface, and contrast.test.ts pins the text variant at 4.5:1 in both themes
+   while the raw status colour is only guaranteed against the page background. */
+.yd-capacity__amount--negative {
+  color: var(--yd-negative-text);
+}
+
+.yd-capacity__amount--positive {
+  color: var(--yd-positive);
+}
+
+/* "Non mesurable" is a phrase, not a figure: the display face and the tabular
+   figures would give it a precision it does not have. */
+.yd-capacity__amount--words {
+  font-family: var(--yd-font);
+  font-size: clamp(1.15rem, 3vw, 1.5rem);
+  letter-spacing: normal;
+  color: var(--yd-text-muted);
+}
+
+.yd-capacity__unit,
+.yd-capacity__sample,
+.yd-capacity__band-sentence {
+  margin: 0;
+  font-size: 0.84rem;
+  line-height: 1.5;
+  color: var(--yd-text-muted);
+}
+
+.yd-capacity__detail {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--yd-space-sm);
+}
+
+/* The band strip --------------------------------------------------------- */
+
+.yd-capacity__band {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--yd-space-2xs);
+}
+
+/* The track is the two halves of the band either side of zero. `--yd-band-zero`
+   is set inline from `bandMarkers`, so the split lands exactly where zero falls
+   in the measured range — on the operator's own band that is 63.7 % of the way
+   along, which is what makes "the good end is a surplus, the bad end a deficit"
+   visible rather than merely stated. */
+.yd-capacity__band-track {
+  position: relative;
+  width: 100%;
+  height: 14px;
+  border-radius: 999px;
+  border: 1px solid var(--yd-border);
+  overflow: hidden;
+  background: linear-gradient(
+    to right,
+    color-mix(in srgb, var(--yd-negative) 38%, transparent) 0 var(--yd-band-zero),
+    color-mix(in srgb, var(--yd-positive) 32%, transparent) var(--yd-band-zero) 100%
+  );
+}
+
+.yd-capacity__band-zero {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: var(--yd-band-zero);
+  width: 2px;
+  /* `translate`, never `transform`: this strip sits inside a cell rendered as a
+     motion.* element, which carries an inline `transform: none` once its entry
+     animation settles and would kill a transform-based offset outright. */
+  translate: -1px 0;
+  background: var(--yd-text-muted);
+}
+
+.yd-capacity__band-median {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  width: 4px;
+  border-radius: 999px;
+  translate: -2px 0;
+  background: var(--yd-accent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--yd-accent) 26%, transparent);
+}
+
+.yd-capacity__band-ends {
+  position: relative;
+  display: flex;
+  justify-content: space-between;
+  gap: var(--yd-space-xs);
+  font-family: var(--yd-font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.72rem;
+  color: var(--yd-text-muted);
+}
+
+/* Centred on the zero tick above it, out of the flex flow so the two end
+   figures keep their own places. `translate`, never `transform`: this sits
+   inside a cell rendered as a motion.* element. */
+.yd-capacity__band-zero-label {
+  position: absolute;
+  left: var(--yd-band-zero);
+  translate: -50% 0;
+  color: var(--yd-text);
+}
+
+/* One goal ---------------------------------------------------------------- */
+
+.yd-goal {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--yd-space-sm);
+  /* Content-height, so a card carrying a date does not grow to match a
+     neighbour carrying a paragraph. */
+  align-content: start;
+}
+
+.yd-goal__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--yd-space-xs);
+}
+
+.yd-goal__name {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--yd-text);
+  /* A user-written name can be a paste of anything. Wrap it rather than letting
+     it set the card's width. */
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+
+.yd-goal__rank {
+  flex: none;
+  font-size: 0.74rem;
+  padding: 2px var(--yd-space-xs);
+  border-radius: 999px;
+  border: 1px solid var(--yd-border);
+  color: var(--yd-text-muted);
+}
+
+.yd-goal__figures {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--yd-space-2xs) var(--yd-space-xs);
+  font-size: 0.95rem;
+  color: var(--yd-text);
+}
+
+.yd-goal__figures .yd-num {
+  font-family: var(--yd-font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.yd-goal__figures-sep {
+  font-size: 0.84rem;
+  color: var(--yd-text-muted);
+}
+
+.yd-goal__ratio {
+  margin-left: auto;
+  font-family: var(--yd-font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.86rem;
+  color: var(--yd-text-muted);
+}
+
+/* The track is a block in a single-column grid, so it has a definite inline
+   size and the fill's percentage resolves against something real. This is the
+   trap that shipped an invisible figure in phase 1.5. */
+.yd-goal__track {
+  width: 100%;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--yd-surface);
+  border: 1px solid var(--yd-border);
+  overflow: hidden;
+}
+
+.yd-goal__fill {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--yd-accent);
+  /* `width`, not `transform: scaleX()`: this fill sits inside a cell rendered
+     as a motion.* element, whose inline `transform: none` would kill it. */
+  transition: width var(--yd-motion-slow) var(--yd-ease);
+}
+
+.yd-goal__fill--complete {
+  background: var(--yd-positive);
+}
+
+.yd-goal__remaining,
+.yd-goal__projection,
+.yd-goal__wait,
+.yd-goal__deadline {
+  margin: 0;
+  font-size: 0.84rem;
+  line-height: 1.5;
+  color: var(--yd-text-muted);
+}
+
+.yd-goal__projection {
+  color: var(--yd-text);
+}
+
+.yd-goal__projection--none {
+  color: var(--yd-text-muted);
+}
+
+/* The wait before this goal starts being funded. Its own rule, because without
+   it a date sixteen months out reads as an arithmetic error rather than as a
+   queue. */
+.yd-goal__wait {
+  padding-left: var(--yd-space-sm);
+  border-left: 2px solid var(--yd-border-strong);
+  color: var(--yd-text);
+}
+
+.yd-goal__deadline--ontrack {
+  color: var(--yd-positive);
+}
+
+.yd-goal__deadline--late {
+  color: var(--yd-negative-text);
+}
+
+/* The four milestones ----------------------------------------------------- */
+
+/* A fixed 2 x 2, not `auto-fit`, and measured in a browser before being fixed.
+   There are always exactly FOUR milestones, so the only question is what shape
+   they take — and `auto-fit` answered it differently per breakpoint: three
+   across with the fourth orphaned on its own row at 375 and again at 1440,
+   which reads as a broken grid rather than as a set. Two columns is the one
+   shape that holds at every width, and `minmax(0, 1fr)` keeps a long threshold
+   inside its chip instead of letting it set the column. */
+.yd-goal__milestones {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--yd-space-2xs);
+}
+
+.yd-milestone {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1px;
+  padding: var(--yd-space-xs);
+  border-radius: var(--yd-radius-sm);
+  border: 1px solid var(--yd-border);
+  background: var(--yd-surface);
+  min-width: 0;
+}
+
+.yd-milestone--reached {
+  border-color: color-mix(in srgb, var(--yd-positive) 45%, transparent);
+}
+
+.yd-milestone__percent {
+  font-family: var(--yd-font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--yd-text);
+}
+
+.yd-milestone__threshold {
+  font-family: var(--yd-font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.74rem;
+  color: var(--yd-text-muted);
+  overflow-wrap: anywhere;
+}
+
+.yd-milestone__when {
+  font-size: 0.72rem;
+  line-height: 1.35;
+  color: var(--yd-text-muted);
+  overflow-wrap: anywhere;
+}
+
+.yd-milestone--reached .yd-milestone__when {
+  color: var(--yd-positive);
+  font-weight: 600;
+}
+
+/* Row actions ------------------------------------------------------------- */
+
+.yd-goal__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--yd-space-xs);
+}
+
+.yd-goal__confirm {
+  flex: 1 1 18ch;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  color: var(--yd-text);
+}
+
+.yd-goal__action {
+  /* 36px tall, so every control on this screen clears the 24px minimum target
+     WCAG 2.2 (2.5.8) asks for, with room between neighbours. */
+  min-height: 36px;
+  padding: 0 var(--yd-space-sm);
+  border: 1px solid var(--yd-border-control);
+  border-radius: var(--yd-radius-sm);
+  background: transparent;
+  color: var(--yd-text);
+  font: inherit;
+  font-size: 0.84rem;
+  cursor: pointer;
+  transition: border-color var(--yd-motion-fast) var(--yd-ease);
+}
+
+.yd-goal__action:hover {
+  border-color: var(--yd-accent);
+}
+
+.yd-goal__action:focus-visible {
+  outline: 2px solid var(--yd-accent);
+  outline-offset: 2px;
+}
+
+.yd-goal__action--danger {
+  border-color: var(--yd-negative);
+  color: var(--yd-negative-text);
+}
+
+/* The add / edit form ---------------------------------------------------- */
+
+.yd-goal-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--yd-space-sm);
+  padding: var(--yd-space-md);
+  border-radius: var(--yd-radius-sm);
+  border: 1px solid var(--yd-border-strong);
+  background: var(--yd-surface);
+}
+
+.yd-goal-form__title {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--yd-text);
+}
+
+.yd-goal-form__field {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--yd-space-2xs);
+}
+
+.yd-goal-form__field label {
+  font-size: 0.84rem;
+  color: var(--yd-text-muted);
+}
+
+.yd-goal-form__field input {
+  width: 100%;
+  min-height: 36px;
+  padding: 0 var(--yd-space-xs);
+  border: 1px solid var(--yd-border-control);
+  border-radius: var(--yd-radius-sm);
+  background: var(--yd-surface-strong);
+  color: var(--yd-text);
+  font: inherit;
+  font-size: 0.9rem;
+}
+
+.yd-goal-form__field input:focus-visible {
+  outline: 2px solid var(--yd-accent);
+  outline-offset: 1px;
+}
+
+.yd-goal-form__field input[aria-invalid="true"] {
+  border-color: var(--yd-negative);
+}
+
+.yd-goal-form__error {
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  color: var(--yd-negative-text);
+}
+
+.yd-goal-form__note {
+  margin: 0;
+  font-size: 0.8rem;
+  line-height: 1.45;
+  color: var(--yd-text-muted);
+}
+
+.yd-goal-form__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--yd-space-xs);
+}
+
+.yd-goal-form__save,
+.yd-goal-form__cancel {
+  min-height: 36px;
+  padding: 0 var(--yd-space-md);
+  border-radius: var(--yd-radius-sm);
+  border: 1px solid var(--yd-border-control);
+  background: transparent;
+  color: var(--yd-text);
+  font: inherit;
+  font-size: 0.86rem;
+  cursor: pointer;
+  transition: border-color var(--yd-motion-fast) var(--yd-ease);
+}
+
+.yd-goal-form__save {
+  border-color: var(--yd-accent);
+  color: var(--yd-accent);
+  font-weight: 600;
+}
+
+.yd-goal-form__save:hover:not(:disabled),
+.yd-goal-form__cancel:hover:not(:disabled) {
+  border-color: var(--yd-accent);
+}
+
+.yd-goal-form__save:disabled,
+.yd-goal-form__cancel:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.yd-goal-form__save:focus-visible,
+.yd-goal-form__cancel:focus-visible {
+  outline: 2px solid var(--yd-accent);
+  outline-offset: 2px;
+}
+
+/* From 640px the form's short fields pair up rather than each taking a full
+   line — at 375 they stay stacked. */
+@media (min-width: 640px) {
+  .yd-goal-form {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .yd-goal-form__title,
+  .yd-goal-form__note,
+  .yd-goal-form__actions,
+  .yd-goal-form__error--form {
+    grid-column: 1 / -1;
+  }
+}
+
+/* Skeletons -------------------------------------------------------------- */
+
+/* The bar itself is design/Skeleton.css's; these are only the sizes, each one
+   the line box of the block it stands in for, so the cells are as tall before
+   the data lands as after and nothing on the page moves. */
+
+.yd-skeleton--goal-title {
+  height: calc(0.95rem * 1.5);
+  width: 38%;
+}
+
+.yd-skeleton--goal-capacity {
+  height: 150px;
+}
+
+.yd-skeleton--goal-card {
+  height: 260px;
+}

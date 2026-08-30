@@ -6,6 +6,7 @@ import { BudgetsPage } from "../features/budgets/BudgetsPage";
 import { CashflowPage } from "../features/cashflow/CashflowPage";
 import { DebtsPage } from "../features/debts/DebtsPage";
 import { DesignSystemPage } from "../features/design-system/DesignSystemPage";
+import { GoalsPage } from "../features/goals/GoalsPage";
 import { RegisterPage } from "../features/auth/RegisterPage";
 import { RequireAuth } from "../features/auth/RequireAuth";
 import { ImportPage } from "../features/import/ImportPage";
@@ -58,6 +59,7 @@ export const router = createBrowserRouter([
           { path: "tresorerie", element: <CashflowPage /> },
           { path: "analyse", element: <AnalysisPage /> },
           { path: "dettes", element: <DebtsPage /> },
+          { path: "objectifs", element: <GoalsPage /> },
           { path: "categories", element: <CategoriesPlaceholder /> },
           { path: "import", element: <ImportPage /> },
           { path: "reglages", element: <SettingsPage /> },

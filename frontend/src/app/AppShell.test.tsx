@@ -95,6 +95,7 @@ describe("AppShell", () => {
       "Trésorerie",
       "Analyse",
       "Dettes",
+      "Objectifs",
       "Catégories",
       "Import",
       "Réglages",

@@ -23,6 +23,7 @@ const NAV_ITEMS: NavItem[] = [
   { to: "/tresorerie", label: "Trésorerie" },
   { to: "/analyse", label: "Analyse" },
   { to: "/dettes", label: "Dettes" },
+  { to: "/objectifs", label: "Objectifs" },
   { to: "/categories", label: "Catégories" },
   { to: "/import", label: "Import" },
   { to: "/reglages", label: "Réglages" },

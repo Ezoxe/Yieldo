@@ -701,3 +701,87 @@ export interface DebtIn {
   term_months: number | null;
   opened_on: string | null;
 }
+
+// -- Objectifs ---------------------------------------------------------------
+//
+// Mirrors backend/app/schemas/goals.py. See engines/goal.py for the sequential
+// funding rule and for the FOUR refusals it can emit.
+
+export interface Goal {
+  id: number;
+  name: string;
+  target_cents: number;
+  /** DECLARED by the user, never measured: Yieldo cannot tell which euros in a
+   *  savings account belong to which goal. It carries no history, which is why
+   *  a reached milestone has no date. */
+  saved_cents: number;
+  due_on: string | null;
+  /** Lower is more urgent. Goals are funded one at a time in this order. */
+  priority: number;
+  archived: boolean;
+}
+
+/** Phase 2C's engagement milestones read this shape. */
+export interface Milestone {
+  percent: number;
+  threshold_cents: number;
+  reached: boolean;
+  /** null on a REACHED milestone — `saved_cents` is declared with no history,
+   *  so Yieldo does not know when the threshold was crossed. Rendering today's
+   *  date there would claim it happened now. Also null whenever the goal's own
+   *  projection refused. */
+  months_away: number | null;
+  projected_on: string | null;
+}
+
+export interface GoalProgress {
+  goal_id: number;
+  name: string;
+  target_cents: number;
+  saved_cents: number;
+  /** Floored at 0. `progress_ratio` is not clamped and reads above 1 when the
+   *  goal is overfunded. */
+  remaining_cents: number;
+  progress_ratio: number;
+  milestones: Milestone[];
+  /** Months before this goal receives anything. Say it on screen, or a far-off
+   *  date reads as a bug. */
+  funding_starts_in_months: number;
+  months_to_completion: number | null;
+  projected_completion_on: string | null;
+  /** French, from the engine. Names WHICH of FOUR causes applies — no
+   *  measurable capacity, a capacity that is negative or zero, a projection
+   *  past fifty years, or a MORE URGENT goal that is itself unreachable and
+   *  holds the whole capacity. Print verbatim; the four remedies are different,
+   *  and sending someone to /import to fix a negative capacity is the exact
+   *  defect this wording exists to prevent.
+   *
+   *  (`backend/app/schemas/goals.py` still says "three causes" in its own
+   *  comment; `engines/goal.py` emits four — `_reason_blocked_by` is the one
+   *  the schema comment predates.) */
+  projection_unavailable_reason: string | null;
+  due_on: string | null;
+  months_until_due: number | null;
+  /** THREE states. null is not false: it means no verdict is possible, either
+   *  because there is no deadline or because no date could be projected. */
+  on_track: boolean | null;
+}
+
+export interface GoalReport {
+  /** In funding order (priority, then id), not creation order. */
+  goals: GoalProgress[];
+  /** null below three complete observed months. **Signed** — `median_cents` is
+   *  negative for a household spending more than it earns. */
+  capacity: MeasuredRate | null;
+  months_observed: number;
+  history: History | null;
+}
+
+/** What POST /goals and PATCH /goals/{id} accept. */
+export interface GoalIn {
+  name: string;
+  target_cents: number;
+  saved_cents: number;
+  due_on: string | null;
+  priority: number;
+}

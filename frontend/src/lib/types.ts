@@ -610,3 +610,94 @@ export interface PriceIndexPoint {
   /** An index level, not money: 118.42 arrives as 11842. */
   value_hundredths: number;
 }
+
+// -- Dettes ------------------------------------------------------------------
+//
+// Mirrors backend/app/schemas/debts.py. See engines/debt.py for the two
+// refusals and for why a constant monthly budget is the whole mechanism.
+
+/** `principal_cents` is a POSITIVE magnitude — capital restant dû. The one
+ *  deliberate exception to the negative-means-outflow convention every other
+ *  amount in this file follows. Do not negate it for display. */
+export interface Debt {
+  id: number;
+  name: string;
+  kind: string;
+  principal_cents: number;
+  /** Basis points: 490 is 4,90 %/an. A rate is not money — it never goes
+   *  through `parseCents`/`formatCents`. */
+  annual_rate_bps: number;
+  minimum_payment_cents: number;
+  term_months: number | null;
+  opened_on: string | null;
+  archived: boolean;
+}
+
+export interface DebtPayoff {
+  debt_id: number;
+  name: string;
+  cleared_in_months: number;
+  cleared_on: string;
+  interest_cents: number;
+  paid_cents: number;
+}
+
+export interface BalancePoint {
+  month: number;
+  on: string;
+  /** Keyed by debt id AS A STRING — JSON object keys always are. Every debt in
+   *  the plan appears at every point, cleared ones as 0, so a stacked chart has
+   *  a value for every series at every x. */
+  balances_cents: Record<string, number>;
+  total_cents: number;
+}
+
+export interface PayoffPlan {
+  strategy: string;
+  /** Constant for the whole plan: every debt's contractual minimum plus the
+   *  extra the household commits. It does not shrink as debts clear. */
+  monthly_budget_cents: number;
+  /** What every debt costs in interest in month one, together. Published so a
+   *  screen can state a budget refusal's shortfall in euros. */
+  first_month_interest_cents: number;
+  /** null exactly when `unavailable_reason` is set. 0 with a null reason is a
+   *  user with no debts — an answer, not a refusal. */
+  months: number | null;
+  cleared_on: string | null;
+  total_interest_cents: number;
+  total_paid_cents: number;
+  /** Debt ids in attack order. Populated even on a refusal. */
+  order: number[];
+  payoffs: DebtPayoff[];
+  /** Empty on both refusal branches and on an empty debt list. Check `months`
+   *  before rendering a chart from it. */
+  points: BalancePoint[];
+  /** French, from the engine. Print verbatim — it names which of two distinct
+   *  causes applies, and paraphrasing is how this project has repeatedly ended
+   *  up telling the user the wrong one. */
+  unavailable_reason: string | null;
+}
+
+export interface StrategyComparison {
+  snowball: PayoffPlan;
+  avalanche: PayoffPlan;
+  /** Snowball's interest minus avalanche's, so a positive value means avalanche
+   *  is cheaper. null when either plan refused. 0 is a real answer (one debt, or
+   *  two at the same rate), and a NEGATIVE value is one too: rounding each
+   *  month's interest to the cent can put avalanche a cent behind. */
+  interest_saved_cents: number | null;
+  months_saved: number | null;
+}
+
+/** What POST /debts and PATCH /debts/{id} accept. Every amount already in
+ *  integer cents, every rate already in basis points — the form converts at the
+ *  input boundary, nothing downstream re-reads a euro string. */
+export interface DebtIn {
+  name: string;
+  kind: string;
+  principal_cents: number;
+  annual_rate_bps: number;
+  minimum_payment_cents: number;
+  term_months: number | null;
+  opened_on: string | null;
+}

@@ -1,0 +1,591 @@
+.yd-debts {
+  max-width: 1280px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-lg);
+}
+
+.yd-debts__header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-2xs);
+}
+
+.yd-debts h1 {
+  margin: 0;
+  font-size: clamp(1.4rem, 2.2vw, 1.75rem);
+  letter-spacing: -0.015em;
+  color: var(--yd-text);
+}
+
+.yd-debts__lead {
+  margin: 0;
+  max-width: 84ch;
+  font-size: 0.9rem;
+  color: var(--yd-text-muted);
+}
+
+/* Every cell sizes to its own content rather than stretching to the tallest in
+   its row. The declared list and the two strategies hold very different amounts
+   of content — with no debts at all the strategies cell is one sentence — and a
+   stretched cell leaves a card's worth of blank surface under its last line,
+   which reads as something having failed to load. Measured in a browser at
+   1440 on the empty state. */
+.yd-debts .yd-bento {
+  align-items: start;
+}
+
+/* Prose ------------------------------------------------------------------ */
+
+.yd-debts__note,
+.yd-debts__caption,
+.yd-debts__none {
+  margin: 0;
+  max-width: 84ch;
+  font-size: 0.86rem;
+  line-height: 1.5;
+  color: var(--yd-text-muted);
+}
+
+/* The declared list ------------------------------------------------------ */
+
+.yd-debts__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  /* A GRID, not an auto-width flex column: a long debt name would otherwise
+     set the track's width and push the row past the cell at 375px. */
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--yd-space-sm);
+}
+
+.yd-debts__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--yd-space-xs);
+  padding: var(--yd-space-sm);
+  border-radius: var(--yd-radius-sm);
+  border: 1px solid var(--yd-border);
+  /* --yd-surface, not --yd-surface-strong: the row is a compartment inside a
+     cell, and repeating the cell's own opaque surface would leave the border
+     as the only thing separating them. */
+  background: var(--yd-surface);
+}
+
+.yd-debts__row-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--yd-space-xs);
+}
+
+.yd-debts__name {
+  font-weight: 600;
+  color: var(--yd-text);
+  /* A user-written name can be a paste of a bank statement line. Wrap it
+     rather than letting it set the row's width. */
+  overflow-wrap: anywhere;
+}
+
+.yd-debts__kind {
+  font-size: 0.78rem;
+  padding: 2px var(--yd-space-xs);
+  border-radius: 999px;
+  border: 1px solid var(--yd-border);
+  color: var(--yd-text-muted);
+}
+
+/* Three figures across, each shrinking to fit rather than to a 1fr track:
+   at 375 they wrap onto as many lines as they need. */
+.yd-debts__figures,
+.yd-plan__figures {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--yd-space-xs) var(--yd-space-md);
+}
+
+.yd-debts__figures > div,
+.yd-plan__figures > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.yd-debts__figures dt,
+.yd-plan__figures dt {
+  font-size: 0.76rem;
+  color: var(--yd-text-muted);
+}
+
+.yd-debts__figures dd,
+.yd-plan__figures dd {
+  margin: 0;
+  font-family: var(--yd-font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.95rem;
+  color: var(--yd-text);
+}
+
+.yd-debts__row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--yd-space-xs);
+}
+
+.yd-debts__confirm {
+  flex: 1 1 18ch;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  color: var(--yd-text);
+}
+
+.yd-debts__action,
+.yd-debts__add {
+  /* 36px tall, so every control on this screen clears the 24px minimum target
+     WCAG 2.2 (2.5.8) asks for, with room between neighbours. */
+  min-height: 36px;
+  padding: 0 var(--yd-space-sm);
+  border: 1px solid var(--yd-border-control);
+  border-radius: var(--yd-radius-sm);
+  background: transparent;
+  color: var(--yd-text);
+  font: inherit;
+  font-size: 0.84rem;
+  cursor: pointer;
+  transition: border-color var(--yd-motion-fast) var(--yd-ease);
+}
+
+.yd-debts__add {
+  align-self: start;
+}
+
+.yd-debts__action:hover,
+.yd-debts__add:hover {
+  border-color: var(--yd-accent);
+}
+
+.yd-debts__action:focus-visible,
+.yd-debts__add:focus-visible {
+  outline: 2px solid var(--yd-accent);
+  outline-offset: 2px;
+}
+
+.yd-debts__action--danger {
+  border-color: var(--yd-negative);
+  color: var(--yd-negative-text);
+}
+
+/* The extra-payment control --------------------------------------------- */
+
+.yd-debts__extra {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--yd-space-2xs);
+  padding: var(--yd-space-sm);
+  border-radius: var(--yd-radius-sm);
+  border: 1px solid var(--yd-border);
+  background: var(--yd-surface);
+}
+
+.yd-debts__extra label {
+  font-size: 0.84rem;
+  color: var(--yd-text-muted);
+}
+
+.yd-debts__extra input {
+  /* A definite inline size, never a percentage inside an auto-width column:
+     a percent width in a flex/grid track that sizes to content resolves to
+     zero, which is how this project has lost an input before. */
+  width: min(100%, 16ch);
+  min-height: 36px;
+  padding: 0 var(--yd-space-xs);
+  border: 1px solid var(--yd-border-control);
+  border-radius: var(--yd-radius-sm);
+  background: var(--yd-surface-strong);
+  color: var(--yd-text);
+  font: inherit;
+  font-family: var(--yd-font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.yd-debts__extra input:focus-visible {
+  outline: 2px solid var(--yd-accent);
+  outline-offset: 1px;
+}
+
+.yd-debts__field-error {
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  color: var(--yd-negative-text);
+}
+
+/* The visible half of the busy state. `aria-busy` alone is not a state the
+   operator can see, and a panel that silently keeps stale figures while a new
+   plan is in flight was phase 2A's most visible deferral. */
+.yd-debts__busy {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--yd-space-xs);
+  font-size: 0.82rem;
+  color: var(--yd-text-muted);
+}
+
+.yd-debts__spinner {
+  width: 12px;
+  height: 12px;
+  flex: none;
+  border-radius: 50%;
+  border: 2px solid var(--yd-border-strong);
+  border-top-color: var(--yd-accent);
+  animation: yd-debts-spin 720ms linear infinite;
+}
+
+@keyframes yd-debts-spin {
+  to {
+    rotate: 360deg;
+  }
+}
+
+/* Both gates on motion, not one: the OS preference AND the Réglages switch. */
+@media (prefers-reduced-motion: reduce) {
+  .yd-debts__spinner {
+    animation: none;
+  }
+}
+
+:root[data-motion="off"] .yd-debts__spinner {
+  animation: none;
+}
+
+/* Stale figures are dimmed while the next plan is in flight — never hidden,
+   because the previous answer is still the last true one. */
+.yd-debts__plans--busy {
+  opacity: 0.55;
+  transition: opacity var(--yd-motion-fast) var(--yd-ease);
+}
+
+/* The two strategy panels ------------------------------------------------ */
+
+.yd-debts__plans {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--yd-space-md);
+}
+
+/* 640px, not the bento's 768: at md this cell already spans all six columns,
+   so it has the width for two panels well before the grid changes shape. */
+@media (min-width: 640px) {
+  .yd-debts__plans {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    /* Panels keep the row's height rather than each stretching to it: a
+       computed plan beside a refused one would otherwise grow a card's worth
+       of dead space under the shorter of the two. */
+    align-items: start;
+  }
+}
+
+.yd-plan {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--yd-space-2xs);
+  padding: var(--yd-space-sm);
+  border-radius: var(--yd-radius-sm);
+  border: 1px solid var(--yd-border);
+  background: var(--yd-surface);
+}
+
+/* A refused plan keeps the same box and the same height rules as a computed
+   one: a card that shrinks when the answer is a refusal reads as the answer
+   mattering less, and it does not. */
+.yd-plan--unavailable {
+  border-style: dashed;
+}
+
+.yd-plan__label {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  line-height: 1.5;
+  color: var(--yd-text);
+}
+
+.yd-plan__rule,
+.yd-plan__years,
+.yd-plan__cleared,
+.yd-plan__order-label {
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  color: var(--yd-text-muted);
+}
+
+.yd-plan__months {
+  margin: 0;
+  font-family: var(--yd-font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+  font-size: clamp(1.15rem, 3vw, 1.5rem);
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--yd-text);
+}
+
+.yd-plan__figures {
+  padding-top: var(--yd-space-2xs);
+}
+
+/* The attack order. `list-style-position: inside` keeps the marker inside the
+   panel's padding box: with the default `outside` the numerals hang into the
+   gutter and were clipped at 375px. */
+.yd-plan__order {
+  margin: 0;
+  padding: 0;
+  list-style-position: inside;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 2px;
+  font-size: 0.86rem;
+  color: var(--yd-text);
+}
+
+.yd-plan__order li {
+  overflow-wrap: anywhere;
+}
+
+/* A refusal is content, not an error: it says what is missing and how to fix
+   it. The warning rule, never the negative colour, which this screen reserves
+   for something having actually gone wrong. */
+.yd-plan__unavailable,
+.yd-debts__unavailable {
+  margin: 0;
+  max-width: 96ch;
+  padding: var(--yd-space-sm) var(--yd-space-md);
+  border-radius: var(--yd-radius-sm);
+  border: 1px solid var(--yd-border-strong);
+  border-left: 3px solid var(--yd-warning);
+  background: var(--yd-surface);
+  color: var(--yd-text);
+  font-size: 0.88rem;
+  line-height: 1.55;
+}
+
+/* What the choice of order actually buys — the sentence the screen exists for,
+   so it keeps full text colour and the accent rule. */
+.yd-debts__saving {
+  margin: 0;
+  max-width: 96ch;
+  padding: var(--yd-space-sm) var(--yd-space-md);
+  border-radius: var(--yd-radius-sm);
+  border: 1px solid var(--yd-border-strong);
+  border-left: 3px solid var(--yd-accent);
+  background: var(--yd-surface-strong);
+  color: var(--yd-text);
+  font-size: 0.92rem;
+  line-height: 1.55;
+}
+
+/* The chart's strategy switch ------------------------------------------- */
+
+.yd-debts__strategy {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--yd-space-sm);
+}
+
+.yd-debts__strategy legend {
+  /* A legend is out of flow in a flex container, so it is placed as its own
+     line above the options rather than fought with. */
+  padding: 0;
+  font-size: 0.84rem;
+  color: var(--yd-text-muted);
+}
+
+.yd-debts__strategy-option {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--yd-space-2xs);
+  min-height: 36px;
+  font-size: 0.86rem;
+  color: var(--yd-text);
+  cursor: pointer;
+}
+
+.yd-debts__strategy-option input {
+  accent-color: var(--yd-accent);
+  width: 16px;
+  height: 16px;
+}
+
+/* Alert ------------------------------------------------------------------ */
+
+/* Reserved for something having gone wrong — a failed load, a rejected write.
+   A refusal from the engine never lands here. */
+.yd-debts__alert {
+  margin: 0;
+  padding: var(--yd-space-sm) var(--yd-space-md);
+  border-radius: var(--yd-radius-sm);
+  background: color-mix(in srgb, var(--yd-negative) 14%, transparent);
+  border: 1px solid var(--yd-negative);
+  color: var(--yd-negative-text);
+  font-size: 0.9rem;
+}
+
+/* The add / edit form ---------------------------------------------------- */
+
+.yd-debt-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--yd-space-sm);
+  padding: var(--yd-space-md);
+  border-radius: var(--yd-radius-sm);
+  border: 1px solid var(--yd-border-strong);
+  background: var(--yd-surface);
+}
+
+.yd-debt-form__title {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--yd-text);
+}
+
+.yd-debt-form__field {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--yd-space-2xs);
+}
+
+.yd-debt-form__field label {
+  font-size: 0.84rem;
+  color: var(--yd-text-muted);
+}
+
+.yd-debt-form__field input,
+.yd-debt-form__field select {
+  width: 100%;
+  min-height: 36px;
+  padding: 0 var(--yd-space-xs);
+  border: 1px solid var(--yd-border-control);
+  border-radius: var(--yd-radius-sm);
+  background: var(--yd-surface-strong);
+  color: var(--yd-text);
+  font: inherit;
+  font-size: 0.9rem;
+}
+
+.yd-debt-form__field input:focus-visible,
+.yd-debt-form__field select:focus-visible {
+  outline: 2px solid var(--yd-accent);
+  outline-offset: 1px;
+}
+
+.yd-debt-form__field input[aria-invalid="true"] {
+  border-color: var(--yd-negative);
+}
+
+.yd-debt-form__error {
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  color: var(--yd-negative-text);
+}
+
+.yd-debt-form__note {
+  margin: 0;
+  font-size: 0.8rem;
+  line-height: 1.45;
+  color: var(--yd-text-muted);
+}
+
+.yd-debt-form__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--yd-space-xs);
+}
+
+.yd-debt-form__save,
+.yd-debt-form__cancel {
+  min-height: 36px;
+  padding: 0 var(--yd-space-md);
+  border-radius: var(--yd-radius-sm);
+  border: 1px solid var(--yd-border-control);
+  background: transparent;
+  color: var(--yd-text);
+  font: inherit;
+  font-size: 0.86rem;
+  cursor: pointer;
+  transition: border-color var(--yd-motion-fast) var(--yd-ease);
+}
+
+.yd-debt-form__save {
+  border-color: var(--yd-accent);
+  color: var(--yd-accent);
+  font-weight: 600;
+}
+
+.yd-debt-form__save:hover:not(:disabled),
+.yd-debt-form__cancel:hover:not(:disabled) {
+  border-color: var(--yd-accent);
+}
+
+.yd-debt-form__save:disabled,
+.yd-debt-form__cancel:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.yd-debt-form__save:focus-visible,
+.yd-debt-form__cancel:focus-visible {
+  outline: 2px solid var(--yd-accent);
+  outline-offset: 2px;
+}
+
+/* From 640px the form's short fields pair up rather than each taking a full
+   line — at 375 they stay stacked. */
+@media (min-width: 640px) {
+  .yd-debt-form {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .yd-debt-form__title,
+  .yd-debt-form__note,
+  .yd-debt-form__actions,
+  .yd-debt-form__error--form {
+    grid-column: 1 / -1;
+  }
+}
+
+/* Skeletons -------------------------------------------------------------- */
+
+/* The bar itself is design/Skeleton.css's; these are only the sizes, each one
+   the line box of the block it stands in for, so the cells are as tall before
+   the data lands as after and nothing on the page moves. */
+
+.yd-skeleton--debt-title {
+  height: calc(0.95rem * 1.5);
+  width: 38%;
+}
+
+.yd-skeleton--debt-list {
+  height: 220px;
+}
+
+.yd-skeleton--debt-plans {
+  height: 260px;
+}
+
+/* The chart, at the height DebtPayoffChart passes to <Chart>, plus its
+   strategy switch. */
+.yd-skeleton--debt-chart {
+  height: 348px;
+}

@@ -1,0 +1,32 @@
+/* The payoff chart's key, drawn in HTML rather than inside the canvas.
+   See `payoffLegend` in DebtPayoffChart.tsx for why: an ECharts legend wraps
+   onto as many rows as it needs while `grid.top` stays a fixed number of
+   pixels, and at 375px with three user-named debts the third row was painted
+   over the plot. Here the browser wraps the rows and the card grows to fit. */
+.yd-payoff-legend {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--yd-space-2xs) var(--yd-space-md);
+  font-size: 0.82rem;
+  color: var(--yd-text-muted);
+}
+
+.yd-payoff-legend__item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--yd-space-2xs);
+  /* A pasted bank label can be long; wrap it rather than let it set the row's
+     width and push the card past the viewport. */
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.yd-payoff-legend__swatch {
+  width: 12px;
+  height: 12px;
+  flex: none;
+  border-radius: 3px;
+}

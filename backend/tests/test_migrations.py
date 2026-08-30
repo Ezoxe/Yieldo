@@ -189,3 +189,60 @@ def test_downgrade_then_upgrade_again_is_clean_and_loses_no_rows(migration_db):
 
     assert count_after_second_upgrade == total
     assert essential_after_second_upgrade == ESSENTIAL_SLUGS
+
+
+PHASE_2B_REVISION = "d1a4c9e77b02"
+PHASE_2B_PREVIOUS = "c3f81a20d5e4"
+
+
+def test_the_phase_2b_migration_adds_three_tables_to_a_populated_database(migration_db):
+    """Run the real `upgrade()` against a database built at the PREVIOUS
+    revision with rows already in it -- the shape an operator's database
+    actually has. The suite's `db` fixture builds schema from
+    `Base.metadata`, so without this the migration file is never executed
+    anywhere."""
+    command.upgrade(migration_db.config, PHASE_2B_PREVIOUS)
+    conn = _connect(migration_db)
+    conn.execute(
+        "INSERT INTO users (id, email, name, password_hash, role, is_active, created_at) "
+        "VALUES (1, 'a@b.fr', 'Max', 'x', 'user', 1, '2026-01-01T00:00:00')"
+    )
+    conn.commit()
+    conn.close()
+
+    command.upgrade(migration_db.config, PHASE_2B_REVISION)
+
+    conn = _connect(migration_db)
+    tables = {
+        row[0]
+        for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()
+    }
+    assert {"debts", "goals", "scenarios"} <= tables
+    # The pre-existing user survived, and the new tables really do enforce the
+    # foreign key -- a table created without it would accept this insert.
+    assert conn.execute("SELECT COUNT(*) FROM users").fetchone()[0] == 1
+    conn.execute(
+        "INSERT INTO goals (id, user_id, name, target_cents, saved_cents, priority, archived) "
+        "VALUES (1, 1, 'Fonds', 600000, 0, 100, 0)"
+    )
+    conn.commit()
+    with pytest.raises(sqlite3.IntegrityError):
+        conn.execute(
+            "INSERT INTO goals (id, user_id, name, target_cents, saved_cents, priority, archived) "
+            "VALUES (2, 4242, 'Orphelin', 1, 0, 100, 0)"
+        )
+    conn.close()
+
+
+def test_the_phase_2b_migration_rolls_back_cleanly(migration_db):
+    command.upgrade(migration_db.config, PHASE_2B_REVISION)
+    command.downgrade(migration_db.config, PHASE_2B_PREVIOUS)
+    conn = _connect(migration_db)
+    tables = {
+        row[0]
+        for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()
+    }
+    assert not ({"debts", "goals", "scenarios"} & tables)
+    # The tables the previous revision owns are untouched.
+    assert "price_index_points" in tables
+    conn.close()

@@ -95,7 +95,24 @@ def monthly_payment_cents(principal_cents: int, annual_rate_bps: int, months: in
         return cents(Decimal(principal_cents) / Decimal(months))
     factor = (Decimal(1) + rate) ** months
     exact = Decimal(principal_cents) * rate * factor / (factor - Decimal(1))
-    return cents(exact)
+    payment = cents(exact)
+    # A level payment that does not cover the first month's interest is not an
+    # instalment: the balance GROWS. The closed form above can never produce
+    # one, but rounding to the cent can, on a tiny capital at a punitive rate.
+    # Interest is highest in month one, so this single comparison decides the
+    # whole schedule -- clear it and the balance falls monotonically. Left
+    # unchecked, `build_schedule` compounds the balance by roughly 1,8x a month
+    # until it outruns Decimal's context and raises `InvalidOperation`: an
+    # English traceback out of an input `_validate` had just accepted.
+    # Guarded on `> 0` because a capital small enough to round its interest to
+    # nothing amortises perfectly well on a payment of zero.
+    first_interest = cents(Decimal(principal_cents) * rate)
+    if first_interest > 0 and payment <= first_interest:
+        raise ValueError(
+            "La mensualité ne couvrirait même pas les intérêts du premier mois : "
+            "à ce taux et sur cette durée, le capital ne serait jamais remboursé."
+        )
+    return payment
 
 
 @dataclass(frozen=True)
@@ -191,5 +208,7 @@ def debt_ratio_bps(monthly_payments_cents: int, monthly_income_cents: int | None
         return None
     return int(
         (Decimal(monthly_payments_cents) * _BPS / Decimal(monthly_income_cents))
-        .quantize(_ONE_CENT, rounding=ROUND_HALF_UP)
+        # To the nearest whole basis point -- not to the cent. Same exponent,
+        # different unit, so `cents()` would read as a unit error here.
+        .quantize(Decimal(1), rounding=ROUND_HALF_UP)
     )

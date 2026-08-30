@@ -13,11 +13,21 @@ from app.engines.amortization import (
 
 
 def test_monthly_rate_is_an_exact_decimal_never_a_float():
-    """A float rate multiplied into a cents value smuggles a float into money.
-    350 bps is 3,50 %/an, so 0,0029166... per month -- exact in Decimal."""
+    """A float rate multiplied into a cents value smuggles a float into money,
+    so the TYPE is the contract, not the value: 1 200 bps happens to be exactly
+    0,01 a month in binary float too, and a fixture that only checks the number
+    would pass against an implementation returning a float.
+
+    350 bps is the honest case: 0,035/12 does not terminate in base 10 either,
+    and Decimal carries it to context precision rather than to infinity. What
+    is guaranteed is that it agrees with the same division done in Decimal --
+    not that it is exact.
+    """
     rate = monthly_rate(1200)
     assert isinstance(rate, Decimal)
     assert rate == Decimal("0.01")
+    assert isinstance(monthly_rate(350), Decimal)
+    assert monthly_rate(350) == Decimal(350) / Decimal(10_000) / Decimal(12)
 
 
 def test_a_zero_rate_loan_divides_the_capital_evenly():
@@ -163,3 +173,48 @@ def test_an_overshooting_level_payment_does_not_go_past_zero():
     assert len(schedule.rows) == 4
     assert [row.remaining_cents for row in schedule.rows] == [5, 3, 1, 0]
     assert all(row.remaining_cents >= 0 for row in schedule.rows)
+
+
+def test_a_payment_that_cannot_cover_the_first_interest_is_refused():
+    """A level payment smaller than the first month's interest is not a loan
+    that amortises -- the balance GROWS. Interest is highest in month 1, so
+    that single comparison decides the whole schedule: pass it and the balance
+    falls monotonically, fail it and it compounds.
+
+    Left unguarded, `principal = payment - interest` goes negative, `remaining`
+    grows by ~1,8x a month, and after roughly a hundred rows the running
+    balance exceeds Decimal's 28-digit context and `cents()` raises
+    `decimal.InvalidOperation` -- a Python traceback, in English, from an input
+    `_validate` had just accepted. 2 c at 300 %/an over 360 months does exactly
+    that. The refusal must be a French `ValueError`, like every other one here.
+    """
+    with pytest.raises(ValueError, match="mensualité"):
+        build_schedule(2, 30_000, 360)
+
+
+def test_a_payment_that_only_covers_the_interest_is_refused_too():
+    """Shorter terms never reach the crash: they stall instead. 999 c at
+    1 000 %/an over 50 months rounds to a payment exactly equal to the monthly
+    interest, so 49 rows repay ZERO capital and the final-month override dumps
+    the entire principal onto instalment 50 -- a balloon printed as an
+    amortisation table.
+
+    The exactness invariant cannot catch this: the principal components still
+    sum to the capital, because the last row is forced to whatever is left.
+    Only the payment-covers-interest bar catches it.
+    """
+    with pytest.raises(ValueError, match="mensualité"):
+        build_schedule(999, 100_000, 50)
+
+
+def test_a_zero_rate_loan_too_small_to_have_a_payment_still_amortises():
+    """The guard compares the payment against the interest, and must not fire
+    when there IS no interest. 1 c over 12 months at 0 % rounds to a 0 c level
+    payment; nothing compounds, and the final-month override repays the cent.
+    A guard written as `payment <= interest` without the `interest > 0`
+    condition would refuse this legitimate schedule.
+    """
+    schedule = build_schedule(1, 0, 12)
+    assert schedule.total_interest_cents == 0
+    assert sum(row.principal_cents for row in schedule.rows) == 1
+    assert schedule.rows[-1].remaining_cents == 0

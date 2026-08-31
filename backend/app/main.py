@@ -18,6 +18,7 @@ from app.api import feasibility as feasibility_routes
 from app.api import goals as goal_routes
 from app.api import imports as import_routes
 from app.api import recurrences as recurrence_routes
+from app.api import simulators as simulator_routes
 from app.api import transactions as transaction_routes
 from app.api.errors import french_validation_detail
 from app.config import settings
@@ -70,6 +71,7 @@ api.include_router(cashflow_routes.router)
 api.include_router(debt_routes.router)
 api.include_router(goal_routes.router)
 api.include_router(feasibility_routes.router)
+api.include_router(simulator_routes.router)
 
 app.include_router(api)
 

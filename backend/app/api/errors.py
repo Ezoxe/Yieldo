@@ -80,6 +80,19 @@ FIELD_SUBJECTS: dict[str, str] = {
     "monthly_cents": "Le montant mensuel",
     "residual_cents": "La valeur de rachat",
     "deposit_cents": "L'apport initial",
+    # Task 18's simulator schemas.
+    "initial_cents": "Le capital de départ",
+    # Shared bare field name between `CreditIn.months` and `SavingsIn.months`.
+    "months": "La durée",
+    "price_cents": "Le prix du bien",
+    "notary_bps": "Les frais de notaire",
+    "insurance_bps_per_year": "L'assurance emprunteur",
+    "monthly_charges_cents": "Les charges",
+    "annual_property_tax_cents": "La taxe foncière",
+    "monthly_rent_cents": "Le loyer",
+    "years": "La durée de comparaison",
+    "annual_return_bps": "Le taux de rendement",
+    "appreciation_bps_per_year": "La revalorisation annuelle",
 }
 
 # One template per pydantic error type, formatted with the field's subject.

@@ -539,3 +539,52 @@ def test_the_emergency_impact_names_the_burn_behind_its_months(client, db):
     assert emergency["unavailable_reason"] is None
     assert emergency["runway_months_before"] is not None
     assert emergency["monthly_burn_cents"] == 200_000
+
+
+def test_a_category_absent_from_a_month_counts_that_month_as_zero(client, db):
+    """`CategoryHistory.monthly_cents` is "one entry per complete observed
+    month". `_category_history` was building one entry per month the category
+    HAPPENED to appear in, so a rent paid once in three months had a median of
+    its single payment rather than of {0, 0, 780} -- and won "la plus lourde"
+    over a category actually spent every month.
+
+    The card then printed that figure under "Ce qu'il coûte un mois normal",
+    and the refusal asserted the heaviest category "coûte moins que cela un
+    mois normal" -- false for a month in which it cost nothing at all. The same
+    wrong denominator fed `months_observed`, so the screen also mis-stated how
+    many months it had looked at.
+
+    `test_the_cut_category_lever_names_a_real_category_from_the_ledger` cannot
+    catch this: its category is present in every month, where the two
+    definitions agree.
+    """
+    email = "trous@example.fr"
+    headers = _register(client, email)
+    user_id = _user_id(db, email)
+    account = Account(user_id=user_id, name="Courant", kind="checking", currency="EUR",
+                      opening_balance_cents=1_000_000, include_in_net_worth=True,
+                      archived=False)
+    db.add(account)
+    category = Category(user_id=user_id, name="Loyer", slug="loyer", kind="expense",
+                        color="#7ee2d6", icon="home", position=1, is_essential=True)
+    db.add(category)
+    db.flush()
+
+    # Feb, Mar and Apr 2025 are the three complete months; the rent is paid in
+    # April only. Salary every month so a capacity can be measured at all.
+    for month in (1, 2, 3, 4, 5):
+        _tx(db, user_id, account.id, date(2025, month, 5), 300_000, f"SALAIRE {month}")
+        _tx(db, user_id, account.id, date(2025, month, 20), -10_000, f"COURSES {month}")
+    _tx(db, user_id, account.id, date(2025, 4, 3), -78_000, "LOYER",
+        category_id=category.id)
+    db.commit()
+
+    levers = client.post("/api/feasibility", headers=headers, json={
+        "target_cents": 50_000_000, "horizon_months": 12,
+        "down_payment_cents": 0, "nature": "other",
+    }).json()["levers"]
+
+    cut = next(lever for lever in levers if lever["kind"] == "cut_category")
+    assert cut["months_observed"] == 3
+    # Median of {0, 0, 78 000}, not of {78 000}.
+    assert cut["category_median_cents"] == 0

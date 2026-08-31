@@ -131,9 +131,21 @@ interface FinancingPanelProps {
   loanRateBps: number;
   /** Reveals the LOA fields in the form, at the other end of the page. */
   onAddLoa: () => void;
+  /** True when the measured liquid balance does not cover the price today.
+   *
+   *  The comptant column spends the whole price on day one. When the household
+   *  does not have it — the operator's balance is −2 209,63 € against a
+   *  40 000 € question — every figure in this panel is a hypothesis about
+   *  money the ledger says is absent, and printing "payer comptant vous laisse
+   *  X de plus" beside a verdict of "hors de portée" is an assertion sitting
+   *  next to a refusal of the same question. Phase 2A was fixed five times for
+   *  exactly that shape. */
+  cashOutOfReach: boolean;
 }
 
-export function FinancingPanel({ financing, loanRateBps, onAddLoa }: FinancingPanelProps) {
+export function FinancingPanel({
+  financing, loanRateBps, onAddLoa, cashOutOfReach,
+}: FinancingPanelProps) {
   return (
     <div className="yd-fin">
       <p className="yd-fin__lead">
@@ -147,6 +159,14 @@ export function FinancingPanel({ financing, loanRateBps, onAddLoa }: FinancingPa
       </div>
 
       <p className="yd-fin__verdict">{betterSentence(financing)}</p>
+
+      {cashOutOfReach ? (
+        <p className="yd-fin__note">
+          Cette comparaison suppose que vous disposez du prix le jour de l'achat. Vos relevés
+          disent le contraire : la colonne « Comptant » décrit donc un chemin qui ne vous est pas
+          ouvert aujourd'hui, et le patrimoine qu'elle affiche n'est pas une prévision.
+        </p>
+      ) : null}
 
       {/* Said outright, so the LOA column is never read as having lost a
           three-way race. `better_kind` deliberately excludes it: whether the

@@ -8,10 +8,17 @@ import { OPERATOR_REPORT } from "./fixtures";
 
 const OPERATOR = OPERATOR_REPORT.financing;
 
-function renderPanel(financing: Financing = OPERATOR, loanRateBps = 500) {
+function renderPanel(
+  financing: Financing = OPERATOR, loanRateBps = 500, cashOutOfReach = false,
+) {
   const onAddLoa = vi.fn();
   render(
-    <FinancingPanel financing={financing} loanRateBps={loanRateBps} onAddLoa={onAddLoa} />,
+    <FinancingPanel
+      financing={financing}
+      loanRateBps={loanRateBps}
+      onAddLoa={onAddLoa}
+      cashOutOfReach={cashOutOfReach}
+    />,
   );
   return onAddLoa;
 }
@@ -116,5 +123,19 @@ describe("FinancingPanel", () => {
     expect(loa.getByText(reason)).toBeInTheDocument();
     expect(loa.queryByText(/Patrimoine à la fin/)).not.toBeInTheDocument();
     expect(loa.queryByText(/^0,00 €$/)).not.toBeInTheDocument();
+  });
+
+  it("says the comptant column is not open when the balance does not cover the price", () => {
+    // The panel prints "payer comptant vous laisse X de plus" while spending
+    // the whole price on day one. On the operator's data that money is not
+    // there -- a -2 209,63 EUR balance against a 40 000 EUR question -- so the
+    // sentence would sit beside a verdict refusing the same purchase.
+    renderPanel(OPERATOR, 500, true);
+    expect(screen.getByText(/ne vous est pas ouvert aujourd'hui/)).toBeInTheDocument();
+  });
+
+  it("does not hedge the comparison when the price IS covered", () => {
+    renderPanel(OPERATOR, 500, false);
+    expect(screen.queryByText(/ne vous est pas ouvert aujourd'hui/)).not.toBeInTheDocument();
   });
 });

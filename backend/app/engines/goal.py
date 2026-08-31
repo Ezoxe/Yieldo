@@ -218,7 +218,9 @@ def evaluate_goals(
                 funding_starts_in_months=offset_months, months_to_completion=0,
                 projected_completion_on=today, projection_unavailable_reason=None,
                 due_on=goal.due_on, months_until_due=months_until_due,
-                on_track=None if goal.due_on is None else today <= goal.due_on,
+                # True, not `today <= due_on`: the goal is reached, and a
+                # deadline it passed on the way is not something left to miss.
+                on_track=None if goal.due_on is None else True,
             ))
             continue
 

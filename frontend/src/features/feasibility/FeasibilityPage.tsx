@@ -356,6 +356,7 @@ export function FeasibilityPage() {
                 financing={report.financing}
                 loanRateBps={report.assumptions.loan_rate_bps}
                 onAddLoa={() => setShowLoa(true)}
+                cashOutOfReach={report.balance_cents < report.target_cents}
               />
             </BentoCell>
 

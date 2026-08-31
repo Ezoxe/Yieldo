@@ -183,3 +183,15 @@ def test_a_completed_goal_does_not_block_the_queue_behind_it():
     _, suivant = evaluate_goals(goals, 50_000, date(2026, 8, 31))
     assert suivant.months_to_completion == 2
     assert suivant.projection_unavailable_reason is None
+
+
+def test_a_goal_already_reached_is_never_off_track():
+    """`on_track` compared today against the deadline even on a completed goal,
+    so a goal at 100 % whose date has passed came back False -- an accusation
+    about a goal there is nothing left to do on. Reaching the target is the
+    only thing the deadline was ever about."""
+    goals = [GoalInput(id=1, name="Fait", target_cents=100_000, saved_cents=100_000,
+                       due_on=date(2026, 1, 31), priority=1)]
+    (progress,) = evaluate_goals(goals, 50_000, date(2026, 8, 31))
+    assert progress.months_to_completion == 0
+    assert progress.on_track is True

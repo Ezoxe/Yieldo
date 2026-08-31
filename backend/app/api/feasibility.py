@@ -111,7 +111,11 @@ def _category_history(
     reducible expense.
 
     Only months in `months` count, so the operator's eight unimported months
-    cannot enter a median as zeroes.
+    cannot enter a median as zeroes. A month that WAS observed and in which the
+    category was simply not spent counts as zero, though -- that is the whole
+    difference between "what this costs in a normal month" and "what this costs
+    in a month it happens to appear". A rent paid once a quarter has a median
+    of nothing, and a screen saying otherwise names a saving that is not there.
     """
     if not months:
         return []
@@ -125,7 +129,7 @@ def _category_history(
         key = f"{point.on.year}-{point.on.month:02d}"
         if key not in keys:
             continue
-        totals.setdefault(point.category_id, {}).setdefault(key, 0)
+        totals.setdefault(point.category_id, dict.fromkeys(sorted(keys), 0))
         totals[point.category_id][key] += -point.amount_cents
     return [
         CategoryHistory(category_id=category_id, name=names.get(category_id, "Sans nom"),

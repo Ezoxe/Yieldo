@@ -252,9 +252,18 @@ def _reason_nothing_to_borrow() -> str:
 
 
 def _reason_no_category_history() -> str:
+    """Names categorisation, never the volume of statements.
+
+    `build_levers` returns an empty list whenever the capacity is None -- below
+    three complete observed months -- so this branch is only ever reached by a
+    household that already HAS the history. Telling it to import more would
+    send it to fix something that is not broken, which is the defect this
+    project has corrected in five separate tasks.
+    """
     return (
-        "Aucune catégorie de dépense n'a assez d'historique pour dire ce qu'elle "
-        "coûte un mois normal. Importez davantage de relevés."
+        "Aucune dépense catégorisée sur les mois observés : sans catégorie, "
+        "Yieldo ne peut pas dire quel poste allégér. Classez vos opérations "
+        "depuis l'écran Transactions."
     )
 
 

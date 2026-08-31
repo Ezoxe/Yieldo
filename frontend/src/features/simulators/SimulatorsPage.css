@@ -1,0 +1,456 @@
+/* /simulateurs — crédit, épargne, immobilier.
+
+   Structure and vocabulary follow FeasibilityPage.css, so the "et si" screen
+   and the "puis-je" screen read as one product: the same panel, the same
+   field, the same three prose registers (refusal / consequence / alert), the
+   same figure block. Where a rule here is identical to one there, it is because
+   the two screens are meant to be indistinguishable in feel and not because
+   either was copied without looking. */
+
+.yd-sims {
+  max-width: 1280px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-lg);
+}
+
+.yd-sims__header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-2xs);
+}
+
+.yd-sims h1 {
+  margin: 0;
+  font-size: clamp(1.4rem, 2.2vw, 1.75rem);
+  letter-spacing: -0.015em;
+  color: var(--yd-text);
+}
+
+.yd-sims__lead {
+  margin: 0;
+  max-width: 84ch;
+  font-size: 0.9rem;
+  line-height: 1.55;
+  color: var(--yd-text-muted);
+}
+
+/* An inline link inside a muted paragraph: underlined, because colour alone is
+   not enough to mark a link, and painted with the body's own text colour so it
+   stays at 4.5:1 in both themes without depending on the accent. */
+.yd-sims__link {
+  color: var(--yd-text);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  border-radius: 2px;
+}
+
+.yd-sims__link:hover {
+  text-decoration-thickness: 2px;
+}
+
+.yd-sims__link:focus-visible {
+  outline: 2px solid var(--yd-accent);
+  outline-offset: 2px;
+}
+
+/* Cells size to their own content: a refused tab is one paragraph and an
+   answered one is a metre tall, and a stretched cell leaves a card's worth of
+   blank surface, which reads as content having failed to load. */
+.yd-sims .yd-bento {
+  align-items: start;
+}
+
+/* The tablist ---------------------------------------------------------------
+   Wraps at 375px rather than scrolling: three French words fit on two rows and
+   a horizontally scrolling tablist hides its own last tab. */
+.yd-sims__tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--yd-space-xs);
+}
+
+.yd-sims__tab {
+  min-height: 44px; /* the touch target minimum, not a visual choice */
+  padding: 0 var(--yd-space-md);
+  border: 1px solid var(--yd-border-control);
+  border-radius: var(--yd-radius-sm);
+  background: transparent;
+  color: var(--yd-text-muted);
+  font: inherit;
+  font-size: 0.88rem;
+  cursor: pointer;
+  transition:
+    border-color var(--yd-motion-fast) var(--yd-ease),
+    color var(--yd-motion-fast) var(--yd-ease);
+}
+
+.yd-sims__tab:hover {
+  border-color: var(--yd-accent);
+  color: var(--yd-text);
+}
+
+.yd-sims__tab:focus-visible {
+  outline: 2px solid var(--yd-accent);
+  outline-offset: 2px;
+}
+
+/* The active tab is marked three ways — weight, border and a filled ground —
+   so it is not colour alone that says which one it is. */
+.yd-sims__tab--active {
+  border-color: var(--yd-accent);
+  background: color-mix(in srgb, var(--yd-accent) 14%, transparent);
+  color: var(--yd-text);
+  font-weight: 600;
+}
+
+/* One simulator ------------------------------------------------------------- */
+
+.yd-sim {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--yd-space-lg);
+  min-width: 0;
+}
+
+.yd-sim__form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--yd-space-md);
+}
+
+/* One column at 375, two from 640, three from 1024. `minmax(0, 1fr)` and never
+   `auto`: a content-sized track lets the longest label set the width of every
+   column, which at 375 is how "Versement mensuel (négatif pour un retrait)"
+   ends up one word per line. */
+.yd-sim__grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--yd-space-sm) var(--yd-space-md);
+}
+
+@media (min-width: 640px) {
+  .yd-sim__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1024px) {
+  .yd-sim__grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.yd-simfield {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+  gap: var(--yd-space-2xs);
+  min-width: 0;
+}
+
+.yd-simfield label {
+  font-size: 0.82rem;
+  line-height: 1.4;
+  color: var(--yd-text-muted);
+}
+
+.yd-simfield input,
+.yd-simfield select {
+  width: 100%;
+  min-height: 40px;
+  padding: 0 var(--yd-space-xs);
+  border: 1px solid var(--yd-border-control);
+  border-radius: var(--yd-radius-sm);
+  background: var(--yd-surface-strong);
+  color: var(--yd-text);
+  font: inherit;
+  font-size: 0.9rem;
+}
+
+.yd-simfield input:focus-visible,
+.yd-simfield select:focus-visible {
+  outline: 2px solid var(--yd-accent);
+  outline-offset: 1px;
+}
+
+.yd-simfield input[aria-invalid="true"] {
+  border-color: var(--yd-negative);
+}
+
+.yd-simfield__hint {
+  margin: 0;
+  font-size: 0.76rem;
+  line-height: 1.45;
+  color: var(--yd-text-muted);
+}
+
+.yd-simfield__error {
+  margin: 0;
+  font-size: 0.8rem;
+  line-height: 1.45;
+  color: var(--yd-negative-text);
+}
+
+.yd-sim__submit {
+  justify-self: start;
+  min-height: 44px;
+  padding: 0 var(--yd-space-lg);
+  border: 1px solid var(--yd-accent);
+  border-radius: var(--yd-radius-sm);
+  background: transparent;
+  color: var(--yd-accent);
+  font: inherit;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color var(--yd-motion-fast) var(--yd-ease);
+}
+
+.yd-sim__submit:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.yd-sim__submit:focus-visible {
+  outline: 2px solid var(--yd-accent);
+  outline-offset: 2px;
+}
+
+/* Prose registers, the same three /faisabilite draws ------------------------- */
+
+/* A refusal is content: it says what is missing and why. The warning rule,
+   never the negative colour, which is reserved for something having actually
+   gone wrong. */
+.yd-sim__refusal {
+  margin: 0;
+  max-width: 96ch;
+  padding: var(--yd-space-sm) var(--yd-space-md);
+  border-radius: var(--yd-radius-sm);
+  border: 1px solid var(--yd-border-strong);
+  border-left: 3px solid var(--yd-warning);
+  background: var(--yd-surface);
+  color: var(--yd-text);
+  font-size: 0.88rem;
+  line-height: 1.55;
+}
+
+/* What a result MEANS, when the figure alone would be read wrong. */
+.yd-sim__consequence {
+  margin: 0;
+  max-width: 96ch;
+  padding: var(--yd-space-sm) var(--yd-space-md);
+  border-radius: var(--yd-radius-sm);
+  border: 1px solid var(--yd-border-strong);
+  border-left: 3px solid var(--yd-accent);
+  background: var(--yd-surface-strong);
+  color: var(--yd-text);
+  font-size: 0.9rem;
+  line-height: 1.55;
+}
+
+/* Reserved for something having gone wrong. An engine's refusal never lands
+   here. */
+.yd-sim__alert {
+  margin: 0;
+  padding: var(--yd-space-sm) var(--yd-space-md);
+  border-radius: var(--yd-radius-sm);
+  background: color-mix(in srgb, var(--yd-negative) 14%, transparent);
+  border: 1px solid var(--yd-negative);
+  color: var(--yd-negative-text);
+  font-size: 0.9rem;
+}
+
+.yd-sim__busy {
+  margin: 0;
+  padding: var(--yd-space-lg) 0;
+  font-size: 0.9rem;
+  color: var(--yd-text-muted);
+}
+
+.yd-sim__assumptions {
+  margin: 0;
+  max-width: 96ch;
+  font-size: 0.8rem;
+  line-height: 1.55;
+  color: var(--yd-text-muted);
+}
+
+/* The answer ---------------------------------------------------------------- */
+
+.yd-sim__result {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--yd-space-md);
+  min-width: 0;
+}
+
+.yd-sim__figures {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--yd-space-sm);
+}
+
+@media (min-width: 720px) {
+  .yd-sim__figures {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.yd-sim__figure {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+  gap: var(--yd-space-2xs);
+  padding: var(--yd-space-sm) var(--yd-space-md);
+  border-radius: var(--yd-radius-sm);
+  border: 1px solid var(--yd-border);
+  background: var(--yd-surface);
+  min-width: 0;
+}
+
+/* The one figure the reader came for. Marked by its border and its type size,
+   not by a colour: an instalment is neither good nor bad news. */
+.yd-sim__figure--lead {
+  border-color: var(--yd-border-strong);
+  background: var(--yd-surface-strong);
+}
+
+.yd-sim__figure-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--yd-text);
+}
+
+.yd-sim__figure-value {
+  font-family: var(--yd-font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  font-size: clamp(1.2rem, 3.2vw, 1.5rem);
+  font-weight: 600;
+  line-height: 1.15;
+  color: var(--yd-text);
+  /* A ten-digit amount at 375px has nowhere else to go. */
+  overflow-wrap: anywhere;
+}
+
+.yd-sim__figure--lead .yd-sim__figure-value {
+  font-size: clamp(1.4rem, 4vw, 1.9rem);
+}
+
+/* `--yd-negative-text`, not `--yd-negative`: this is text on a card surface,
+   and design/contrast.test.ts pins the text variant at 4.5:1 in both themes
+   while the raw status colour is only guaranteed against the page. */
+.yd-sim__figure-value--negative {
+  color: var(--yd-negative-text);
+}
+
+.yd-sim__figure-note {
+  padding-top: var(--yd-space-2xs);
+  border-top: 1px solid var(--yd-border);
+  font-size: 0.76rem;
+  line-height: 1.5;
+  color: var(--yd-text-muted);
+}
+
+/* The schedule -------------------------------------------------------------- */
+
+.yd-sim__disclosure {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--yd-space-xs);
+}
+
+.yd-sim__toggle {
+  min-height: 44px;
+  padding: 0 var(--yd-space-md);
+  border: 1px solid var(--yd-border-control);
+  border-radius: var(--yd-radius-sm);
+  background: transparent;
+  color: var(--yd-text);
+  font: inherit;
+  font-size: 0.84rem;
+  cursor: pointer;
+  transition: border-color var(--yd-motion-fast) var(--yd-ease);
+}
+
+.yd-sim__toggle:hover {
+  border-color: var(--yd-accent);
+}
+
+.yd-sim__toggle:focus-visible {
+  outline: 2px solid var(--yd-accent);
+  outline-offset: 2px;
+}
+
+.yd-sim__schedule {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--yd-space-sm);
+  min-width: 0;
+}
+
+.yd-sim__schedule-note {
+  margin: 0;
+  max-width: 96ch;
+  font-size: 0.8rem;
+  line-height: 1.55;
+  color: var(--yd-text-muted);
+}
+
+/* The table's OWN scroller. Five money columns do not fit in 375px, and the
+   page body must never be what scrolls sideways — `min-width: 0` on every
+   ancestor above is what lets this box actually be narrower than its table. */
+.yd-sim__scroller {
+  overflow-x: auto;
+  border-radius: var(--yd-radius-sm);
+  border: 1px solid var(--yd-border);
+  min-width: 0;
+}
+
+.yd-sim__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+  /* Wide enough that the five columns keep their figures on one line; the
+     scroller above is what makes that safe at 375px. */
+  min-width: 520px;
+}
+
+.yd-sim__table th,
+.yd-sim__table td {
+  padding: var(--yd-space-xs) var(--yd-space-sm);
+  text-align: right;
+  white-space: nowrap;
+  border-bottom: 1px solid var(--yd-border);
+  color: var(--yd-text);
+}
+
+.yd-sim__table thead th {
+  position: sticky;
+  top: 0;
+  background: var(--yd-surface-strong);
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--yd-text-muted);
+}
+
+.yd-sim__table tbody th {
+  text-align: left;
+  font-family: var(--yd-font-mono);
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+  color: var(--yd-text-muted);
+}
+
+.yd-sim__table td {
+  font-family: var(--yd-font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.yd-sim__table tbody tr:last-child th,
+.yd-sim__table tbody tr:last-child td {
+  border-bottom: none;
+}

@@ -1033,6 +1033,176 @@ export interface FeasibilityRequest {
   loa?: LoaIn | null;
 }
 
+// -- Simulateurs -------------------------------------------------------------
+//
+// Mirrors backend/app/schemas/simulators.py. Three questions of the "et si"
+// kind, answered from figures the user types — unlike `/faisabilite`, which
+// answers "puis-je" from figures measured in the ledger. Read
+// `engines/amortization.py` for the two refusals a loan carries (a term out of
+// range, and an instalment that would not cover the first month's interest),
+// `engines/savings.py` for the projection's own term refusal, and
+// `engines/property.py` for the rent comparison and its horizon cap.
+
+/** One instalment of an amortisation table. `month` is 1-based: month 1 is the
+ *  first instalment, not the day the loan is signed. */
+export interface ScheduleRow {
+  month: number;
+  payment_cents: number;
+  interest_cents: number;
+  principal_cents: number;
+  /** Capital still owed AFTER this instalment. 0 on the last row, always. */
+  remaining_cents: number;
+}
+
+/** Twelve rows rolled up — one bar of `charts/AmortizationChart`. Computed by
+ *  the router, not the engine. The last group may hold fewer than twelve rows
+ *  when the term is not a whole number of years, or when the level payment
+ *  overshot and repaid the loan early. */
+export interface ScheduleYear {
+  year: number;
+  interest_cents: number;
+  principal_cents: number;
+  remaining_cents: number;
+}
+
+export interface Schedule {
+  principal_cents: number;
+  annual_rate_bps: number;
+  /** The stated term. `rows` is empty when nothing was borrowed, but this still
+   *  reports what was asked for — never read 0 here on a zero loan. */
+  months: number;
+  monthly_payment_cents: number;
+  total_paid_cents: number;
+  total_interest_cents: number;
+  /** Empty exactly when `principal_cents === 0`. Up to 480 rows: a screen
+   *  rendering all of them at once renders 480 DOM nodes. */
+  rows: ScheduleRow[];
+}
+
+/** What POST /simulators/credit accepts. */
+export interface CreditRequest {
+  principal_cents: number;
+  annual_rate_bps: number;
+  months: number;
+}
+
+export interface CreditSimulation extends Schedule {
+  years: ScheduleYear[];
+}
+
+/** What POST /simulators/epargne accepts. `monthly_cents` may be NEGATIVE — a
+ *  withdrawal plan — and `initial_cents` may be too. Neither is clamped. */
+export interface SavingsRequest {
+  initial_cents: number;
+  monthly_cents: number;
+  annual_rate_bps: number;
+  months: number;
+}
+
+/** Both cumulative from the start of the projection, never per-month, so a
+ *  chart can draw the split at any point without summing. */
+export interface SavingsPoint {
+  month: number;
+  contributed_cents: number;
+  /** Always ≥ 0: interest accrues only on a positive balance. */
+  interest_cents: number;
+  /** `initial + contributed + interest`, exactly, at this month. */
+  balance_cents: number;
+}
+
+export interface SavingsSimulation {
+  initial_cents: number;
+  monthly_cents: number;
+  annual_rate_bps: number;
+  months: number;
+  final_cents: number;
+  contributed_cents: number;
+  interest_cents: number;
+  points: SavingsPoint[];
+}
+
+/** What POST /simulators/immobilier accepts. `monthly_income_cents` and
+ *  `existing_debt_payments_cents` are deliberately absent: the route measures
+ *  both from the ledger, so the debt ratio it prints is measured, not typed. */
+export interface PropertyRequest {
+  price_cents: number;
+  down_payment_cents: number;
+  notary_bps: number;
+  loan_rate_bps: number;
+  loan_months: number;
+  insurance_bps_per_year: number;
+  monthly_charges_cents: number;
+  annual_property_tax_cents: number;
+  /** Absent means NO comparison at all — never a comparison against a rent of
+   *  zero. `PropertySimulation.rent_comparison` is then null. */
+  monthly_rent_cents?: number;
+  years?: number;
+  annual_return_bps?: number;
+  appreciation_bps_per_year?: number;
+}
+
+export interface PropertySimulationDetail {
+  price_cents: number;
+  notary_fees_cents: number;
+  acquisition_cost_cents: number;
+  down_payment_cents: number;
+  /** How much of the frais de notaire the apport does NOT cover. 0 when it
+   *  does. A positive figure is a fact about the plan, reported rather than
+   *  refused — a French bank generally wants these paid from own funds. */
+  down_payment_short_cents: number;
+  borrowed_cents: number;
+  schedule: Schedule;
+  monthly_insurance_cents: number;
+  monthly_charges_cents: number;
+  monthly_property_tax_cents: number;
+  /** Instalment + assurance + charges + taxe foncière: every recurring euro. */
+  monthly_effort_cents: number;
+  total_interest_cents: number;
+  /** Acquisition + interest + insurance over the loan. Charges and taxe
+   *  foncière are NOT in it: an owner and a tenant both pay those. */
+  total_cost_cents: number;
+  /** null when no income could be measured. Read this BEFORE
+   *  `debt_ratio_exceeded`, which is false both under the threshold and when
+   *  there is no ratio at all, and cannot tell the two apart. */
+  debt_ratio_bps: number | null;
+  debt_ratio_exceeded: boolean;
+}
+
+export interface RentComparison {
+  /** Capped at the loan term. See `capped_reason`. */
+  horizon_months: number;
+  /** French, set exactly when the requested horizon was cut back to the loan
+   *  term. Print verbatim — it says why the cap exists. */
+  capped_reason: string | null;
+  monthly_rent_cents: number;
+  buyer_property_value_cents: number;
+  buyer_remaining_loan_cents: number;
+  buyer_wealth_cents: number;
+  renter_wealth_cents: number;
+  /** Buyer minus renter, SIGNED. */
+  difference_cents: number;
+  /** "buy" or "rent". "buy" ALSO on an exact tie. */
+  better_kind: "buy" | "rent";
+}
+
+export interface PropertySimulation {
+  simulation: PropertySimulationDetail;
+  /** null exactly when the request carried no `monthly_rent_cents`. */
+  rent_comparison: RentComparison | null;
+  /** MEASURED, never typed. null when no income could be measured over three
+   *  complete months — in which case there is no debt ratio either. */
+  measured_monthly_income_cents: number | null;
+  existing_debt_payments_cents: number;
+}
+
+/** What the property simulator measures itself, published so the form can show
+ *  it before anything is submitted. */
+export interface SimulatorContext {
+  monthly_income_cents: number | null;
+  existing_debt_payments_cents: number;
+  months_observed: number;
+}
+
 export interface Scenario {
   id: number;
   name: string;

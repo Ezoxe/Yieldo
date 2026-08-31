@@ -14,6 +14,7 @@ import { ImportPage } from "../features/import/ImportPage";
 import { OverviewPage } from "../features/overview/OverviewPage";
 import { RecurrencesPage } from "../features/recurrences/RecurrencesPage";
 import { SettingsPage } from "../features/settings/SettingsPage";
+import { SimulatorsPage } from "../features/simulators/SimulatorsPage";
 import { TransactionsPage } from "../features/transactions/TransactionsPage";
 import { AppShellRoute, HomeRoute } from "./HomeRoute";
 
@@ -62,6 +63,7 @@ export const router = createBrowserRouter([
           { path: "dettes", element: <DebtsPage /> },
           { path: "objectifs", element: <GoalsPage /> },
           { path: "faisabilite", element: <FeasibilityPage /> },
+          { path: "simulateurs", element: <SimulatorsPage /> },
           { path: "categories", element: <CategoriesPlaceholder /> },
           { path: "import", element: <ImportPage /> },
           { path: "reglages", element: <SettingsPage /> },

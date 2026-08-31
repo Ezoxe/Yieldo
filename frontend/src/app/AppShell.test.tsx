@@ -97,6 +97,7 @@ describe("AppShell", () => {
       "Dettes",
       "Objectifs",
       "Faisabilité",
+      "Simulateurs",
       "Catégories",
       "Import",
       "Réglages",

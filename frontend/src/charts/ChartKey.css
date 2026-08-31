@@ -1,0 +1,41 @@
+/* A chart's key, drawn in HTML above the canvas rather than inside it.
+
+   The reason is a defect measured at 375px and fixed three times already
+   (tasks 6, 9 and 16): ECharts lays a legend out inside the canvas and wraps it
+   onto as many rows as it needs, while `grid.top` is a fixed number of pixels.
+   The extra rows are painted straight over the plot, and no single value of
+   `grid.top` is right for every entry count and every label length. In HTML the
+   browser wraps the rows, the card grows to fit, and the plot cannot be reached
+   at all — which also retires the `legend.right: 84` dance a canvas legend needs
+   to stay out from under the Exporter button.
+
+   `DebtPayoffChart` predates this component and keeps its own copy, whose
+   entries are derived per debt rather than fixed; it is not worth remounting a
+   screenshotted chart to share thirty lines of flexbox. */
+.yd-chart-key {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--yd-space-2xs) var(--yd-space-md);
+  font-size: 0.82rem;
+  color: var(--yd-text-muted);
+}
+
+.yd-chart-key__item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--yd-space-2xs);
+  /* Wrap a long name rather than let it set the row's width and push the card
+     past the viewport. */
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.yd-chart-key__swatch {
+  width: 12px;
+  height: 12px;
+  flex: none;
+  border-radius: 3px;
+}

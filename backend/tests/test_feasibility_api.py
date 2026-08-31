@@ -476,3 +476,66 @@ def test_an_unpriceable_credit_line_does_not_cost_the_whole_report(client):
     cash = next(o for o in financing["options"] if o["kind"] == "cash")
     assert cash["available"] is True
     assert cash["total_paid_cents"] == 2_000_000
+
+
+def test_the_context_publishes_the_prefilled_ownership_items_it_expects_back(client):
+    """Design §6.3 item 3 requires the running-cost items to be "préremplis par
+    des moyennes françaises et ajustables". `POST /api/feasibility` already
+    accepts `ownership_items`, but nothing published what the defaults ARE, so
+    a screen could not prefill a form the user could then adjust — it could
+    only take whatever the server silently applied.
+
+    The defaults travel per nature, in the same shape the POST accepts back, so
+    the round trip is a straight edit rather than a translation.
+    """
+    headers = _register(client, "postes@example.fr")
+    defaults = client.get("/api/feasibility/context", headers=headers).json()[
+        "ownership_defaults"]
+
+    assert set(defaults) == {"vehicle", "property", "other"}
+    vehicle = defaults["vehicle"]
+    assert vehicle["depreciation_bps_per_year"] == 1500
+    assert [item["key"] for item in vehicle["items"]] == ["insurance", "maintenance", "fuel"]
+    # Exactly one of the two is set on every published item -- the same
+    # invariant the engine enforces on the way in.
+    for item in vehicle["items"]:
+        assert (item["monthly_cents"] is None) != (item["annual_bps_of_value"] is None)
+    # Property is not assumed to lose value; "other" prefills nothing at all.
+    assert defaults["property"]["depreciation_bps_per_year"] == 0
+    assert defaults["other"]["items"] == []
+
+    # And what it publishes is accepted back verbatim.
+    echoed = client.post("/api/feasibility", headers=headers, json={
+        "target_cents": 4_000_000, "horizon_months": 12, "down_payment_cents": 0,
+        "nature": "vehicle", "ownership_items": vehicle["items"],
+    })
+    assert echoed.status_code == 200
+
+
+def test_the_emergency_impact_names_the_burn_behind_its_months(client, db):
+    """Design §10: the assumption travels beside the result it produced. A
+    runway of "4 mois" is meaningless without the monthly burn it divides by,
+    and `engines/feasibility.py` publishes `monthly_burn_cents` for exactly
+    that reason — the wire shape dropped it.
+    """
+    email = "brulure@example.fr"
+    headers = _register(client, email)
+    user_id = _user_id(db, email)
+    account = Account(user_id=user_id, name="Courant", kind="checking", currency="EUR",
+                      opening_balance_cents=5_000_000, include_in_net_worth=True,
+                      archived=False)
+    db.add(account)
+    db.flush()
+    for month in (1, 2, 3, 4, 5):
+        _tx(db, user_id, account.id, date(2025, month, 10), 300_000, f"SALAIRE {month}")
+        _tx(db, user_id, account.id, date(2025, month, 15), -200_000, f"DEPENSE {month}")
+    db.commit()
+
+    emergency = client.post("/api/feasibility", headers=headers, json={
+        "target_cents": 100_000, "horizon_months": 12, "down_payment_cents": 0,
+        "nature": "other",
+    }).json()["impact"]["emergency"]
+
+    assert emergency["unavailable_reason"] is None
+    assert emergency["runway_months_before"] is not None
+    assert emergency["monthly_burn_cents"] == 200_000

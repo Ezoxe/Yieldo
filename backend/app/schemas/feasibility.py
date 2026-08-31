@@ -119,6 +119,10 @@ class OwnershipOut(BaseModel):
 class EmergencyImpactOut(BaseModel):
     runway_months_before: float | None
     runway_months_after: float | None
+    # The measured burn the two months above divide by. Design §10: a runway of
+    # "4 mois" says nothing without the rate behind it. Null exactly when the
+    # months are, for the same reason.
+    monthly_burn_cents: int | None
     # Both months are null exactly when this is set, and it names WHICH of two
     # causes applies: no measurable expense rate, or a rate that is not a
     # positive burn.
@@ -195,6 +199,19 @@ class FinancingOut(BaseModel):
     wealth_gap_cents: int | None
 
 
+class OwnershipDefaultsOut(BaseModel):
+    """What a nature prefills, in the shape `FeasibilityIn` accepts back.
+
+    Published so a screen can render the running-cost items as an EDITABLE form
+    (design §6.3 item 3: "préremplis par des moyennes françaises et
+    ajustables") rather than taking on trust whatever the server applied. These
+    are averages, not measurements, and every screen showing them says so.
+    """
+
+    items: list[CostItemIn]
+    depreciation_bps_per_year: int
+
+
 class FeasibilityContextOut(BaseModel):
     """Everything measured, so the form prefills from data rather than guesses."""
 
@@ -206,6 +223,8 @@ class FeasibilityContextOut(BaseModel):
     balance_cents: int
     existing_debt_payments_cents: int
     assumptions: AssumptionsOut
+    # Keyed by nature: "vehicle", "property", "other". "other" prefills nothing.
+    ownership_defaults: dict[str, OwnershipDefaultsOut]
     natures: list[str] = Field(default_factory=lambda: list(NATURES))
     default_ownership_years: int = DEFAULT_OWNERSHIP_YEARS
     default_annual_return_bps: int = DEFAULT_ANNUAL_RETURN_BPS

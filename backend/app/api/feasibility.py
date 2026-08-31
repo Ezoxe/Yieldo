@@ -51,6 +51,7 @@ from app.engines.savings import DEFAULT_ANNUAL_RETURN_BPS
 from app.models import Category, Debt, Scenario, User
 from app.schemas.feasibility import (
     AssumptionsOut,
+    CostItemIn,
     CostLineOut,
     EmergencyImpactOut,
     FeasibilityContextOut,
@@ -60,6 +61,7 @@ from app.schemas.feasibility import (
     FinancingOut,
     ImpactOut,
     LeverOut,
+    OwnershipDefaultsOut,
     OwnershipOut,
     ScenarioIn,
     ScenarioOut,
@@ -163,6 +165,26 @@ def _assumptions_out(assumptions: Assumptions) -> AssumptionsOut:
     )
 
 
+def _ownership_defaults() -> dict[str, OwnershipDefaultsOut]:
+    """Every nature's prefilled items, in the shape the POST accepts back.
+
+    Built from `ownership.defaults_for` rather than restated here: one set of
+    French averages, in one place, so the form a user edits and the figures the
+    engine applies cannot drift apart.
+    """
+    natures = {}
+    for nature in ("vehicle", "property", "other"):
+        items, depreciation = defaults_for(nature)
+        natures[nature] = OwnershipDefaultsOut(
+            items=[CostItemIn(key=item.key, label=item.label,
+                              monthly_cents=item.monthly_cents,
+                              annual_bps_of_value=item.annual_bps_of_value)
+                   for item in items],
+            depreciation_bps_per_year=depreciation,
+        )
+    return natures
+
+
 @router.get("/context", response_model=FeasibilityContextOut)
 def context(user: User = Depends(get_current_user),
             db: Session = Depends(get_db)) -> FeasibilityContextOut:
@@ -177,6 +199,7 @@ def context(user: User = Depends(get_current_user),
         balance_cents=liquid_balance_cents(db, user.id),
         existing_debt_payments_cents=_existing_debt_payments_cents(db, user.id),
         assumptions=_assumptions_out(_assumptions(db, user, None, months)),
+        ownership_defaults=_ownership_defaults(),
     )
 
 
@@ -263,6 +286,7 @@ def _assess(payload: FeasibilityIn, user: User, db: Session) -> FeasibilityOut:
             emergency=EmergencyImpactOut(
                 runway_months_before=report.impact.emergency.runway_months_before,
                 runway_months_after=report.impact.emergency.runway_months_after,
+                monthly_burn_cents=report.impact.emergency.monthly_burn_cents,
                 unavailable_reason=report.impact.emergency.unavailable_reason),
             liquid_in_five_years_before_cents=report.impact
             .liquid_in_five_years_before_cents,

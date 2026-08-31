@@ -2,7 +2,7 @@ import type { EChartsOption } from "echarts";
 
 import { useTheme } from "../app/ThemeProvider";
 import { formatCents, formatCompactCents } from "../design/theme";
-import type { ScheduleYear } from "../lib/types";
+import type { ScheduleRow, ScheduleYear } from "../lib/types";
 import { Chart, type ChartExportRow } from "./Chart";
 import { ChartKey, type ChartKeyEntry } from "./ChartKey";
 import { type Resolved, chartTokens } from "./theme";
@@ -10,6 +10,33 @@ import { type Resolved, chartTokens } from "./theme";
 /** One bar per year, in the order the schedule runs. */
 function yearLabel(year: ScheduleYear): string {
   return `An ${year.year}`;
+}
+
+/**
+ * Twelve instalments per bar, the roll-up this chart is drawn from.
+ *
+ * `POST /api/simulators/credit` performs it server-side and publishes `years`;
+ * `POST /api/simulators/immobilier` does NOT — `ScheduleOut` carries `rows`
+ * alone — so the property tab has to roll its own schedule up before it can
+ * draw it. Rather than a second, differently-worded grouping, this is the same
+ * rule as `api/simulators._yearly_rollup`: twelve rows per group, the last
+ * group taking whatever is left when the term is not a whole number of years or
+ * the loan was repaid early, and `remaining_cents` read from the group's LAST
+ * row. `AmortizationChart.test.tsx` pins it against the backend's own answer on
+ * the same loan, so the two cannot drift.
+ */
+export function rollUpScheduleYears(rows: ScheduleRow[]): ScheduleYear[] {
+  const years: ScheduleYear[] = [];
+  for (let start = 0; start < rows.length; start += 12) {
+    const chunk = rows.slice(start, start + 12);
+    years.push({
+      year: start / 12 + 1,
+      interest_cents: chunk.reduce((sum, row) => sum + row.interest_cents, 0),
+      principal_cents: chunk.reduce((sum, row) => sum + row.principal_cents, 0),
+      remaining_cents: chunk[chunk.length - 1].remaining_cents,
+    });
+  }
+  return years;
 }
 
 /**

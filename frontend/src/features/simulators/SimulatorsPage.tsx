@@ -7,6 +7,7 @@ import { BentoGrid } from "../../design/bento/BentoGrid";
 import { useReducedMotion } from "../../design/motion/useReducedMotion";
 import { entryProps, staggerProps } from "../../design/motion/variants";
 import { CreditSimulator } from "./CreditSimulator";
+import { PropertySimulator } from "./PropertySimulator";
 import { SavingsSimulator } from "./SavingsSimulator";
 import "./SimulatorsPage.css";
 
@@ -135,10 +136,7 @@ export function SimulatorsPage() {
           ) : active === "epargne" ? (
             <SavingsSimulator />
           ) : (
-            <p className="yd-sim__refusal">
-              Le simulateur immobilier n'est pas encore branché sur cet écran. Rien n'est affiché à
-              sa place — un formulaire vide se lirait comme un outil qui ne répond pas.
-            </p>
+            <PropertySimulator />
           )}
         </BentoCell>
       </BentoGrid>

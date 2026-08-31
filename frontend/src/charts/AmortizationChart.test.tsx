@@ -4,11 +4,13 @@ import { beforeAll, describe, expect, it, vi } from "vitest";
 import { ThemeProvider } from "../app/ThemeProvider";
 import { formatCents } from "../design/theme";
 import type { ScheduleRow, ScheduleYear } from "../lib/types";
+import { CREDIT_100K } from "../features/simulators/fixtures";
 import {
   AmortizationChart,
   amortizationLegend,
   buildAmortizationExportRows,
   buildAmortizationOption,
+  rollUpScheduleYears,
 } from "./AmortizationChart";
 
 // A real answer from POST /api/simulators/credit: 12 000 € at 5,00 % over 18
@@ -158,5 +160,41 @@ describe("the fixture itself", () => {
   it("agrees with the roll-up it was taken from", () => {
     expect(ROWS[0].interest_cents + ROWS[0].principal_cents).toBe(ROWS[0].payment_cents);
     expect(ROWS[1].remaining_cents).toBe(YEARS[1].remaining_cents);
+  });
+});
+
+describe("rollUpScheduleYears", () => {
+  it("answers exactly what the backend's own roll-up answers", () => {
+    // `POST /simulators/immobilier` publishes `rows` and no `years`, so the
+    // property tab rolls its own. CREDIT_100K carries BOTH — its 240 rows and
+    // the 20 years the router computed from them — which makes this a genuine
+    // cross-check against the server rather than a restatement of this file's
+    // own arithmetic. Change either grouping rule and this goes red.
+    expect(rollUpScheduleYears(CREDIT_100K.rows)).toEqual(CREDIT_100K.years);
+  });
+
+  it("gives a short final year the rows it actually has", () => {
+    // Eighteen months is a year and a half: the second group holds six rows,
+    // and its `remaining_cents` is the LAST of them, not the twelfth of a group
+    // that has no twelfth.
+    const rows: ScheduleRow[] = Array.from({ length: 18 }, (_, index) => ({
+      month: index + 1,
+      payment_cents: 1000,
+      interest_cents: 100,
+      principal_cents: 900,
+      remaining_cents: 18_000 - 900 * (index + 1),
+    }));
+    const years = rollUpScheduleYears(rows);
+    expect(years).toHaveLength(2);
+    expect(years[1]).toEqual({
+      year: 2,
+      interest_cents: 600,
+      principal_cents: 5_400,
+      remaining_cents: 18_000 - 900 * 18,
+    });
+  });
+
+  it("returns nothing at all on an empty schedule", () => {
+    expect(rollUpScheduleYears([])).toEqual([]);
   });
 });

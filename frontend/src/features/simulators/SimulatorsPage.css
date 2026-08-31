@@ -285,16 +285,18 @@
   min-width: 0;
 }
 
+/* `auto-fit` over a 230px floor, not `repeat(3, 1fr)` at a fixed breakpoint.
+   Three fixed columns at 768px leave ~140px of content per card, and
+   "444 275,23 €" at the lead size is wider than that: it wrapped, putting the
+   euro sign alone on a second line — a number broken in half, caught in a
+   browser and not by a test. The floor is the width of the widest figure this
+   screen prints (a nine-digit amount at the lead size, plus the card's
+   padding), so the track count falls to two and then one on its own rather
+   than at a number somebody guessed. */
 .yd-sim__figures {
   display: grid;
-  grid-template-columns: minmax(0, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
   gap: var(--yd-space-sm);
-}
-
-@media (min-width: 720px) {
-  .yd-sim__figures {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
 }
 
 .yd-sim__figure {
@@ -334,8 +336,11 @@
   overflow-wrap: anywhere;
 }
 
+/* Bounded at 1.7rem, not 1.9: at 768px three tracks are ~233px wide, and a
+   nine-digit amount at 1.9rem does not fit one of them. The lead figure is
+   still visibly the biggest thing in the row. */
 .yd-sim__figure--lead .yd-sim__figure-value {
-  font-size: clamp(1.4rem, 4vw, 1.9rem);
+  font-size: clamp(1.3rem, 3.4vw, 1.7rem);
 }
 
 /* `--yd-negative-text`, not `--yd-negative`: this is text on a card surface,
@@ -453,4 +458,249 @@
 .yd-sim__table tbody tr:last-child th,
 .yd-sim__table tbody tr:last-child td {
   border-bottom: none;
+}
+
+/* The property simulator ----------------------------------------------------
+   Three field groups, so eleven inputs do not read as one wall. The third is a
+   disclosure and is closed by default: nobody answering "quelle mensualité ?"
+   should have to scroll past four rate fields to reach the button. */
+
+.yd-prop__group {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--yd-space-sm);
+  margin: 0;
+  padding: var(--yd-space-md);
+  border: 1px solid var(--yd-border-strong);
+  border-radius: var(--yd-radius-sm);
+  background: var(--yd-surface);
+  min-width: 0;
+}
+
+.yd-prop__group legend {
+  padding: 0 var(--yd-space-2xs);
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--yd-text);
+}
+
+.yd-prop__breakdown,
+.yd-prop__comparison {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--yd-space-sm);
+  padding: var(--yd-space-sm) var(--yd-space-md);
+  border-radius: var(--yd-radius-sm);
+  border: 1px solid var(--yd-border);
+  background: var(--yd-surface);
+  min-width: 0;
+}
+
+.yd-prop__title {
+  margin: 0;
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: var(--yd-text);
+}
+
+.yd-prop__lines {
+  margin: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1px;
+  border-radius: var(--yd-radius-sm);
+  border: 1px solid var(--yd-border);
+  overflow: hidden;
+  background: var(--yd-border);
+}
+
+/* Label left, figure right, and the figure never wraps: "322 500,00 €" broken
+   across two lines with its euro sign alone on the second is the defect phase
+   2A caught on the ownership table at 375px. The label is what wraps. */
+.yd-prop__line {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--yd-space-sm);
+  align-items: baseline;
+  padding: var(--yd-space-xs) var(--yd-space-sm);
+  background: var(--yd-surface-strong);
+  font-size: 0.84rem;
+  color: var(--yd-text);
+}
+
+.yd-prop__line dt {
+  min-width: 0;
+  color: var(--yd-text-muted);
+}
+
+.yd-prop__line dd {
+  margin: 0;
+  font-family: var(--yd-font-mono);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  text-align: right;
+}
+
+.yd-prop__line--total dt {
+  font-weight: 600;
+  color: var(--yd-text);
+}
+
+.yd-prop__line--total dd {
+  font-weight: 600;
+}
+
+.yd-prop__note {
+  margin: 0;
+  max-width: 96ch;
+  font-size: 0.78rem;
+  line-height: 1.55;
+  color: var(--yd-text-muted);
+}
+
+/* The debt ratio ------------------------------------------------------------ */
+
+.yd-prop__ratio {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--yd-space-2xs);
+  padding: var(--yd-space-sm) var(--yd-space-md);
+  border-radius: var(--yd-radius-sm);
+  border: 1px solid var(--yd-border);
+  background: var(--yd-surface);
+  min-width: 0;
+}
+
+/* Past the HCSF threshold. Marked by a rule and a weight as well as a colour:
+   the sentence beside the figure names the threshold either way, so colour is
+   never the only channel carrying "this is over the line". */
+.yd-prop__ratio--exceeded {
+  border-color: var(--yd-warning);
+  border-left-width: 3px;
+}
+
+.yd-prop__ratio-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--yd-text);
+}
+
+.yd-prop__ratio-value {
+  font-family: var(--yd-font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  font-size: clamp(1.4rem, 4vw, 1.9rem);
+  font-weight: 600;
+  line-height: 1.15;
+  color: var(--yd-text);
+  overflow-wrap: anywhere;
+}
+
+.yd-prop__ratio--exceeded .yd-prop__ratio-value {
+  color: var(--yd-warning);
+}
+
+/* "n'a pas pu être calculé" is a sentence, not a figure: the mono face and the
+   tabular figures would give it a precision it does not have. */
+.yd-prop__ratio-words,
+.yd-prop__ratio-note,
+.yd-prop__ratio-source {
+  margin: 0;
+  max-width: 96ch;
+  font-size: 0.8rem;
+  line-height: 1.55;
+  color: var(--yd-text-muted);
+}
+
+.yd-prop__ratio-source {
+  padding-top: var(--yd-space-2xs);
+  border-top: 1px solid var(--yd-border);
+  font-size: 0.76rem;
+}
+
+/* Renting against buying ---------------------------------------------------- */
+
+/* Side by side from 560px, stacked below it. `minmax(0, 1fr)` and never `auto`:
+   two nine-digit wealth figures in content-sized tracks overflow the card. */
+.yd-prop__sides {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--yd-space-sm);
+}
+
+@media (min-width: 560px) {
+  .yd-prop__sides {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.yd-prop__side {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+  gap: var(--yd-space-2xs);
+  padding: var(--yd-space-sm) var(--yd-space-md);
+  border-radius: var(--yd-radius-sm);
+  border: 1px solid var(--yd-border);
+  background: var(--yd-surface-strong);
+  min-width: 0;
+}
+
+.yd-prop__side-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--yd-text);
+}
+
+.yd-prop__side-value {
+  font-family: var(--yd-font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  font-size: clamp(1.15rem, 3.2vw, 1.45rem);
+  font-weight: 600;
+  line-height: 1.15;
+  color: var(--yd-text);
+  overflow-wrap: anywhere;
+}
+
+.yd-prop__side-note {
+  padding-top: var(--yd-space-2xs);
+  border-top: 1px solid var(--yd-border);
+  font-size: 0.76rem;
+  line-height: 1.5;
+  color: var(--yd-text-muted);
+}
+
+/* The verdict and its three hypotheses, in one paragraph. */
+.yd-prop__verdict {
+  margin: 0;
+  max-width: 96ch;
+  padding: var(--yd-space-sm) var(--yd-space-md);
+  border-radius: var(--yd-radius-sm);
+  border: 1px solid var(--yd-border-strong);
+  border-left: 3px solid var(--yd-accent);
+  background: var(--yd-surface-strong);
+  color: var(--yd-text);
+  font-size: 0.88rem;
+  line-height: 1.6;
+}
+
+.yd-prop__verdict-value {
+  font-weight: 600;
+  color: var(--yd-text);
+}
+
+/* The engine's own sentence about the horizon cap. The refusal register, since
+   what it says is "this calculation stops here, and here is why". */
+.yd-prop__capped {
+  margin: 0;
+  max-width: 96ch;
+  padding: var(--yd-space-sm) var(--yd-space-md);
+  border-radius: var(--yd-radius-sm);
+  border: 1px solid var(--yd-border-strong);
+  border-left: 3px solid var(--yd-warning);
+  background: var(--yd-surface);
+  color: var(--yd-text);
+  font-size: 0.84rem;
+  line-height: 1.55;
 }

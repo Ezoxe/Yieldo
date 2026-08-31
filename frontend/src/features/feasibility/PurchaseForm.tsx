@@ -1,7 +1,13 @@
-import { useId, useState, type FormEvent, type ReactNode } from "react";
+import { Fragment, useId, useState, type FormEvent, type ReactNode } from "react";
 
 import { centsToInput, parseCents } from "../../design/theme";
-import type { FeasibilityContext, FeasibilityRequest, LoaIn } from "../../lib/types";
+import type {
+  CostItemIn,
+  FeasibilityContext,
+  FeasibilityRequest,
+  LoaIn,
+  OwnershipDefaults,
+} from "../../lib/types";
 
 /**
  * `schemas/feasibility.py`'s own bounds, mirrored so the field says no before
@@ -31,6 +37,9 @@ const parseBps = parseCents;
 const bpsToInput = centsToInput;
 
 type FieldName =
+  // One per running-cost item, keyed by the item's own `key`. Dynamic because
+  // the list is the nature's, not this form's.
+  | `item:${string}`
   | "target"
   | "horizon"
   | "down"
@@ -60,6 +69,47 @@ export interface PurchaseFormProps {
   showLoa: boolean;
   onToggleLoa: (open: boolean) => void;
   onSubmit: (request: FeasibilityRequest) => void;
+}
+
+/**
+ * One running-cost item as the form holds it: a label, ONE amount, and which of
+ * the two amounts it is.
+ *
+ * `unit` is the load-bearing field. `engines/ownership.CostItem` carries
+ * exactly one of `monthly_cents` and `annual_bps_of_value`, and the engine
+ * refuses both-or-neither with a French 422 — so a form that flattened every
+ * item to a monthly euro figure could not send a taxe foncière back at all, and
+ * one that guessed the unit from what the user typed would silently change what
+ * a line means. It is read from the default (or from a reopened scenario) and
+ * never inferred afterwards.
+ */
+interface ItemDraft {
+  key: string;
+  label: string;
+  unit: "monthly" | "bps";
+  /** What the field shows, in `unit`'s own unit. */
+  text: string;
+}
+
+function draftFrom(item: CostItemIn): ItemDraft {
+  return item.monthly_cents !== null
+    ? { key: item.key, label: item.label, unit: "monthly", text: centsToInput(item.monthly_cents) }
+    : {
+        key: item.key,
+        label: item.label,
+        unit: "bps",
+        text: bpsToInput(item.annual_bps_of_value ?? 0),
+      };
+}
+
+/** A nature's prefilled items, or a reopened scenario's own edited ones. */
+function draftsFor(
+  defaults: Record<string, OwnershipDefaults>,
+  nature: string,
+  saved?: CostItemIn[] | null,
+): ItemDraft[] {
+  const source = saved ?? defaults[nature]?.items ?? [];
+  return source.map(draftFrom);
 }
 
 /** A whole number of months or years, refused rather than coerced. */
@@ -99,6 +149,15 @@ export function PurchaseForm({
   const [down, setDown] = useState(centsToInput(initial?.down_payment_cents ?? 0));
   const [nature, setNature] = useState(initial?.nature ?? context.natures[0] ?? "vehicle");
   const [openAssumptions, setOpenAssumptions] = useState(false);
+  const [openItems, setOpenItems] = useState(false);
+  // Prefilled from the chosen nature's French averages, and reset to the new
+  // nature's when it changes -- a car's carburant on a flat is not an average,
+  // it is a leftover. Reset in the select's own handler rather than in an
+  // effect, so it cannot fire while the user is mid-edit for any other reason.
+  const [items, setItems] = useState<ItemDraft[]>(() =>
+    draftsFor(context.ownership_defaults, initial?.nature ?? context.natures[0] ?? "vehicle",
+      initial?.ownership_items),
+  );
 
   const [annualReturn, setAnnualReturn] = useState(
     bpsToInput(initial?.annual_return_bps ?? context.assumptions.annual_return_bps),
@@ -215,6 +274,26 @@ export function PurchaseForm({
       }
     }
 
+    // Each item keeps ITS OWN unit. Both amounts on one item, or neither, is a
+    // French 422 from the engine (`ownership._validate`), so the unset one is
+    // sent as an explicit null rather than omitted.
+    const costItems: CostItemIn[] = [];
+    for (const item of items) {
+      const value = item.unit === "monthly" ? parseCents(item.text) : parseBps(item.text);
+      if (value === null || value < 0) {
+        found[`item:${item.key}`] =
+          item.unit === "monthly"
+            ? `« ${item.label} » : montant illisible. Un montant mensuel en euros, par exemple 65,00.`
+            : `« ${item.label} » : taux illisible. Un pourcentage annuel de la valeur du bien, par exemple 0,90.`;
+        continue;
+      }
+      costItems.push(
+        item.unit === "monthly"
+          ? { key: item.key, label: item.label, monthly_cents: value, annual_bps_of_value: null }
+          : { key: item.key, label: item.label, monthly_cents: null, annual_bps_of_value: value },
+      );
+    }
+
     if (Object.keys(found).length > 0) return { errors: found };
 
     const request: FeasibilityRequest = {
@@ -227,6 +306,12 @@ export function PurchaseForm({
       loan_months: loanTerm as number,
       ownership_years: years as number,
     };
+    // Always sent, even untouched: what leaves this form is exactly what the
+    // user can see and change, and the unedited list is byte-for-byte the
+    // default the backend would have applied anyway. On a nature that prefills
+    // nothing this is an empty list, which the API reads as "no running costs
+    // at all" -- the same answer `defaults_for("other")` gives.
+    request.ownership_items = costItems;
     // Omitted, never zeroed: a LOA nobody quoted must reach the engine as
     // absent, so `levers._reason_no_loa_terms` can say so instead of Yieldo
     // inventing a contract.
@@ -326,7 +411,12 @@ export function PurchaseForm({
           <select
             id={fieldId("target") + "-nature"}
             value={nature}
-            onChange={(event) => setNature(event.target.value)}
+            onChange={(event) => {
+              setNature(event.target.value);
+              // A car's carburant on a flat is a leftover, not an average.
+              setItems(draftsFor(context.ownership_defaults, event.target.value));
+              setErrors({});
+            }}
           >
             {context.natures.map((value) => (
               <option key={value} value={value}>
@@ -345,6 +435,14 @@ export function PurchaseForm({
           onClick={() => setOpenAssumptions((open) => !open)}
         >
           {`Hypothèses (${openAssumptions ? "masquer" : "afficher"})`}
+        </button>
+        <button
+          type="button"
+          className="yd-purchase__toggle"
+          aria-expanded={openItems}
+          onClick={() => setOpenItems((open) => !open)}
+        >
+          {`Postes de fonctionnement (${openItems ? "masquer" : "ajuster"})`}
         </button>
         <button
           type="button"
@@ -381,6 +479,53 @@ export function PurchaseForm({
             relevés et vous pouvez les changer. Vos revenus et vos mensualités en cours, eux, sont
             mesurés — ils sont rappelés au-dessus et ne se saisissent pas ici.
           </p>
+        </fieldset>
+      ) : null}
+
+      {openItems ? (
+        <fieldset className="yd-purchase__group">
+          <legend>Postes de fonctionnement — moyennes françaises, ajustables</legend>
+          {items.length === 0 ? (
+            // `defaults_for("other")` prefills nothing, on purpose: inventing a
+            // fuel budget for a canapé would be a fabricated figure wearing a
+            // French average's clothes.
+            <p className="yd-purchase__note">
+              Aucun poste n'est prérempli pour ce type de bien. Yieldo n'invente pas de moyenne là
+              où il n'en connaît pas : le coût de possession se limitera à la décote.
+            </p>
+          ) : (
+            <>
+              <div className="yd-purchase__grid">
+                {/* `amountField` builds its own <div> and has no key to give,
+                    so the list's key lives on a Fragment around it — a wrapper
+                    that adds no DOM and cannot change the grid's layout. React
+                    warns about this in the console and nowhere else, which is
+                    why it took a browser to find. */}
+                {items.map((item) => (
+                  <Fragment key={item.key}>
+                    {amountField(
+                      `item:${item.key}`,
+                      item.unit === "monthly"
+                        ? `${item.label} (€ par mois)`
+                        : `${item.label} (% de la valeur par an)`,
+                      item.text,
+                      (text) =>
+                        setItems((current) =>
+                          current.map((one) => (one.key === item.key ? { ...one, text } : one)),
+                        ),
+                      item.unit === "monthly" ? "65,00" : "0,90",
+                    )}
+                  </Fragment>
+                ))}
+              </div>
+              <p className="yd-purchase__note">
+                Chaque poste est une moyenne française, pas une mesure tirée de vos relevés :
+                ajustez-le si le vôtre diffère. Les postes en euros sont constants ; ceux en
+                pourcentage sont prélevés chaque année sur la valeur restante du bien, ce qui rend
+                une voiture de huit ans moins chère à entretenir qu'une neuve.
+              </p>
+            </>
+          )}
         </fieldset>
       ) : null}
 

@@ -66,6 +66,16 @@ export function ImpactPanel({ impact, targetCents, downPaymentCents }: ImpactPan
             </div>
           </div>
         )}
+        {/* Design §10: the rate the runway divides by, beside the runway. "4
+            mois" says nothing without it, and "déjà épuisé" says nothing about
+            how fast. null exactly when the two durations are — there is then no
+            burn to quote, and the refusal above already names which of the two
+            causes applies, so nothing stands in for it here. */}
+        {emergency.monthly_burn_cents !== null ? (
+          <p className="yd-impact__note" data-testid="yd-impact-burn">
+            {`Ces durées divisent votre solde par ${formatCents(emergency.monthly_burn_cents)} par mois — votre rythme de dépenses mesuré, pas un budget déclaré.`}
+          </p>
+        ) : null}
         <p className="yd-impact__note">
           {`La comparaison retire le prix entier — ${formatCents(targetCents)} — de votre solde, et jamais le prix moins l'apport.`}
           {downPaymentCents > 0

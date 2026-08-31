@@ -48,6 +48,10 @@ const FEASIBILITY_CONTRAST = {
   badge: ".yd-lever__badge",
   absent: ".yd-impact__absent",
   leverReason: ".yd-lever__reason",
+  itemLabel: ".yd-purchase__group label",
+  itemNote: ".yd-purchase__note",
+  ownNote: ".yd-own__note",
+  burn: '[data-testid="yd-impact-burn"]',
 };
 
 const SIMULATOR_CONTRAST = {
@@ -168,6 +172,26 @@ async function driveFeasibility(page, { theme, viewport, audit }) {
 
   await shot(page, viewport, theme);
   await audit("verdict");
+
+  // The running-cost items, prefilled from the nature's French averages and
+  // EDITED here -- design §6.3 item 3's "ajustables". The panel below has to
+  // answer with the edited figure, not with the default it started from.
+  await page.getByRole("button", { name: /Postes de fonctionnement/ }).click();
+  await page.getByLabel(/Carburant/).fill("180,50");
+  await page.getByRole("button", { name: /Calculer la faisabilité/ }).click();
+  await page.waitForSelector("text=Hors de portée", { timeout: 20000 });
+  await page.waitForTimeout(900);
+  await expectOnScreen(
+    page,
+    `${theme} ${viewport.name} postes`,
+    // 180,50 EUR a month over five years: 10 830,00 EUR, and 180,50 EUR as the
+    // monthly average. The default of 130,00 EUR would have given 7 800,00 EUR.
+    "10 830,00 €",
+    // And the runway now names the rate it divides by (design §10).
+    "2 654,49 € par mois",
+  );
+  await shot(page, viewport, theme, "-postes");
+  await audit("postes");
 }
 
 async function driveSimulators(page, { theme, viewport, audit }) {

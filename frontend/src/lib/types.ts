@@ -834,13 +834,13 @@ export interface EmergencyImpact {
    *  reads as a measurement of nothing and must not be printed. */
   runway_months_before: number | null;
   runway_months_after: number | null;
-  /** French. Both months are null exactly when this is set, and it names WHICH
-   *  of two causes applies: no measurable expense rate, or a rate whose median
-   *  month spends nothing. Print verbatim.
-   *
-   *  (`engines/feasibility.EmergencyImpact` also carries `monthly_burn_cents`;
-   *  `EmergencyImpactOut` does NOT forward it, so this screen cannot name the
-   *  burn beside the months.) */
+  /** The measured monthly burn both durations were divided by. Design §10: a
+   *  runway of "4 mois" says nothing without the rate behind it. null exactly
+   *  when the two months above are, since there was then no burn to quote. */
+  monthly_burn_cents: number | null;
+  /** French. All three fields above are null exactly when this is set, and it
+   *  names WHICH of two causes applies: no measurable expense rate, or a rate
+   *  whose median month spends nothing. Print verbatim. */
   unavailable_reason: string | null;
 }
 
@@ -986,6 +986,15 @@ export interface Feasibility {
   financing: Financing;
 }
 
+/** What one nature prefills, in exactly the shape `POST /feasibility` accepts
+ *  back as `ownership_items` — so a form can render them, let the user change
+ *  them, and send the edited list without reshaping anything. These are French
+ *  averages, not measurements, and every screen showing them says so. */
+export interface OwnershipDefaults {
+  items: CostItemIn[];
+  depreciation_bps_per_year: number;
+}
+
 export interface FeasibilityContext {
   capacity: MeasuredRate | null;
   expense_rate: MeasuredRate | null;
@@ -995,6 +1004,9 @@ export interface FeasibilityContext {
   balance_cents: number;
   existing_debt_payments_cents: number;
   assumptions: Assumptions;
+  /** Keyed by nature: "vehicle", "property", "other". "other" prefills nothing
+   *  — inventing a fuel budget for a canapé would be a fabricated figure. */
+  ownership_defaults: Record<string, OwnershipDefaults>;
   natures: string[];
   default_ownership_years: number;
   default_annual_return_bps: number;

@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
 import type { FeasibilityContext, FeasibilityRequest } from "../../lib/types";
+import { OWNERSHIP_DEFAULTS } from "./fixtures";
 import { PurchaseForm } from "./PurchaseForm";
 
 /** The operator's own measured context, read off `GET /api/feasibility/context`
@@ -41,6 +42,7 @@ const CONTEXT: FeasibilityContext = {
     monthly_income_cents: 47_111,
     existing_debt_payments_cents: 0,
   },
+  ownership_defaults: OWNERSHIP_DEFAULTS,
   natures: ["vehicle", "property", "other"],
   default_ownership_years: 5,
   default_annual_return_bps: 300,
@@ -171,5 +173,140 @@ describe("PurchaseForm", () => {
   it("disables the submit while a computation is in flight", () => {
     renderForm({ busy: true });
     expect(screen.getByRole("button", { name: /Calcul en cours/ })).toBeDisabled();
+  });
+});
+
+describe("PurchaseForm — the running-cost items, prefilled and adjustable", () => {
+  it("keeps the items collapsed until they are asked for", () => {
+    renderForm();
+    expect(screen.queryByLabelText(/Assurance/)).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Postes de fonctionnement/ })).toHaveAttribute(
+      "aria-expanded",
+      "false",
+    );
+  });
+
+  it("prefills one field per French average, in the unit that average uses", async () => {
+    const user = userEvent.setup();
+    renderForm();
+    await user.click(screen.getByRole("button", { name: /Postes de fonctionnement/ }));
+
+    // A vehicle's three defaults are all flat monthly amounts.
+    expect(screen.getByLabelText(/Assurance \(€ par mois\)/)).toHaveValue("65,00");
+    expect(screen.getByLabelText(/Entretien et réparations \(€ par mois\)/)).toHaveValue("70,00");
+    expect(screen.getByLabelText(/Carburant \(€ par mois\)/)).toHaveValue("130,00");
+  });
+
+  it("labels a percentage-of-value item as one, and never as euros", async () => {
+    // `engines/ownership` charges taxe foncière and entretien on the asset's
+    // REMAINING value each year. Exactly one of the two amounts is set on each
+    // item, and the engine refuses both or neither — so the form has to keep
+    // which one an item uses, not flatten everything to a monthly euro figure.
+    const user = userEvent.setup();
+    renderForm();
+    await user.selectOptions(screen.getByLabelText(/Nature du bien/), "property");
+    await user.click(screen.getByRole("button", { name: /Postes de fonctionnement/ }));
+
+    expect(screen.getByLabelText(/Taxe foncière \(% de la valeur par an\)/)).toHaveValue("0,90");
+    expect(screen.getByLabelText(/Charges de copropriété \(€ par mois\)/)).toHaveValue("150,00");
+    expect(screen.getByLabelText(/Entretien \(% de la valeur par an\)/)).toHaveValue("1,00");
+  });
+
+  it("sends the edited list back in the shape the engine accepts", async () => {
+    const user = userEvent.setup();
+    const onSubmit = renderForm();
+    await user.type(screen.getByLabelText(/Prix du bien/), "40000");
+    await user.click(screen.getByRole("button", { name: /Postes de fonctionnement/ }));
+    const fuel = screen.getByLabelText(/Carburant/);
+    await user.clear(fuel);
+    await user.type(fuel, "180,50");
+    await user.click(screen.getByRole("button", { name: /Calculer la faisabilité/ }));
+
+    const request = onSubmit.mock.calls[0][0] as FeasibilityRequest;
+    expect(request.ownership_items).toEqual([
+      { key: "insurance", label: "Assurance", monthly_cents: 6_500, annual_bps_of_value: null },
+      {
+        key: "maintenance",
+        label: "Entretien et réparations",
+        monthly_cents: 7_000,
+        annual_bps_of_value: null,
+      },
+      { key: "fuel", label: "Carburant", monthly_cents: 18_050, annual_bps_of_value: null },
+    ]);
+  });
+
+  it("keeps a percentage item a percentage on the way back out", async () => {
+    const user = userEvent.setup();
+    const onSubmit = renderForm();
+    await user.type(screen.getByLabelText(/Prix du bien/), "300000");
+    await user.selectOptions(screen.getByLabelText(/Nature du bien/), "property");
+    await user.click(screen.getByRole("button", { name: /Postes de fonctionnement/ }));
+    const tax = screen.getByLabelText(/Taxe foncière/);
+    await user.clear(tax);
+    await user.type(tax, "1,20");
+    await user.click(screen.getByRole("button", { name: /Calculer la faisabilité/ }));
+
+    const request = onSubmit.mock.calls[0][0] as FeasibilityRequest;
+    // 1,20 % is 120 basis points, and `monthly_cents` stays null: sending both
+    // is a French 422 from the engine, and so is sending neither.
+    expect(request.ownership_items?.[0]).toEqual({
+      key: "property_tax",
+      label: "Taxe foncière",
+      monthly_cents: null,
+      annual_bps_of_value: 120,
+    });
+  });
+
+  it("swaps the items when the nature changes rather than keeping a car's", async () => {
+    const user = userEvent.setup();
+    renderForm();
+    await user.click(screen.getByRole("button", { name: /Postes de fonctionnement/ }));
+    expect(screen.getByLabelText(/Carburant/)).toBeInTheDocument();
+
+    await user.selectOptions(screen.getByLabelText(/Nature du bien/), "property");
+    expect(screen.queryByLabelText(/Carburant/)).not.toBeInTheDocument();
+    expect(screen.getByLabelText(/Charges de copropriété/)).toBeInTheDocument();
+  });
+
+  it("says so rather than showing an empty group when a nature prefills nothing", async () => {
+    const user = userEvent.setup();
+    renderForm();
+    await user.selectOptions(screen.getByLabelText(/Nature du bien/), "other");
+    await user.click(screen.getByRole("button", { name: /Postes de fonctionnement/ }));
+
+    expect(screen.getByText(/Yieldo n'invente pas de moyenne/)).toBeInTheDocument();
+  });
+
+  it("refuses an unreadable amount in French rather than sending it as zero", async () => {
+    const user = userEvent.setup();
+    const onSubmit = renderForm();
+    await user.type(screen.getByLabelText(/Prix du bien/), "40000");
+    await user.click(screen.getByRole("button", { name: /Postes de fonctionnement/ }));
+    const fuel = screen.getByLabelText(/Carburant/);
+    await user.clear(fuel);
+    await user.type(fuel, "beaucoup");
+    await user.click(screen.getByRole("button", { name: /Calculer la faisabilité/ }));
+
+    expect(onSubmit).not.toHaveBeenCalled();
+    expect(screen.getByRole("alert")).toHaveTextContent(/Carburant/);
+  });
+
+  it("reopens a saved scenario's own items rather than the defaults", async () => {
+    const user = userEvent.setup();
+    renderForm({
+      initial: {
+        target_cents: 4_000_000,
+        horizon_months: 12,
+        down_payment_cents: 0,
+        nature: "vehicle",
+        ownership_items: [
+          { key: "insurance", label: "Assurance", monthly_cents: 9_000, annual_bps_of_value: null },
+        ],
+      },
+    });
+    await user.click(screen.getByRole("button", { name: /Postes de fonctionnement/ }));
+
+    expect(screen.getByLabelText(/Assurance/)).toHaveValue("90,00");
+    expect(screen.queryByLabelText(/Carburant/)).not.toBeInTheDocument();
   });
 });

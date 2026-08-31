@@ -99,16 +99,17 @@ export function OwnershipPanel({
         </div>
       </div>
 
-      {/* Design §6.3 item 3 asks for adjustable cost items. The API accepts them
-          (`FeasibilityIn.ownership_items`) but `GET /api/feasibility/context`
-          publishes no per-nature defaults for a form to start from, and
-          reconstructing a `%-of-value` item from a monthly average is not
-          possible. Saying so beats an editor that would silently reshape a line
-          it could not read back. */}
+      {/* Design §6.3 item 3: "préremplis par des moyennes françaises et
+          ajustables". `GET /api/feasibility/context` now publishes
+          `ownership_defaults` per nature, in the shape `FeasibilityIn.
+          ownership_items` accepts back — including which of the two amounts
+          each item uses — so `PurchaseForm` renders them as an editable group
+          and sends the edited list. This panel shows what the engine did with
+          them. */}
       <p className="yd-own__note">
         Chaque poste est une moyenne française, pas une mesure tirée de vos relevés : une assurance,
-        un entretien et un carburant d'ordre de grandeur, à ajuster si les vôtres diffèrent. Ils ne
-        sont pas encore modifiables depuis cet écran.
+        un entretien et un carburant d'ordre de grandeur. Ouvrez « Postes de fonctionnement » dans
+        le formulaire pour les remplacer par les vôtres.
       </p>
     </div>
   );

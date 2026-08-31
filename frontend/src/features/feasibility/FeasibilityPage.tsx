@@ -9,8 +9,9 @@ import { useReducedMotion } from "../../design/motion/useReducedMotion";
 import { entryProps, staggerProps } from "../../design/motion/variants";
 import "../../design/Skeleton.css";
 import { formatCents } from "../../design/theme";
-import { ApiError, api } from "../../lib/api";
+import { api } from "../../lib/api";
 import { plural } from "../../lib/plural";
+import { messageFor, refusalReason } from "../../lib/refusal";
 import type {
   Feasibility,
   FeasibilityContext,
@@ -26,22 +27,6 @@ import { OwnershipPanel } from "./OwnershipPanel";
 import { PurchaseForm } from "./PurchaseForm";
 import { ScenarioBar } from "./ScenarioBar";
 import { VerdictPanel } from "./VerdictPanel";
-
-const GENERIC_ERROR = "Une erreur inattendue est survenue.";
-
-/**
- * A 422 carries an engine's own French sentence — a deliberate refusal, not a
- * load failure. `AnalysisPage` draws the same distinction with the same helper,
- * and phase 2A shipped a refusal dressed as `role="alert"` on exactly this
- * branch before it was corrected there.
- */
-function refusalReason(err: unknown): string | null {
-  return err instanceof ApiError && err.status === 422 ? err.detail : null;
-}
-
-function messageFor(err: unknown): string {
-  return err instanceof ApiError ? err.detail : GENERIC_ERROR;
-}
 
 /**
  * One measured rate, as a figure with its band and its sample — or the words

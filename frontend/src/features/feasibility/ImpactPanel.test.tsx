@@ -41,6 +41,7 @@ describe("ImpactPanel — the emergency fund", () => {
       emergency: {
         runway_months_before: 6.2,
         runway_months_after: 1.4,
+        monthly_burn_cents: 180_000,
         unavailable_reason: null,
       },
     });
@@ -58,6 +59,8 @@ describe("ImpactPanel — the emergency fund", () => {
       emergency: {
         runway_months_before: null,
         runway_months_after: null,
+        // null exactly when the two durations are: there was no burn to quote.
+        monthly_burn_cents: null,
         unavailable_reason: reason,
       },
     });
@@ -108,5 +111,32 @@ describe("ImpactPanel — five years, and the two absences", () => {
   it("distinguishes the liquid trajectory from a net worth, in words", () => {
     renderPanel();
     expect(screen.getByText(/Ce n'est pas un patrimoine/)).toBeInTheDocument();
+  });
+});
+
+describe("ImpactPanel — the rate the runway divides by", () => {
+  it("names the measured burn beside the months, not the months alone", () => {
+    // Design §10: "4 mois" says nothing without the rate behind it. The
+    // operator's own burn is 2 654,49 € a month, measured over three months.
+    renderPanel();
+    expect(screen.getByTestId("yd-impact-burn")).toHaveTextContent(/2 654,49/);
+    expect(screen.getByTestId("yd-impact-burn")).toHaveTextContent(/mesuré/);
+  });
+
+  it("says nothing about a burn when there was none to measure", () => {
+    // `monthly_burn_cents` is null exactly when the two durations are, and the
+    // refusal beside it already names which of the two causes applies. A "0 €
+    // par mois" here would be a fallback standing in for real data.
+    renderPanel({
+      ...OPERATOR,
+      emergency: {
+        runway_months_before: null,
+        runway_months_after: null,
+        monthly_burn_cents: null,
+        unavailable_reason:
+          "Votre rythme de dépenses n'a pas pu être mesuré : il faut au moins trois mois complets.",
+      },
+    });
+    expect(screen.queryByTestId("yd-impact-burn")).not.toBeInTheDocument();
   });
 });

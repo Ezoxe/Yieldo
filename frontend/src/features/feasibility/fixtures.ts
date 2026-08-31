@@ -7,7 +7,12 @@
  * the backend actually returns. A test file that invents its own figures proves
  * only that the component renders SOMETHING; these prove it renders the answer.
  */
-import type { Feasibility, FeasibilityContext, MeasuredRate } from "../../lib/types";
+import type {
+  Feasibility,
+  FeasibilityContext,
+  MeasuredRate,
+  OwnershipDefaults,
+} from "../../lib/types";
 
 export const OPERATOR_CAPACITY: MeasuredRate = {
   months: 3,
@@ -48,6 +53,53 @@ export const OPERATOR_ASSUMPTIONS = {
   existing_debt_payments_cents: 0,
 };
 
+/** `GET /api/feasibility/context`'s own `ownership_defaults`, verbatim — the
+ *  French averages `engines/ownership.defaults_for` carries, in the shape the
+ *  POST accepts back. Note the two shapes: a flat monthly amount, and a
+ *  percentage of the asset's remaining value per year. Exactly one is set on
+ *  each item, and the engine refuses both or neither in French. */
+export const OWNERSHIP_DEFAULTS: Record<string, OwnershipDefaults> = {
+  vehicle: {
+    items: [
+      { key: "insurance", label: "Assurance", monthly_cents: 6_500, annual_bps_of_value: null },
+      {
+        key: "maintenance",
+        label: "Entretien et réparations",
+        monthly_cents: 7_000,
+        annual_bps_of_value: null,
+      },
+      { key: "fuel", label: "Carburant", monthly_cents: 13_000, annual_bps_of_value: null },
+    ],
+    depreciation_bps_per_year: 1_500,
+  },
+  property: {
+    items: [
+      {
+        key: "property_tax",
+        label: "Taxe foncière",
+        monthly_cents: null,
+        annual_bps_of_value: 90,
+      },
+      {
+        key: "charges",
+        label: "Charges de copropriété",
+        monthly_cents: 15_000,
+        annual_bps_of_value: null,
+      },
+      {
+        key: "home_insurance",
+        label: "Assurance habitation",
+        monthly_cents: 2_500,
+        annual_bps_of_value: null,
+      },
+      { key: "upkeep", label: "Entretien", monthly_cents: null, annual_bps_of_value: 100 },
+    ],
+    depreciation_bps_per_year: 0,
+  },
+  // Nothing at all, on purpose. `defaults_for("other")` invents no average.
+  other: { items: [], depreciation_bps_per_year: 0 },
+};
+
 export const OPERATOR_CONTEXT: FeasibilityContext = {
   capacity: OPERATOR_CAPACITY,
   expense_rate: OPERATOR_EXPENSE,
@@ -57,6 +109,7 @@ export const OPERATOR_CONTEXT: FeasibilityContext = {
   balance_cents: -220_963,
   existing_debt_payments_cents: 0,
   assumptions: OPERATOR_ASSUMPTIONS,
+  ownership_defaults: OWNERSHIP_DEFAULTS,
   natures: ["vehicle", "property", "other"],
   default_ownership_years: 5,
   default_annual_return_bps: 300,
@@ -105,6 +158,8 @@ export const OPERATOR_REPORT: Feasibility = {
     emergency: {
       runway_months_before: 0.0,
       runway_months_after: 0.0,
+      // The measured expense rate's median: 2 654,49 € a month.
+      monthly_burn_cents: 265_449,
       unavailable_reason: null,
     },
     liquid_in_five_years_before_cents: -4_698_103,

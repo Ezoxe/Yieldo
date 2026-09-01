@@ -24,10 +24,12 @@ from pathlib import Path
 
 import pytest
 from alembic.config import Config
+from sqlalchemy import create_engine
 
 from alembic import command
 from app.categorization.seed import CATEGORY_TREE, ESSENTIAL_SLUGS
 from app.config import settings
+from app.db import Base
 
 ALEMBIC_DIR = Path(__file__).resolve().parent.parent / "alembic"
 
@@ -245,4 +247,166 @@ def test_the_phase_2b_migration_rolls_back_cleanly(migration_db):
     assert not ({"debts", "goals", "scenarios"} & tables)
     # The tables the previous revision owns are untouched.
     assert "price_index_points" in tables
+    conn.close()
+
+
+PHASE_2C_REVISION = "4aa48828b2cb"
+PHASE_2C_PREVIOUS = "d1a4c9e77b02"
+
+
+def _table_columns(conn: sqlite3.Connection, table: str) -> set[tuple[str, int]]:
+    """(name, notnull) pairs for every column of `table`. Enough to catch a
+    column the hand-written migration dropped, renamed, or gave a different
+    nullability than the ORM model declares."""
+    return {(row[1], row[3]) for row in conn.execute(f"PRAGMA table_info({table})")}
+
+
+def _index_names(conn: sqlite3.Connection, table: str) -> set[str]:
+    return {row[1] for row in conn.execute(f"PRAGMA index_list({table})")}
+
+
+def _reference_schema(table: str) -> tuple[set[tuple[str, int]], set[str]]:
+    """The SAME table, built directly from `Base.metadata.create_all` rather
+    than through Alembic -- the independent source of truth the migration's
+    own DDL must agree with. Nothing in the rest of this suite ever runs the
+    migration file (see the module docstring), so without this comparison a
+    typo'd column name or a nullability mismatch between `models/
+    health_snapshot.py` / `models/challenge.py` and the hand-written
+    `alembic/versions/4aa48828b2cb_*.py` would pass every other test."""
+    engine = create_engine("sqlite://")
+    try:
+        Base.metadata.create_all(engine, tables=[Base.metadata.tables[table]])
+        with engine.connect() as conn:
+            columns = {
+                (row[1], row[3])
+                for row in conn.exec_driver_sql(f"PRAGMA table_info({table})")
+            }
+            indexes = {row[1] for row in conn.exec_driver_sql(f"PRAGMA index_list({table})")}
+    finally:
+        engine.dispose()
+    return columns, indexes
+
+
+@pytest.mark.parametrize("table", ["health_snapshots", "challenges"])
+def test_the_phase_2c_migration_matches_base_metadata_exactly(migration_db, table):
+    """Verified against `Base.metadata`, as the task requires -- not just
+    "the table exists", but that its columns and indexes are exactly what the
+    ORM models declare, independently derived."""
+    command.upgrade(migration_db.config, PHASE_2C_PREVIOUS)
+    command.upgrade(migration_db.config, PHASE_2C_REVISION)
+
+    conn = _connect(migration_db)
+    migrated_columns = _table_columns(conn, table)
+    migrated_indexes = _index_names(conn, table)
+    conn.close()
+
+    reference_columns, reference_indexes = _reference_schema(table)
+    assert migrated_columns == reference_columns
+    assert migrated_indexes == reference_indexes
+
+
+def test_the_phase_2c_migration_adds_two_tables_to_a_populated_database(migration_db):
+    """Run the real `upgrade()` against a database built at the PREVIOUS
+    revision with rows already in it -- exactly `test_the_phase_2b_migration_
+    adds_three_tables_to_a_populated_database`'s pattern, for the tables this
+    migration owns."""
+    command.upgrade(migration_db.config, PHASE_2C_PREVIOUS)
+    conn = _connect(migration_db)
+    conn.execute(
+        "INSERT INTO users (id, email, name, password_hash, role, is_active, created_at) "
+        "VALUES (1, 'a@b.fr', 'Max', 'x', 'user', 1, '2026-01-01T00:00:00')"
+    )
+    conn.commit()
+    conn.close()
+
+    command.upgrade(migration_db.config, PHASE_2C_REVISION)
+
+    conn = _connect(migration_db)
+    tables = {
+        row[0]
+        for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()
+    }
+    assert {"health_snapshots", "challenges"} <= tables
+    assert conn.execute("SELECT COUNT(*) FROM users").fetchone()[0] == 1
+
+    conn.execute(
+        "INSERT INTO health_snapshots (id, user_id, taken_on, score, components) "
+        "VALUES (1, 1, '2026-01-15', 62, '[]')"
+    )
+    conn.execute(
+        "INSERT INTO challenges (id, user_id, kind, title, detail, proposed_on, state) "
+        "VALUES (1, 1, 'anomaly', 'Titre', 'Détail', '2026-01-15', 'proposed')"
+    )
+    conn.commit()
+
+    # The foreign key on user_id really is enforced, on both tables.
+    with pytest.raises(sqlite3.IntegrityError):
+        conn.execute(
+            "INSERT INTO health_snapshots (id, user_id, taken_on, score, components) "
+            "VALUES (2, 4242, '2026-01-16', 50, '[]')"
+        )
+    with pytest.raises(sqlite3.IntegrityError):
+        conn.execute(
+            "INSERT INTO challenges (id, user_id, kind, title, detail, proposed_on, state) "
+            "VALUES (2, 4242, 'anomaly', 'Titre', 'Détail', '2026-01-16', 'proposed')"
+        )
+    # A second snapshot for the same user on the same day violates the unique
+    # constraint -- at most one per user per calendar day.
+    with pytest.raises(sqlite3.IntegrityError):
+        conn.execute(
+            "INSERT INTO health_snapshots (id, user_id, taken_on, score, components) "
+            "VALUES (3, 1, '2026-01-15', 70, '[]')"
+        )
+    conn.close()
+
+
+def test_the_phase_2c_migration_rolls_back_cleanly(migration_db):
+    """A downgrade must leave no table, index or row behind on the tables it
+    owns, and must not touch anything the previous revision already had."""
+    command.upgrade(migration_db.config, PHASE_2C_REVISION)
+
+    conn = _connect(migration_db)
+    conn.execute(
+        "INSERT INTO users (id, email, name, password_hash, role, is_active, created_at) "
+        "VALUES (1, 'a@b.fr', 'Max', 'x', 'user', 1, '2026-01-01T00:00:00')"
+    )
+    conn.execute(
+        "INSERT INTO health_snapshots (id, user_id, taken_on, score, components) "
+        "VALUES (1, 1, '2026-01-15', 62, '[]')"
+    )
+    conn.execute(
+        "INSERT INTO challenges (id, user_id, kind, title, detail, proposed_on, state) "
+        "VALUES (1, 1, 'anomaly', 'Titre', 'Détail', '2026-01-15', 'proposed')"
+    )
+    conn.commit()
+    conn.close()
+
+    command.downgrade(migration_db.config, PHASE_2C_PREVIOUS)
+
+    conn = _connect(migration_db)
+    tables = {
+        row[0]
+        for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()
+    }
+    indexes = {
+        row[0]
+        for row in conn.execute("SELECT name FROM sqlite_master WHERE type='index'").fetchall()
+    }
+    assert not ({"health_snapshots", "challenges"} & tables)
+    assert not any(name.startswith("ix_health_snapshots") for name in indexes)
+    assert not any(name.startswith("ix_challenges") for name in indexes)
+    # The previous revision's own tables and the pre-existing row survive.
+    assert {"debts", "goals", "scenarios", "users"} <= tables
+    assert conn.execute("SELECT COUNT(*) FROM users").fetchone()[0] == 1
+    conn.close()
+
+    # And a fresh upgrade from here works cleanly again -- the down/up cycle
+    # is idempotent, not a one-way trip that happens to work once.
+    command.upgrade(migration_db.config, "head")
+    conn = _connect(migration_db)
+    tables = {
+        row[0]
+        for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()
+    }
+    assert {"health_snapshots", "challenges"} <= tables
     conn.close()

@@ -2,7 +2,8 @@
  * The browser gate: one screen at 375, 768 and 1440 px, in both themes, against
  * the seeded fixture, with the operator's own figures filled in.
  *
- *   node shoot.mjs <task>       # task-15 | task-16 | task-19 | task-20
+ *   node shoot.mjs <task>   # task-15 | task-16 | task-19 | task-20 |
+ *                           # task-2c | task-2c-jalons
  *
  * Not a test. It drives a real Chromium, saves full-page PNGs, and reports the
  * three things a passing Vitest suite has never once caught in this project:
@@ -20,18 +21,19 @@ import { chromium } from "@playwright/test";
 
 const TASK = process.argv[2] ?? "task-15";
 const BASE = process.env.YIELDO_URL ?? "http://localhost:5173";
-const OUT = path.resolve(
-  path.dirname(fileURLToPath(import.meta.url)),
-  "../.superpowers/sdd/2026-08-24-yieldo-phase-2b-decision/screenshots",
-);
+const HERE = path.dirname(fileURLToPath(import.meta.url));
+// Each phase keeps its own screenshot folder, so a re-run of an older task
+// never overwrites the evidence a newer one was reviewed on.
+const OUT_DIRS = {
+  "phase-2b": path.resolve(HERE, "../.superpowers/sdd/2026-08-24-yieldo-phase-2b-decision/screenshots"),
+  "phase-2c": path.resolve(HERE, "../.superpowers/sdd/2026-09-01-yieldo-phase-2c-engagement/screenshots"),
+};
 const VIEWPORTS = [
   { name: "375", width: 375, height: 812 },
   { name: "768", width: 768, height: 1024 },
   { name: "1440", width: 1440, height: 900 },
 ];
 const THEMES = ["dark", "light"];
-
-mkdirSync(OUT, { recursive: true });
 
 /**
  * The selectors whose foreground/background pairing is decoded off the painted
@@ -76,6 +78,53 @@ const SIMULATOR_CONTRAST = {
   capped: ".yd-prop__capped",
 };
 
+/**
+ * /suivi. Every selector below is a FIGURE, a sentence or a control — never a
+ * container.
+ *
+ * Three of them exist because of what this screen has to keep apart: the
+ * measured score (`healthScore`), the numeral of a component measured at ZERO
+ * (`compScore`), and the band standing in for a component that could not be
+ * measured at all (`compAbsent`). The last two must clear AA on their own,
+ * because the only thing telling them apart is what they are made of.
+ *
+ * `monthCovered` / `monthMissing` are the two-digit numerals INSIDE the streak
+ * cells: the covered one is ink painted on the accent fill, which is the one
+ * pairing on this screen whose ground is not the card.
+ */
+const SUIVI_CONTRAST = {
+  lead: ".yd-suivi__lead",
+  note: ".yd-suivi__note",
+  refusal: ".yd-suivi__refusal",
+  key: ".yd-suivi__key",
+  streakCount: ".yd-streak__count",
+  streakUnit: ".yd-streak__unit",
+  monthCovered: ".yd-streak__month--covered .yd-streak__month-num",
+  monthEmpty: ".yd-streak__month--empty .yd-streak__month-num",
+  monthMissing: ".yd-streak__month--missing .yd-streak__month-num",
+  healthScore: ".yd-health__score",
+  healthScale: ".yd-health__scale",
+  healthBasis: ".yd-health__basis",
+  compLabel: ".yd-hcomp__label",
+  compWeight: ".yd-hcomp__weight",
+  compScore: ".yd-hcomp__score",
+  compValue: ".yd-hcomp__value",
+  compAbsent: ".yd-hcomp__absent-band",
+  challengeTitle: ".yd-challenge__title",
+  challengeFigureLabel: ".yd-challenge__figure-label",
+  challengeFigureValue: ".yd-challenge__figure-value",
+  challengeDetail: ".yd-challenge__detail",
+  challengeAction: ".yd-challenge__action",
+  challengeState: ".yd-challenge__state",
+  challengeOutcome: ".yd-challenge__outcome",
+  emptyTitle: ".yd-empty__title",
+  emptyDetail: ".yd-empty__detail",
+  jalonPercent: ".yd-jalon__percent",
+  jalonThreshold: ".yd-jalon__threshold",
+  jalonWhen: ".yd-jalon--reached .yd-jalon__when",
+  jalonCount: ".yd-jalons__count",
+};
+
 function luminance([r, g, b]) {
   const lin = (c) => {
     const v = c / 255;
@@ -107,6 +156,10 @@ async function api(path, init = {}, token) {
   const text = await response.text();
   return text.length > 0 ? JSON.parse(text) : null;
 }
+
+/** Where this run's PNGs land. Assigned once the task's scenario is resolved,
+ *  below — every task keeps its own phase's folder. */
+let OUT;
 
 /** `page.screenshot`, under this run's task/viewport/theme name. */
 function shot(page, viewport, theme, suffix = "") {
@@ -314,11 +367,141 @@ async function driveProperty(page, { theme, viewport, audit }) {
   await audit("plafond");
 }
 
+/**
+ * /suivi, on the operator's own 197 transactions.
+ *
+ * Every figure asserted below was measured live off `GET /api/engagement`
+ * before this screen was written, so a change that quietly stops printing one
+ * of them fails here rather than looking fine.
+ */
+async function driveSuivi(page, { theme, viewport, audit }) {
+  await page.goto(`${BASE}/suivi`);
+  await page.waitForSelector("text=Régularité du suivi", { timeout: 20000 });
+  await page.waitForSelector('[data-testid="yd-streak-strip"]', { timeout: 20000 });
+
+  await expectOnScreen(
+    page,
+    `${theme} ${viewport.name} suivi`,
+    // The streak, broken for seven months — the engine's sentence, verbatim.
+    "cela fait 7 mois qu'aucun relevé n'a été importé",
+    "Votre plus longue série : 13 mois",
+    "Dernier mois importé : janvier 2026",
+    // The health score: MEASURED at zero, from three components out of four.
+    "Mesuré à partir de 3 composantes sur 4",
+    "80 % du barème",
+    // Each measured component in its OWN unit, not three identical zeroes.
+    "−158,39 % du revenu médian",
+    "266,28 % du revenu médian",
+    "0,0 mois de dépenses essentielles",
+    // And the fourth as an absence, with the engine's own reason.
+    "Non mesurée",
+    "Aucun budget n'a encore été suivi sur un mois complet",
+    "Ses 20 % ont été répartis sur les composantes mesurées",
+    // The single challenge, with the label that says what its figure measured.
+    "Écart avec l'habitude de la catégorie",
+    "168,14 €",
+    "mesuré sur 17 opérations",
+  );
+
+  // A measured 0 is a figure; a score that could not be calculated is a
+  // sentence. His score WAS measured, so the words must not be on screen.
+  const text = await page.evaluate(() => document.body.innerText);
+  if (text.includes("Non calculable")) {
+    problems.push(`${theme} ${viewport.name}: a measured score of 0 is showing as "Non calculable"`);
+  }
+
+  // Three meters and exactly three, whatever the theme does to the fill.
+  const meters = await page.evaluate(() => document.querySelectorAll('[role="meter"]').length);
+  if (meters !== 3) {
+    problems.push(`${theme} ${viewport.name}: ${meters} gauges drawn, expected 3`);
+  }
+
+  // The zero-score fill must be zero-WIDTH and its track must still be
+  // visible: a percentage width in an auto-width column resolves to nothing,
+  // and a track that vanished would make a measured 0 indistinguishable from
+  // an absence. Both halves are measured off the rendered box.
+  const gauge = await page.evaluate(() => {
+    const track = document.querySelector('[data-testid="yd-hcomp-fill-savings_rate"]')
+      ?.parentElement;
+    const fill = document.querySelector('[data-testid="yd-hcomp-fill-savings_rate"]');
+    if (!track || !fill) return null;
+    return { trackWidth: track.getBoundingClientRect().width, fillWidth: fill.getBoundingClientRect().width };
+  });
+  if (gauge === null) problems.push(`${theme} ${viewport.name}: no savings-rate gauge on screen`);
+  else if (gauge.trackWidth < 40) {
+    problems.push(`${theme} ${viewport.name}: gauge track collapsed to ${gauge.trackWidth}px`);
+  } else if (gauge.fillWidth > 1) {
+    problems.push(`${theme} ${viewport.name}: a score of 0 drew a ${gauge.fillWidth}px fill`);
+  }
+
+  if (TASK === "task-2c-jalons") {
+    // The challenge is accepted THROUGH THE UI the first time this pass runs;
+    // afterwards it has left the `proposed` state for good, and every later
+    // combination photographs the accepted card and its outcome refusal.
+    const accept = page.getByRole("button", { name: /Accepter le défi/ });
+    if ((await accept.count()) > 0) {
+      await accept.first().click();
+    }
+    await page.waitForSelector("text=Pas assez de temps écoulé", { timeout: 20000 });
+    await expectOnScreen(
+      page,
+      `${theme} ${viewport.name} défi accepté`,
+      "Accepté le",
+      // The four refusals are four different waits, and this is the one that
+      // applies the day a challenge is accepted.
+      "le résultat n'est mesurable qu'une fois le mois suivant entièrement terminé",
+    );
+    await expectOnScreen(
+      page,
+      `${theme} ${viewport.name} jalons`,
+      "1 jalon franchi sur 4",
+      "Atteint",
+      "Non projeté",
+      "aucun objectif ne progresse",
+    );
+    // A reached milestone carries NO date: `saved_cents` is declared with no
+    // history behind it, so Yieldo does not know when the threshold was
+    // crossed. "Atteint aujourd'hui" is the sentence this asserts is absent —
+    // read AFTER the goal's own card is on screen, not from the earlier
+    // snapshot of the page taken before the accept.
+    const withGoal = await page.evaluate(() => document.body.innerText);
+    if (/Atteint\s+(aujourd'hui|le\b)/.test(withGoal)) {
+      problems.push(`${theme} ${viewport.name}: a reached milestone carries a date`);
+    }
+  } else {
+    await expectOnScreen(
+      page,
+      `${theme} ${viewport.name} sans objectif`,
+      "Aucun objectif déclaré",
+      // One stored snapshot is not a history, and no curve is drawn through it.
+      "Un seul relevé pour l'instant",
+    );
+    const canvas = await page.evaluate(
+      () => document.querySelector('[aria-label*="relevés du score"]') !== null,
+    );
+    if (canvas) {
+      problems.push(`${theme} ${viewport.name}: a curve was drawn through a single reading`);
+    }
+  }
+
+  await page.waitForTimeout(700);
+  await shot(page, viewport, theme);
+  await audit("suivi");
+}
+
 const SCENARIOS = {
-  "task-15": { drive: driveFeasibility, contrast: FEASIBILITY_CONTRAST },
-  "task-16": { drive: driveFeasibility, contrast: FEASIBILITY_CONTRAST },
-  "task-19": { drive: driveSimulators, contrast: SIMULATOR_CONTRAST },
-  "task-20": { drive: driveProperty, contrast: SIMULATOR_CONTRAST },
+  "task-15": { drive: driveFeasibility, contrast: FEASIBILITY_CONTRAST, out: "phase-2b" },
+  "task-16": { drive: driveFeasibility, contrast: FEASIBILITY_CONTRAST, out: "phase-2b" },
+  "task-19": { drive: driveSimulators, contrast: SIMULATOR_CONTRAST, out: "phase-2b" },
+  "task-20": { drive: driveProperty, contrast: SIMULATOR_CONTRAST, out: "phase-2b" },
+  // The operator's state exactly as `seed_fixture.py` leaves it: no goal
+  // declared, one challenge still proposed, one stored health snapshot.
+  "task-2c": { drive: driveSuivi, contrast: SUIVI_CONTRAST, out: "phase-2c" },
+  // The same screen after ONE goal has been declared through the real /goals
+  // API and the challenge accepted through the real button — the two states
+  // the fixture cannot reach on its own. Run AFTER task-2c: both mutate the
+  // database, and neither is reversible.
+  "task-2c-jalons": { drive: driveSuivi, contrast: SUIVI_CONTRAST, out: "phase-2c" },
 };
 
 const scenario = SCENARIOS[TASK];
@@ -326,6 +509,9 @@ if (scenario === undefined) {
   console.error(`Unknown task "${TASK}". One of: ${Object.keys(SCENARIOS).join(", ")}`);
   process.exit(1);
 }
+
+OUT = OUT_DIRS[scenario.out];
+mkdirSync(OUT, { recursive: true });
 
 // Scenarios persist in the database across the six runs, and the router caps
 // them at ten. Cleared once, up front, so every run starts from the same list
@@ -339,6 +525,38 @@ if (TASK === "task-16") {
     await api(`/feasibility/scenarios/${scenario.id}`, { method: "DELETE" }, token);
   }
   console.log("cleared saved scenarios");
+}
+
+/**
+ * One declared goal, so the milestone panel has something real to draw.
+ *
+ * `seed_fixture.py` ships ZERO goals — the operator has genuinely declared
+ * none, and `task-2c` photographs exactly that (the panel's own diagnosis).
+ * This second pass creates one through the real POST /goals, which is what a
+ * household does by hand: 900 € declared against a 3 000 € target puts the
+ * 25 % threshold behind him and leaves three ahead, none of them projectable
+ * on a capacity of −746,19 €/month. Nothing here is a MEASUREMENT that Yieldo
+ * did not make — a goal is declared input, not measured output.
+ */
+if (TASK === "task-2c-jalons") {
+  const { access_token: token } = await api("/auth/login", {
+    method: "POST",
+    body: JSON.stringify({ email: "demo@yieldo-demo.fr", password: "MotDePasseDemo123!" }),
+  });
+  const { goals } = await api("/goals", {}, token);
+  if (goals.length === 0) {
+    await api("/goals", {
+      method: "POST",
+      body: JSON.stringify({
+        name: "Fonds d'urgence",
+        target_cents: 300000,
+        saved_cents: 90000,
+        due_on: null,
+        priority: 1,
+      }),
+    }, token);
+    console.log("declared one goal for the milestone panel");
+  }
 }
 
 const browser = await chromium.launch();

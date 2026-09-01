@@ -1226,3 +1226,120 @@ export interface Scenario {
    *  statements, which is what makes them comparable at all. */
   result: Feasibility;
 }
+
+// -- Suivi / engagement ------------------------------------------------------
+//
+// Mirrors backend/app/schemas/engagement.py. Read `engines/streak.py` for what
+// "imported" means on a month holding no transaction, `engines/health.py` for
+// why an unmeasurable component is NOT a zero, and `engines/challenge.py` for
+// the four refusals `measure_outcome` distinguishes.
+
+export interface MonthCovered {
+  /** "AAAA-MM". */
+  key: string;
+  /** Strictly: this month holds at least one transaction. */
+  covered: boolean;
+  transaction_count: number;
+  /** True when `covered`, and also on an EMPTY month some import batch's own
+   *  span still reaches — "importé, sans opération". False only on a month no
+   *  statement has ever touched. Three states on screen, never two: a month
+   *  whose statement arrived and was empty is not the same fact as a month
+   *  that was never imported, and the streak counts the first and breaks on
+   *  the second. */
+  imported: boolean;
+}
+
+export interface Streak {
+  current: number;
+  longest: number;
+  /** The most recent PAST month that was imported, "AAAA-MM". */
+  last_complete_month: string | null;
+  months: MonthCovered[];
+  /** French, from the engine. Set exactly when `current === 0`, and it names
+   *  WHICH of two causes applies — the follow-up stopped, or it never started.
+   *  Print verbatim: the two remedies are not the same. */
+  broken_reason: string | null;
+}
+
+export interface HealthComponent {
+  key: string;
+  label: string;
+  /** Fixed percentage points out of 100, a property of the score's DESIGN and
+   *  not of what could be measured. Present even when the component is
+   *  unavailable. */
+  weight: number;
+  /** 0-100. `null` exactly when `unavailable_reason` is set — and a `null` is
+   *  never drawn as a zero-height bar. */
+  score: number | null;
+  /** The raw figure behind `score`: a ratio of income for the first two, a
+   *  month count for runway, a share for budget adherence. */
+  measured_value: number | null;
+  /** French, from the engine. `null` exactly when `score` is not. */
+  unavailable_reason: string | null;
+  /** This component's score today minus its own score on the previous STORED
+   *  snapshot. `null` when there is no previous snapshot or when either side
+   *  could not be measured — a delta between a score and an absence is not a
+   *  number. */
+  delta_score: number | null;
+}
+
+export interface HealthSnapshot {
+  /** ISO date. At most one per user per day, written on read. */
+  taken_on: string;
+  score: number;
+}
+
+export interface Health {
+  /** 0-100, or `null` below two measurable components. */
+  score: number | null;
+  components: HealthComponent[];
+  /** French. Set exactly when `score` is `null`. */
+  unavailable_reason: string | null;
+  /** The most recent STORED snapshot strictly before today, never a
+   *  recomputation of today's inputs at that date. */
+  previous_taken_on: string | null;
+  score_delta: number | null;
+  /** Every stored snapshot, ascending by date, today's included. A household
+   *  reading this screen for the first time has exactly one. */
+  history: HealthSnapshot[];
+}
+
+export type ChallengeKind =
+  | "unused_subscription"
+  | "category_above_past_level"
+  | "anomaly"
+  | "budget_overrun";
+
+export type ChallengeState = "proposed" | "accepted" | "rejected";
+
+export interface Challenge {
+  id: number;
+  kind: ChallengeKind;
+  title: string;
+  detail: string;
+  /** The figure that JUSTIFIED proposing this challenge — and it means a
+   *  different thing per `kind` (a subscription's cost, a category's rise, an
+   *  anomaly's excess, a budget's typical overage). Never printed as a bare
+   *  amount: the label beside it has to say which. */
+  target_cents: number | null;
+  category_id: number | null;
+  proposed_on: string;
+  state: ChallengeState;
+  decided_on: string | null;
+  /** Positive: the category spent LESS the complete month after acceptance
+   *  than the complete month before. Negative: it spent more. */
+  measured_cents: number | null;
+  measured_on: string | null;
+  /** French, from the engine. Set exactly when the challenge is `accepted` and
+   *  `measured_cents` is still null; names which of four causes applies. */
+  outcome_unavailable_reason: string | null;
+}
+
+export interface Engagement {
+  streak: Streak;
+  /** Milestones across every active goal, in funding order. */
+  goals: GoalProgress[];
+  health: Health;
+  /** Everything ever proposed: `proposed`, then `accepted`, then `rejected`. */
+  challenges: Challenge[];
+}

@@ -24,6 +24,7 @@ const NAV_ITEMS: NavItem[] = [
   { to: "/analyse", label: "Analyse" },
   { to: "/dettes", label: "Dettes" },
   { to: "/objectifs", label: "Objectifs" },
+  { to: "/suivi", label: "Suivi" },
   { to: "/faisabilite", label: "Faisabilité" },
   { to: "/simulateurs", label: "Simulateurs" },
   { to: "/categories", label: "Catégories" },

@@ -6,6 +6,7 @@ import { BudgetsPage } from "../features/budgets/BudgetsPage";
 import { CashflowPage } from "../features/cashflow/CashflowPage";
 import { DebtsPage } from "../features/debts/DebtsPage";
 import { DesignSystemPage } from "../features/design-system/DesignSystemPage";
+import { SuiviPage } from "../features/engagement/SuiviPage";
 import { FeasibilityPage } from "../features/feasibility/FeasibilityPage";
 import { GoalsPage } from "../features/goals/GoalsPage";
 import { RegisterPage } from "../features/auth/RegisterPage";
@@ -62,6 +63,7 @@ export const router = createBrowserRouter([
           { path: "analyse", element: <AnalysisPage /> },
           { path: "dettes", element: <DebtsPage /> },
           { path: "objectifs", element: <GoalsPage /> },
+          { path: "suivi", element: <SuiviPage /> },
           { path: "faisabilite", element: <FeasibilityPage /> },
           { path: "simulateurs", element: <SimulatorsPage /> },
           { path: "categories", element: <CategoriesPlaceholder /> },

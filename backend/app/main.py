@@ -14,6 +14,7 @@ from app.api import budgets as budget_routes
 from app.api import cashflow as cashflow_routes
 from app.api import categories as category_routes
 from app.api import debts as debt_routes
+from app.api import engagement as engagement_routes
 from app.api import feasibility as feasibility_routes
 from app.api import goals as goal_routes
 from app.api import imports as import_routes
@@ -72,6 +73,7 @@ api.include_router(debt_routes.router)
 api.include_router(goal_routes.router)
 api.include_router(feasibility_routes.router)
 api.include_router(simulator_routes.router)
+api.include_router(engagement_routes.router)
 
 app.include_router(api)
 

@@ -660,17 +660,6 @@ def test_the_allocation_targets_migration_matches_base_metadata_exactly(migratio
     assert migrated_indexes == reference_indexes
 
 
-def test_the_allocation_targets_migration_keeps_one_head(migration_db):
-    """`heads` and `head` must be the same single revision -- two heads is a
-    database Alembic cannot upgrade without a merge, and nothing else in this
-    suite would notice."""
-    from alembic.script import ScriptDirectory
-
-    script = ScriptDirectory.from_config(migration_db.config)
-    assert len(script.get_heads()) == 1
-    assert script.get_current_head() == ALLOCATION_REVISION
-
-
 def test_the_allocation_targets_migration_adds_its_table_to_a_populated_database(migration_db):
     """Run the real `upgrade()` against a database built at the PREVIOUS
     revision with a pre-existing user already in it, and prove the isolation
@@ -765,6 +754,119 @@ def test_the_allocation_targets_migration_rolls_back_cleanly(migration_db):
         for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()
     }
     assert "allocation_targets" in tables
+    conn.close()
+
+
+# --- The chat-messages migration (phase 4, Task 3) --------------------------
+
+CHAT_REVISION = "035256084eae"
+CHAT_PREVIOUS = "bf18816b285c"
+
+
+def test_the_chat_messages_migration_matches_base_metadata_exactly(migration_db):
+    """Same independent-source-of-truth comparison as the migrations above:
+    the hand-written DDL in `035256084eae_*.py` must agree, column for column
+    and index for index, with what `Base.metadata.create_all` derives
+    straight from `models/chat_message.py`."""
+    command.upgrade(migration_db.config, CHAT_PREVIOUS)
+    command.upgrade(migration_db.config, CHAT_REVISION)
+
+    conn = _connect(migration_db)
+    migrated_columns = _table_columns(conn, "chat_messages")
+    migrated_indexes = _index_names(conn, "chat_messages")
+    conn.close()
+
+    reference_columns, reference_indexes = _reference_schema("chat_messages")
+    assert migrated_columns == reference_columns
+    assert migrated_indexes == reference_indexes
+
+
+def test_the_chat_messages_migration_keeps_one_head(migration_db):
+    """`heads` and `head` must be the same single revision -- two heads is a
+    database Alembic cannot upgrade without a merge, and nothing else in this
+    suite would notice."""
+    from alembic.script import ScriptDirectory
+
+    script = ScriptDirectory.from_config(migration_db.config)
+    assert len(script.get_heads()) == 1
+    assert script.get_current_head() == CHAT_REVISION
+
+
+def test_the_chat_messages_migration_adds_its_table_to_a_populated_database(migration_db):
+    """Run the real `upgrade()` against a database built at the PREVIOUS
+    revision with two pre-existing users already in it, and prove the
+    isolation the model promises actually holds at the schema level: deleting
+    one user takes their own chat messages with them, nobody else's."""
+    command.upgrade(migration_db.config, CHAT_PREVIOUS)
+    conn = _connect(migration_db)
+    conn.execute(
+        "INSERT INTO users (id, email, name, password_hash, role, is_active, created_at) "
+        "VALUES (1, 'a@b.fr', 'Max', 'x', 'user', 1, '2026-01-01T00:00:00'), "
+        "(2, 'c@d.fr', 'Alice', 'x', 'user', 1, '2026-01-01T00:00:00')"
+    )
+    conn.commit()
+    conn.close()
+
+    command.upgrade(migration_db.config, CHAT_REVISION)
+
+    conn = _connect(migration_db)
+    conn.execute(
+        "INSERT INTO chat_messages (user_id, text, created_at) "
+        "VALUES (1, 'Combien ai-je dépensé ?', '2026-09-01T00:00:00')"
+    )
+    conn.execute(
+        "INSERT INTO chat_messages (user_id, text, created_at) "
+        "VALUES (2, 'Où en est mon objectif ?', '2026-09-01T00:00:00')"
+    )
+    conn.commit()
+    # The SAME user's row survives; deleting a different one is unaffected.
+    conn.execute("DELETE FROM users WHERE id = 1")
+    conn.commit()
+    rows = conn.execute("SELECT user_id FROM chat_messages").fetchall()
+    assert rows == [(2,)]
+    conn.close()
+
+
+def test_the_chat_messages_migration_rolls_back_cleanly(migration_db):
+    """A downgrade must leave no table, index or row behind on the table it
+    owns, and must not touch anything the previous revision already had."""
+    command.upgrade(migration_db.config, CHAT_REVISION)
+
+    conn = _connect(migration_db)
+    conn.execute(
+        "INSERT INTO users (id, email, name, password_hash, role, is_active, created_at) "
+        "VALUES (1, 'a@b.fr', 'Max', 'x', 'user', 1, '2026-01-01T00:00:00')"
+    )
+    conn.execute(
+        "INSERT INTO chat_messages (user_id, text, created_at) "
+        "VALUES (1, 'Combien ai-je dépensé ?', '2026-09-01T00:00:00')"
+    )
+    conn.commit()
+    conn.close()
+
+    command.downgrade(migration_db.config, CHAT_PREVIOUS)
+
+    conn = _connect(migration_db)
+    tables = {
+        row[0]
+        for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()
+    }
+    indexes = {
+        row[0]
+        for row in conn.execute("SELECT name FROM sqlite_master WHERE type='index'").fetchall()
+    }
+    assert "chat_messages" not in tables
+    assert not any(name.startswith("ix_chat_messages") for name in indexes)
+    assert conn.execute("SELECT COUNT(*) FROM users").fetchone()[0] == 1
+    conn.close()
+
+    command.upgrade(migration_db.config, "head")
+    conn = _connect(migration_db)
+    tables = {
+        row[0]
+        for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()
+    }
+    assert "chat_messages" in tables
     conn.close()
 
 

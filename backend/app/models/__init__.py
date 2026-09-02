@@ -3,6 +3,7 @@ from app.models.allocation_target import AllocationTarget
 from app.models.api_key import MARKET_PROVIDERS, ApiKey
 from app.models.category import CATEGORY_KINDS, Category
 from app.models.challenge import CHALLENGE_STATES, Challenge
+from app.models.chat_message import ChatMessage
 from app.models.debt import DEBT_KINDS, Debt
 from app.models.goal import Goal
 from app.models.health_snapshot import HealthSnapshot
@@ -24,7 +25,7 @@ __all__ = [
     "INSTRUMENT_ASSET_CLASSES", "INVESTMENT_ACCOUNT_KINDS", "MARKET_PROVIDERS", "RULE_ORIGINS",
     "RULE_PRIORITIES", "SCENARIO_KINDS", "TRANSACTION_CATEGORY_SOURCES",
     "Account", "AllocationTarget", "ApiKey", "Category", "CategoryRule", "Challenge",
-    "ColumnProfile", "Debt",
+    "ChatMessage", "ColumnProfile", "Debt",
     "Goal", "HealthSnapshot", "ImportBatch", "Instrument", "InvestmentAccount", "Lot",
     "Position", "PriceIndexPoint", "PricePoint", "QuotaWindow", "Scenario", "Transaction",
     "User",

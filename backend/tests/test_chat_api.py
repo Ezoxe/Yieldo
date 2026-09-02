@@ -1,0 +1,182 @@
+"""POST/GET /api/chat.
+
+A stored chat message holds only the question text -- see `models.ChatMessage`'s
+own docstring -- so every read here re-parses and re-executes it against the
+CURRENT ledger. `test_a_stored_question_is_re_executed_not_replayed` proves
+that with a mutation: the very same stored row must answer differently once
+the ledger underneath it changes, which is only possible if nothing was ever
+cached.
+"""
+
+from datetime import date
+
+from app.models import Account, User
+
+
+def _register(client, email="chat@example.fr"):
+    body = client.post("/api/auth/register", json={
+        "name": "Max", "email": email, "password": "motdepasse123"}).json()
+    return {"Authorization": f"Bearer {body['access_token']}"}
+
+
+def _user_id(db, email: str) -> int:
+    return db.query(User).filter(User.email == email).one().id
+
+
+def _account(db, user_id: int) -> Account:
+    account = Account(user_id=user_id, name="Courant", kind="checking", currency="EUR",
+                      opening_balance_cents=0, include_in_net_worth=True, archived=False)
+    db.add(account)
+    db.flush()
+    return account
+
+
+def _tx(db, user_id, account_id, on, amount, label):
+    from app.models import Transaction
+    row = Transaction(user_id=user_id, account_id=account_id, date=on,
+                      amount_cents=amount, label_raw=label, label_clean=label.lower(),
+                      category_id=None, category_source="uncategorized",
+                      is_transfer=False, dedup_hash=f"{on}{amount}{label}{account_id}",
+                      tags=[])
+    db.add(row)
+    return row
+
+
+# --------------------------------------------------------------------------
+# POST answers immediately, and the answer is never guessed.
+# --------------------------------------------------------------------------
+
+
+def test_asking_a_recognised_question_answers_with_a_real_figure(client):
+    headers = _register(client)
+    response = client.post("/api/chat", headers=headers,
+                           json={"text": "Combien j'ai dépensé en mars 2026 ?"})
+    assert response.status_code == 201
+    body = response.json()
+    assert body["answer"]["recognised"] is True
+    assert body["answer"]["amount_cents"] == 0
+    assert "mars" in body["answer"]["query_description"].lower()
+
+
+def test_an_unrecognised_question_is_a_200_naming_what_is_understood(client):
+    """Not a 422: refusing to guess is a complete answer, not a bad request."""
+    headers = _register(client)
+    response = client.post("/api/chat", headers=headers,
+                           json={"text": "Quelle est la météo à Lyon ?"})
+    assert response.status_code == 201
+    answer = response.json()["answer"]
+    assert answer["recognised"] is False
+    assert answer["is_refusal"] is True
+    assert len(answer["supported_formulations"]) >= 5
+    assert answer["query_description"] is None
+
+
+def test_an_unrecognised_question_is_still_stored_in_history(client):
+    headers = _register(client)
+    client.post("/api/chat", headers=headers, json={"text": "Quelle est la météo à Lyon ?"})
+    listed = client.get("/api/chat", headers=headers).json()
+    assert len(listed) == 1
+    assert listed[0]["text"] == "Quelle est la météo à Lyon ?"
+
+
+def test_an_engine_refusal_reaches_the_user_verbatim(client):
+    """Fewer than three complete months: the feasibility engine refuses in
+    its own words, and that sentence must be exactly what `/api/chat` returns
+    -- never softened, never rephrased."""
+    headers = _register(client)
+    response = client.post("/api/chat", headers=headers,
+                           json={"text": "Puis-je m'acheter une voiture à 20000 € dans 12 mois ?"})
+    assert response.status_code == 201
+    answer = response.json()["answer"]
+    assert answer["recognised"] is True
+    assert answer["is_refusal"] is True
+    assert "trois mois complets" in answer["text"]
+
+
+def test_a_question_that_parses_but_names_an_out_of_range_value_is_a_422(client):
+    """700 months exceeds `feasibility.MAX_HORIZON_MONTHS` (600): a genuinely
+    bad input, refused by the engine with a `ValueError` -- the router must
+    translate that into a 422, the same idiom every other engine-backed
+    route in this codebase already uses."""
+    headers = _register(client)
+    response = client.post("/api/chat", headers=headers, json={
+        "text": "Puis-je m'acheter une voiture à 20000 € dans 700 mois ?"
+    })
+    assert response.status_code == 422
+    # And nothing was stored: a rejected question never enters the history.
+    assert client.get("/api/chat", headers=headers).json() == []
+
+
+# --------------------------------------------------------------------------
+# Re-execution, not replay.
+# --------------------------------------------------------------------------
+
+
+def test_a_stored_question_is_re_executed_not_replayed(client, db):
+    headers = _register(client)
+    user_id = _user_id(db, "chat@example.fr")
+    account = _account(db, user_id)
+
+    client.post("/api/chat", headers=headers,
+               json={"text": "Combien j'ai dépensé en mars 2026 ?"})
+    before = client.get("/api/chat", headers=headers).json()[0]["answer"]
+    assert before["amount_cents"] == 0
+
+    _tx(db, user_id, account.id, date(2026, 3, 10), -5_000, "Loyer")
+    db.commit()
+
+    after = client.get("/api/chat", headers=headers).json()[0]["answer"]
+    assert after["amount_cents"] == -5_000
+    # The whole point: if the answer had been cached at write time, `after`
+    # would still read exactly like `before`. It must not.
+    assert before["amount_cents"] != after["amount_cents"]
+    assert before["text"] != after["text"]
+
+
+def test_a_refusal_stops_being_one_once_the_ledger_supports_an_answer(client, db):
+    """The same staleness proof, on the refusal path: three complete,
+    profitable months turn a "could not measure" refusal into a real
+    verdict on re-read, exactly like `test_scenarios_api.py`'s own proof for
+    saved feasibility scenarios."""
+    headers = _register(client)
+    user_id = _user_id(db, "chat@example.fr")
+    account = _account(db, user_id)
+
+    client.post("/api/chat", headers=headers,
+               json={"text": "Puis-je m'acheter un vélo à 500 € dans 3 mois ?"})
+    before = client.get("/api/chat", headers=headers).json()[0]["answer"]
+    assert before["is_refusal"] is True
+
+    # Five months, not three: `capacity.complete_months` only counts a month
+    # whose calendar bounds fall INSIDE the ledger's own span, so the first
+    # and last calendar months touched by the ledger are always partial.
+    # Padding one extra month on each side, as `test_scenarios_api.py` does
+    # for the identical reason, leaves three genuinely complete months
+    # (February, March, April) in the middle.
+    for month in (1, 2, 3, 4, 5):
+        _tx(db, user_id, account.id, date(2026, month, 5), 300_000, f"SALAIRE {month}")
+        _tx(db, user_id, account.id, date(2026, month, 20), -50_000, f"DEPENSE {month}")
+    db.commit()
+
+    after = client.get("/api/chat", headers=headers).json()[0]["answer"]
+    assert after["is_refusal"] is False
+    assert "atteignable" in after["text"]
+
+
+# --------------------------------------------------------------------------
+# Isolation.
+# --------------------------------------------------------------------------
+
+
+def test_chat_history_never_crosses_users(client):
+    alice = _register(client, "alice-chat@example.fr")
+    bob = _register(client, "bob-chat@example.fr")
+    client.post("/api/chat", headers=bob, json={"text": "Combien me coûtent mes abonnements ?"})
+
+    # Bob's own read proves the seeding above actually landed, so the
+    # assertion below (that Alice sees none of it) cannot pass vacuously.
+    bob_history = client.get("/api/chat", headers=bob).json()
+    assert len(bob_history) == 1
+
+    alice_history = client.get("/api/chat", headers=alice).json()
+    assert alice_history == []

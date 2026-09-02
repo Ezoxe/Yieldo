@@ -58,6 +58,7 @@ FIELD_SUBJECTS: dict[str, str] = {
     "minimum_payment_cents": "La mensualité",
     "term_months": "La durée",
     "extra_cents": "Le versement supplémentaire",
+    "api_key": "La clé",
     # Shared with `GoalIn.target_cents` ("Le montant cible" -- a savings goal,
     # already shipped in task 7). `FeasibilityIn.target_cents` names a purchase
     # price, and the brief this task was handed asks for "Le prix du bien"

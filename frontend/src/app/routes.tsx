@@ -14,6 +14,7 @@ import { RequireAuth } from "../features/auth/RequireAuth";
 import { ImportPage } from "../features/import/ImportPage";
 import { OverviewPage } from "../features/overview/OverviewPage";
 import { PatrimoinePage } from "../features/portfolio/PatrimoinePage";
+import { ProjectionPage } from "../features/projection/ProjectionPage";
 import { RecurrencesPage } from "../features/recurrences/RecurrencesPage";
 import { SettingsPage } from "../features/settings/SettingsPage";
 import { SimulatorsPage } from "../features/simulators/SimulatorsPage";
@@ -66,6 +67,7 @@ export const router = createBrowserRouter([
           { path: "objectifs", element: <GoalsPage /> },
           { path: "suivi", element: <SuiviPage /> },
           { path: "patrimoine", element: <PatrimoinePage /> },
+          { path: "projection", element: <ProjectionPage /> },
           { path: "faisabilite", element: <FeasibilityPage /> },
           { path: "simulateurs", element: <SimulatorsPage /> },
           { path: "categories", element: <CategoriesPlaceholder /> },

@@ -26,6 +26,7 @@ const NAV_ITEMS: NavItem[] = [
   { to: "/objectifs", label: "Objectifs" },
   { to: "/suivi", label: "Suivi" },
   { to: "/patrimoine", label: "Patrimoine" },
+  { to: "/projection", label: "Projection" },
   { to: "/faisabilite", label: "Faisabilité" },
   { to: "/simulateurs", label: "Simulateurs" },
   { to: "/categories", label: "Catégories" },

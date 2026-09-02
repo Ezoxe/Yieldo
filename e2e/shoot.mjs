@@ -216,6 +216,78 @@ const PATRIMOINE_CONTRAST = {
   allocEdit: ".yd-alloc__edit",
 };
 
+/**
+ * /projection. Every selector below is a FIGURE, a sentence or a control —
+ * never a container.
+ *
+ * Four of them exist because of the distinction this screen is built to make.
+ * `refusal` is an engine declining to answer, and on the operator's own data it
+ * is four fifths of the page — it has to be as readable as any figure.
+ * `mcBandNegative` is a percentile that went below zero: painted in the
+ * negative tone, on the card surface, and it must clear AA on its own or the
+ * one number the band exists to show is the least legible on screen.
+ * `shockBadge` is the sentence that stops a stressed euro amount being read as
+ * a forecast. `shockAbsent` is the hatched band standing in for a class an
+ * episode has no data for — an absence, on a hatched ground, which is the one
+ * pairing here whose background is not the flat card.
+ */
+const PROJECTION_CONTRAST = {
+  lead: ".yd-projection__lead",
+  note: ".yd-projection__note",
+  refusal: ".yd-projection__refusal",
+  link: ".yd-projection__link",
+  sectionTitle: ".yd-projection__section-title",
+  seedLabel: ".yd-assumptions__seed-label",
+  seedValue: ".yd-assumptions__seed-value",
+  seedNote: ".yd-assumptions__seed-note",
+  reseed: ".yd-assumptions__reseed",
+  toggle: ".yd-assumptions__toggle",
+  factLabel: ".yd-fact__label",
+  factValue: ".yd-fact__value",
+  factNote: ".yd-fact__note",
+  factWords: ".yd-fact__value--words",
+  negativeFigure: ".yd-projection__figure--negative",
+  formLabel: ".yd-assumptions__field label",
+  formInput: ".yd-assumptions__field input",
+  formHint: ".yd-assumptions__hint",
+  formError: ".yd-assumptions__error",
+  apply: ".yd-assumptions__apply",
+  fireTargetLabel: ".yd-fire__target-label",
+  fireTargetValue: ".yd-fire__target-value",
+  fireTimelineValue: ".yd-fire__timeline-value",
+  fireRowLabel: ".yd-fire__row-label",
+  fireRowValue: ".yd-fire__row-value",
+  fireRowNote: ".yd-fire__row-note",
+  mcBandLabel: ".yd-mc__band-label",
+  mcBandValue: ".yd-mc__band-value",
+  mcBandNegative: ".yd-mc__band-value--negative",
+  mcBandNote: ".yd-mc__band-note",
+  chartKey: ".yd-chart-key",
+  taxTotalLabel: ".yd-tax__total-label",
+  taxTotalValue: ".yd-tax__total-value",
+  envName: ".yd-tenv__name",
+  envKind: ".yd-tenv__kind",
+  envRegime: ".yd-tenv__regime",
+  envAltTitle: ".yd-tenv__alternative-title",
+  figLabel: ".yd-tfig__label",
+  figValue: ".yd-tfig__value",
+  shockLabel: ".yd-shock__label",
+  shockBadge: ".yd-shock__badge",
+  shockPeriod: ".yd-shock__period",
+  shockSource: ".yd-shock__source",
+  shockHeadlineLabel: ".yd-shock__headline-label",
+  shockHeadlineValue: ".yd-shock__headline-value",
+  shockHeadlineNote: ".yd-shock__headline-note",
+  shockRateLabel: ".yd-shock__rate-label",
+  shockRateValue: ".yd-shock__rate-value",
+  shockRateNegative: ".yd-shock__rate-value--negative",
+  shockRatePositive: ".yd-shock__rate-value--positive",
+  shockCaption: ".yd-shock__caption",
+  shockTableHead: ".yd-shock__table thead th",
+  shockTableCell: ".yd-shock__table td",
+  shockAbsent: ".yd-shock__absent-band",
+};
+
 function luminance([r, g, b]) {
   const lin = (c) => {
     const v = c / 255;
@@ -882,6 +954,226 @@ async function drivePatrimoineForms(page, { theme, viewport, audit }) {
   await audit("cible");
 }
 
+/**
+ * /projection, in the two states that matter.
+ *
+ * `task-16-projection` is the operator's ACTUAL state: zero positions, a
+ * measured savings capacity of −746,19 €/month. All four engines refuse, each
+ * for its own reason and each naming its own remedy — that is four fifths of
+ * the page, and it is the state he opens every day.
+ *
+ * `task-16-projection-garni` is the same screen with three holdings behind it
+ * (see the seeding block at the bottom of this file), so the fan chart, the
+ * FIRE timeline, three different tax regimes and the three stress scenarios are
+ * all on screen at once. Both are driven by this one function: the screen is
+ * the same, only the data differs, and a second drive function would let the
+ * two drift apart.
+ *
+ * The seed is pinned in the URL rather than left to the page's own first pick,
+ * so the six combinations photograph the SAME run — six different bands would
+ * make the screenshots useless as evidence.
+ */
+const PROJECTION_SEED = 424242;
+
+async function driveProjection(page, { theme, viewport, audit }) {
+  const populated = TASK === "task-16-projection-garni";
+  // 120 months on the populated run: long enough for the operator's negative
+  // capacity to take the band through zero, short enough for the crossing to
+  // be visible at 375 px. `tmi=3000` prices the barème beside the PFU.
+  const query = populated
+    ? `?graine=${PROJECTION_SEED}&horizon=120&trajectoires=400&tmi=3000`
+    : `?graine=${PROJECTION_SEED}&trajectoires=400`;
+  await page.goto(`${BASE}/projection${query}`);
+  await page.waitForSelector("text=Hypothèses de ce calcul", { timeout: 30000 });
+  await page.waitForSelector(".yd-assumptions__seed-value", { timeout: 30000 });
+
+  // The seed is on screen as a numeral, and it is the one that was asked for.
+  const seedOnScreen = await page.textContent(".yd-assumptions__seed-value");
+  if (seedOnScreen.trim() !== String(PROJECTION_SEED)) {
+    problems.push(
+      `${theme} ${viewport.name}: the seed on screen is "${seedOnScreen}", expected ${PROJECTION_SEED}`,
+    );
+  }
+
+  if (!populated) {
+    await page.waitForSelector('[data-testid="yd-mc-refusal"]', { timeout: 30000 });
+    await expectOnScreen(
+      page,
+      `${theme} ${viewport.name} projection vide`,
+      // Four engines, four DIFFERENT causes, four different remedies.
+      "Aucun capital de départ : vous ne détenez aucune position",
+      "l'indépendance financière ne se rapproche pas, elle recule ou stagne",
+      "Aucune plus-value latente à imposer",
+      "Aucune classe d'actifs à soumettre à un choc",
+      // The measured capacity, with its sign intact — never abs(), never 0.
+      "−746,19 €",
+      // A refusal on the timeline is not a refusal on everything: the expense
+      // rate IS measured (2 654,49 €/month over his three complete months), so
+      // the capital the 4 % rule implies is a real figure.
+      "796 347,00 €",
+      // The three episodes stay named, with their periods and their sources,
+      // even though nothing could be applied to them. The badge itself is
+      // asserted off the DOM below rather than as text: it is uppercased in
+      // CSS, and `innerText` reports what is PAINTED, not what was written.
+      "Crise financière de 2008",
+      "octobre 2007 - mars 2009",
+    );
+
+    const emptyCards = await page.evaluate(() => ({
+      badges: document.querySelectorAll(".yd-shock__badge").length,
+      periods: document.querySelectorAll(".yd-shock__period").length,
+      sources: document.querySelectorAll(".yd-shock__source").length,
+    }));
+    if (emptyCards.badges !== 3 || emptyCards.periods !== 3 || emptyCards.sources !== 3) {
+      problems.push(
+        `${theme} ${viewport.name}: refused stress cards carry ${emptyCards.badges} badges / ${emptyCards.periods} periods / ${emptyCards.sources} sources, expected 3 each`,
+      );
+    }
+
+    // The four refusals must be four DIFFERENT sentences on the rendered page.
+    const refusals = await page.evaluate(() =>
+      [...document.querySelectorAll(".yd-projection__refusal")].map((el) => el.textContent.trim()),
+    );
+    if (refusals.length < 4) {
+      problems.push(`${theme} ${viewport.name}: ${refusals.length} refusals on screen, expected 4`);
+    }
+    if (new Set(refusals).size !== refusals.length) {
+      problems.push(`${theme} ${viewport.name}: two panels are printing the SAME refusal sentence`);
+    }
+    // And no fan chart at all: a band drawn from 0 € would be a line, and a
+    // line is not a measurement of risk.
+    const drawn = await page.evaluate(
+      () => document.querySelector('[aria-label*="Projection Monte Carlo"]') !== null,
+    );
+    if (drawn) {
+      problems.push(`${theme} ${viewport.name}: a fan chart was drawn on an empty portfolio`);
+    }
+  } else {
+    await page.waitForSelector(".yd-mc__bands", { timeout: 30000 });
+    await page.waitForTimeout(1200);
+    await expectOnScreen(
+      page,
+      `${theme} ${viewport.name} projection garnie`,
+      // Every tax figure names the regime that produced it, with its article.
+      "PEA exonéré d'impôt sur le revenu (art. 157, 5° bis CGI)",
+      "PFU — prélèvement forfaitaire unique, 30 %",
+      "Barème progressif de l'impôt sur le revenu",
+      // Each stress scenario carries its own period; the badge that marks it a
+      // measured past is asserted off the DOM below (it is uppercased in CSS).
+      "année civile 2022",
+      // Bitcoin did not exist in 2008: named as an absence, never a 0 %.
+      "Aucune donnée",
+    );
+
+    // The band is three centiles and never one number. Read off the DOM, not
+    // off innerText: these labels are uppercased in CSS, and `innerText`
+    // reports what is PAINTED rather than what was written — a difference no
+    // jsdom test can see, and one this gate found.
+    const bandLabels = await page.evaluate(() =>
+      [...document.querySelectorAll(".yd-mc__band-label")].map((el) => el.textContent.trim()),
+    );
+    for (const expected of ["Pire dixième (P10)", "Médiane (P50)", "Meilleur dixième (P90)"]) {
+      if (!bandLabels.includes(expected)) {
+        problems.push(
+          `${theme} ${viewport.name}: the band tile "${expected}" is not on screen (got ${JSON.stringify(bandLabels)})`,
+        );
+      }
+    }
+
+    // The fan chart exists, and its key is HTML above the canvas.
+    const chart = await page.evaluate(() => ({
+      drawn: document.querySelector('[aria-label*="Projection Monte Carlo"]') !== null,
+      key: document.querySelectorAll(".yd-chart-key__item").length,
+      label:
+        document.querySelector('[aria-label*="Projection Monte Carlo"]')?.getAttribute("aria-label") ??
+        "",
+    }));
+    if (!chart.drawn) problems.push(`${theme} ${viewport.name}: no fan chart was rendered`);
+    if (chart.key < 2) {
+      problems.push(`${theme} ${viewport.name}: the chart key has ${chart.key} entries, expected 2+`);
+    }
+    if (!chart.label.includes(`graine ${PROJECTION_SEED}`)) {
+      problems.push(`${theme} ${viewport.name}: the chart's own label does not name the seed`);
+    }
+    // The whole point: the lower percentile went below zero and stayed there.
+    // A band clamped at 0 is the phase-2A defect this screen exists not to
+    // repeat, and a picture is the only proof.
+    const negative = await page.evaluate(
+      () => document.querySelectorAll(".yd-mc__band-value--negative").length,
+    );
+    if (negative < 1) {
+      problems.push(
+        `${theme} ${viewport.name}: no negative percentile on screen — the band may have been clamped at zero`,
+      );
+    }
+    if (!chart.label.includes("passe sous zéro")) {
+      problems.push(`${theme} ${viewport.name}: the chart's label does not report the zero crossing`);
+    }
+
+    // The three stress cards, each with its own period and its own source.
+    const cards = await page.evaluate(() => ({
+      badges: document.querySelectorAll(".yd-shock__badge").length,
+      periods: document.querySelectorAll(".yd-shock__period").length,
+      sources: document.querySelectorAll(".yd-shock__source").length,
+    }));
+    if (cards.badges !== 3 || cards.periods !== 3 || cards.sources !== 3) {
+      problems.push(
+        `${theme} ${viewport.name}: stress cards carry ${cards.badges} badges / ${cards.periods} periods / ${cards.sources} sources, expected 3 each`,
+      );
+    }
+
+    // A euro figure must never appear without the regime that produced it.
+    const orphan = await page.evaluate(() =>
+      [...document.querySelectorAll(".yd-tenv")].filter(
+        (card) =>
+          card.querySelector(".yd-tfig__value") !== null &&
+          card.querySelector(".yd-tenv__regime") === null,
+      ).length,
+    );
+    if (orphan > 0) {
+      problems.push(`${theme} ${viewport.name}: ${orphan} tax card(s) show a figure with no regime`);
+    }
+
+    // The stress tables are wide by nature. They must scroll inside their OWN
+    // box rather than push the page sideways — the rule since the credit
+    // schedule.
+    const scrollers = await page.evaluate(() =>
+      [...document.querySelectorAll(".yd-shock__scroller")].map((box) => ({
+        overflowing: box.scrollWidth > box.clientWidth,
+        overflowX: getComputedStyle(box).overflowX,
+      })),
+    );
+    for (const box of scrollers) {
+      if (box.overflowing && box.overflowX !== "auto") {
+        problems.push(
+          `${theme} ${viewport.name}: a stress table overflows something other than its own scroller`,
+        );
+      }
+    }
+  }
+
+  await page.waitForTimeout(700);
+  await shot(page, viewport, theme);
+  await audit("projection");
+
+  // The assumptions form, open and filled — the hypotheses are editable, and a
+  // panel nobody can open is a verdict rather than a tool. The refusal beside
+  // the field that produced it is photographed too.
+  await page.getByRole("button", { name: /Modifier les hypothèses/ }).click();
+  await page.waitForSelector(".yd-assumptions__form", { timeout: 20000 });
+  await page.getByLabel("Horizon (mois)").fill("9000");
+  await page.getByRole("button", { name: /Relancer la projection/ }).click();
+  await page.waitForSelector(".yd-assumptions__error", { timeout: 20000 });
+  await expectOnScreen(
+    page,
+    `${theme} ${viewport.name} refus horizon`,
+    "L'horizon doit être un nombre entier de mois compris entre 1 et 600.",
+  );
+  await page.waitForTimeout(400);
+  await shot(page, viewport, theme, "-hypotheses");
+  await audit("hypothèses");
+}
+
 const SCENARIOS = {
   "task-15": { drive: driveFeasibility, contrast: FEASIBILITY_CONTRAST, out: "phase-2b" },
   "task-16": { drive: driveFeasibility, contrast: FEASIBILITY_CONTRAST, out: "phase-2b" },
@@ -913,6 +1205,22 @@ const SCENARIOS = {
   "task-10-formulaires": {
     drive: drivePatrimoineForms,
     contrast: PATRIMOINE_CONTRAST,
+    out: "phase-3",
+  },
+  // /projection on the operator's OWN state: zero positions, −746,19 €/month.
+  // Four engines, four refusals, four different remedies.
+  "task-16-projection": {
+    drive: driveProjection,
+    contrast: PROJECTION_CONTRAST,
+    out: "phase-3",
+  },
+  // The same screen after three holdings have been declared through the real
+  // /api/portfolio (see the seeding block below). Run AFTER
+  // task-16-projection, which photographs the empty state this one leaves
+  // behind: it mutates the database, and it is not reversible.
+  "task-16-projection-garni": {
+    drive: driveProjection,
+    contrast: PROJECTION_CONTRAST,
     out: "phase-3",
   },
 };
@@ -1114,6 +1422,128 @@ if (TASK === "task-10-positions") {
     }),
   }, token);
   console.log("declared a 47/53 equity/cash target allocation");
+}
+
+/**
+ * Three envelopes and four holdings, declared through the real /api/portfolio
+ * — what a household does by hand — so /projection has something to project.
+ *
+ * The four are chosen so that every distinction this screen makes is on screen
+ * AT ONCE, deterministically, **with no API key and no network**:
+ *
+ * 1. `MWRD` (equity) in a PEA opened in 2015 — past the five-year mark, so the
+ *    tax panel prints `pea_exempt` with its article of the CGI.
+ * 2. `OBLI-EU` (bond) in a CTO — `pfu`, with the barème priced beside it
+ *    (`?tmi=3000`). It is also what makes 2008's POSITIVE bond figure visible:
+ *    a shock is not always a loss.
+ * 3. `AV-EUR` (cash) in an assurance-vie opened in 2015 — past eight years and
+ *    under the 150 000 € premium threshold, so `assurance_vie_reduced` with a
+ *    real 4 600 € abatement. Cash is valued at par with no provider at all.
+ * 4. `WLD-ETF` (etf) in the CTO — the one class NO episode has data for, so
+ *    "Aucune donnée" appears on all three stress cards rather than a silent 0 %.
+ *
+ * Every priced instrument is `equity`/`bond`/`etf`, which all route to Finnhub.
+ * With no key registered Finnhub refuses immediately, WITHOUT a network call,
+ * and the router falls back to the deliberately-old `price_points` row seeded
+ * below — a real value, labelled stale, counted in the total. Crypto is avoided
+ * on purpose: CoinGecko needs no key and would attempt a real request.
+ */
+if (TASK === "task-16-projection-garni") {
+  const { access_token: token } = await api("/auth/login", {
+    method: "POST",
+    body: JSON.stringify({ email: "demo@yieldo-demo.fr", password: "MotDePasseDemo123!" }),
+  });
+
+  const accounts = await api("/portfolio/accounts", {}, token);
+  const named = (name) => accounts.some((a) => a.name === name);
+
+  const declare = async (accountId, instrument, quantity, unitCostCents) => {
+    const registered = await api("/portfolio/instruments", {
+      method: "POST",
+      body: JSON.stringify(instrument),
+    }, token);
+    const position = await api("/portfolio/positions", {
+      method: "POST",
+      body: JSON.stringify({ investment_account_id: accountId, instrument_id: registered.id }),
+    }, token);
+    await api("/portfolio/lots", {
+      method: "POST",
+      body: JSON.stringify({
+        position_id: position.id,
+        quantity,
+        unit_cost_cents: unitCostCents,
+        acquired_on: "2020-01-15",
+      }),
+    }, token);
+  };
+
+  if (!named("PEA projection")) {
+    const pea = await api("/portfolio/accounts", {
+      method: "POST",
+      body: JSON.stringify({
+        name: "PEA projection", kind: "pea", currency: "EUR", opened_on: "2015-04-01",
+      }),
+    }, token);
+    await declare(
+      pea.id,
+      { symbol: "MWRD", name: "Amundi MSCI World", asset_class: "equity", currency: "EUR", is_fractionable: false },
+      "12",
+      9000,
+    );
+
+    const cto = await api("/portfolio/accounts", {
+      method: "POST",
+      body: JSON.stringify({ name: "CTO projection", kind: "cto", currency: "EUR" }),
+    }, token);
+    await declare(
+      cto.id,
+      { symbol: "OBLI-EU", name: "Obligations souveraines EUR", asset_class: "bond", currency: "EUR", is_fractionable: false },
+      "20",
+      9500,
+    );
+    await declare(
+      cto.id,
+      { symbol: "WLD-ETF", name: "ETF diversifié", asset_class: "etf", currency: "EUR", is_fractionable: false },
+      "10",
+      8000,
+    );
+
+    const av = await api("/portfolio/accounts", {
+      method: "POST",
+      body: JSON.stringify({
+        name: "Assurance-vie projection", kind: "assurance_vie", currency: "EUR",
+        opened_on: "2015-01-01",
+      }),
+    }, token);
+    await declare(
+      av.id,
+      { symbol: "AV-EUR", name: "Fonds euros", asset_class: "cash", currency: "EUR", is_fractionable: true },
+      "20000",
+      50,
+    );
+    console.log("declared three envelopes and four holdings through the API");
+  }
+
+  // Run EVERY time, not only on first seed: "old enough to be stale" is
+  // relative to now, and a re-run days later must still be photographing a
+  // stale price rather than a merely elderly fresh one. Loud on failure: with
+  // no cached point these three read as MISSING, their envelopes refuse, and
+  // the run would photograph four refusals while claiming to show a portfolio.
+  const python = path.resolve(HERE, "../backend/.venv/Scripts/python.exe");
+  const seeder = path.resolve(HERE, "seed_stale_price.py");
+  for (const [symbol, assetClass, priceCents] of [
+    ["MWRD", "equity", "18000"],
+    ["OBLI-EU", "bond", "10000"],
+    ["WLD-ETF", "etf", "10000"],
+  ]) {
+    try {
+      console.log(
+        execFileSync(python, [seeder, symbol, assetClass, priceCents, "3"], { encoding: "utf8" }).trim(),
+      );
+    } catch (error) {
+      problems.push(`could not seed the stale price point for ${symbol}: ${error.message}`);
+    }
+  }
 }
 
 const browser = await chromium.launch();

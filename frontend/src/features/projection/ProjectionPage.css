@@ -1,0 +1,904 @@
+/* /projection — Monte Carlo, FIRE, French tax, historical stress tests.
+
+   The visual problem this stylesheet exists to solve is that four of the five
+   panels on this screen are, on the operator's real data, a REFUSAL — and a
+   screen made mostly of refusals must still read as an answer rather than as a
+   broken page. Three registers do that work, copied in recipe (never by
+   importing another screen's stylesheet) from PatrimoinePage.css so the three
+   read identically across the app:
+
+   * `--refusal`  a warning rule on the surface. Content, in the panel's own
+                  voice: what could not be computed and what would fix it.
+   * `--note`     muted prose. The assumption beside the figure it produced.
+   * `--alert`    the negative tint, and ONLY for something having gone wrong.
+                  An engine refusing to answer never lands here.
+
+   The second problem is that a projected figure must never be mistakable for a
+   measured one. Every projected numeral on this screen is set in the mono
+   family and carries its assumption on the line below it; the two measured
+   figures (the valued capital, the savings capacity) sit in the "Point de
+   départ mesuré" cell and nowhere else.
+
+   Every colour here is a token from design/tokens.css; `design/contrast.test.ts`
+   parses that file from disk and holds both themes to 4.5:1. */
+
+.yd-projection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-lg);
+  /* Without this a long unbroken figure in a grid child sets the track's
+     minimum width and pushes the whole page past the viewport. */
+  min-width: 0;
+}
+
+.yd-projection__header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-xs);
+}
+
+.yd-projection__header h1 {
+  margin: 0;
+  font-size: clamp(1.5rem, 1.2rem + 1.4vw, 2rem);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--yd-text);
+}
+
+.yd-projection__lead {
+  margin: 0;
+  max-width: 76ch;
+  font-size: 0.92rem;
+  line-height: 1.6;
+  color: var(--yd-text-muted);
+}
+
+.yd-projection__lead strong {
+  color: var(--yd-text);
+  font-weight: 600;
+}
+
+/* -- The three shared registers -------------------------------------------- */
+
+.yd-projection__refusal {
+  margin: 0;
+  max-width: 96ch;
+  padding: var(--yd-space-sm) var(--yd-space-md);
+  border-radius: var(--yd-radius-sm);
+  border: 1px solid var(--yd-border-strong);
+  border-left: 3px solid var(--yd-warning);
+  background: var(--yd-surface);
+  color: var(--yd-text);
+  font-size: 0.88rem;
+  line-height: 1.55;
+}
+
+.yd-projection__note {
+  margin: 0;
+  max-width: 90ch;
+  font-size: 0.82rem;
+  line-height: 1.55;
+  color: var(--yd-text-muted);
+}
+
+.yd-projection__note strong,
+.yd-projection__note em {
+  color: var(--yd-text);
+  font-weight: 600;
+  font-style: normal;
+}
+
+.yd-projection__alert {
+  margin: 0;
+  padding: var(--yd-space-sm) var(--yd-space-md);
+  border-radius: var(--yd-radius-sm);
+  border: 1px solid var(--yd-negative);
+  background: color-mix(in srgb, var(--yd-negative) 14%, transparent);
+  color: var(--yd-negative-text);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.yd-projection__section-title {
+  margin: var(--yd-space-sm) 0 0;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--yd-text-muted);
+}
+
+.yd-projection__link {
+  color: var(--yd-accent-strong);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.yd-projection__link:hover {
+  color: var(--yd-accent);
+}
+
+.yd-projection__figure--negative {
+  color: var(--yd-negative-text);
+}
+
+.yd-projection__figure--positive {
+  color: var(--yd-positive);
+}
+
+/* -- Facts: a label, a figure, and the assumption behind it ----------------- */
+
+.yd-fact {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.yd-fact__label {
+  margin: 0;
+  font-size: 0.76rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--yd-text-muted);
+}
+
+.yd-fact__value {
+  margin: 0;
+  font-family: var(--yd-font-mono);
+  font-size: 1.05rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--yd-text);
+}
+
+.yd-fact__value--words {
+  font-family: var(--yd-font);
+  font-size: 0.95rem;
+  color: var(--yd-text-muted);
+}
+
+.yd-fact__note {
+  margin: 0;
+  font-size: 0.78rem;
+  line-height: 1.5;
+  color: var(--yd-text-muted);
+}
+
+/* -- Assumptions ----------------------------------------------------------- */
+
+.yd-assumptions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-md);
+  min-width: 0;
+}
+
+.yd-assumptions__seed {
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-2xs);
+  padding: var(--yd-space-sm) var(--yd-space-md);
+  border-radius: var(--yd-radius-sm);
+  border: 1px solid var(--yd-border-strong);
+  border-left: 3px solid var(--yd-accent-strong);
+  background: var(--yd-surface);
+}
+
+.yd-assumptions__seed-label {
+  margin: 0;
+  font-size: 0.76rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--yd-text-muted);
+}
+
+.yd-assumptions__seed-value {
+  margin: 0;
+  font-family: var(--yd-font-mono);
+  font-size: clamp(1.3rem, 1.1rem + 1vw, 1.75rem);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  color: var(--yd-text);
+  /* A long integer must wrap inside the card rather than widen its column. */
+  overflow-wrap: anywhere;
+}
+
+.yd-assumptions__seed-note {
+  margin: 0;
+  max-width: 62ch;
+  font-size: 0.78rem;
+  line-height: 1.5;
+  color: var(--yd-text-muted);
+}
+
+.yd-assumptions__reseed,
+.yd-assumptions__toggle,
+.yd-assumptions__apply {
+  align-self: flex-start;
+  min-height: 44px;
+  padding: 0 var(--yd-space-md);
+  border-radius: var(--yd-radius-sm);
+  border: 1px solid var(--yd-border-control);
+  background: transparent;
+  color: var(--yd-text);
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: background var(--yd-motion-fast) var(--yd-ease),
+    border-color var(--yd-motion-fast) var(--yd-ease);
+}
+
+.yd-assumptions__reseed:hover,
+.yd-assumptions__toggle:hover,
+.yd-assumptions__apply:hover {
+  background: var(--yd-surface-raised);
+  border-color: var(--yd-accent-strong);
+}
+
+.yd-assumptions__apply {
+  border-color: var(--yd-accent-strong);
+}
+
+.yd-assumptions__list {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--yd-space-sm);
+  margin: 0;
+}
+
+@media (min-width: 560px) {
+  .yd-assumptions__list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1200px) {
+  .yd-assumptions__list {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.yd-assumptions__list .yd-fact__value {
+  font-size: 0.95rem;
+}
+
+.yd-assumptions__form {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--yd-space-sm);
+  padding-top: var(--yd-space-sm);
+  border-top: 1px solid var(--yd-border);
+}
+
+@media (min-width: 560px) {
+  .yd-assumptions__form {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.yd-assumptions__field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-2xs);
+  min-width: 0;
+}
+
+.yd-assumptions__field label {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--yd-text);
+}
+
+.yd-assumptions__field input {
+  min-height: 44px;
+  width: 100%;
+  padding: 0 var(--yd-space-sm);
+  border-radius: var(--yd-radius-sm);
+  border: 1px solid var(--yd-border-control);
+  background: var(--yd-surface);
+  color: var(--yd-text);
+  font: inherit;
+  font-family: var(--yd-font-mono);
+  font-size: 0.9rem;
+}
+
+.yd-assumptions__hint {
+  margin: 0;
+  font-size: 0.75rem;
+  line-height: 1.45;
+  color: var(--yd-text-muted);
+}
+
+.yd-assumptions__check {
+  display: flex;
+  align-items: center;
+  gap: var(--yd-space-xs);
+  min-height: 44px;
+}
+
+.yd-assumptions__check label {
+  font-size: 0.8rem;
+  color: var(--yd-text);
+}
+
+.yd-assumptions__check input {
+  width: 20px;
+  height: 20px;
+  accent-color: var(--yd-accent-strong);
+}
+
+.yd-assumptions__error {
+  grid-column: 1 / -1;
+  margin: 0;
+  padding: var(--yd-space-xs) var(--yd-space-sm);
+  border-radius: var(--yd-radius-sm);
+  border: 1px solid var(--yd-negative);
+  background: color-mix(in srgb, var(--yd-negative) 14%, transparent);
+  color: var(--yd-negative-text);
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+.yd-assumptions__apply {
+  grid-column: 1 / -1;
+}
+
+/* -- Point de départ ------------------------------------------------------- */
+
+.yd-projection__start {
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-md);
+  margin: 0;
+}
+
+.yd-projection__start .yd-fact__value {
+  font-size: clamp(1.15rem, 1rem + 0.8vw, 1.5rem);
+}
+
+/* -- Monte Carlo ----------------------------------------------------------- */
+
+.yd-mc {
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-sm);
+  min-width: 0;
+}
+
+.yd-mc__bands {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--yd-space-sm);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+@media (min-width: 900px) {
+  .yd-mc__bands {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.yd-mc__band {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--yd-space-sm);
+  border-radius: var(--yd-radius-sm);
+  border: 1px solid var(--yd-border);
+  background: var(--yd-surface);
+  min-width: 0;
+}
+
+.yd-mc__band-label {
+  font-size: 0.76rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--yd-text-muted);
+}
+
+.yd-mc__band-value {
+  font-family: var(--yd-font-mono);
+  font-size: clamp(1.1rem, 0.95rem + 0.7vw, 1.35rem);
+  font-variant-numeric: tabular-nums;
+  color: var(--yd-text);
+  overflow-wrap: anywhere;
+}
+
+.yd-mc__band-value--negative {
+  color: var(--yd-negative-text);
+}
+
+.yd-mc__band-note {
+  font-size: 0.78rem;
+  line-height: 1.5;
+  color: var(--yd-text-muted);
+}
+
+/* -- FIRE ------------------------------------------------------------------ */
+
+.yd-fire {
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-md);
+  min-width: 0;
+}
+
+.yd-fire__target,
+.yd-fire__timeline,
+.yd-fire__drawdown {
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-2xs);
+  min-width: 0;
+}
+
+.yd-fire__target-label {
+  margin: 0;
+  font-size: 0.76rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--yd-text-muted);
+}
+
+.yd-fire__target-value,
+.yd-fire__timeline-value {
+  margin: 0;
+  font-family: var(--yd-font-mono);
+  font-size: clamp(1.3rem, 1.05rem + 1.1vw, 1.8rem);
+  font-variant-numeric: tabular-nums;
+  color: var(--yd-text);
+  overflow-wrap: anywhere;
+}
+
+.yd-fire__rows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-sm);
+  margin: var(--yd-space-2xs) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.yd-fire__row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.yd-fire__row-label {
+  font-size: 0.76rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--yd-text-muted);
+}
+
+.yd-fire__row-value {
+  font-family: var(--yd-font-mono);
+  font-size: 1.05rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--yd-text);
+  overflow-wrap: anywhere;
+}
+
+.yd-fire__row-note {
+  font-size: 0.78rem;
+  line-height: 1.5;
+  color: var(--yd-text-muted);
+}
+
+/* -- Fiscalité ------------------------------------------------------------- */
+
+.yd-tax {
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-sm);
+  min-width: 0;
+}
+
+.yd-tax__totals {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--yd-space-sm);
+}
+
+@media (min-width: 560px) {
+  .yd-tax__totals {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.yd-tax__total {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.yd-tax__total-label {
+  font-size: 0.76rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--yd-text-muted);
+}
+
+.yd-tax__total-value {
+  font-family: var(--yd-font-mono);
+  font-size: clamp(1.15rem, 1rem + 0.8vw, 1.5rem);
+  font-variant-numeric: tabular-nums;
+  color: var(--yd-text);
+  overflow-wrap: anywhere;
+}
+
+.yd-tax__accounts {
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-sm);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.yd-tenv {
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-xs);
+  padding: var(--yd-space-sm) var(--yd-space-md);
+  border-radius: var(--yd-radius-sm);
+  border: 1px solid var(--yd-border);
+  background: var(--yd-surface);
+  min-width: 0;
+}
+
+.yd-tenv__head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.yd-tenv__name {
+  margin: 0;
+  font-size: 0.98rem;
+  font-weight: 600;
+  color: var(--yd-text);
+}
+
+.yd-tenv__kind {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--yd-text-muted);
+}
+
+/* The regime is never a footnote: it is the sentence that makes the euro
+   figure below it mean anything at all. */
+.yd-tenv__regime {
+  margin: 0;
+  padding: var(--yd-space-2xs) var(--yd-space-xs);
+  border-radius: var(--yd-radius-sm);
+  border: 1px solid var(--yd-border-strong);
+  background: var(--yd-surface-raised);
+  color: var(--yd-text);
+  font-size: 0.8rem;
+  font-weight: 600;
+  line-height: 1.45;
+}
+
+.yd-tenv__figures {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: var(--yd-space-xs);
+  margin: 0;
+}
+
+.yd-tenv__alternative {
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-xs);
+  padding-top: var(--yd-space-xs);
+  border-top: 1px dashed var(--yd-border-strong);
+}
+
+.yd-tenv__alternative-title {
+  margin: 0;
+  font-size: 0.76rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--yd-text-muted);
+}
+
+.yd-tfig {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.yd-tfig__label {
+  font-size: 0.74rem;
+  color: var(--yd-text-muted);
+}
+
+.yd-tfig__value {
+  margin: 0;
+  font-family: var(--yd-font-mono);
+  font-size: 0.95rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--yd-text);
+  overflow-wrap: anywhere;
+}
+
+.yd-tfig__value--strong {
+  font-weight: 600;
+  font-size: 1.05rem;
+}
+
+/* -- Tests de résistance --------------------------------------------------- */
+
+.yd-stress {
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-sm);
+  min-width: 0;
+}
+
+.yd-stress__list {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--yd-space-sm);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Two, not three, from 1200px. Each card holds a four-column table of
+   tabular figures with a real minimum width; at a third of 1440 the last
+   column sat outside its scroller and had to be dragged into view, which is a
+   working scroller showing a truncated answer by default. Three columns only
+   once there is genuinely room for them. */
+@media (min-width: 1200px) {
+  .yd-stress__list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  /* An odd last card spans the row rather than leaving half of it empty. */
+  .yd-stress__list > .yd-shock:last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (min-width: 1700px) {
+  .yd-stress__list {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .yd-stress__list > .yd-shock:last-child:nth-child(odd) {
+    grid-column: auto;
+  }
+}
+
+.yd-shock {
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-xs);
+  padding: var(--yd-space-sm) var(--yd-space-md);
+  border-radius: var(--yd-radius-sm);
+  border: 1px solid var(--yd-border);
+  background: var(--yd-surface);
+  min-width: 0;
+}
+
+.yd-shock__label {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--yd-text);
+}
+
+.yd-shock__provenance {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: var(--yd-space-xs);
+  border-radius: var(--yd-radius-sm);
+  border-left: 3px solid var(--yd-info);
+  background: var(--yd-surface-raised);
+}
+
+/* Not a decorative chip: it is the sentence that stops a reader taking a
+   stressed euro amount for a forecast. It appears on EVERY card. */
+.yd-shock__badge {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--yd-info);
+}
+
+.yd-shock__period {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--yd-text);
+}
+
+.yd-shock__source {
+  margin: 0;
+  font-size: 0.74rem;
+  line-height: 1.45;
+  color: var(--yd-text-muted);
+}
+
+.yd-shock__headline {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.yd-shock__headline-label {
+  font-size: 0.76rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--yd-text-muted);
+}
+
+.yd-shock__headline-value {
+  font-family: var(--yd-font-mono);
+  font-size: clamp(1.1rem, 0.95rem + 0.7vw, 1.35rem);
+  font-variant-numeric: tabular-nums;
+  color: var(--yd-text);
+  overflow-wrap: anywhere;
+}
+
+.yd-shock__headline-value--negative {
+  color: var(--yd-negative-text);
+}
+
+.yd-shock__headline-value--positive {
+  color: var(--yd-positive);
+}
+
+.yd-shock__headline-note {
+  font-size: 0.78rem;
+  line-height: 1.5;
+  color: var(--yd-text-muted);
+}
+
+.yd-shock__rates {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--yd-space-xs);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.yd-shock__rate {
+  display: flex;
+  align-items: baseline;
+  gap: var(--yd-space-2xs);
+  padding: var(--yd-space-2xs) var(--yd-space-xs);
+  border-radius: var(--yd-radius-sm);
+  border: 1px solid var(--yd-border);
+}
+
+.yd-shock__rate-label {
+  font-size: 0.76rem;
+  color: var(--yd-text-muted);
+}
+
+.yd-shock__rate-value {
+  font-family: var(--yd-font-mono);
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--yd-text);
+}
+
+.yd-shock__rate-value--negative {
+  color: var(--yd-negative-text);
+}
+
+.yd-shock__rate-value--positive {
+  color: var(--yd-positive);
+}
+
+.yd-shock__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+}
+
+.yd-shock__caption {
+  text-align: left;
+  padding-bottom: var(--yd-space-2xs);
+  font-size: 0.76rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--yd-text-muted);
+}
+
+.yd-shock__table th,
+.yd-shock__table td {
+  padding: var(--yd-space-2xs) var(--yd-space-2xs);
+  text-align: right;
+  border-bottom: 1px solid var(--yd-border);
+  color: var(--yd-text);
+}
+
+.yd-shock__table thead th {
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: var(--yd-text-muted);
+}
+
+.yd-shock__table th:first-child,
+.yd-shock__table td:first-child,
+.yd-shock__table tbody th {
+  text-align: left;
+  font-weight: 500;
+}
+
+.yd-shock__table td {
+  font-family: var(--yd-font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.yd-shock__cell--negative {
+  color: var(--yd-negative-text);
+}
+
+.yd-shock__cell--positive {
+  color: var(--yd-positive);
+}
+
+/* An absence, drawn as an absence. The hatching is the same device
+   /patrimoine uses for a price that does not exist, for the same reason: a
+   figure and the lack of one must not be mistakable at a distance. */
+.yd-shock__absent-band {
+  display: inline-block;
+  padding: 1px var(--yd-space-2xs);
+  border-radius: 4px;
+  border: 1px dashed var(--yd-border-strong);
+  background: repeating-linear-gradient(
+    135deg,
+    transparent,
+    transparent 4px,
+    var(--yd-surface-raised) 4px,
+    var(--yd-surface-raised) 8px
+  );
+  color: var(--yd-text-muted);
+  font-family: var(--yd-font);
+  font-size: 0.74rem;
+  white-space: nowrap;
+}
+
+/* A four-column table of tabular figures has a real minimum width. It scrolls
+   inside its own box rather than pushing the page sideways — the rule since
+   the credit schedule, and the one `shoot.mjs` measures off the rendered box.
+   `min-width: 0` on the flex parent is what lets this box actually shrink. */
+.yd-shock__scroller {
+  overflow-x: auto;
+  min-width: 0;
+}
+
+.yd-shock__table {
+  min-width: 320px;
+}
+
+/* Two cells side by side whose contents are very different lengths: the FIRE
+   panel is short on a household with a reachable timeline, the tax panel grows
+   with every envelope. Stretched to the row, the shorter one ends in a tall
+   empty box — the defect /patrimoine's own empty state was corrected for. */
+.yd-projection__cell--fit {
+  align-self: start;
+}

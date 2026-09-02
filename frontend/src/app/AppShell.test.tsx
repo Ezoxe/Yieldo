@@ -98,6 +98,7 @@ describe("AppShell", () => {
       "Objectifs",
       "Suivi",
       "Patrimoine",
+      "Projection",
       "Faisabilité",
       "Simulateurs",
       "Catégories",

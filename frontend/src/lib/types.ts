@@ -1598,3 +1598,234 @@ export interface AllocationTargetIn {
   /** Basis points: 6 000 is 60,00 %. */
   target_bps: number;
 }
+
+// --- GET /api/projection (phase 3 Task 15). Monte Carlo, FIRE, French tax and
+// --- the three historical stress tests.
+//
+// **Every panel comes as `<panel> | null` beside a `<panel>_unavailable_reason:
+// string | null`, and exactly one of the two is always set.** The operator
+// holds zero positions and his measured savings capacity is −746,19 €/month,
+// so all four engines refuse on his real data. A refusal is CONTENT on a 200,
+// in the panel's own voice — never an alert, and never a zero standing in for
+// a figure nobody computed.
+
+/** The hypotheses every figure on the screen rests on — design §10 requires
+ *  them printed beside the result they produced.
+ *
+ *  `seed` is the one field with no everyday French label. It is printed as-is:
+ *  the number that reproduces this exact Monte Carlo run, and the number a bug
+ *  report quotes. It is a REQUIRED query parameter — the API never invents one. */
+export interface ProjectionAssumptions {
+  seed: number;
+  months: number;
+  annual_return_bps: number;
+  annual_volatility_bps: number;
+  trials: number;
+  withdrawal_rate_bps: number;
+  /** `null` means the barème option was not priced at all — never that it
+   *  costs zero, which is a real (very low) bracket. */
+  marginal_rate_bps: number | null;
+  joint_taxation: boolean;
+  reporting_currency: string;
+  horizon_end_on: string;
+}
+
+export interface ProjectionPortfolio {
+  market_value_cents: number;
+  cost_basis_cents: number;
+  unrealised_gain_cents: number;
+  positions_total: number;
+  positions_valued: number;
+  positions_missing_price: number;
+  positions_missing_fx: number;
+  weight_by_asset_class: WeightedGroup[];
+}
+
+export interface MonteCarloAssumptions {
+  annual_return_bps: number;
+  annual_volatility_bps: number;
+  /** Signed, exactly as measured. A household spending more than it earns
+   *  contributes a NEGATIVE amount and the band goes down — no abs, no clamp. */
+  monthly_cents: number;
+  trials: number;
+  seed: number;
+  /** Ascending. The keys of every point's `percentiles_cents`, as numbers. */
+  percentiles: number[];
+}
+
+export interface MonteCarloPoint {
+  month: number;
+  /** ISO date this month's point falls on. */
+  on: string;
+  /** Keyed by percentile, as a STRING key ("10", "50", "90") — JSON has no
+   *  integer keys. **Never a single figure**: the band IS the answer. */
+  percentiles_cents: Record<string, number>;
+}
+
+export interface MonteCarloProjection {
+  initial_cents: number;
+  months: number;
+  assumptions: MonteCarloAssumptions;
+  points: MonteCarloPoint[];
+  horizon_end_on: string;
+}
+
+export interface TargetCapital {
+  annual_expenses_cents: number;
+  withdrawal_rate_bps: number;
+  target_capital_cents: number;
+}
+
+export interface Independence {
+  target_capital_cents: number;
+  current_capital_cents: number;
+  withdrawal_rate_bps: number;
+  annual_return_bps: number;
+  capacity: MeasuredRate | null;
+  months_to_independence: number | null;
+  independent_on: string | null;
+  /** The engine's own sentence, naming WHICH of three causes applies. Set
+   *  exactly when `months_to_independence` is null. */
+  unavailable_reason: string | null;
+}
+
+export interface RetirementPoint {
+  month: number;
+  balance_cents: number;
+  gross_withdrawal_cents: number;
+  taxable_gain_cents: number;
+  tax_cents: number;
+  net_withdrawal_cents: number;
+}
+
+export interface RetirementProjection {
+  initial_cents: number;
+  annual_return_bps: number;
+  withdrawal_rate_bps: number;
+  /** "pfu" | "bareme" — which regime taxed every withdrawal's gain portion. */
+  tax_regime: string;
+  marginal_rate_bps: number | null;
+  months: number;
+  points: RetirementPoint[];
+  exhausted_at_month: number | null;
+  horizon_end_on: string;
+}
+
+export interface FireProjection {
+  target: TargetCapital;
+  independence: Independence;
+  retirement: RetirementProjection | null;
+  retirement_unavailable_reason: string | null;
+}
+
+/** One regime's answer on one gain. `regime` is never absent — a euro figure
+ *  whose tax treatment the reader has to infer from context is exactly the
+ *  defect `engines/tax_fr.py` was written against. */
+export interface TaxRegimeResult {
+  regime: string;
+  regime_label: string;
+  gross_gain_cents: number;
+  income_tax_cents: number;
+  social_levies_cents: number;
+  total_tax_cents: number;
+  net_gain_cents: number;
+}
+
+export interface TaxAccount {
+  account_id: number;
+  account_name: string;
+  account_kind: string;
+  opened_on: string | null;
+  positions_total: number;
+  positions_valued: number;
+  /** All null together when `unavailable_reason` is set — including `regime`.
+   *  A regime without a figure misleads as badly as a figure without a regime. */
+  unrealised_gain_cents: number | null;
+  regime: string | null;
+  regime_label: string | null;
+  income_tax_cents: number | null;
+  social_levies_cents: number | null;
+  total_tax_cents: number | null;
+  net_gain_cents: number | null;
+  /** PEA only. */
+  exempt: boolean | null;
+  /** PEA and assurance-vie only. */
+  years_held: number | null;
+  /** Assurance-vie only, against the INCOME TAX base alone. */
+  abatement_applied_cents: number | null;
+  /** The barème priced on the identical gain, when a marginal rate was
+   *  supplied. `null` means it was never asked for — never that it costs zero. */
+  alternative: TaxRegimeResult | null;
+  unavailable_reason: string | null;
+}
+
+export interface TaxReport {
+  total_unrealised_gain_cents: number;
+  total_tax_cents: number;
+  accounts_unavailable: number;
+  accounts: TaxAccount[];
+  /** "pfu" | "bareme" on the aggregate, or null when no marginal rate was
+   *  supplied. Facts side by side, never a recommendation. */
+  cheaper: string | null;
+}
+
+/** A named historical episode: its period and its published source travel with
+ *  every figure it produced. **None of this is a forecast.** */
+export interface StressShock {
+  key: string;
+  label: string;
+  period: string;
+  source: string;
+  impact_bps_by_asset_class: Record<string, number>;
+}
+
+export interface StressClassImpact {
+  asset_class: string;
+  current_value_cents: number;
+  /** Both null together when this shock has no data for the class — Bitcoin in
+   *  2008, an ETF in any of the three. Never folded in at 0 %. */
+  impact_bps: number | null;
+  stressed_value_cents: number | null;
+}
+
+export interface StressScenario {
+  shock: StressShock;
+  portfolio_value_cents: number;
+  stressable_value_cents: number;
+  stressed_value_cents: number;
+  impact_cents: number;
+  impact_bps: number;
+  by_class: StressClassImpact[];
+  classes_without_data: string[];
+}
+
+/** `shocks` is always the three episodes with their periods and sources, even
+ *  when `scenarios` is empty: those citations are facts about market history,
+ *  not about this household's portfolio. */
+export interface StressReport {
+  shocks: StressShock[];
+  scenarios: StressScenario[];
+}
+
+export interface Projection {
+  as_of: string;
+  reporting_currency: string;
+  assumptions: ProjectionAssumptions;
+  months_observed: number;
+  capacity: MeasuredRate | null;
+  capacity_unavailable_reason: string | null;
+  expense_rate: MeasuredRate | null;
+  portfolio: ProjectionPortfolio;
+
+  monte_carlo: MonteCarloProjection | null;
+  monte_carlo_unavailable_reason: string | null;
+
+  fire: FireProjection | null;
+  fire_unavailable_reason: string | null;
+
+  tax: TaxReport | null;
+  tax_unavailable_reason: string | null;
+
+  stress: StressReport;
+  stress_unavailable_reason: string | null;
+}

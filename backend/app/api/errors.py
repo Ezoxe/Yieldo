@@ -105,6 +105,15 @@ FIELD_SUBJECTS: dict[str, str] = {
     "symbol": "Le symbole",
     "asset_class": "La classe d'actifs",
     "is_fractionable": "Le caractère fractionnable",
+    # Task 15's `/api/projection` query parameters. `annual_return_bps` and
+    # `months` are already above, shared with the simulators -- and mean the
+    # same thing here, so they are deliberately not restated.
+    "seed": "La graine de la simulation",
+    "annual_volatility_bps": "La volatilité annuelle",
+    "trials": "Le nombre de trajectoires simulées",
+    "withdrawal_rate_bps": "Le taux de retrait",
+    "marginal_rate_bps": "Le taux marginal d'imposition",
+    "joint_taxation": "L'imposition commune",
 }
 
 # One template per pydantic error type, formatted with the field's subject.

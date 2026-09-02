@@ -164,7 +164,7 @@ class TestArchivedAccounts:
         self, client, monkeypatch,
     ):
         """Archiving is how the operator says an envelope is no longer part of
-        his patrimoine. `_valuation_inputs` must exclude it, not just `GET
+        his patrimoine. `valuation_inputs` must exclude it, not just `GET
         /accounts` -- a wrong implementation that only hides the account from
         the list but keeps summing its positions would still pass a fixture
         that never re-checks the total after archiving, which is exactly why
@@ -918,7 +918,7 @@ class TestAllocationIsolation:
 
 class TestConcurrentValuationAndAllocation:
     """`/patrimoine` reads `/valuation` and `/allocation`, and BOTH go through
-    `_valuation_inputs`, which writes a `quota_windows` row and any freshly
+    `valuation_inputs`, which writes a `quota_windows` row and any freshly
     fetched `price_points`. On a cold database neither row exists yet, so two
     requests arriving together both INSERT and the second violates
     `uq_quota_window_user_provider` -- a 500 on the very first load of the
@@ -938,7 +938,7 @@ class TestConcurrentValuationAndAllocation:
         # race directly -- a second session inserting the SAME row underneath
         # an in-flight request -- is what the TestClient cannot do on its own,
         # so the collision is provoked at the point it really happens: the
-        # commit inside `_valuation_inputs`.
+        # commit inside `valuation_inputs`.
         from app.models import QuotaWindow
 
         real_commit = db.commit

@@ -20,6 +20,7 @@ from app.api import feasibility as feasibility_routes
 from app.api import goals as goal_routes
 from app.api import imports as import_routes
 from app.api import portfolio as portfolio_routes
+from app.api import projection as projection_routes
 from app.api import recurrences as recurrence_routes
 from app.api import simulators as simulator_routes
 from app.api import transactions as transaction_routes
@@ -78,6 +79,7 @@ api.include_router(simulator_routes.router)
 api.include_router(engagement_routes.router)
 api.include_router(connections_routes.router)
 api.include_router(portfolio_routes.router)
+api.include_router(projection_routes.router)
 
 app.include_router(api)
 

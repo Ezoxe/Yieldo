@@ -500,7 +500,7 @@ def _resolve_fx(
     return rate.rate, None
 
 
-def _valuation_inputs(
+def valuation_inputs(
     db: Session, user: User, now: datetime, reporting_currency: str
 ) -> list[portfolio_engine.PositionInput]:
     """Every one of this user's positions, with its price and FX rate already
@@ -613,7 +613,7 @@ def get_valuation(
 ) -> portfolio_engine.PortfolioValuation:
     now = datetime.now(UTC)
     reporting_currency = portfolio_engine.DEFAULT_REPORTING_CURRENCY
-    inputs = _valuation_inputs(db, user, now, reporting_currency)
+    inputs = valuation_inputs(db, user, now, reporting_currency)
     return portfolio_engine.value_portfolio(inputs, reporting_currency)
 
 
@@ -752,7 +752,7 @@ def get_allocation(
     be a measurement nobody made.
 
     The valuation is recomputed here rather than read from `GET /valuation`:
-    both routes go through `_valuation_inputs`, so the prices, the quota
+    both routes go through `valuation_inputs`, so the prices, the quota
     decisions and the cache are the same either way -- but a screen that
     called both would otherwise depend on the ORDER it called them in.
     """
@@ -767,7 +767,7 @@ def get_allocation(
             report=None, unavailable_reason=NO_TARGETS_REASON,
         )
 
-    inputs = _valuation_inputs(db, user, now, reporting_currency)
+    inputs = valuation_inputs(db, user, now, reporting_currency)
     valuation = portfolio_engine.value_portfolio(inputs, reporting_currency)
     holdings = _holding_inputs(inputs, valuation, reporting_currency)
 

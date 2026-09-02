@@ -136,6 +136,53 @@ def test_a_pea_sold_exactly_on_its_fifth_anniversary_is_exempt():
     assert result.net_gain_cents == 828_000
 
 
+def test_a_pea_opened_on_29_february_reaches_its_anniversary_on_28_february():
+    """29 February is the one date `_add_years`' anniversary arithmetic cannot
+    express in a non-leap year, and a PEA is the one envelope whose whole tax
+    treatment turns on an anniversary. 2020 is a leap year; 2025 is not.
+
+    Two wrong implementations die here, on different assertions:
+
+    * `opened_on.replace(year=...)` with no `except ValueError` raises
+      `ValueError: day is out of range for month` on the FIRST call below --
+      every PEA opened on a 29 February crashes the tax panel outright.
+    * Clamping the missing day FORWARD to 1 March instead of back to 28
+      February makes the plan turn five on 1 March 2025, so the second call
+      reports `years_held == 4` and bills 300 000 c of PFU on a gain article
+      157, 5° bis CGI exempts from income tax -- a day late, for real money.
+    """
+    opened = date(2020, 2, 29)
+
+    eve = compute_pea_gain(1_000_000, opened_on=opened, today=date(2025, 2, 27))
+    assert eve.years_held == 4
+    assert eve.exempt is False
+    assert eve.regime == "pfu"
+    assert eve.total_tax_cents == 300_000
+
+    anniversary = compute_pea_gain(1_000_000, opened_on=opened, today=date(2025, 2, 28))
+    assert anniversary.years_held == 5
+    assert anniversary.exempt is True
+    assert anniversary.regime == "pea_exempt"
+    assert anniversary.income_tax_cents == 0
+    assert anniversary.social_levies_cents == 172_000  # never exempted
+    assert anniversary.net_gain_cents == 828_000
+
+
+def test_a_pea_opened_on_29_february_keeps_the_real_date_on_a_leap_anniversary():
+    """The complement: 2024 IS a leap year, so the fourth anniversary falls on
+    the real 29 February and the 28th is still one day short. An
+    implementation that clamped to 28 February unconditionally -- rather than
+    only when the target year has no 29th -- would grant the anniversary a day
+    early here."""
+    opened = date(2020, 2, 29)
+    assert compute_pea_gain(
+        1_000_000, opened_on=opened, today=date(2024, 2, 28)
+    ).years_held == 3
+    assert compute_pea_gain(
+        1_000_000, opened_on=opened, today=date(2024, 2, 29)
+    ).years_held == 4
+
+
 def test_a_pea_before_five_years_can_still_elect_bareme():
     result = compute_pea_gain(
         1_000_000, opened_on=date(2023, 1, 1), today=date(2024, 1, 1), marginal_rate_bps=2_000,

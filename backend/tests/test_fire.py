@@ -234,6 +234,42 @@ def test_the_pot_never_goes_negative_the_projection_stops_when_exhausted():
     assert len(result.points) == result.exhausted_at_month
 
 
+def test_a_withdrawal_rounding_to_zero_cents_neither_exhausts_the_pot_nor_taxes_its_growth():
+    """A pot small enough that its own monthly withdrawal rounds away: 500 c
+    at 1 %/an is 500 * 1 % / 12 = 0,4166... c, which `amortization.cents`
+    rounds HALF UP to 0 c. Nothing is ever withdrawn, while the pot keeps
+    growing at 12 %/an (exactly 1 %/month).
+
+    Two wrong implementations die here, on different assertions:
+
+    * One that treats "this month withdrew nothing" as the exhaustion
+      condition -- `if withdrawal == 0: exhausted_at = month; break`, an easy
+      slip from the correct `if balance == 0` -- stamps
+      `exhausted_at_month == 1` and stops after one point, announcing that a
+      pot still holding 5,05 EUR has run out.
+    * One that taxes the pot's GROWTH rather than the gain portion of what
+      was actually WITHDRAWN reports a PFU bill on all twelve months here,
+      since the pot gains every month and withdraws nothing. French tax is
+      owed on a realised gain; an unrealised one owes nothing at all.
+    """
+    result = project_retirement(
+        initial_cents=500, annual_return_bps=1_200, withdrawal_rate_bps=100,
+        months=12, today=TODAY,
+    )
+    assert len(result.points) == 12
+    assert result.exhausted_at_month is None
+    for point in result.points:
+        assert point.gross_withdrawal_cents == 0
+        assert point.taxable_gain_cents == 0
+        assert point.tax_cents == 0
+        assert point.net_withdrawal_cents == 0
+    # 1 %/month on an untouched balance, cent by cent: 500 -> 505 -> 510 ...
+    # -> 550 (month 10), then 5,50 c rounds HALF UP to 6 -> 556 -> 562.
+    assert [p.balance_cents for p in result.points] == [
+        505, 510, 515, 520, 525, 530, 535, 540, 545, 550, 556, 562,
+    ]
+
+
 def test_a_pot_that_survives_the_whole_horizon_reports_no_exhaustion():
     result = project_retirement(
         initial_cents=100_000_000, annual_return_bps=1_200, withdrawal_rate_bps=100,

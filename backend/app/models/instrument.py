@@ -11,10 +11,10 @@ class Instrument(Base):
     a cryptocurrency.
 
     **No `user_id`.** AAPL is AAPL for every user of this self-hosted
-    installation -- an objective market fact, not personal data -- and it is
-    priced by ONE shared quota pool (`QuotaWindow`) behind ONE set of
-    provider keys (`ApiKey`, see that model's docstring for why THAT table
-    also has no `user_id`). Giving `Instrument` a `user_id` would mean
+    installation -- an objective market fact, not personal data, unlike
+    `ApiKey` and `QuotaWindow` (see their docstrings), which carry `user_id`
+    precisely because a provider key is a secret one user typed in, not a
+    fact about the world. Giving `Instrument` a `user_id` would mean
     fetching and storing "AAPL" once per user for no benefit; every user's
     `Position` rows that hold AAPL reference this SAME row.
 

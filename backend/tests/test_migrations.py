@@ -489,12 +489,12 @@ def test_the_phase_3_migration_adds_seven_tables_to_a_populated_database(migrati
         "VALUES (1, 1, '2026-01-15', 19034, 'finnhub', '2026-01-15T10:00:00')"
     )
     conn.execute(
-        "INSERT INTO api_keys (id, provider, value, created_at, last_used_at) "
-        "VALUES (1, 'finnhub', 'gAAAA...', '2026-01-15T10:00:00', NULL)"
+        "INSERT INTO api_keys (id, user_id, provider, value, created_at, last_used_at) "
+        "VALUES (1, 1, 'finnhub', 'gAAAA...', '2026-01-15T10:00:00', NULL)"
     )
     conn.execute(
-        "INSERT INTO quota_windows (id, provider, window_started_at, used) "
-        "VALUES (1, 'finnhub', '2026-01-15T10:00:00', 0)"
+        "INSERT INTO quota_windows (id, user_id, provider, window_started_at, used) "
+        "VALUES (1, 1, 'finnhub', '2026-01-15T10:00:00', 0)"
     )
     conn.commit()
 
@@ -514,6 +514,16 @@ def test_the_phase_3_migration_adds_seven_tables_to_a_populated_database(migrati
             "INSERT INTO lots (id, user_id, position_id, quantity, unit_cost_cents, "
             "acquired_on) VALUES (2, 4242, 1, '1', 100, '2026-01-15')"
         )
+    with pytest.raises(sqlite3.IntegrityError):
+        conn.execute(
+            "INSERT INTO api_keys (id, user_id, provider, value, created_at, last_used_at) "
+            "VALUES (2, 4242, 'finnhub', 'gBBBB...', '2026-01-16T10:00:00', NULL)"
+        )
+    with pytest.raises(sqlite3.IntegrityError):
+        conn.execute(
+            "INSERT INTO quota_windows (id, user_id, provider, window_started_at, used) "
+            "VALUES (2, 4242, 'finnhub', '2026-01-16T10:00:00', 0)"
+        )
     # A second position on the same (account, instrument) violates the
     # unique constraint that stands in for "one holding per instrument".
     with pytest.raises(sqlite3.IntegrityError):
@@ -521,18 +531,36 @@ def test_the_phase_3_migration_adds_seven_tables_to_a_populated_database(migrati
             "INSERT INTO positions (id, user_id, investment_account_id, instrument_id) "
             "VALUES (3, 1, 1, 1)"
         )
-    # A second key or quota window for a provider that already has one
-    # violates the pool's own uniqueness.
+    # A second key or quota window for a provider the SAME user already has
+    # one for violates the per-user uniqueness.
     with pytest.raises(sqlite3.IntegrityError):
         conn.execute(
-            "INSERT INTO api_keys (id, provider, value, created_at, last_used_at) "
-            "VALUES (2, 'finnhub', 'gBBBB...', '2026-01-16T10:00:00', NULL)"
+            "INSERT INTO api_keys (id, user_id, provider, value, created_at, last_used_at) "
+            "VALUES (3, 1, 'finnhub', 'gCCCC...', '2026-01-16T10:00:00', NULL)"
         )
     with pytest.raises(sqlite3.IntegrityError):
         conn.execute(
-            "INSERT INTO quota_windows (id, provider, window_started_at, used) "
-            "VALUES (2, 'finnhub', '2026-01-16T10:00:00', 0)"
+            "INSERT INTO quota_windows (id, user_id, provider, window_started_at, used) "
+            "VALUES (3, 1, 'finnhub', '2026-01-16T10:00:00', 0)"
         )
+    # A SECOND user's own key and window for the SAME provider is not a
+    # collision -- the constraint is per (user_id, provider), not provider
+    # alone.
+    conn.execute(
+        "INSERT INTO users (id, email, name, password_hash, role, is_active, created_at) "
+        "VALUES (2, 'c@d.fr', 'Alex', 'x', 'user', 1, '2026-01-01T00:00:00')"
+    )
+    conn.execute(
+        "INSERT INTO api_keys (id, user_id, provider, value, created_at, last_used_at) "
+        "VALUES (4, 2, 'finnhub', 'gDDDD...', '2026-01-16T10:00:00', NULL)"
+    )
+    conn.execute(
+        "INSERT INTO quota_windows (id, user_id, provider, window_started_at, used) "
+        "VALUES (4, 2, 'finnhub', '2026-01-15T10:00:00', 0)"
+    )
+    conn.commit()
+    assert conn.execute("SELECT COUNT(*) FROM api_keys").fetchone()[0] == 2
+    assert conn.execute("SELECT COUNT(*) FROM quota_windows").fetchone()[0] == 2
     # Deleting an instrument still referenced by a position is RESTRICTed,
     # not silently cascaded away.
     with pytest.raises(sqlite3.IntegrityError):
@@ -568,12 +596,12 @@ def test_the_phase_3_migration_rolls_back_cleanly_and_leaves_nothing_behind(migr
         "VALUES (1, 1, 1, '12.000000000000000000', 15000, '2026-01-15')"
     )
     conn.execute(
-        "INSERT INTO api_keys (id, provider, value, created_at, last_used_at) "
-        "VALUES (1, 'finnhub', 'gAAAA...', '2026-01-15T10:00:00', NULL)"
+        "INSERT INTO api_keys (id, user_id, provider, value, created_at, last_used_at) "
+        "VALUES (1, 1, 'finnhub', 'gAAAA...', '2026-01-15T10:00:00', NULL)"
     )
     conn.execute(
-        "INSERT INTO quota_windows (id, provider, window_started_at, used) "
-        "VALUES (1, 'finnhub', '2026-01-15T10:00:00', 0)"
+        "INSERT INTO quota_windows (id, user_id, provider, window_started_at, used) "
+        "VALUES (1, 1, 'finnhub', '2026-01-15T10:00:00', 0)"
     )
     conn.commit()
     conn.close()

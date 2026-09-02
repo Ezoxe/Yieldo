@@ -11,9 +11,10 @@ class PricePoint(Base):
     returned it.
 
     **No `user_id`** -- same reasoning as `Instrument`: a price is the same
-    number for every user of this installation, fetched at most once (Task
-    3's quota pool exists precisely because there is one budget, not one per
-    user) and shared by everyone's valuation.
+    number for every user of this installation, fetched once and shared by
+    everyone's valuation, unlike the per-user quota budget and provider key
+    that paid for fetching it (`QuotaWindow`, `ApiKey` -- see their
+    docstrings for why THOSE tables carry `user_id`).
 
     `price_cents` is in the INSTRUMENT'S OWN currency (`instrument.
     currency`), integer cents -- never a float, matching every other

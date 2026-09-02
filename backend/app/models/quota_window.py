@@ -1,20 +1,20 @@
 from datetime import datetime
 
-from sqlalchemy import DateTime, Integer, String
+from sqlalchemy import DateTime, ForeignKey, Integer, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db import Base
 
 
 class QuotaWindow(Base):
-    """Persisted call-count state for one provider's rate limit -- so the
-    pool survives a process restart.
+    """Persisted call-count state for one user's rate limit against one
+    provider -- so the pool survives a process restart.
 
-    **No `user_id`**, for the same reason `ApiKey` has none: Task 3's "pool"
-    is a pool precisely because every consumer of a provider draws against
-    the SAME counter, behind the SAME key. A `user_id` here would give each
-    user their own independent budget against a single shared key, which is
-    not what a rate limit ON THAT KEY means.
+    **Carries `user_id`, for the same reason `ApiKey` now does -- see that
+    model's docstring.** Each user enters their own provider key in
+    Réglages -> Connexions, so each user's calls draw down THEIR OWN counter
+    against THEIR OWN key; a `user_id`-less window would let one user's
+    traffic exhaust a budget bought against a key they never provided.
 
     This table stores only the mutable counter -- `used` and when the
     current window began. The window's LENGTH (60/minute, 25/day, 1 500/
@@ -23,14 +23,20 @@ class QuotaWindow(Base):
     from `window_started_at` and "now", whether the window has rolled over;
     this table only remembers what it was told last.
 
-    Unique on `provider`: one live window per provider, updated in place as
-    calls are made and reset in place when the window rolls over -- never a
-    growing history table.
+    Unique on `(user_id, provider)`: one live window per user per provider,
+    updated in place as calls are made and reset in place when the window
+    rolls over -- never a growing history table.
     """
 
     __tablename__ = "quota_windows"
+    __table_args__ = (
+        UniqueConstraint("user_id", "provider", name="uq_quota_window_user_provider"),
+    )
 
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False
+    )
     # One of app.models.api_key.MARKET_PROVIDERS.
-    provider: Mapped[str] = mapped_column(String(32), unique=True, index=True, nullable=False)
+    provider: Mapped[str] = mapped_column(String(32), index=True, nullable=False)
     window_started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     used: Mapped[int] = mapped_column(Integer, default=0, nullable=False)

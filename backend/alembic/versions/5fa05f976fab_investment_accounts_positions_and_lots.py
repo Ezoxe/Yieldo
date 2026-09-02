@@ -27,15 +27,19 @@ def upgrade() -> None:
     Tables are created in dependency order: `instruments` and
     `investment_accounts` first (no cross-references between them),
     `positions` next (references both), `lots` and `price_points` after
-    (reference `positions` and `instruments` respectively), then the two
-    operator-level tables `api_keys` and `quota_windows`, which reference
-    nothing.
+    (reference `positions` and `instruments` respectively), then `api_keys`
+    and `quota_windows`, which reference `users`.
 
-    `instruments`, `price_points`, `api_keys` and `quota_windows` carry no
-    `user_id` -- see `app/models/instrument.py` and `app/models/api_key.py`
-    for why: market data and provider credentials are shared by the whole
-    self-hosted installation behind ONE quota pool per provider, not
-    duplicated per user.
+    `instruments` and `price_points` carry no `user_id` -- see
+    `app/models/instrument.py` and `app/models/price_point.py` for why:
+    market data is an objective fact shared by the whole self-hosted
+    installation, not duplicated per user. `api_keys` and `quota_windows`
+    DO carry `user_id`, with the same foreign key, index and
+    `ondelete="CASCADE"` every other business table in this app uses -- a
+    provider key is a secret one user typed into Réglages -> Connexions, not
+    a fact about the world, and CLAUDE.md's isolation rule applies to it
+    like any other business table. See `app/models/api_key.py` and
+    `app/models/quota_window.py`.
     """
     op.create_table(
         "instruments",
@@ -120,31 +124,43 @@ def upgrade() -> None:
     op.create_table(
         "api_keys",
         sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
+        sa.Column("user_id", sa.Integer(), nullable=False),
         sa.Column("provider", sa.String(length=32), nullable=False),
         sa.Column("value", sa.Text(), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("last_used_at", sa.DateTime(timezone=True), nullable=True),
+        sa.ForeignKeyConstraint(["user_id"], ["users.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id"),
+        sa.UniqueConstraint("user_id", "provider", name="uq_api_key_user_provider"),
     )
-    op.create_index(op.f("ix_api_keys_provider"), "api_keys", ["provider"], unique=True)
+    op.create_index(op.f("ix_api_keys_user_id"), "api_keys", ["user_id"], unique=False)
+    op.create_index(op.f("ix_api_keys_provider"), "api_keys", ["provider"], unique=False)
 
     op.create_table(
         "quota_windows",
         sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
+        sa.Column("user_id", sa.Integer(), nullable=False),
         sa.Column("provider", sa.String(length=32), nullable=False),
         sa.Column("window_started_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("used", sa.Integer(), nullable=False, server_default=sa.text("0")),
+        sa.ForeignKeyConstraint(["user_id"], ["users.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id"),
+        sa.UniqueConstraint("user_id", "provider", name="uq_quota_window_user_provider"),
     )
-    op.create_index(op.f("ix_quota_windows_provider"), "quota_windows", ["provider"], unique=True)
+    op.create_index(op.f("ix_quota_windows_user_id"), "quota_windows", ["user_id"], unique=False)
+    op.create_index(
+        op.f("ix_quota_windows_provider"), "quota_windows", ["provider"], unique=False
+    )
 
 
 def downgrade() -> None:
     """Downgrade schema. Reverse dependency order of upgrade()."""
     op.drop_index(op.f("ix_quota_windows_provider"), table_name="quota_windows")
+    op.drop_index(op.f("ix_quota_windows_user_id"), table_name="quota_windows")
     op.drop_table("quota_windows")
 
     op.drop_index(op.f("ix_api_keys_provider"), table_name="api_keys")
+    op.drop_index(op.f("ix_api_keys_user_id"), table_name="api_keys")
     op.drop_table("api_keys")
 
     op.drop_index(op.f("ix_price_points_instrument_id"), table_name="price_points")

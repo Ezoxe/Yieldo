@@ -322,12 +322,14 @@ _ENTITY_PATTERNS: tuple[re.Pattern, ...] = (
     re.compile(r"\bchez ([a-z0-9][\w\-]*(?:\s+[a-z0-9][\w\-]*)?)"),
     re.compile(r"\babonnement (?:a |à )?([a-z0-9][\w\-]*(?:\s+[a-z0-9][\w\-]*)?)"),
     re.compile(r"\bobjectif ([a-z0-9][\w\-]*(?:\s+[a-z0-9][\w\-]*)?)"),
-    # Tried before the generic "de X" below: "en restaurant" is the category,
-    # while "de dépenses" is filler that a generic "de X" match would swallow
-    # instead -- see `test_total_by_category_average_mode`.
     re.compile(r"\ben ([a-z][\w\-]*(?:\s+[a-z][\w\-]*)?)"),
     re.compile(r"\bpour ([a-z0-9][\w\-]*(?:\s+[a-z0-9][\w\-]*)?)"),
-    re.compile(r"\bde (?:mon |ma |mes )?([a-z0-9][\w\-]*(?:\s+[a-z0-9][\w\-]*)?)"),
+    # Deliberately NO generic "de X" fallback: tried against a live seeded
+    # fixture (self-review), "de dépenses depuis janvier" was captured as a
+    # category hint "Dépenses" -- a filler noun mistaken for a category name,
+    # which then refused a perfectly good "average across every category"
+    # question. A missing entity is a correct "no filter"; a wrong one is a
+    # wrong answer wearing a confident face.
 )
 
 
@@ -388,7 +390,15 @@ _TRANSACTION_MARKERS = ("chez ", "montre-moi", "montre moi", "liste mes",
                         "mes achats", "mes transactions",
                         "quelles sont mes transactions",
                         "quelles sont mes operations")
-_TOTAL_MARKERS = ("depense", "depenser", "coute", "coutent", "cout")
+# "dépense"/"dépenser" are unambiguously about the user's OWN spending. Bare
+# "coûte"/"coûter" is deliberately excluded: tried against a live seeded
+# fixture (self-review), "Combien coûte une baguette ?" -- a question about
+# the price of an object, not about anything in the ledger -- matched this
+# gate and answered with the household's whole-ledger total. A first-person
+# cost phrase ("ça m'a coûté", "combien ça m'a coûté") is unambiguous the
+# same way "dépensé" is, so it is kept as its own, narrower trigger.
+_TOTAL_MARKERS = ("depense", "depenser")
+_TOTAL_COST_PHRASES = ("m'a coute", "m a coute", "m'ont coute", "m ont coute")
 
 
 def _has_any(text: str, markers: tuple[str, ...]) -> bool:
@@ -444,7 +454,8 @@ def _gate_total_by_category(text: str) -> bool:
             or "abonnement" in text or "objectif" in text
             or "patrimoine" in text):
         return False
-    has_marker = _has_any(text, _TOTAL_MARKERS) or "moyenne" in text
+    has_marker = (_has_any(text, _TOTAL_MARKERS) or _has_any(text, _TOTAL_COST_PHRASES)
+                 or "moyenne" in text)
     has_question = "combien" in text or "moyenne" in text
     return has_marker and has_question
 

@@ -177,6 +177,38 @@ def test_total_by_category_does_not_fire_on_a_transaction_search_phrase():
     assert query.intent == "transaction_search"
 
 
+def test_total_by_category_does_not_fire_on_a_generic_price_question():
+    """Found against the seeded demo fixture during self-review: "combien
+    coûte une baguette ?" shares "combien" with a spending question but is
+    asking the price of an object, not anything in the ledger. It used to
+    match on the bare word "coûte" and answer with the household's whole
+    total -- a plausible-looking, wrong answer, which is the worst failure
+    this parser can produce."""
+    _refused("Combien coûte une baguette ?")
+    _refused("Combien coûte un iPhone 15 ?")
+
+
+def test_total_by_category_a_first_person_cost_phrase_still_matches():
+    """"m'a coûté" is unambiguous the same way "dépensé" is -- unlike the
+    bare "coûte" excluded above, it can only be about the speaker's own
+    spending."""
+    query = _parse("Combien ça m'a coûté en carburant en mars ?")
+    assert query.intent == "total_by_category"
+    assert query.category_hint == "Carburant"
+
+
+def test_total_by_category_average_with_no_category_is_not_confused_by_filler_words():
+    """Found against the seeded demo fixture during self-review: with no
+    category actually named, "de dépenses" was captured as a category hint
+    "Dépenses" -- a filler noun mistaken for a real category name -- and the
+    question was wrongly refused as "no such category" instead of answering
+    the average across every category."""
+    query = _parse("Quelle est ma moyenne mensuelle de dépenses depuis janvier ?")
+    assert query.intent == "total_by_category"
+    assert query.mode == "average"
+    assert query.category_hint is None
+
+
 def test_total_by_category_does_not_fire_on_a_feasibility_phrase():
     query = _parse("Puis-je m'acheter une voiture à 20000 € ?")
     assert query.intent == "feasibility"

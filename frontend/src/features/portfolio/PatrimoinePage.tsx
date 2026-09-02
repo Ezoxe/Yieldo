@@ -9,11 +9,18 @@ import { entryProps, staggerProps } from "../../design/motion/variants";
 import "../../design/Skeleton.css";
 import { api } from "../../lib/api";
 import { messageFor } from "../../lib/refusal";
-import type { Connection, PortfolioAllocation, PortfolioValuation } from "../../lib/types";
+import type {
+  Connection,
+  InvestmentAccount,
+  Lot,
+  PortfolioAllocation,
+  PortfolioValuation,
+} from "../../lib/types";
 import { AllocationPanel } from "./AllocationPanel";
 import { HoldingsPanel } from "./HoldingsPanel";
 import { MarketPanel } from "./MarketPanel";
 import "./PatrimoinePage.css";
+import { PortfolioEditor } from "./PortfolioEditor";
 import { TotalPanel } from "./TotalPanel";
 import { WeightsPanel } from "./WeightsPanel";
 
@@ -44,6 +51,10 @@ interface PatrimoineData {
   valuation: PortfolioValuation;
   allocation: PortfolioAllocation;
   connections: Connection[];
+  /** The envelopes and the acquisitions, for the panel that declares them.
+   *  Neither touches a market provider, so neither costs a quota call. */
+  accounts: InvestmentAccount[];
+  lots: Lot[];
 }
 
 export function PatrimoinePage() {
@@ -52,6 +63,11 @@ export function PatrimoinePage() {
   const [data, setData] = useState<PatrimoineData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  // Bumped by every write the declaration panel makes. A new lot changes a
+  // total, a weight and a drift at once, so the screen is reloaded whole
+  // rather than patched in place — there is no version of this data that is
+  // partly new and still coherent.
+  const [reloadToken, setReloadToken] = useState(0);
   // Read ONCE per mount rather than per render: an age computed from a fresh
   // `new Date()` on every render would make the same stale price report a
   // different age each time React re-rendered, for no reason the reader could
@@ -82,11 +98,18 @@ export function PatrimoinePage() {
         const connectionsPromise = api
           .get<Connection[]>("/connections")
           .catch(() => [] as Connection[]);
+        // Fired alongside, and deliberately NOT behind the two above: neither
+        // reads a price, so neither consults the quota pool, and neither can
+        // collide with the rows the valuation writes.
+        const accountsPromise = api.get<InvestmentAccount[]>("/portfolio/accounts");
+        const lotsPromise = api.get<Lot[]>("/portfolio/lots");
         const valuation = await api.get<PortfolioValuation>("/portfolio/valuation");
         const allocation = await api.get<PortfolioAllocation>("/portfolio/allocation");
         const connections = await connectionsPromise;
+        const accounts = await accountsPromise;
+        const lots = await lotsPromise;
         if (cancelled) return;
-        setData({ valuation, allocation, connections });
+        setData({ valuation, allocation, connections, accounts, lots });
         setError(null);
       } catch (err) {
         if (cancelled) return;
@@ -101,7 +124,7 @@ export function PatrimoinePage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [reloadToken]);
 
   let body: ReactNode;
 
@@ -125,10 +148,26 @@ export function PatrimoinePage() {
   } else if (data === null) {
     body = null;
   } else {
-    const { valuation, allocation, connections } = data;
+    const { valuation, allocation, connections, accounts, lots } = data;
     const { total } = valuation;
     const declaredNothing = total.positions_total === 0;
     const incomplete = total.positions_missing_price + total.positions_missing_fx > 0;
+    const reload = () => setReloadToken((token) => token + 1);
+
+    // Full width at every breakpoint: it nests three levels (envelope,
+    // position, lot) and holds forms two fields wide, neither of which fits a
+    // half-width cell at 768.
+    const editorCell = (
+      <BentoCell as={motion.div} span={SPAN.full} className="yd-panel" {...entryProps(reduced)}>
+        <h2 className="yd-panel__title">Déclarer ce que vous détenez</h2>
+        <PortfolioEditor
+          accounts={accounts}
+          positions={valuation.positions}
+          lots={lots}
+          onChanged={reload}
+        />
+      </BentoCell>
+    );
 
     const marketCell = (
       <BentoCell
@@ -191,6 +230,7 @@ export function PatrimoinePage() {
               </EmptyState>
             </BentoCell>
             {marketCell}
+            {editorCell}
           </>
         ) : (
           <>
@@ -247,12 +287,14 @@ export function PatrimoinePage() {
                 incomplete={incomplete}
               />
             </BentoCell>
+
+            {editorCell}
           </>
         )}
 
         <BentoCell as={motion.div} span={SPAN.full} className="yd-panel" {...entryProps(reduced)}>
           <h2 className="yd-panel__title">Allocation cible et écart</h2>
-          <AllocationPanel allocation={allocation} />
+          <AllocationPanel allocation={allocation} onSaved={reload} />
         </BentoCell>
       </BentoGrid>
     );

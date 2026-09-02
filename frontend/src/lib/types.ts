@@ -1516,3 +1516,85 @@ export interface PortfolioAllocation {
    *  nobody made. */
   unavailable_reason: string | null;
 }
+
+// --- What `/patrimoine` writes back. Everything above this line is read-only
+// --- output the backend computes; everything below is DECLARED by the
+// --- household, and each shape mirrors one `schemas/portfolio.py` class.
+
+/** `GET/POST /api/portfolio/accounts`. The envelope a position lives in. */
+export interface InvestmentAccount {
+  id: number;
+  name: string;
+  /** One of `models.INVESTMENT_ACCOUNT_KINDS`. */
+  kind: string;
+  currency: string;
+  /** Nullable, and load-bearing for a PEA or an assurance-vie: the French
+   *  holding-period rules count from this date, never from a lot's. */
+  opened_on: string | null;
+  archived: boolean;
+}
+
+export interface InvestmentAccountIn {
+  name: string;
+  kind: string;
+  currency: string;
+  opened_on: string | null;
+}
+
+/** `POST /api/portfolio/instruments` — a find-or-create keyed on
+ *  `(symbol, asset_class)`, never an update of an existing row. */
+export interface Instrument {
+  id: number;
+  symbol: string;
+  name: string;
+  asset_class: string;
+  currency: string;
+  is_fractionable: boolean;
+}
+
+export interface InstrumentIn {
+  symbol: string;
+  name: string;
+  asset_class: string;
+  currency: string;
+  is_fractionable: boolean;
+}
+
+/** `POST /api/portfolio/positions`. Carries no quantity of its own: a position
+ *  IS the sum of its lots (`models/position.py`). */
+export interface Position {
+  id: number;
+  investment_account_id: number;
+  instrument_id: number;
+}
+
+export interface PositionIn {
+  investment_account_id: number;
+  instrument_id: number;
+}
+
+/** One acquisition. `quantity` is an `engines.quantity.Quantity` as text at its
+ *  canonical 18-decimal scale — **not money**: `formatQuantity`, never
+ *  `formatCents`. `unit_cost_cents` is money, and is. */
+export interface Lot {
+  id: number;
+  position_id: number;
+  quantity: string;
+  unit_cost_cents: number;
+  acquired_on: string;
+}
+
+export interface LotIn {
+  position_id: number;
+  quantity: string;
+  unit_cost_cents: number;
+  acquired_on: string;
+}
+
+/** `PUT /api/portfolio/targets` — the WHOLE set, always. The 100 % invariant
+ *  spans rows, so there is no per-row patch to send. */
+export interface AllocationTargetIn {
+  asset_class: string;
+  /** Basis points: 6 000 is 60,00 %. */
+  target_bps: number;
+}

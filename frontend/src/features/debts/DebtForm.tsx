@@ -1,6 +1,6 @@
 import { useId, useState, type FormEvent, type ReactNode } from "react";
 
-import { centsToInput, parseCents } from "../../design/theme";
+import { centsToInput, parseCents, parseRateBps } from "../../design/theme";
 import { ApiError, api } from "../../lib/api";
 import type { Debt, DebtIn } from "../../lib/types";
 
@@ -23,21 +23,6 @@ function bpsToInput(bps: number): string {
   const sign = bps < 0 ? "-" : "";
   const absolute = Math.abs(bps);
   return `${sign}${Math.trunc(absolute / 100)},${String(absolute % 100).padStart(2, "0")}`;
-}
-
-/**
- * A typed percentage into integer basis points.
- *
- * `Number(text) * 100` is acceptable **here and only here**, because a rate is
- * not money: it is a ratio the engine converts to a `Decimal` before it ever
- * multiplies a cents value, so no float reaches an amount. **Do not copy this
- * onto a euro field** — that is what `parseCents` exists for, and
- * `parseFloat("8.70") * 100` is 869.9999999999999.
- */
-export function parseRateBps(text: string): number | null {
-  const cleaned = text.replace(/[\s  %]/g, "").replace(",", ".");
-  if (!/^\d+(\.\d{1,2})?$/.test(cleaned)) return null;
-  return Math.round(Number(cleaned) * 100);
 }
 
 /** `schemas.DebtIn.annual_rate_bps`: `ge=0, le=10_000`. */

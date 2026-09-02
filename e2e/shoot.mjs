@@ -4,7 +4,8 @@
  *
  *   node shoot.mjs <task>   # task-15 | task-16 | task-19 | task-20 |
  *                           # task-2c | task-2c-jalons |
- *                           # task-10 | task-10-positions
+ *                           # task-10 | task-10-positions |
+ *                           # task-10-formulaires
  *
  * Not a test. It drives a real Chromium, saves full-page PNGs, and reports the
  * three things a passing Vitest suite has never once caught in this project:
@@ -186,6 +187,33 @@ const PATRIMOINE_CONTRAST = {
   tradeAction: ".yd-trade__action",
   tradeQuantity: ".yd-trade__quantity",
   tradeValue: ".yd-trade__value",
+  // The declaration panel and its four forms (task-10-formulaires). A label,
+  // a hint and an error are three different registers on the same surface and
+  // each has to clear AA on its own — the hint is the one that says what an
+  // undated PEA costs, and it is the smallest text on the screen.
+  accountName: ".yd-eaccount__name",
+  accountMeta: ".yd-eaccount__meta",
+  positionSymbol: ".yd-eposition__symbol",
+  positionQuantity: ".yd-eposition__quantity",
+  positionBasis: ".yd-eposition__basis",
+  positionEmpty: ".yd-eposition__empty",
+  lotQuantity: ".yd-elot__quantity",
+  lotCost: ".yd-elot__cost",
+  lotDate: ".yd-elot__date",
+  editorAction: ".yd-editor__action",
+  editorAdd: ".yd-editor__add",
+  confirmQuestion: ".yd-editor__confirm-question",
+  formLabel: ".yd-pform__field label",
+  formHint: ".yd-pform__hint",
+  formNote: ".yd-pform__note",
+  formError: ".yd-pform__error",
+  formDerived: ".yd-pform__derived",
+  formSave: ".yd-pform__save",
+  formCancel: ".yd-pform__cancel",
+  targetsSum: ".yd-targets-form__sum",
+  targetsRemove: ".yd-targets-form__remove",
+  targetsAdd: ".yd-targets-form__add",
+  allocEdit: ".yd-alloc__edit",
 };
 
 function luminance([r, g, b]) {
@@ -713,6 +741,147 @@ async function drivePatrimoine(page, { theme, viewport, audit }) {
   await audit("patrimoine");
 }
 
+/**
+ * /patrimoine's four declaration forms, open and filled, and the two states a
+ * passing Vitest suite says nothing about: what a filled form LOOKS like at
+ * 375 px in both themes, and what a refusal looks like beside the field that
+ * produced it.
+ *
+ * The account, the position and the first lot are created THROUGH THE FORMS,
+ * on the first combination only — that is the whole point of this target: the
+ * screen shipped read-only, and a browser that can drive it end to end is the
+ * only proof it no longer is. The five combinations afterwards photograph the
+ * same three states against the data the first one declared.
+ *
+ * Nothing inside the loop mutates: the account form is cancelled, the lot form
+ * is cancelled, and the target set is deliberately left summing to 90 % so the
+ * refusal is what gets photographed. So the six runs are identical in effect.
+ */
+async function drivePatrimoineForms(page, { theme, viewport, audit }) {
+  await page.goto(`${BASE}/patrimoine`);
+  await page.waitForSelector("text=Déclarer ce que vous détenez", { timeout: 20000 });
+
+  // -- First run only: declare the three things, through the real forms ------
+  if ((await page.locator(".yd-eaccount").count()) === 0) {
+    await page.getByRole("button", { name: /Ajouter un compte d'investissement/ }).click();
+    await page.getByLabel(/Nom du compte/).fill("PEA Boursorama");
+    await page.getByLabel(/Type d'enveloppe/).selectOption("pea");
+    await page.getByLabel(/Date d'ouverture/).fill("2019-04-01");
+    await page.getByRole("button", { name: /^Enregistrer$/ }).click();
+    await page.waitForSelector(".yd-eaccount", { timeout: 20000 });
+
+    await page.getByRole("button", { name: /Déclarer une position/ }).click();
+    await page.getByLabel(/Symbole coté/).fill("AAPL");
+    await page.getByLabel(/Nom de l'instrument/).fill("Apple Inc.");
+    await page.getByRole("button", { name: /^Enregistrer$/ }).click();
+    await page.waitForSelector(".yd-eposition", { timeout: 20000 });
+
+    await page.getByRole("button", { name: /Ajouter un lot/ }).click();
+    await page.getByLabel(/Quantité acquise/).fill("12");
+    await page.getByLabel(/Prix unitaire payé/).fill("150,00");
+    await page.getByLabel(/Date d'acquisition/).fill("2026-01-15");
+    await page.getByRole("button", { name: /^Enregistrer$/ }).click();
+    await page.waitForSelector(".yd-elot", { timeout: 20000 });
+    console.log("declared an account, a position and a lot through the forms");
+  }
+
+  // The panel at rest: the derived total and the count it came from, together.
+  await page.waitForSelector(".yd-eposition__derived", { timeout: 20000 });
+  await expectOnScreen(
+    page,
+    `${theme} ${viewport.name} panneau`,
+    "PEA Boursorama",
+    "ouvert le 1er avril 2019",
+    // A position stores no total: the figure and its provenance travel together.
+    "somme de 1 lot",
+    "150,00 € l'unité",
+  );
+  await shot(page, viewport, theme, "-panneau");
+  await audit("panneau");
+
+  // -- The account form, open and filled -------------------------------------
+  await page.getByRole("button", { name: /Ajouter un compte d'investissement/ }).click();
+  await page.getByLabel(/Nom du compte/).fill("Assurance-vie Linxea");
+  await page.getByLabel(/Type d'enveloppe/).selectOption("assurance_vie");
+  await expectOnScreen(
+    page,
+    `${theme} ${viewport.name} compte`,
+    // An undated contract costs a tax rule, and the form says which — as a
+    // consequence, not as a refusal: it still saves.
+    "l'abattement au bout de 8 ans ne pourra pas être appliqué à ce contrat",
+  );
+  await page.waitForTimeout(300);
+  await shot(page, viewport, theme, "-compte");
+  await audit("compte");
+  await page.getByRole("button", { name: /Annuler/ }).click();
+
+  // -- The lot form, open and filled: the derived total, before it is saved ---
+  await page.getByRole("button", { name: /Ajouter un lot/ }).click();
+  await page.getByLabel(/Quantité acquise/).fill("0,25");
+  await page.getByLabel(/Prix unitaire payé/).fill("1 250,50");
+  await page.getByLabel(/Date d'acquisition/).fill("2026-03-04");
+  await expectOnScreen(
+    page,
+    `${theme} ${viewport.name} lot`,
+    "Après enregistrement, AAPL comptera 2 lots, soit 12,25 unités au total.",
+    "Yieldo ne stocke jamais ce total",
+  );
+  await page.waitForTimeout(300);
+  await shot(page, viewport, theme, "-lot");
+  await audit("lot");
+
+  // -- The refusal, at the field that produced it ----------------------------
+  // Nineteen decimals: engines/quantity.py refuses more than eighteen rather
+  // than rounding one away, and the form has to say so in French rather than
+  // truncating silently.
+  await page.getByLabel(/Quantité acquise/).fill("0,0000000000000000019");
+  await page.getByRole("button", { name: /^Enregistrer$/ }).click();
+  await page.waitForSelector(".yd-pform__error", { timeout: 20000 });
+  await expectOnScreen(
+    page,
+    `${theme} ${viewport.name} refus quantité`,
+    "Quantité trop précise : 19 décimales ont été saisies et Yieldo n'en conserve que 18. Aucune décimale n'est arrondie en silence : retirez-en 1.",
+    "Le total ne peut pas être calculé tant que la quantité saisie n'est pas lisible.",
+  );
+  const invalid = await page.evaluate(
+    () => document.querySelectorAll('.yd-pform [aria-invalid="true"]').length,
+  );
+  if (invalid !== 1) {
+    problems.push(
+      `${theme} ${viewport.name}: ${invalid} fields marked invalid, expected exactly the quantity`,
+    );
+  }
+  await page.waitForTimeout(300);
+  await shot(page, viewport, theme, "-refus");
+  await audit("refus");
+  await page.getByRole("button", { name: /Annuler/ }).click();
+
+  // -- The target set, refused for summing to 90 % ---------------------------
+  await page.getByRole("button", { name: /allocation cible/ }).click();
+  await page.waitForSelector(".yd-targets-form__rows", { timeout: 20000 });
+  while ((await page.locator(".yd-targets-form__row").count()) < 2) {
+    await page.getByRole("button", { name: /Ajouter une classe/ }).click();
+  }
+  const shares = page.getByLabel(/Part visée/);
+  await shares.nth(0).fill("60");
+  await shares.nth(1).fill("30");
+  await expectOnScreen(
+    page,
+    `${theme} ${viewport.name} somme`,
+    "Somme des parts visées : 90,00 % — il manque 10,00 %.",
+  );
+  await page.getByRole("button", { name: /^Enregistrer$/ }).click();
+  await page.waitForSelector(".yd-pform__error--form", { timeout: 20000 });
+  await expectOnScreen(
+    page,
+    `${theme} ${viewport.name} refus cible`,
+    "La somme des parts visées fait 90,00 %, alors qu'elle doit faire exactement 100,00 %. Ajoutez les 10,00 % manquants avant d'enregistrer.",
+  );
+  await page.waitForTimeout(400);
+  await shot(page, viewport, theme, "-cible");
+  await audit("cible");
+}
+
 const SCENARIOS = {
   "task-15": { drive: driveFeasibility, contrast: FEASIBILITY_CONTRAST, out: "phase-2b" },
   "task-16": { drive: driveFeasibility, contrast: FEASIBILITY_CONTRAST, out: "phase-2b" },
@@ -734,6 +903,15 @@ const SCENARIOS = {
   // the database, and it is not reversible.
   "task-10-positions": {
     drive: drivePatrimoine,
+    contrast: PATRIMOINE_CONTRAST,
+    out: "phase-3",
+  },
+  // The same screen's DECLARATION forms, driven end to end: the account, the
+  // position and the first lot are created through the forms themselves on the
+  // first combination. Run AFTER task-10, which photographs the empty state
+  // this one leaves behind.
+  "task-10-formulaires": {
+    drive: drivePatrimoineForms,
     contrast: PATRIMOINE_CONTRAST,
     out: "phase-3",
   },

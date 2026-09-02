@@ -138,6 +138,26 @@ export function formatRateBps(bps: number): string {
 }
 
 /**
+ * The inverse of {@link formatRateBps}: a typed percentage into integer basis
+ * points. `null` — never 0 — for anything it cannot read exactly.
+ *
+ * `Number(text) * 100` is acceptable **here and only here**, because a rate is
+ * not money: it is a ratio the engine converts to a `Decimal` before it ever
+ * multiplies a cents value, so no float reaches an amount. **Do not copy this
+ * onto a euro field** — that is what {@link parseCents} exists for, and
+ * `parseFloat("8.70") * 100` is 869.9999999999999.
+ *
+ * Lived in `features/debts/DebtForm.tsx` until `/patrimoine`'s allocation
+ * targets became its second caller, which is when it moved here beside its own
+ * inverse rather than being imported across features.
+ */
+export function parseRateBps(text: string): number | null {
+  const cleaned = text.replace(/[\s  %]/g, "").replace(",", ".");
+  if (!/^\d+(\.\d{1,2})?$/.test(cleaned)) return null;
+  return Math.round(Number(cleaned) * 100);
+}
+
+/**
  * The inverse of {@link parseCents} for a form field's initial value: integer
  * cents back into what the field shows, by integer arithmetic — 150 000 is
  * "1500,00". Never `cents / 100` formatted as a float.

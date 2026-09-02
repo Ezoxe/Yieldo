@@ -1,7 +1,9 @@
 import { render, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { api } from "../../lib/api";
+import type { InvestmentAccount, Lot } from "../../lib/types";
 import {
   DRIFTED_ALLOCATION,
   EMPTY_VALUATION,
@@ -11,11 +13,35 @@ import {
 } from "./fixtures";
 import { PatrimoinePage } from "./PatrimoinePage";
 
-function mockApi(valuation: unknown, allocation: unknown, connections: unknown) {
+/** The two envelopes and the two lots the mixed fixture's positions hang off,
+ *  so the declaration panel has something real to list. */
+const ACCOUNTS: InvestmentAccount[] = [
+  { id: 1, name: "CTO Boursorama", kind: "cto", currency: "EUR", opened_on: null, archived: false },
+];
+
+const LOTS: Lot[] = [
+  {
+    id: 1,
+    position_id: 1,
+    quantity: "2500.000000000000000000",
+    unit_cost_cents: 100,
+    acquired_on: "2026-01-15",
+  },
+];
+
+function mockApi(
+  valuation: unknown,
+  allocation: unknown,
+  connections: unknown,
+  accounts: unknown = ACCOUNTS,
+  lots: unknown = LOTS,
+) {
   vi.spyOn(api, "get").mockImplementation((path: string) => {
     if (path === "/portfolio/valuation") return Promise.resolve(valuation);
     if (path === "/portfolio/allocation") return Promise.resolve(allocation);
     if (path === "/connections") return Promise.resolve(connections);
+    if (path === "/portfolio/accounts") return Promise.resolve(accounts);
+    if (path === "/portfolio/lots") return Promise.resolve(lots);
     throw new Error(`unexpected path ${path}`);
   });
 }
@@ -106,6 +132,50 @@ describe("PatrimoinePage — the operator's own state: no position, no key", () 
     expect(refusal).toHaveTextContent(/Aucune allocation cible n'est définie/);
     // A table of zeroes would be a measurement nobody made.
     expect(screen.queryByTestId("yd-drift-equity")).not.toBeInTheDocument();
+  });
+
+  it("offers a way to declare all three things, not only a description of them", async () => {
+    // The screen shipped read-only: it named what a position needs and gave
+    // the operator no way to create any of it. Each of the three steps, and
+    // the target allocation, is reachable from this screen or it is not
+    // usable at all.
+    render(<PatrimoinePage />);
+    await screen.findByText("Aucune position déclarée.");
+
+    expect(screen.getByText("Déclarer ce que vous détenez")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /Ajouter un compte d'investissement/ }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /Déclarer une position dans CTO Boursorama/ }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Définir l'allocation cible/ })).toBeInTheDocument();
+  });
+
+  it("reloads every panel once a declaration lands", async () => {
+    // A lot changes a total, a weight and a drift at once: there is no version
+    // of this screen that is partly new and still coherent.
+    const post = vi.spyOn(api, "post").mockResolvedValue({
+      id: 2,
+      name: "PEA",
+      kind: "pea",
+      currency: "EUR",
+      opened_on: null,
+      archived: false,
+    });
+    const user = userEvent.setup();
+    render(<PatrimoinePage />);
+    await screen.findByText("Aucune position déclarée.");
+    const before = vi.mocked(api.get).mock.calls.length;
+
+    await user.click(screen.getByRole("button", { name: /Ajouter un compte d'investissement/ }));
+    await user.type(screen.getByLabelText(/Nom du compte/), "PEA");
+    await user.click(screen.getByRole("button", { name: /Enregistrer/ }));
+
+    await waitFor(() => expect(post).toHaveBeenCalled());
+    await waitFor(() =>
+      expect(vi.mocked(api.get).mock.calls.length).toBeGreaterThan(before),
+    );
   });
 });
 
@@ -228,6 +298,8 @@ describe("PatrimoinePage — failures", () => {
     vi.spyOn(api, "get").mockImplementation((path: string) => {
       if (path === "/portfolio/valuation") return Promise.resolve(MIXED_VALUATION);
       if (path === "/portfolio/allocation") return Promise.resolve(DRIFTED_ALLOCATION);
+      if (path === "/portfolio/accounts") return Promise.resolve(ACCOUNTS);
+      if (path === "/portfolio/lots") return Promise.resolve(LOTS);
       return Promise.reject(new Error("boom"));
     });
 

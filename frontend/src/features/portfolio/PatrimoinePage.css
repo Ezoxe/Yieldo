@@ -917,3 +917,592 @@
 .yd-skeleton--patrimoine-table {
   height: 260px;
 }
+
+/* -- Declaring what you hold ------------------------------------------------
+
+   The panel that made this screen writable, and the four forms inside it. The
+   shape it has to survive is nesting: an account holds positions, a position
+   holds lots, and at 375 px that is three levels inside a card that is already
+   inside a bento cell. So each level is drawn with a single left rule and no
+   extra padding — indentation costs horizontal room the narrow viewport does
+   not have, and a table on this screen has already been found unreadable below
+   1200 px once.
+
+   Every control here is at least 36 px tall with 8 px between it and the next,
+   which is what the touch rules ask of a control repeated this densely.
+
+   Every colour is a token from design/tokens.css; `design/contrast.test.ts`
+   parses that file from disk and holds both themes to 4.5:1. */
+
+.yd-editor {
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-md);
+  min-width: 0;
+}
+
+.yd-editor__empty {
+  margin: 0;
+  max-width: 90ch;
+  padding: var(--yd-space-sm) var(--yd-space-md);
+  border-radius: var(--yd-radius-sm);
+  border: 1px dashed var(--yd-border-strong);
+  color: var(--yd-text);
+  font-size: 0.88rem;
+  line-height: 1.55;
+}
+
+.yd-editor__action,
+.yd-editor__add {
+  min-height: 36px;
+  padding: 0 var(--yd-space-md);
+  border: 1px solid var(--yd-border-control);
+  border-radius: var(--yd-radius-sm);
+  background: transparent;
+  color: var(--yd-text);
+  font: inherit;
+  font-size: 0.84rem;
+  cursor: pointer;
+  transition: border-color var(--yd-motion-fast) var(--yd-ease);
+}
+
+.yd-editor__add {
+  align-self: start;
+  border-color: var(--yd-accent);
+  color: var(--yd-accent);
+  font-weight: 600;
+}
+
+.yd-editor__action:hover,
+.yd-editor__add:hover {
+  border-color: var(--yd-accent);
+}
+
+.yd-editor__action:focus-visible,
+.yd-editor__add:focus-visible {
+  outline: 2px solid var(--yd-accent);
+  outline-offset: 2px;
+}
+
+.yd-editor__action--danger {
+  border-color: var(--yd-negative);
+  color: var(--yd-negative-text);
+}
+
+/* A confirmation is a question, not a failure: the warning rule, never the
+   negative colour, which this screen keeps for something having gone wrong. */
+.yd-editor__confirm {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--yd-space-xs) var(--yd-space-sm);
+  padding: var(--yd-space-sm) var(--yd-space-md);
+  border-radius: var(--yd-radius-sm);
+  border: 1px solid var(--yd-border-strong);
+  border-left: 3px solid var(--yd-warning);
+  background: var(--yd-surface);
+}
+
+.yd-editor__confirm-question {
+  margin: 0;
+  flex: 1 1 22ch;
+  min-width: 0;
+  font-size: 0.86rem;
+  line-height: 1.5;
+  color: var(--yd-text);
+}
+
+.yd-editor__confirm-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--yd-space-xs);
+}
+
+/* One account ------------------------------------------------------------- */
+
+.yd-eaccount {
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-sm);
+  padding: var(--yd-space-md);
+  border-radius: var(--yd-radius-sm);
+  border: 1px solid var(--yd-border);
+  background: var(--yd-surface);
+  min-width: 0;
+}
+
+.yd-eaccount__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--yd-space-2xs) var(--yd-space-sm);
+}
+
+.yd-eaccount__name {
+  margin: 0;
+  flex: 1 1 auto;
+  font-size: 0.98rem;
+  font-weight: 600;
+  color: var(--yd-text);
+}
+
+.yd-eaccount__meta {
+  margin: 0;
+  flex: 1 1 100%;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--yd-space-2xs) var(--yd-space-xs);
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: var(--yd-text-muted);
+}
+
+.yd-eaccount__sep {
+  opacity: 0.7;
+}
+
+.yd-eaccount__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--yd-space-xs);
+}
+
+.yd-eaccount__empty {
+  margin: 0;
+  font-size: 0.84rem;
+  line-height: 1.5;
+  color: var(--yd-text-muted);
+}
+
+.yd-eaccount__add {
+  align-self: start;
+}
+
+/* Its positions ----------------------------------------------------------- */
+
+.yd-epositions {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-sm);
+  min-width: 0;
+}
+
+.yd-eposition {
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-xs);
+  padding-left: var(--yd-space-sm);
+  border-left: 2px solid var(--yd-border-strong);
+  min-width: 0;
+}
+
+.yd-eposition__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--yd-space-2xs) var(--yd-space-xs);
+}
+
+.yd-eposition__symbol {
+  margin: 0;
+  font-family: var(--yd-font-mono);
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--yd-text);
+}
+
+.yd-eposition__name {
+  font-size: 0.82rem;
+  color: var(--yd-text-muted);
+}
+
+.yd-eposition__class {
+  font-size: 0.75rem;
+  padding: 1px var(--yd-space-xs);
+  border-radius: 999px;
+  border: 1px solid var(--yd-border-strong);
+  color: var(--yd-text-muted);
+}
+
+/* The figure and the count it was derived FROM, on one line and never apart:
+   a position stores no total, and the count beside it is what says so. */
+.yd-eposition__derived {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--yd-space-2xs) var(--yd-space-xs);
+}
+
+.yd-eposition__quantity {
+  font-family: var(--yd-font-mono);
+  font-size: 0.95rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--yd-text);
+}
+
+.yd-eposition__basis {
+  font-size: 0.78rem;
+  color: var(--yd-text-muted);
+}
+
+.yd-eposition__empty {
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  color: var(--yd-text-muted);
+}
+
+.yd-eposition__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--yd-space-xs);
+}
+
+/* Its lots ---------------------------------------------------------------- */
+
+.yd-elots {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-2xs);
+  min-width: 0;
+}
+
+/* Wraps rather than scrolls: three short values and two buttons sit on one
+   line from 768 px and stack cleanly at 375 without a scroller of their own. */
+.yd-elot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--yd-space-2xs) var(--yd-space-sm);
+  padding: var(--yd-space-2xs) 0;
+  min-width: 0;
+}
+
+.yd-elot__quantity {
+  font-family: var(--yd-font-mono);
+  font-size: 0.84rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--yd-text);
+  min-width: 9ch;
+}
+
+.yd-elot__cost,
+.yd-elot__date {
+  font-size: 0.8rem;
+  color: var(--yd-text-muted);
+}
+
+.yd-elot__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--yd-space-xs);
+  margin-left: auto;
+}
+
+.yd-elot__actions .yd-editor__action {
+  min-height: 32px;
+  padding: 0 var(--yd-space-sm);
+  font-size: 0.78rem;
+}
+
+/* The four forms ---------------------------------------------------------- */
+
+.yd-pform {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--yd-space-sm);
+  padding: var(--yd-space-md);
+  border-radius: var(--yd-radius-sm);
+  border: 1px solid var(--yd-border-strong);
+  background: var(--yd-surface-raised);
+  min-width: 0;
+}
+
+.yd-pform__title {
+  margin: 0;
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--yd-text);
+}
+
+.yd-pform__field {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--yd-space-2xs);
+  min-width: 0;
+}
+
+.yd-pform__field label {
+  font-size: 0.82rem;
+  color: var(--yd-text-muted);
+}
+
+.yd-pform__field input[type="text"],
+.yd-pform__field input[type="date"],
+.yd-pform__field select {
+  width: 100%;
+  min-height: 36px;
+  padding: 0 var(--yd-space-xs);
+  border: 1px solid var(--yd-border-control);
+  border-radius: var(--yd-radius-sm);
+  background: var(--yd-surface-strong);
+  color: var(--yd-text);
+  font: inherit;
+  font-size: 0.9rem;
+}
+
+.yd-pform__field input:focus-visible,
+.yd-pform__field select:focus-visible {
+  outline: 2px solid var(--yd-accent);
+  outline-offset: 1px;
+}
+
+.yd-pform__field input[aria-invalid="true"],
+.yd-pform__field select[aria-invalid="true"] {
+  border-color: var(--yd-negative);
+}
+
+.yd-pform__field--check {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: var(--yd-space-2xs) var(--yd-space-xs);
+}
+
+.yd-pform__field--check input {
+  width: 20px;
+  height: 20px;
+  accent-color: var(--yd-accent);
+}
+
+.yd-pform__field--check label {
+  font-size: 0.86rem;
+  color: var(--yd-text);
+}
+
+.yd-pform__field--check .yd-pform__hint {
+  grid-column: 1 / -1;
+}
+
+.yd-pform__hint {
+  margin: 0;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: var(--yd-text-muted);
+}
+
+.yd-pform__error {
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  color: var(--yd-negative-text);
+}
+
+.yd-pform__note {
+  margin: 0;
+  font-size: 0.8rem;
+  line-height: 1.45;
+  color: var(--yd-text-muted);
+}
+
+/* The derived total, on the accent rule: it is what this form exists to teach,
+   not a footnote under it. */
+.yd-pform__derived {
+  margin: 0;
+  padding: var(--yd-space-xs) var(--yd-space-sm);
+  border-radius: var(--yd-radius-sm);
+  border: 1px solid var(--yd-border-strong);
+  border-left: 3px solid var(--yd-accent);
+  background: var(--yd-surface);
+  color: var(--yd-text);
+  font-size: 0.86rem;
+  line-height: 1.5;
+}
+
+.yd-pform__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--yd-space-xs);
+}
+
+.yd-pform__save,
+.yd-pform__cancel {
+  min-height: 36px;
+  padding: 0 var(--yd-space-md);
+  border-radius: var(--yd-radius-sm);
+  border: 1px solid var(--yd-border-control);
+  background: transparent;
+  color: var(--yd-text);
+  font: inherit;
+  font-size: 0.86rem;
+  cursor: pointer;
+  transition: border-color var(--yd-motion-fast) var(--yd-ease);
+}
+
+.yd-pform__save {
+  border-color: var(--yd-accent);
+  color: var(--yd-accent);
+  font-weight: 600;
+}
+
+.yd-pform__save:hover:not(:disabled),
+.yd-pform__cancel:hover:not(:disabled) {
+  border-color: var(--yd-accent);
+}
+
+.yd-pform__save:disabled,
+.yd-pform__cancel:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.yd-pform__save:focus-visible,
+.yd-pform__cancel:focus-visible {
+  outline: 2px solid var(--yd-accent);
+  outline-offset: 2px;
+}
+
+/* From 640 px the short fields pair up; at 375 they stay stacked. */
+@media (min-width: 640px) {
+  .yd-pform {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .yd-pform__title,
+  .yd-pform__note,
+  .yd-pform__derived,
+  .yd-pform__actions,
+  .yd-pform__field--wide,
+  .yd-pform__field--check,
+  .yd-pform__error--form,
+  .yd-targets-form__rows,
+  .yd-targets-form__foot {
+    grid-column: 1 / -1;
+  }
+}
+
+/* The allocation targets -------------------------------------------------- */
+
+.yd-targets-form__rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-sm);
+  min-width: 0;
+}
+
+/* The class, its share and the remove button on one line from 560 px, stacked
+   below it. `minmax(0, ...)` on both tracks: a select carrying a long option
+   label sets an auto track's minimum to that label and pushes the row past the
+   viewport. */
+.yd-targets-form__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: end;
+  gap: var(--yd-space-xs);
+  min-width: 0;
+}
+
+@media (min-width: 560px) {
+  .yd-targets-form__row {
+    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) auto;
+  }
+}
+
+.yd-targets-form__remove {
+  min-height: 36px;
+  padding: 0 var(--yd-space-sm);
+  border: 1px solid var(--yd-border-control);
+  border-radius: var(--yd-radius-sm);
+  background: transparent;
+  color: var(--yd-text);
+  font: inherit;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.yd-targets-form__remove:hover {
+  border-color: var(--yd-negative);
+}
+
+.yd-targets-form__remove:focus-visible {
+  outline: 2px solid var(--yd-accent);
+  outline-offset: 2px;
+}
+
+.yd-targets-form__foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--yd-space-xs) var(--yd-space-sm);
+}
+
+.yd-targets-form__add {
+  min-height: 36px;
+  padding: 0 var(--yd-space-md);
+  border: 1px solid var(--yd-border-control);
+  border-radius: var(--yd-radius-sm);
+  background: transparent;
+  color: var(--yd-text);
+  font: inherit;
+  font-size: 0.84rem;
+  cursor: pointer;
+}
+
+.yd-targets-form__add:hover {
+  border-color: var(--yd-accent);
+}
+
+.yd-targets-form__add:focus-visible {
+  outline: 2px solid var(--yd-accent);
+  outline-offset: 2px;
+}
+
+/* The running sum. The colour is a second signal only — the sentence beside it
+   says in words whether the set is complete, because colour alone cannot be
+   read by everyone who has to read this. */
+.yd-targets-form__sum {
+  margin: 0;
+  font-size: 0.84rem;
+  line-height: 1.5;
+  font-variant-numeric: tabular-nums;
+  color: var(--yd-text-muted);
+}
+
+.yd-targets-form__sum--balanced {
+  color: var(--yd-text);
+}
+
+/* The button that opens the target form, inside the allocation panel. */
+.yd-alloc__edit {
+  align-self: start;
+  min-height: 36px;
+  padding: 0 var(--yd-space-md);
+  border: 1px solid var(--yd-accent);
+  border-radius: var(--yd-radius-sm);
+  background: transparent;
+  color: var(--yd-accent);
+  font: inherit;
+  font-size: 0.84rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.yd-alloc__edit:hover {
+  border-color: var(--yd-accent-strong);
+}
+
+.yd-alloc__edit:focus-visible {
+  outline: 2px solid var(--yd-accent);
+  outline-offset: 2px;
+}

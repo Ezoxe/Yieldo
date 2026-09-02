@@ -1,7 +1,10 @@
+import { useState } from "react";
+
 import { formatCents, formatQuantity, formatRateBps } from "../../design/theme";
 import { plural } from "../../lib/plural";
 import type { AssetClassDrift, PortfolioAllocation } from "../../lib/types";
 import { assetClassLabel } from "./HoldingsPanel";
+import { TargetsForm } from "./TargetsForm";
 
 /** A drift bar's two marks: where the class actually sits, and where it was
  *  aimed. Both as a percentage of the track, clamped to it — a class at 140 %
@@ -80,8 +83,39 @@ function DriftRow({ drift }: { drift: AssetClassDrift }) {
  *    and change nothing.
  * 3. **It never runs a quantity through a money formatter.** `formatQuantity`
  *    for units, `formatCents` for the euros they are worth.
+ *
+ * The target set is EDITED here, in the panel that reports the drift from it,
+ * rather than in the declaration panel further up: the drift is the only place
+ * a household can see what changing a target would do.
  */
-export function AllocationPanel({ allocation }: { allocation: PortfolioAllocation }) {
+export function AllocationPanel({
+  allocation,
+  onSaved,
+}: {
+  allocation: PortfolioAllocation;
+  /** The set was replaced: the page reloads, because a target changes every
+   *  drift and every proposed order at once. */
+  onSaved: () => void;
+}) {
+  const [editing, setEditing] = useState(false);
+
+  const editor = editing ? (
+    <TargetsForm
+      targets={allocation.targets}
+      onSaved={() => {
+        setEditing(false);
+        onSaved();
+      }}
+      onCancel={() => setEditing(false)}
+    />
+  ) : (
+    <button type="button" className="yd-alloc__edit" onClick={() => setEditing(true)}>
+      {allocation.targets.length === 0
+        ? "Définir l'allocation cible"
+        : "Modifier l'allocation cible"}
+    </button>
+  );
+
   if (allocation.report === null) {
     return (
       <div className="yd-alloc" data-testid="yd-allocation">
@@ -94,6 +128,7 @@ export function AllocationPanel({ allocation }: { allocation: PortfolioAllocatio
           répartition visée est une décision qui vous appartient, pas une recommandation que cette
           application se permettrait de faire.
         </p>
+        {editor}
       </div>
     );
   }
@@ -179,6 +214,8 @@ export function AllocationPanel({ allocation }: { allocation: PortfolioAllocatio
           Aucun ordre n'est proposé : chaque classe est déjà sur sa cible.
         </p>
       ) : null}
+
+      {editor}
     </div>
   );
 }

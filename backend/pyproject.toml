@@ -14,10 +14,11 @@ dependencies = [
     "pyjwt>=2.10",
     "cryptography>=44.0",
     "python-multipart>=0.0.20",
+    "httpx>=0.28",
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8.3", "pytest-cov>=6.0", "httpx>=0.28", "ruff>=0.9"]
+dev = ["pytest>=8.3", "pytest-cov>=6.0", "ruff>=0.9"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

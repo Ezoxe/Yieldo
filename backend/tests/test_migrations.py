@@ -410,3 +410,198 @@ def test_the_phase_2c_migration_rolls_back_cleanly(migration_db):
     }
     assert {"health_snapshots", "challenges"} <= tables
     conn.close()
+
+
+PHASE_3_REVISION = "5fa05f976fab"
+PHASE_3_PREVIOUS = "4aa48828b2cb"
+PHASE_3_TABLES = {
+    "instruments", "investment_accounts", "positions", "lots",
+    "price_points", "api_keys", "quota_windows",
+}
+
+
+@pytest.mark.parametrize("table", sorted(PHASE_3_TABLES))
+def test_the_phase_3_migration_matches_base_metadata_exactly(migration_db, table):
+    """Same independent-source-of-truth comparison as the phase 2C test
+    above, extended to all seven of this migration's tables: the hand-written
+    DDL in `5fa05f976fab_*.py` must agree, column for column and index for
+    index, with what `Base.metadata.create_all` derives straight from the
+    ORM models -- nothing in the rest of this suite ever executes the
+    migration file itself (see the module docstring), so this is the only
+    test that would catch a typo'd column name or a nullability mismatch
+    between e.g. `models/lot.py` and the migration.
+    """
+    command.upgrade(migration_db.config, PHASE_3_PREVIOUS)
+    command.upgrade(migration_db.config, PHASE_3_REVISION)
+
+    conn = _connect(migration_db)
+    migrated_columns = _table_columns(conn, table)
+    migrated_indexes = _index_names(conn, table)
+    conn.close()
+
+    reference_columns, reference_indexes = _reference_schema(table)
+    assert migrated_columns == reference_columns
+    assert migrated_indexes == reference_indexes
+
+
+def test_the_phase_3_migration_adds_seven_tables_to_a_populated_database(migration_db):
+    """Run the real `upgrade()` against a database built at the PREVIOUS
+    revision with a pre-existing user already in it -- the shape an
+    operator's database actually has, not the empty one `create_all` builds
+    for every other test in this suite."""
+    command.upgrade(migration_db.config, PHASE_3_PREVIOUS)
+    conn = _connect(migration_db)
+    conn.execute(
+        "INSERT INTO users (id, email, name, password_hash, role, is_active, created_at) "
+        "VALUES (1, 'a@b.fr', 'Max', 'x', 'user', 1, '2026-01-01T00:00:00')"
+    )
+    conn.commit()
+    conn.close()
+
+    command.upgrade(migration_db.config, PHASE_3_REVISION)
+
+    conn = _connect(migration_db)
+    tables = {
+        row[0]
+        for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()
+    }
+    assert tables >= PHASE_3_TABLES
+    assert conn.execute("SELECT COUNT(*) FROM users").fetchone()[0] == 1
+
+    conn.execute(
+        "INSERT INTO instruments (id, symbol, name, asset_class, currency, is_fractionable) "
+        "VALUES (1, 'AAPL', 'Apple Inc.', 'equity', 'USD', 0)"
+    )
+    conn.execute(
+        "INSERT INTO investment_accounts (id, user_id, name, kind, currency, opened_on, "
+        "archived) VALUES (1, 1, 'CTO', 'cto', 'EUR', NULL, 0)"
+    )
+    conn.execute(
+        "INSERT INTO positions (id, user_id, investment_account_id, instrument_id) "
+        "VALUES (1, 1, 1, 1)"
+    )
+    conn.execute(
+        "INSERT INTO lots (id, user_id, position_id, quantity, unit_cost_cents, acquired_on) "
+        "VALUES (1, 1, 1, '12.000000000000000000', 15000, '2026-01-15')"
+    )
+    conn.execute(
+        "INSERT INTO price_points (id, instrument_id, as_of, price_cents, source, fetched_at) "
+        "VALUES (1, 1, '2026-01-15', 19034, 'finnhub', '2026-01-15T10:00:00')"
+    )
+    conn.execute(
+        "INSERT INTO api_keys (id, provider, value, created_at, last_used_at) "
+        "VALUES (1, 'finnhub', 'gAAAA...', '2026-01-15T10:00:00', NULL)"
+    )
+    conn.execute(
+        "INSERT INTO quota_windows (id, provider, window_started_at, used) "
+        "VALUES (1, 'finnhub', '2026-01-15T10:00:00', 0)"
+    )
+    conn.commit()
+
+    # Foreign keys really are enforced on the user-owned tables.
+    with pytest.raises(sqlite3.IntegrityError):
+        conn.execute(
+            "INSERT INTO investment_accounts (id, user_id, name, kind, currency, opened_on, "
+            "archived) VALUES (2, 4242, 'Orphelin', 'cto', 'EUR', NULL, 0)"
+        )
+    with pytest.raises(sqlite3.IntegrityError):
+        conn.execute(
+            "INSERT INTO positions (id, user_id, investment_account_id, instrument_id) "
+            "VALUES (2, 4242, 1, 1)"
+        )
+    with pytest.raises(sqlite3.IntegrityError):
+        conn.execute(
+            "INSERT INTO lots (id, user_id, position_id, quantity, unit_cost_cents, "
+            "acquired_on) VALUES (2, 4242, 1, '1', 100, '2026-01-15')"
+        )
+    # A second position on the same (account, instrument) violates the
+    # unique constraint that stands in for "one holding per instrument".
+    with pytest.raises(sqlite3.IntegrityError):
+        conn.execute(
+            "INSERT INTO positions (id, user_id, investment_account_id, instrument_id) "
+            "VALUES (3, 1, 1, 1)"
+        )
+    # A second key or quota window for a provider that already has one
+    # violates the pool's own uniqueness.
+    with pytest.raises(sqlite3.IntegrityError):
+        conn.execute(
+            "INSERT INTO api_keys (id, provider, value, created_at, last_used_at) "
+            "VALUES (2, 'finnhub', 'gBBBB...', '2026-01-16T10:00:00', NULL)"
+        )
+    with pytest.raises(sqlite3.IntegrityError):
+        conn.execute(
+            "INSERT INTO quota_windows (id, provider, window_started_at, used) "
+            "VALUES (2, 'finnhub', '2026-01-16T10:00:00', 0)"
+        )
+    # Deleting an instrument still referenced by a position is RESTRICTed,
+    # not silently cascaded away.
+    with pytest.raises(sqlite3.IntegrityError):
+        conn.execute("DELETE FROM instruments WHERE id = 1")
+    conn.close()
+
+
+def test_the_phase_3_migration_rolls_back_cleanly_and_leaves_nothing_behind(migration_db):
+    """A downgrade must leave no table, index or row behind on the tables it
+    owns, must not touch anything the previous revision already had, and a
+    fresh upgrade from there must work cleanly again."""
+    command.upgrade(migration_db.config, PHASE_3_REVISION)
+
+    conn = _connect(migration_db)
+    conn.execute(
+        "INSERT INTO users (id, email, name, password_hash, role, is_active, created_at) "
+        "VALUES (1, 'a@b.fr', 'Max', 'x', 'user', 1, '2026-01-01T00:00:00')"
+    )
+    conn.execute(
+        "INSERT INTO instruments (id, symbol, name, asset_class, currency, is_fractionable) "
+        "VALUES (1, 'AAPL', 'Apple Inc.', 'equity', 'USD', 0)"
+    )
+    conn.execute(
+        "INSERT INTO investment_accounts (id, user_id, name, kind, currency, opened_on, "
+        "archived) VALUES (1, 1, 'CTO', 'cto', 'EUR', NULL, 0)"
+    )
+    conn.execute(
+        "INSERT INTO positions (id, user_id, investment_account_id, instrument_id) "
+        "VALUES (1, 1, 1, 1)"
+    )
+    conn.execute(
+        "INSERT INTO lots (id, user_id, position_id, quantity, unit_cost_cents, acquired_on) "
+        "VALUES (1, 1, 1, '12.000000000000000000', 15000, '2026-01-15')"
+    )
+    conn.execute(
+        "INSERT INTO api_keys (id, provider, value, created_at, last_used_at) "
+        "VALUES (1, 'finnhub', 'gAAAA...', '2026-01-15T10:00:00', NULL)"
+    )
+    conn.execute(
+        "INSERT INTO quota_windows (id, provider, window_started_at, used) "
+        "VALUES (1, 'finnhub', '2026-01-15T10:00:00', 0)"
+    )
+    conn.commit()
+    conn.close()
+
+    command.downgrade(migration_db.config, PHASE_3_PREVIOUS)
+
+    conn = _connect(migration_db)
+    tables = {
+        row[0]
+        for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()
+    }
+    indexes = {
+        row[0]
+        for row in conn.execute("SELECT name FROM sqlite_master WHERE type='index'").fetchall()
+    }
+    assert not (PHASE_3_TABLES & tables)
+    for table in PHASE_3_TABLES:
+        assert not any(name.startswith(f"ix_{table}") for name in indexes)
+    # The previous revision's own tables and the pre-existing user survive.
+    assert {"debts", "goals", "scenarios", "health_snapshots", "challenges", "users"} <= tables
+    assert conn.execute("SELECT COUNT(*) FROM users").fetchone()[0] == 1
+    conn.close()
+
+    command.upgrade(migration_db.config, "head")
+    conn = _connect(migration_db)
+    tables = {
+        row[0]
+        for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()
+    }
+    assert tables >= PHASE_3_TABLES
+    conn.close()

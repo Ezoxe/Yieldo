@@ -93,6 +93,13 @@ FIELD_SUBJECTS: dict[str, str] = {
     "years": "La durée de comparaison",
     "annual_return_bps": "Le taux de rendement",
     "appreciation_bps_per_year": "La revalorisation annuelle",
+    # Phase 3's substrate (Task 2): investment accounts, positions, lots.
+    "investment_account_id": "Le compte d'investissement",
+    "instrument_id": "L'instrument",
+    "position_id": "La position",
+    "quantity": "La quantité",
+    "unit_cost_cents": "Le prix de revient unitaire",
+    "acquired_on": "La date d'acquisition",
 }
 
 # One template per pydantic error type, formatted with the field's subject.

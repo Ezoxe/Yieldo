@@ -34,11 +34,17 @@ from app.api.history import user_history
 from app.api.portfolio import valuation_inputs
 from app.db import get_db
 from app.engines import portfolio as portfolio_engine
-from app.engines.answer import ChatContext, PortfolioSnapshot, answer_query
+from app.engines.answer import AnswerChart, ChatContext, PortfolioSnapshot, answer_query
 from app.engines.goal import GoalInput
 from app.engines.intent import UnrecognisedQuery, parse_intent
 from app.models import Category, ChatMessage, Debt, Goal, User
-from app.schemas.chat import ChatAnswerOut, ChatMessageIn, ChatMessageOut
+from app.schemas.chat import (
+    ChatAnswerOut,
+    ChatChartOut,
+    ChatChartPointOut,
+    ChatMessageIn,
+    ChatMessageOut,
+)
 from app.security.deps import get_current_user
 
 router = APIRouter(prefix="/chat", tags=["chat"])
@@ -108,6 +114,20 @@ def _build_context(db: Session, user: User, today: date) -> ChatContext:
     )
 
 
+def _chart_out(chart: AnswerChart | None) -> ChatChartOut | None:
+    """The engine's chart, transcribed. Nothing is computed here -- a figure
+    the API invented would be a figure no engine produced."""
+    if chart is None:
+        return None
+    return ChatChartOut(
+        kind=chart.kind, title=chart.title,
+        points=[
+            ChatChartPointOut(label=point.label, amount_cents=point.amount_cents)
+            for point in chart.points
+        ],
+    )
+
+
 def _compute_answer(text: str, ctx: ChatContext, today: date) -> ChatAnswerOut:
     parsed = parse_intent(text, today)
     if isinstance(parsed, UnrecognisedQuery):
@@ -115,6 +135,7 @@ def _compute_answer(text: str, ctx: ChatContext, today: date) -> ChatAnswerOut:
             recognised=False, query_description=None, text=parsed.message,
             amount_cents=None, is_refusal=True,
             supported_formulations=list(parsed.supported_formulations),
+            chart=None,
         )
     try:
         answer = answer_query(parsed, ctx, today)
@@ -125,7 +146,7 @@ def _compute_answer(text: str, ctx: ChatContext, today: date) -> ChatAnswerOut:
     return ChatAnswerOut(
         recognised=True, query_description=answer.query_description, text=answer.text,
         amount_cents=answer.amount_cents, is_refusal=answer.is_refusal,
-        supported_formulations=None,
+        supported_formulations=None, chart=_chart_out(answer.chart),
     )
 
 
@@ -170,3 +191,18 @@ def history_list(
                        answer=_compute_answer(row.text, ctx, today))
         for row in rows
     ]
+
+
+@router.delete("", status_code=status.HTTP_204_NO_CONTENT)
+def clear_history(
+    user: User = Depends(get_current_user), db: Session = Depends(get_db)
+) -> None:
+    """Forget every stored question of THIS user, and only this user's.
+
+    A conversation is the one thing on this screen the household writes rather
+    than measures, so it is the one thing it must be able to take back. The
+    filter is `user_id`, like every other query in this router."""
+    db.query(ChatMessage).filter(ChatMessage.user_id == user.id).delete(
+        synchronize_session=False
+    )
+    db.commit()

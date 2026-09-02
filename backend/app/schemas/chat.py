@@ -15,6 +15,24 @@ class ChatMessageIn(BaseModel):
     text: str = Field(min_length=1, max_length=500)
 
 
+class ChatChartPointOut(BaseModel):
+    label: str
+    amount_cents: int
+
+
+class ChatChartOut(BaseModel):
+    """The decomposition of the figure the answer quotes, when it has one.
+
+    `null` on `ChatAnswerOut.chart` is a designed state, not a missing value:
+    a refusal has no figure to decompose, and several intents answer with
+    something a chart could only decorate. See `engines/answer.AnswerChart`.
+    """
+
+    kind: str
+    title: str
+    points: list[ChatChartPointOut]
+
+
 class ChatAnswerOut(BaseModel):
     # False when the question could not be parsed at all -- `query_description`
     # and `amount_cents` are then both empty/null, and `text` carries the
@@ -25,6 +43,7 @@ class ChatAnswerOut(BaseModel):
     amount_cents: int | None
     is_refusal: bool
     supported_formulations: list[str] | None
+    chart: ChatChartOut | None
 
 
 class ChatMessageOut(BaseModel):

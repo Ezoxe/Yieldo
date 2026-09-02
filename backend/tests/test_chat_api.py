@@ -180,3 +180,61 @@ def test_chat_history_never_crosses_users(client):
 
     alice_history = client.get("/api/chat", headers=alice).json()
     assert alice_history == []
+
+
+# --------------------------------------------------------------------------
+# The chart an answer deserves, on the wire.
+# --------------------------------------------------------------------------
+
+
+def test_a_chart_reaches_the_wire_and_decomposes_the_figure(client, db):
+    headers = _register(client, "chart@example.fr")
+    user_id = _user_id(db, "chart@example.fr")
+    account = _account(db, user_id)
+    _tx(db, user_id, account.id, date(2026, 1, 9), -2_000, "Le Bistrot")
+    _tx(db, user_id, account.id, date(2026, 2, 9), -6_000, "Le Bistrot")
+    _tx(db, user_id, account.id, date(2026, 3, 9), -1_000, "Le Bistrot")
+    db.commit()
+
+    body = client.post("/api/chat", headers=headers, json={
+        "text": "Combien j'ai dépensé depuis janvier 2026 ?"}).json()
+    chart = body["answer"]["chart"]
+    assert chart is not None
+    assert chart["kind"] == "bars"
+    assert [point["label"] for point in chart["points"]] == [
+        "janvier 2026", "février 2026", "mars 2026",
+    ]
+    assert sum(point["amount_cents"] for point in chart["points"]) == \
+        body["answer"]["amount_cents"]
+
+
+def test_an_unrecognised_question_carries_no_chart(client):
+    headers = _register(client, "nochart@example.fr")
+    body = client.post("/api/chat", headers=headers, json={
+        "text": "Quel temps fera-t-il demain ?"}).json()
+    assert body["answer"]["recognised"] is False
+    assert body["answer"]["chart"] is None
+    # The refusal still names what it DOES understand, and it is not empty.
+    assert len(body["answer"]["supported_formulations"]) == 10
+
+
+# --------------------------------------------------------------------------
+# Clearing the conversation.
+# --------------------------------------------------------------------------
+
+
+def test_clearing_the_conversation_removes_this_users_history_only(client):
+    mine = _register(client, "mine@example.fr")
+    theirs = _register(client, "theirs@example.fr")
+    client.post("/api/chat", headers=mine, json={"text": "Combien j'ai dépensé en mars ?"})
+    client.post("/api/chat", headers=theirs, json={"text": "Combien j'ai dépensé en avril ?"})
+
+    # The other user's own read shows what was seeded, BEFORE anything asserts
+    # the first sees none of it -- a fixture that silently wrote nothing would
+    # otherwise make the isolation assertion below pass for the wrong reason.
+    assert len(client.get("/api/chat", headers=theirs).json()) == 1
+    assert len(client.get("/api/chat", headers=mine).json()) == 1
+
+    assert client.delete("/api/chat", headers=mine).status_code == 204
+    assert client.get("/api/chat", headers=mine).json() == []
+    assert len(client.get("/api/chat", headers=theirs).json()) == 1

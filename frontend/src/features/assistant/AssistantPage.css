@@ -1,0 +1,350 @@
+/* /assistant — the deterministic chat.
+
+   The visual problem this stylesheet exists to solve is that, on the operator's
+   own ledger, MOST of what this screen prints is a refusal or a "je n'ai pas
+   compris". A screen made mostly of those must still read as an answer rather
+   than as a broken page, so the three registers are drawn as three deliberate
+   things rather than as three shades of failure — the same recipe
+   ProjectionPage.css and PatrimoinePage.css already use, copied by hand rather
+   than imported so no screen owns another's stylesheet:
+
+   * `--query`         the executed query. A muted mono line under the question,
+                       with a small uppercase tag: provenance, always present.
+   * `--refusal`       the engine's own sentence, on the warning rule. Content,
+                       in the panel's own voice.
+   * `--unrecognised`  a DESIGNED state, on the accent rule rather than the
+                       warning one: nothing went wrong, the parser simply does
+                       not know this phrasing and is offering the ten it does.
+   * `--alert`         the negative tint, and only for a round trip that failed.
+
+   Every colour here is a token from design/tokens.css; design/contrast.test.ts
+   parses that file from disk and holds both themes to 4.5:1. */
+
+.yd-assistant {
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-lg);
+  /* Without this a long unbroken answer sets the grid track's minimum width
+     and pushes the whole page past the viewport. */
+  min-width: 0;
+}
+
+.yd-assistant__header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-xs);
+}
+
+.yd-assistant__header h1 {
+  margin: 0;
+  font-size: clamp(1.5rem, 1.2rem + 1.4vw, 2rem);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--yd-text);
+}
+
+.yd-assistant__lead {
+  margin: 0;
+  max-width: 76ch;
+  font-size: 0.92rem;
+  line-height: 1.6;
+  color: var(--yd-text-muted);
+}
+
+.yd-assistant__lead strong {
+  color: var(--yd-text);
+  font-weight: 600;
+}
+
+.yd-assistant__alert {
+  margin: 0;
+  padding: var(--yd-space-sm) var(--yd-space-md);
+  border-radius: var(--yd-radius-sm);
+  border: 1px solid var(--yd-negative);
+  background: color-mix(in srgb, var(--yd-negative) 14%, transparent);
+  color: var(--yd-negative-text);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+/* -- The composer ---------------------------------------------------------- */
+
+.yd-ask {
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-xs);
+  min-width: 0;
+}
+
+.yd-ask__label {
+  font-size: 0.76rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--yd-text-muted);
+}
+
+.yd-ask__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--yd-space-sm);
+  min-width: 0;
+}
+
+.yd-ask__field {
+  /* `flex: 1 1 240px` and never a percentage width: a percentage inside an
+     auto-width flex column resolves to zero, which is how a field vanished on
+     this project once already. */
+  flex: 1 1 240px;
+  min-width: 0;
+  min-height: 44px;
+  padding: 0 var(--yd-space-md);
+  border-radius: var(--yd-radius-sm);
+  border: 1px solid var(--yd-border-control);
+  background: var(--yd-surface);
+  color: var(--yd-text);
+  font: inherit;
+  font-size: 0.95rem;
+}
+
+.yd-ask__field::placeholder {
+  color: var(--yd-text-muted);
+}
+
+.yd-ask__field:focus-visible {
+  outline: 2px solid var(--yd-accent-strong);
+  outline-offset: 2px;
+}
+
+.yd-ask__submit {
+  min-height: 44px;
+  padding: 0 var(--yd-space-lg);
+  border-radius: var(--yd-radius-sm);
+  border: 1px solid var(--yd-accent-strong);
+  background: transparent;
+  color: var(--yd-text);
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background var(--yd-motion-fast) var(--yd-ease),
+    border-color var(--yd-motion-fast) var(--yd-ease);
+}
+
+.yd-ask__submit:hover:not(:disabled) {
+  background: var(--yd-surface-raised);
+}
+
+.yd-ask__submit:disabled {
+  cursor: progress;
+  color: var(--yd-text-muted);
+}
+
+.yd-ask__hint {
+  margin: 0;
+  max-width: 84ch;
+  font-size: 0.78rem;
+  line-height: 1.5;
+  color: var(--yd-text-muted);
+}
+
+/* -- The clickable formulations -------------------------------------------- */
+
+.yd-suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--yd-space-xs);
+  margin: var(--yd-space-sm) 0 0;
+  padding: 0;
+  list-style: none;
+  min-width: 0;
+}
+
+.yd-suggestions__item {
+  /* 44px of touch target, and the text wraps inside the chip rather than
+     forcing the row wider than the card. */
+  min-height: 44px;
+  max-width: 100%;
+  padding: var(--yd-space-xs) var(--yd-space-md);
+  border-radius: var(--yd-radius-sm);
+  border: 1px solid var(--yd-border-control);
+  background: var(--yd-surface);
+  color: var(--yd-text);
+  font: inherit;
+  font-size: 0.85rem;
+  line-height: 1.4;
+  text-align: left;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+  transition:
+    background var(--yd-motion-fast) var(--yd-ease),
+    border-color var(--yd-motion-fast) var(--yd-ease);
+}
+
+.yd-suggestions__item:hover:not(:disabled) {
+  background: var(--yd-surface-raised);
+  border-color: var(--yd-accent-strong);
+}
+
+.yd-suggestions__item:focus-visible {
+  outline: 2px solid var(--yd-accent-strong);
+  outline-offset: 2px;
+}
+
+.yd-suggestions__item:disabled {
+  cursor: progress;
+  color: var(--yd-text-muted);
+}
+
+/* -- The conversation ------------------------------------------------------ */
+
+.yd-assistant__conversation-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--yd-space-sm);
+}
+
+.yd-assistant__clear {
+  min-height: 44px;
+  padding: 0 var(--yd-space-md);
+  border-radius: var(--yd-radius-sm);
+  border: 1px solid var(--yd-border-control);
+  background: transparent;
+  color: var(--yd-text-muted);
+  font: inherit;
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition:
+    color var(--yd-motion-fast) var(--yd-ease),
+    border-color var(--yd-motion-fast) var(--yd-ease);
+}
+
+.yd-assistant__clear:hover {
+  color: var(--yd-text);
+  border-color: var(--yd-negative);
+}
+
+.yd-assistant__exchanges {
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-lg);
+  margin: var(--yd-space-md) 0 0;
+  padding: 0;
+  list-style: none;
+  min-width: 0;
+}
+
+.yd-exchange {
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-xs);
+  padding-top: var(--yd-space-md);
+  border-top: 1px solid var(--yd-border);
+  min-width: 0;
+}
+
+.yd-exchange:first-child {
+  padding-top: 0;
+  border-top: none;
+}
+
+.yd-exchange__question {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.45;
+  color: var(--yd-text);
+  overflow-wrap: anywhere;
+}
+
+/* The executed query. Design §8.1 exists so the household can check what was
+   computed — it is the feature, not a debug affordance, so it is set as a real
+   line of the answer rather than hidden behind a disclosure. */
+.yd-exchange__query {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--yd-space-xs);
+  margin: 0;
+  padding: var(--yd-space-xs) var(--yd-space-sm);
+  border-radius: var(--yd-radius-sm);
+  border-left: 2px solid var(--yd-accent-strong);
+  background: var(--yd-surface);
+  font-family: var(--yd-font-mono);
+  font-size: 0.78rem;
+  line-height: 1.5;
+  color: var(--yd-text-muted);
+  overflow-wrap: anywhere;
+}
+
+.yd-exchange__query-label {
+  font-family: var(--yd-font);
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--yd-accent-strong);
+}
+
+.yd-exchange__answer {
+  margin: 0;
+  max-width: 96ch;
+  font-size: 0.95rem;
+  line-height: 1.6;
+  color: var(--yd-text);
+}
+
+/* An engine declining to compute. Content, in the panel's own voice — never an
+   alert. The sentence is printed exactly as the engine wrote it. */
+.yd-exchange__refusal {
+  margin: 0;
+  max-width: 96ch;
+  padding: var(--yd-space-sm) var(--yd-space-md);
+  border-radius: var(--yd-radius-sm);
+  border: 1px solid var(--yd-border-strong);
+  border-left: 3px solid var(--yd-warning);
+  background: var(--yd-surface);
+  color: var(--yd-text);
+  font-size: 0.9rem;
+  line-height: 1.55;
+}
+
+/* Not an error: the parser does not know this phrasing, and is offering the
+   ten it does. The accent rule rather than the warning one is the whole
+   distinction — nothing failed here. */
+.yd-exchange__unrecognised {
+  padding: var(--yd-space-sm) var(--yd-space-md);
+  border-radius: var(--yd-radius-sm);
+  border: 1px solid var(--yd-border-strong);
+  border-left: 3px solid var(--yd-accent-strong);
+  background: var(--yd-surface);
+  min-width: 0;
+}
+
+.yd-exchange__unrecognised-text {
+  margin: 0;
+  max-width: 90ch;
+  font-size: 0.9rem;
+  line-height: 1.55;
+  color: var(--yd-text);
+}
+
+.yd-exchange__chart {
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-2xs);
+  margin-top: var(--yd-space-xs);
+  min-width: 0;
+}
+
+.yd-exchange__chart-title {
+  margin: 0;
+  font-size: 0.76rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--yd-text-muted);
+}

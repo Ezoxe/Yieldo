@@ -27,8 +27,9 @@ import unicodedata
 from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
+from typing import Literal
 
-from app.engines.aggregate import compare_periods
+from app.engines.aggregate import bucket_key, compare_periods
 from app.engines.capacity import (
     MonthObservation,
     measure_expense_rate,
@@ -42,11 +43,15 @@ from app.engines.feasibility import (
     assess_feasibility,
 )
 from app.engines.goal import GoalInput, GoalProgress, evaluate_goals
-from app.engines.intent import ParsedPeriod, ParsedQuery
+from app.engines.intent import MONTH_NAMES_FR, ParsedPeriod, ParsedQuery
 from app.engines.ownership import DEFAULT_OWNERSHIP_YEARS
 from app.engines.period import resolve_range
 from app.engines.recurrence import RecurringTx, detect_recurrences
-from app.engines.savings import DEFAULT_ANNUAL_RETURN_BPS, project_savings
+from app.engines.savings import (
+    DEFAULT_ANNUAL_RETURN_BPS,
+    SavingsProjection,
+    project_savings,
+)
 
 # Declared defaults, never measurements -- exactly the distinction
 # `api/feasibility.py`'s own module docstring draws for its identical
@@ -106,12 +111,56 @@ class ChatContext:
     portfolio: PortfolioSnapshot
 
 
+ChartKind = Literal["bars", "line"]
+
+
+@dataclass(frozen=True)
+class AnswerPoint:
+    """One column of a bar chart or one reading of a line. `label` is already
+    French and already displayable -- the caller never reformats it."""
+
+    label: str
+    amount_cents: int
+
+
+@dataclass(frozen=True)
+class AnswerChart:
+    """The chart an answer deserves, or nothing.
+
+    **A chart is a decomposition of the figure that was already computed, never
+    a second computation.** Every point below comes out of the same engine call
+    the sentence quotes, so a bar chart of a monthly total sums back to that
+    total exactly. Nothing here is smoothed, resampled or extrapolated.
+
+    Three rules decide whether there is a chart at all:
+
+    1. **A refusal never carries one.** There is no figure to decompose.
+    2. **One point is not a chart** -- it is the figure already printed beside
+       it, drawn twice.
+    3. **An answer that decomposes into nothing gets nothing.** A goal's state,
+       a price change, a transaction search: a chart there would be decoration
+       standing where an explanation belongs.
+    """
+
+    kind: ChartKind
+    # French, and specific enough to be read away from the sentence above it.
+    title: str
+    points: tuple[AnswerPoint, ...]
+
+
+# One column is the figure the sentence already quotes, drawn a second time.
+MIN_CHART_POINTS = 2
+
+
 @dataclass(frozen=True)
 class Answer:
     query_description: str
     text: str
     amount_cents: int | None = None
     is_refusal: bool = False
+    # None on every refusal, and on every intent whose answer decomposes into
+    # nothing. See `AnswerChart`.
+    chart: AnswerChart | None = None
 
 
 def _normalize(text: str) -> str:
@@ -138,6 +187,54 @@ def _fmt_eur(cents: int) -> str:
     sign = "-" if cents < 0 else ""
     value = Decimal(abs(cents)) / 100
     return f"{sign}{value:,.2f} €".replace(",", " ").replace(".", ",")
+
+
+def _month_label(key: str) -> str:
+    """`"2026-03"` to `"mars 2026"`. The bucket key is the grouping mechanism;
+    this is what a reader sees, and the two are deliberately not the same
+    string."""
+    year, month = key.split("-")
+    return f"{MONTH_NAMES_FR[int(month)]} {year}"
+
+
+def _monthly_bars(transactions: list[RecurringTx], title: str) -> AnswerChart | None:
+    """One column per calendar month that CARRIES a transaction.
+
+    Months with nothing in them are absent rather than drawn at zero: a zero
+    column asserts "we looked and found nothing", which is true of a month
+    inside the period and false of one the ledger simply does not cover, and
+    this function cannot tell the two apart. `bucket_key` is the same monthly
+    bucketing `engines/aggregate.py` uses everywhere else, so a month edge is
+    never cut differently in two places.
+    """
+    totals: dict[str, int] = {}
+    for tx in transactions:
+        key = bucket_key(tx.on, "month")
+        totals[key] = totals.get(key, 0) + tx.amount_cents
+    if len(totals) < MIN_CHART_POINTS:
+        return None
+    return AnswerChart(
+        kind="bars", title=title,
+        points=tuple(
+            AnswerPoint(label=_month_label(key), amount_cents=totals[key])
+            for key in sorted(totals)
+        ),
+    )
+
+
+def _balance_line(projection: SavingsProjection, title: str) -> AnswerChart | None:
+    """The projected balance, month by month -- the exact series
+    `engines/savings.py` returned, never a resampling of it. A one-month
+    projection draws nothing: see `AnswerChart`'s rule 2."""
+    if len(projection.points) < MIN_CHART_POINTS:
+        return None
+    return AnswerChart(
+        kind="line", title=title,
+        points=tuple(
+            AnswerPoint(label=f"Mois {point.month}", amount_cents=point.balance_cents)
+            for point in projection.points
+        ),
+    )
 
 
 def _period_or_default(
@@ -205,6 +302,7 @@ def _answer_total_by_category(query: ParsedQuery, ctx: ChatContext, today: date)
         and (category_id is None or tx.category_id == category_id)
     ]
     total_cents = sum(tx.amount_cents for tx in matching)
+    chart = _monthly_bars(matching, f"Dépenses par mois — {category_label}")
 
     if query.mode == "average":
         covered_months = _months_within(ctx.months, start, end)
@@ -228,6 +326,7 @@ def _answer_total_by_category(query: ParsedQuery, ctx: ChatContext, today: date)
                 f"{category_label}, soit une moyenne de {_fmt_eur(-average)} par mois."
             ),
             amount_cents=average,
+            chart=chart,
         )
 
     return Answer(
@@ -238,6 +337,7 @@ def _answer_total_by_category(query: ParsedQuery, ctx: ChatContext, today: date)
             f"{'s' if len(matching) != 1 else ''})."
         ),
         amount_cents=total_cents,
+        chart=chart,
     )
 
 
@@ -286,6 +386,17 @@ def _answer_period_comparison(query: ParsedQuery, ctx: ChatContext, today: date)
             f"{ratio_clause}."
         ),
         amount_cents=comparison.delta_cents,
+        # Two columns and exactly two: the pair the sentence weighed, in the
+        # same positive-magnitude convention `_spend_magnitude_cents` uses, so
+        # the taller bar is the heavier spend rather than the deeper deficit.
+        chart=AnswerChart(
+            kind="bars",
+            title="Dépenses comparées",
+            points=(
+                AnswerPoint(label=query.period.label, amount_cents=current),
+                AnswerPoint(label=compare.label, amount_cents=previous),
+            ),
+        ),
     )
 
 
@@ -366,6 +477,21 @@ def _answer_subscription_cost(query: ParsedQuery, ctx: ChatContext, today: date)
         item for item in report.recurrences
         if item.annualisable and item.annual_cents < 0 and item.status != "ended"
     ]
+    # Exactly the subscriptions the total was summed from, biggest first, as
+    # positive annual magnitudes. Never a different list, and never one of them
+    # aggregated into an "autres" column the reader cannot open.
+    chart = (
+        AnswerChart(
+            kind="bars",
+            title="Coût annuel par abonnement",
+            points=tuple(
+                AnswerPoint(label=item.label, amount_cents=-item.annual_cents)
+                for item in sorted(counted, key=lambda item: item.annual_cents)
+            ),
+        )
+        if len(counted) >= MIN_CHART_POINTS
+        else None
+    )
     return Answer(
         query_description=description,
         text=(
@@ -374,6 +500,7 @@ def _answer_subscription_cost(query: ParsedQuery, ctx: ChatContext, today: date)
             f"{_fmt_eur(-report.monthly_subscription_cents)} par mois."
         ),
         amount_cents=report.annual_subscription_cents,
+        chart=chart,
     )
 
 
@@ -455,6 +582,7 @@ def _answer_savings_simulation(query: ParsedQuery, ctx: ChatContext, today: date
             f"d'intérêts."
         ),
         amount_cents=projection.final_cents,
+        chart=_balance_line(projection, "Solde projeté, mois par mois"),
     )
 
 
@@ -630,6 +758,7 @@ def _answer_patrimoine_projection(query: ParsedQuery, ctx: ChatContext, today: d
             f"environ {_fmt_eur(projection.final_cents)} dans {horizon} mois."
         ),
         amount_cents=projection.final_cents,
+        chart=_balance_line(projection, "Patrimoine investi projeté, mois par mois"),
     )
 
 

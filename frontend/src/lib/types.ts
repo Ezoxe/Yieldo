@@ -1829,3 +1829,48 @@ export interface Projection {
   stress: StressReport;
   stress_unavailable_reason: string | null;
 }
+
+// -- /api/chat -- the deterministic assistant. Design §8.1. ------------------
+
+/** One column of a bar chart, or one reading of a line. `label` arrives ready
+ *  to display, in French — nothing on the client reformats it. */
+export interface ChatChartPoint {
+  label: string;
+  amount_cents: number;
+}
+
+/** The decomposition of the figure an answer quotes. `ChatAnswer.chart` is
+ *  `null` whenever there is nothing to decompose — a refusal, or an intent
+ *  whose answer a chart could only decorate. Never an empty `points` array
+ *  standing in for that. */
+export interface ChatChart {
+  kind: "bars" | "line";
+  title: string;
+  points: ChatChartPoint[];
+}
+
+export interface ChatAnswer {
+  /** `false` when the question could not be parsed at all. `query_description`
+   *  is then null and `supported_formulations` carries the ten phrasings the
+   *  parser does understand. */
+  recognised: boolean;
+  /** The executed query, in clear French. Design §8.1 requires it beside every
+   *  answer so the figure can be checked against what was actually computed. */
+  query_description: string | null;
+  text: string;
+  amount_cents: number | null;
+  /** An engine declining to compute. It travels through unchanged — never
+   *  softened, never rephrased, never wrapped in reassurance. */
+  is_refusal: boolean;
+  supported_formulations: string[] | null;
+  chart: ChatChart | null;
+}
+
+export interface ChatMessage {
+  id: number;
+  text: string;
+  created_at: string;
+  /** Always freshly computed: the server stores the QUESTION and re-executes
+   *  it against the current ledger on every read. */
+  answer: ChatAnswer;
+}

@@ -31,6 +31,7 @@ const OUT_DIRS = {
   "phase-2b": path.resolve(HERE, "../.superpowers/sdd/2026-08-24-yieldo-phase-2b-decision/screenshots"),
   "phase-2c": path.resolve(HERE, "../.superpowers/sdd/2026-09-01-yieldo-phase-2c-engagement/screenshots"),
   "phase-3": path.resolve(HERE, "../.superpowers/sdd/2026-09-01-yieldo-phase-3-patrimoine/screenshots"),
+  "phase-4": path.resolve(HERE, "../.superpowers/sdd/2026-09-03-yieldo-phase-4-assistant/screenshots"),
 };
 const VIEWPORTS = [
   { name: "375", width: 375, height: 812 },
@@ -286,6 +287,45 @@ const PROJECTION_CONTRAST = {
   shockTableHead: ".yd-shock__table thead th",
   shockTableCell: ".yd-shock__table td",
   shockAbsent: ".yd-shock__absent-band",
+};
+
+/**
+ * /assistant. Every selector below is a FIGURE, a sentence or a control —
+ * never a container.
+ *
+ * Four of them exist because of the distinction this screen is built to make,
+ * and all four are on screen at once on the operator's own ledger:
+ *
+ * * `answer`        a computed figure, in the panel's ordinary voice.
+ * * `query`         the executed query printed beside it — design §8.1's whole
+ *                   point, so it has to be as readable as the answer itself.
+ * * `refusal`       an engine declining to compute, on the warning rule. Three
+ *                   of his five questions land here.
+ * * `unrecognised`  the parser not knowing a phrasing, on the ACCENT rule.
+ *                   Nothing failed, and the two must not read alike.
+ *
+ * `suggestion` is the chip: 0.85rem text on a translucent surface, and the one
+ * control on this screen whose whole job is to be clicked.
+ */
+const ASSISTANT_CONTRAST = {
+  lead: ".yd-assistant__lead",
+  panelTitle: ".yd-panel__title",
+  askLabel: ".yd-ask__label",
+  askField: ".yd-ask__field",
+  askHint: ".yd-ask__hint",
+  submit: ".yd-ask__submit",
+  clear: ".yd-assistant__clear",
+  question: ".yd-exchange__question",
+  query: ".yd-exchange__query",
+  queryLabel: ".yd-exchange__query-label",
+  answer: ".yd-exchange__answer",
+  refusal: ".yd-exchange__refusal",
+  unrecognised: ".yd-exchange__unrecognised-text",
+  suggestion: ".yd-suggestions__item",
+  chartTitle: ".yd-exchange__chart-title",
+  chartKey: ".yd-chart-key",
+  emptyTitle: ".yd-empty__title",
+  emptyDetail: ".yd-empty__detail",
 };
 
 function luminance([r, g, b]) {
@@ -1174,6 +1214,206 @@ async function driveProjection(page, { theme, viewport, audit }) {
   await audit("hypothèses");
 }
 
+/**
+ * /assistant, on the operator's own 197 transactions.
+ *
+ * The five questions below were run live against `POST /api/chat` before this
+ * target was written, and they are chosen so that ALL FOUR of this screen's
+ * states are on screen at once, deterministically, with no API key and no
+ * network:
+ *
+ * 1. a real answer, with the monthly decomposition of the very figure it
+ *    quotes (five columns, one per month the ledger actually covers);
+ * 2. a subscription refusal — nothing has been watched for 91 days;
+ * 3. a portfolio refusal — he holds no position;
+ * 4. a goal refusal — he has declared none;
+ * 5. a question the parser does not know, which is NOT an error and gets the
+ *    ten formulations it does know, each of them a button.
+ *
+ * Three refusals out of five is his screen's normal state, and it is the state
+ * this gate exists to photograph honestly.
+ *
+ * The conversation is cleared THROUGH THE UI at the start of every
+ * combination, so all six runs photograph the same five exchanges rather than
+ * an accumulating transcript.
+ */
+const ASSISTANT_QUESTIONS = [
+  "Combien j'ai dépensé depuis janvier 2025 ?",
+  "Combien me coûtent mes abonnements ?",
+  "Quelle sera la valeur de mon patrimoine dans 5 ans ?",
+  "Où en est mon objectif Vacances ?",
+  "Quel temps fera-t-il demain ?",
+];
+
+async function driveAssistant(page, { theme, viewport, audit }) {
+  await page.goto(`${BASE}/assistant`);
+  await page.waitForSelector("text=Votre question", { timeout: 20000 });
+
+  // Back to an empty conversation, through the screen's own button. The wait
+  // below is load-bearing: the conversation panel is a skeleton until
+  // `GET /api/chat` lands, and a `count()` taken before that reports zero
+  // buttons on a screen that has one.
+  await page.waitForSelector('[data-testid="yd-assistant-empty"], .yd-exchange', {
+    timeout: 20000,
+  });
+  const clear = page.getByRole("button", { name: /Effacer la conversation/ });
+  if ((await clear.count()) > 0) {
+    await clear.first().click();
+  }
+  await page.waitForSelector('[data-testid="yd-assistant-empty"]', { timeout: 20000 });
+
+  // -- The empty state: ten formulations, not an empty box -------------------
+  const opening = await page.evaluate(
+    () => document.querySelectorAll('[data-testid="yd-assistant-empty"] .yd-suggestions__item').length,
+  );
+  if (opening !== 10) {
+    problems.push(`${theme} ${viewport.name}: the empty state offers ${opening} formulations, expected 10`);
+  }
+  await expectOnScreen(
+    page,
+    `${theme} ${viewport.name} assistant vide`,
+    "Aucune question posée pour l'instant.",
+    "Cliquez-en une pour la poser telle quelle.",
+  );
+  await page.waitForTimeout(400);
+  await shot(page, viewport, theme, "-vide");
+  await audit("assistant vide");
+
+  // -- The five questions, asked through the real form -----------------------
+  for (const question of ASSISTANT_QUESTIONS) {
+    await page.getByLabel(/Votre question/).fill(question);
+    await page.getByRole("button", { name: /^Demander$/ }).click();
+    await page.waitForSelector(`text=${question.slice(0, 24)}`, { timeout: 20000 });
+    await page.waitForTimeout(250);
+  }
+  await page.waitForSelector('[data-testid^="yd-exchange-unrecognised-"]', { timeout: 20000 });
+  await page.waitForTimeout(900);
+
+  await expectOnScreen(
+    page,
+    `${theme} ${viewport.name} assistant`,
+    // The one real answer, with the query that produced it printed beside it.
+    "12 429,62 €",
+    "Total des dépenses, catégorie : toutes catégories confondues",
+    // Three refusals, three DIFFERENT causes, three different remedies.
+    "une fenêtre trop courte pour en déduire un coût annuel",
+    "Aucun capital de départ : vous ne détenez aucune position",
+    "Vous n'avez aucun objectif enregistré",
+    // And the unrecognised state, verbatim, with one of its ten phrasings.
+    "Je n'ai pas compris cette question. Voici des formulations que je sais traiter :",
+    "Combien me coûtent mes abonnements ?",
+  );
+
+  // Every recognised answer carries its executed query — refusals included.
+  const provenance = await page.evaluate(() => ({
+    exchanges: document.querySelectorAll(".yd-exchange").length,
+    queries: document.querySelectorAll(".yd-exchange__query").length,
+    refusals: [...document.querySelectorAll(".yd-exchange__refusal")].map((el) =>
+      el.textContent.trim(),
+    ),
+    unrecognised: document.querySelectorAll(".yd-exchange__unrecognised").length,
+    charts: document.querySelectorAll(".yd-exchange__chart").length,
+  }));
+  if (provenance.exchanges !== 5) {
+    problems.push(`${theme} ${viewport.name}: ${provenance.exchanges} exchanges on screen, expected 5`);
+  }
+  // Four recognised questions, four executed queries. The fifth was never
+  // parsed, so it has none — and must not be given a made-up one.
+  if (provenance.queries !== 4) {
+    problems.push(
+      `${theme} ${viewport.name}: ${provenance.queries} executed queries on screen, expected 4`,
+    );
+  }
+  if (provenance.refusals.length !== 3) {
+    problems.push(`${theme} ${viewport.name}: ${provenance.refusals.length} refusals, expected 3`);
+  }
+  if (new Set(provenance.refusals).size !== provenance.refusals.length) {
+    problems.push(`${theme} ${viewport.name}: two answers are printing the SAME refusal sentence`);
+  }
+  if (provenance.unrecognised !== 1) {
+    problems.push(
+      `${theme} ${viewport.name}: ${provenance.unrecognised} unrecognised panels, expected 1`,
+    );
+  }
+  // Exactly one chart: the only answer that decomposes into anything. A chart
+  // beside a refusal would be a picture of a figure nobody computed.
+  if (provenance.charts !== 1) {
+    problems.push(`${theme} ${viewport.name}: ${provenance.charts} charts drawn, expected 1`);
+  }
+
+  // The chart is really on the canvas, its key is HTML above it, and it has
+  // one column per month the ledger actually covers.
+  const chart = await page.evaluate(() => ({
+    drawn: document.querySelector('[aria-label*="Dépenses par mois"]') !== null,
+    key: document.querySelectorAll(".yd-chart-key__item").length,
+    label:
+      document.querySelector('[aria-label*="Dépenses par mois"]')?.getAttribute("aria-label") ?? "",
+  }));
+  if (!chart.drawn) problems.push(`${theme} ${viewport.name}: no chart was rendered`);
+  if (chart.key < 1) {
+    problems.push(`${theme} ${viewport.name}: the chart key has ${chart.key} entries, expected 1+`);
+  }
+  if (!chart.label.includes("5 colonnes")) {
+    problems.push(
+      `${theme} ${viewport.name}: the chart's own label does not name its five columns (got "${chart.label}")`,
+    );
+  }
+
+  // The refusals are CONTENT, never alerts. An `role="alert"` on this screen
+  // means the round trip itself failed — and none of these did.
+  const alerts = await page.evaluate(() => document.querySelectorAll('[role="alert"]').length);
+  if (alerts !== 0) {
+    problems.push(`${theme} ${viewport.name}: ${alerts} alert(s) on a screen where nothing failed`);
+  }
+
+  // The ten suggestions are BUTTONS, not decoration, and each is a real touch
+  // target. Read off the rendered box, not off the stylesheet.
+  const chips = await page.evaluate(() =>
+    [...document.querySelectorAll(".yd-suggestions__item")].map((el) => ({
+      tag: el.tagName,
+      height: el.getBoundingClientRect().height,
+      width: el.getBoundingClientRect().width,
+    })),
+  );
+  if (chips.length !== 10) {
+    problems.push(`${theme} ${viewport.name}: ${chips.length} clickable formulations, expected 10`);
+  }
+  for (const chip of chips) {
+    if (chip.tag !== "BUTTON") {
+      problems.push(`${theme} ${viewport.name}: a formulation is a <${chip.tag}>, not a button`);
+    }
+    if (chip.height < 44) {
+      problems.push(`${theme} ${viewport.name}: a formulation chip is ${chip.height}px tall`);
+    }
+    if (chip.width < 40) {
+      problems.push(`${theme} ${viewport.name}: a formulation chip collapsed to ${chip.width}px`);
+    }
+  }
+
+  await shot(page, viewport, theme);
+  await audit("assistant");
+
+  // -- A suggestion, clicked: the parser teaching itself what it accepts -----
+  // The sixth exchange must be the phrasing that was clicked, ANSWERED — not
+  // pasted into the field for the reader to submit again.
+  await page.getByRole("button", { name: "Où en est mon objectif Vacances ?" }).click();
+  await page.waitForFunction(
+    () => document.querySelectorAll(".yd-exchange").length === 6,
+    { timeout: 20000 },
+  );
+  await page.waitForTimeout(600);
+  const asked = await page.evaluate(() =>
+    [...document.querySelectorAll(".yd-exchange__question")].pop()?.textContent.trim(),
+  );
+  if (asked !== "Où en est mon objectif Vacances ?") {
+    problems.push(
+      `${theme} ${viewport.name}: clicking a formulation asked "${asked}" instead of it`,
+    );
+  }
+  await shot(page, viewport, theme, "-suggestion");
+  await audit("suggestion");
+}
+
 const SCENARIOS = {
   "task-15": { drive: driveFeasibility, contrast: FEASIBILITY_CONTRAST, out: "phase-2b" },
   "task-16": { drive: driveFeasibility, contrast: FEASIBILITY_CONTRAST, out: "phase-2b" },
@@ -1222,6 +1462,14 @@ const SCENARIOS = {
     drive: driveProjection,
     contrast: PROJECTION_CONTRAST,
     out: "phase-3",
+  },
+  // /assistant on the operator's OWN ledger: one answer, three refusals and
+  // one unrecognised phrasing. It clears its own conversation at the start of
+  // every combination, so it is re-runnable and order-independent.
+  "task-4-assistant": {
+    drive: driveAssistant,
+    contrast: ASSISTANT_CONTRAST,
+    out: "phase-4",
   },
 };
 

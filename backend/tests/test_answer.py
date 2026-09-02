@@ -459,3 +459,104 @@ def test_a_refusal_still_names_the_query_that_was_attempted():
     assert answer.is_refusal
     assert answer.query_description  # non-empty: what was attempted is still shown
     assert "20 000" in answer.query_description or "20000" in answer.query_description
+
+
+# --------------------------------------------------------------------------
+# The chart an answer deserves -- and nothing when it deserves none.
+# --------------------------------------------------------------------------
+
+
+def test_total_by_category_charts_one_bar_per_month_actually_observed():
+    """Three months of restaurant spend: the chart must decompose the SAME
+    total the sentence quotes, month by month, and never carry a month the
+    period does not contain."""
+    ctx = _ctx(
+        categories={1: "Restaurant"},
+        transactions=[
+            _tx(date(2026, 1, 5), -2_000, "A", category_id=1),
+            _tx(date(2026, 2, 5), -6_000, "B", category_id=1),
+            _tx(date(2026, 3, 5), -1_000, "C", category_id=1),
+            _tx(date(2025, 12, 5), -9_999, "hors période", category_id=1),
+        ],
+        months=[_month(2026, m, 0, 0) for m in (1, 2, 3)],
+    )
+    query = _q("Combien j'ai dépensé en restaurant depuis janvier ?")
+    answer = answer_query(query, ctx, TODAY)
+    assert answer.chart is not None
+    assert answer.chart.kind == "bars"
+    assert [point.label for point in answer.chart.points] == [
+        "janvier 2026", "février 2026", "mars 2026",
+    ]
+    assert [point.amount_cents for point in answer.chart.points] == [-2_000, -6_000, -1_000]
+    # The decomposition sums to the figure the sentence quotes.
+    assert sum(point.amount_cents for point in answer.chart.points) == answer.amount_cents
+
+
+def test_total_by_category_draws_no_chart_on_a_single_month():
+    """One bar is not a chart -- it is the figure already printed beside it."""
+    ctx = _ctx(
+        categories={1: "Restaurant"},
+        transactions=[_tx(date(2026, 3, 5), -2_000, "A", category_id=1)],
+        months=[_month(2026, 3, 0, 0)],
+    )
+    answer = answer_query(_q("Combien j'ai dépensé en restaurant en mars ?"), ctx, TODAY)
+    assert answer.chart is None
+
+
+def test_a_refused_answer_never_carries_a_chart():
+    ctx = _ctx(categories={1: "Restaurant"}, transactions=[])
+    answer = answer_query(_q("Combien j'ai dépensé en cinéma en mars ?"), ctx, TODAY)
+    assert answer.is_refusal
+    assert answer.chart is None
+
+
+def test_period_comparison_charts_the_two_periods_it_weighed():
+    ctx = _ctx(
+        transactions=[
+            _tx(date(2026, 9, 3), -4_000, "A"),
+            _tx(date(2026, 8, 3), -1_000, "B"),
+        ],
+    )
+    answer = answer_query(_q("Ai-je dépensé plus ce mois-ci que le mois dernier ?"), ctx, TODAY)
+    assert answer.chart is not None
+    assert answer.chart.kind == "bars"
+    assert len(answer.chart.points) == 2
+    # Positive magnitudes, in the same convention the sentence uses.
+    assert [point.amount_cents for point in answer.chart.points] == [4_000, 1_000]
+    assert "août" in answer.chart.points[1].label
+
+
+def test_savings_simulation_charts_the_balance_month_by_month():
+    answer = answer_query(
+        _q("Si j'épargne 200 € par mois pendant 24 mois, combien aurai-je ?"), _ctx(), TODAY
+    )
+    assert answer.chart is not None
+    assert answer.chart.kind == "line"
+    assert len(answer.chart.points) == 24
+    assert answer.chart.points[-1].amount_cents == answer.amount_cents
+
+
+def test_subscription_cost_charts_each_subscription_it_counted():
+    rows = []
+    for month in range(1, 9):
+        rows.append(_tx(date(2026, month, 4), -1_299, "NETFLIX"))
+        rows.append(_tx(date(2026, month, 8), -999, "SPOTIFY"))
+    ctx = _ctx(transactions=rows, recurrence_anchor=date(2026, 8, 20))
+    answer = answer_query(_q("Combien me coûtent mes abonnements ?"), ctx, TODAY)
+    assert answer.chart is not None
+    assert answer.chart.kind == "bars"
+    labels = [point.label for point in answer.chart.points]
+    assert "NETFLIX" in labels and "SPOTIFY" in labels
+    # Annualised magnitudes, positive, and the biggest first.
+    assert answer.chart.points[0].amount_cents >= answer.chart.points[1].amount_cents
+    assert all(point.amount_cents > 0 for point in answer.chart.points)
+
+
+def test_goal_status_deserves_no_chart():
+    ctx = _ctx(
+        goals=[GoalInput(id=1, name="Vacances", target_cents=100_000,
+                         saved_cents=40_000, due_on=None, priority=1)],
+        months=[_month(2026, m, 500_000, -100_000) for m in (1, 2, 3)],
+    )
+    answer = answer_query(_q("Où en est mon objectif Vacances ?"), ctx, TODAY)
+    assert answer.chart is None

@@ -194,11 +194,17 @@ def create_instrument(
 
 @router.get("/accounts", response_model=list[InvestmentAccountOut])
 def list_accounts(
-    user: User = Depends(get_current_user), db: Session = Depends(get_db)
+    archived: bool = Query(default=False),
+    user: User = Depends(get_current_user), db: Session = Depends(get_db),
 ) -> list[InvestmentAccount]:
+    """Active envelopes by default. `?archived=true` lists the archived ones
+    instead -- the un-archive path: `InvestmentAccountPatch.archived` already
+    accepts `false` and restores one, but that PATCH needs the account's id,
+    and an archived account is otherwise invisible through this API. Without
+    this, archiving would be one-way by accident."""
     return (
         db.query(InvestmentAccount)
-        .filter(InvestmentAccount.user_id == user.id, InvestmentAccount.archived.is_(False))
+        .filter(InvestmentAccount.user_id == user.id, InvestmentAccount.archived.is_(archived))
         .order_by(InvestmentAccount.id)
         .all()
     )
@@ -512,7 +518,16 @@ def _valuation_inputs(
         db.query(Position, InvestmentAccount, Instrument)
         .join(InvestmentAccount, Position.investment_account_id == InvestmentAccount.id)
         .join(Instrument, Position.instrument_id == Instrument.id)
-        .filter(Position.user_id == user.id)
+        .filter(
+            Position.user_id == user.id,
+            # An archived envelope is how the operator says it is no longer
+            # part of his patrimoine -- see the module docstring's Task 9
+            # note and `list_accounts`. Counting it here would inflate every
+            # total and every weight on the screen for something already
+            # declared gone; `GET /accounts` alone excluding it is not
+            # enough, since this query never reads that route's result.
+            InvestmentAccount.archived.is_(False),
+        )
         .order_by(Position.id)
         .all()
     )

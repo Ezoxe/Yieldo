@@ -159,6 +159,80 @@ class TestAccountsCrud:
         assert client.delete("/api/portfolio/accounts/999999", headers=headers).status_code == 404
 
 
+class TestArchivedAccounts:
+    def test_an_archived_accounts_position_no_longer_counts_toward_the_valuation(
+        self, client, monkeypatch,
+    ):
+        """Archiving is how the operator says an envelope is no longer part of
+        his patrimoine. `_valuation_inputs` must exclude it, not just `GET
+        /accounts` -- a wrong implementation that only hides the account from
+        the list but keeps summing its positions would still pass a fixture
+        that never re-checks the total after archiving, which is exactly why
+        this test asserts the total before AND after, and asserts the whole
+        position vanishes from `positions` rather than merely reads zero."""
+        fake = _install_quote(monkeypatch, "finnhub")
+
+        def _must_not_be_called(_symbol, _api_key, *, now):
+            raise AssertionError("an archived account's position needs no price fetched")
+        fake.fetch_quote = _must_not_be_called
+
+        headers = _register(client)
+        account = _account(client, headers)
+        instrument = _instrument(
+            client, headers, symbol="EUR", asset_class="cash", currency="EUR", name="Espèces",
+        )
+        position = _position(client, headers, account["id"], instrument["id"])
+        _lot(client, headers, position["id"], quantity="1000", unit_cost_cents=100)
+
+        before = client.get("/api/portfolio/valuation", headers=headers).json()
+        assert before["total"]["market_value_cents"] == 100_000
+        assert before["total"]["positions_total"] == 1
+
+        assert client.delete(
+            f"/api/portfolio/accounts/{account['id']}", headers=headers
+        ).status_code == 204
+
+        after = client.get("/api/portfolio/valuation", headers=headers).json()
+        assert after["positions"] == []
+        assert after["total"] == {
+            "market_value_cents": 0, "cost_basis_cents": 0, "unrealised_gain_cents": 0,
+            "positions_total": 0, "positions_valued": 0, "positions_missing_price": 0,
+            "positions_missing_fx": 0,
+        }
+
+    def test_archived_accounts_are_hidden_by_default_but_listed_and_restorable_on_request(
+        self, client,
+    ):
+        """The un-archive path: without a way to list an archived account's
+        own id, `archived: bool | None` on `InvestmentAccountPatch` is
+        reachable in principle but unusable in practice -- there is no way to
+        learn which id to PATCH. `?archived=true` is that way back."""
+        headers = _register(client)
+        account = _account(client, headers, name="PEA", kind="pea")
+        assert client.delete(
+            f"/api/portfolio/accounts/{account['id']}", headers=headers
+        ).status_code == 204
+        assert client.get("/api/portfolio/accounts", headers=headers).json() == []
+
+        archived = client.get(
+            "/api/portfolio/accounts", headers=headers, params={"archived": "true"}
+        ).json()
+        assert [a["id"] for a in archived] == [account["id"]]
+        assert archived[0]["archived"] is True
+
+        restored = client.patch(
+            f"/api/portfolio/accounts/{account['id']}", headers=headers,
+            json={"archived": False},
+        ).json()
+        assert restored["archived"] is False
+
+        listed = client.get("/api/portfolio/accounts", headers=headers).json()
+        assert [a["id"] for a in listed] == [account["id"]]
+        assert client.get(
+            "/api/portfolio/accounts", headers=headers, params={"archived": "true"}
+        ).json() == []
+
+
 class TestInstrumentsFindOrCreate:
     def test_creating_the_same_symbol_and_asset_class_twice_returns_the_same_row(self, client):
         headers = _register(client)

@@ -25,18 +25,22 @@ function units(quantity: string): string {
  * What archiving an account actually costs, in the number that applies.
  *
  * `DELETE /portfolio/accounts/{id}` sets `archived` and nothing else: the
- * positions the envelope holds keep being valued and keep counting toward the
- * total. Promising that they disappear would be this project's most repeated
- * defect — a French sentence naming a consequence nobody incurs.
+ * positions the envelope holds are neither deleted nor changed. But they DO
+ * stop counting — `engines.portfolio` values only positions under an active
+ * envelope, so an archived account's holdings drop out of every total and
+ * every weight on `/patrimoine` until the account is restored. Promising
+ * that the positions themselves disappear would still be wrong — nothing is
+ * deleted — but so would claiming they keep being valued, which is what this
+ * sentence said before the valuation was fixed to actually exclude them.
  */
 function archiveQuestion(name: string, positionCount: number): string {
   if (positionCount === 0) {
-    return `Archiver « ${name} » ? Le compte quitte cette liste ; il ne détient aucune position. Archiver n'efface rien.`;
+    return `Archiver « ${name} » ? Le compte quitte cette liste ; il ne détient aucune position. Archiver n'efface rien, et le compte reste réactivable.`;
   }
   if (positionCount === 1) {
-    return `Archiver « ${name} » ? Le compte quitte cette liste, mais la position qu'il détient reste déclarée et continue d'être valorisée : archiver n'efface rien.`;
+    return `Archiver « ${name} » ? Le compte quitte cette liste, et la position qu'il détient cesse d'être comptée dans le total tant que le compte n'est pas réactivé. Rien n'est effacé : la position reste déclarée.`;
   }
-  return `Archiver « ${name} » ? Le compte quitte cette liste, mais les ${positionCount} positions qu'il détient restent déclarées et continuent d'être valorisées : archiver n'efface rien.`;
+  return `Archiver « ${name} » ? Le compte quitte cette liste, et les ${positionCount} positions qu'il détient cessent d'être comptées dans le total tant que le compte n'est pas réactivé. Rien n'est effacé : elles restent déclarées.`;
 }
 
 type Editing =
@@ -59,9 +63,17 @@ const ENDPOINT: Record<"account" | "position" | "lot", string> = {
 
 interface PortfolioEditorProps {
   accounts: InvestmentAccount[];
+  /** Archived envelopes — `GET /portfolio/accounts?archived=true`. Not in
+   *  `accounts` and not in the valuation any more (see `archiveQuestion`),
+   *  but not gone: this is the un-archive path, the only place a household
+   *  can find one again to restore it. */
+  archivedAccounts: InvestmentAccount[];
   /** The positions as the valuation returns them — one place the symbol, the
    *  name and the asset class are already resolved, so this panel and the
-   *  holdings table above it can never disagree about what a position is. */
+   *  holdings table above it can never disagree about what a position is.
+   *  Never includes a position under an archived account: the valuation
+   *  excludes those entirely, so there is no "orphan" case to render here
+   *  any more. */
   positions: PositionValuation[];
   lots: Lot[];
   /** Something was created, amended or removed: the page reloads everything,
@@ -80,15 +92,24 @@ interface PortfolioEditorProps {
  * beside it, in the same sentence.
  *
  * Destructive actions ask first, and the question says what is actually lost:
- * archiving an account keeps everything, deleting a position takes its lots
- * with it at the database level, deleting a lot changes the position's
- * quantity. A refusal from the API is shown where the action was, never
- * swallowed into a silent no-op.
+ * archiving an account deletes nothing but stops its positions from being
+ * counted until it is restored -- see the "Comptes archivés" panel below for
+ * that restore path -- deleting a position takes its lots with it at the
+ * database level, deleting a lot changes the position's quantity. A refusal
+ * from the API is shown where the action was, never swallowed into a silent
+ * no-op.
  */
-export function PortfolioEditor({ accounts, positions, lots, onChanged }: PortfolioEditorProps) {
+export function PortfolioEditor({
+  accounts,
+  archivedAccounts,
+  positions,
+  lots,
+  onChanged,
+}: PortfolioEditorProps) {
   const [editing, setEditing] = useState<Editing>(null);
   const [pending, setPending] = useState<Pending>(null);
   const [error, setError] = useState<string | null>(null);
+  const [restoringId, setRestoringId] = useState<number | null>(null);
 
   const lotsOf = (positionId: number) => lots.filter((lot) => lot.position_id === positionId);
 
@@ -101,6 +122,19 @@ export function PortfolioEditor({ accounts, positions, lots, onChanged }: Portfo
       onChanged();
     } catch (err) {
       setError(err instanceof ApiError ? err.detail : GENERIC_ERROR);
+    }
+  }
+
+  async function restoreAccount(accountId: number) {
+    setRestoringId(accountId);
+    try {
+      await api.patch(`/portfolio/accounts/${accountId}`, { archived: false });
+      setError(null);
+      onChanged();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.detail : GENERIC_ERROR);
+    } finally {
+      setRestoringId(null);
     }
   }
 
@@ -312,10 +346,12 @@ export function PortfolioEditor({ accounts, positions, lots, onChanged }: Portfo
                   kind: "account",
                   id: account.id,
                   // Truthful about what archiving does and does not do: the
-                  // API sets `archived` and nothing else, and the valuation
-                  // keeps counting the positions the envelope holds. Written
-                  // out per count rather than through a plural helper, because
-                  // French changes more than one word between the three.
+                  // API sets `archived` and nothing else, so nothing is
+                  // deleted -- but the valuation now excludes an archived
+                  // envelope's positions from every total until it is
+                  // restored. Written out per count rather than through a
+                  // plural helper, because French changes more than one word
+                  // between the three.
                   question: archiveQuestion(account.name, own.length),
                 })
               }
@@ -363,12 +399,6 @@ export function PortfolioEditor({ accounts, positions, lots, onChanged }: Portfo
     );
   }
 
-  // Positions whose envelope is not in the list: their account was archived.
-  // They are still valued in the total above, so they stay editable here
-  // rather than becoming unreachable rows nobody can correct.
-  const knownAccounts = new Set(accounts.map((account) => account.id));
-  const orphans = positions.filter((position) => !knownAccounts.has(position.account_id));
-
   return (
     <div className="yd-editor">
       <p className="yd-patrimoine__note">
@@ -393,16 +423,45 @@ export function PortfolioEditor({ accounts, positions, lots, onChanged }: Portfo
         accounts.map(renderAccount)
       )}
 
-      {orphans.length > 0 ? (
+      {archivedAccounts.length > 0 ? (
         <section className="yd-eaccount" data-testid="yd-editor-archived">
           <div className="yd-eaccount__head">
-            <h3 className="yd-eaccount__name">Positions d'un compte archivé</h3>
+            <h3 className="yd-eaccount__name">
+              {plural(archivedAccounts.length, "Compte archivé", "Comptes archivés")}
+            </h3>
             <p className="yd-eaccount__meta">
-              Leur enveloppe a été archivée. Elles restent valorisées dans le total ci-dessus —
-              archiver un compte n'efface pas ce qu'il détient.
+              {plural(
+                archivedAccounts.length,
+                "Son enveloppe a quitté le total ci-dessus, mais rien de ce qu'elle détient n'a été effacé.",
+                "Leurs enveloppes ont quitté le total ci-dessus, mais rien de ce qu'elles détiennent n'a été effacé.",
+              )}
             </p>
           </div>
-          <ul className="yd-epositions">{orphans.map(renderPosition)}</ul>
+          <ul className="yd-epositions">
+            {archivedAccounts.map((account) => (
+              <li
+                className="yd-eposition"
+                key={account.id}
+                data-testid={`yd-editor-archived-account-${account.id}`}
+              >
+                <div className="yd-eposition__head">
+                  <h4 className="yd-eposition__symbol">{account.name}</h4>
+                  <span className="yd-eposition__class">{accountKindLabel(account.kind)}</span>
+                </div>
+                <div className="yd-eposition__actions">
+                  <button
+                    type="button"
+                    className="yd-editor__action"
+                    disabled={restoringId === account.id}
+                    onClick={() => void restoreAccount(account.id)}
+                  >
+                    <span className="sr-only">{`Réactiver ${account.name}`}</span>
+                    <span aria-hidden="true">Réactiver</span>
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
         </section>
       ) : null}
 

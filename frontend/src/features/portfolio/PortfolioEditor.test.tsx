@@ -73,6 +73,7 @@ function renderEditor(props: Partial<React.ComponentProps<typeof PortfolioEditor
   return render(
     <PortfolioEditor
       accounts={ACCOUNTS}
+      archivedAccounts={[]}
       positions={POSITIONS}
       lots={LOTS}
       onChanged={vi.fn()}
@@ -163,18 +164,45 @@ describe("PortfolioEditor", () => {
     );
     expect(remove).not.toHaveBeenCalled();
     // Truthful about what the API actually does: `DELETE /accounts` sets
-    // `archived` and nothing else, and the valuation keeps counting the
-    // positions the envelope holds. Saying "the account and its positions
-    // disappear" would name a consequence nobody incurs.
+    // `archived` and nothing else -- nothing is deleted -- but the valuation
+    // now excludes the envelope's position from the total until it is
+    // restored. Saying "the position keeps being valued" would be exactly
+    // the stale claim this sentence made before the backend was fixed.
     expect(
       screen.getByText(
-        /Archiver « PEA Boursorama » \? Le compte quitte cette liste, mais la position qu'il détient reste déclarée et continue d'être valorisée/,
+        /Archiver « PEA Boursorama » \? Le compte quitte cette liste, et la position qu'il détient cesse d'être comptée dans le total tant que le compte n'est pas réactivé/,
       ),
     ).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: /Confirmer/ }));
     await waitFor(() => expect(remove).toHaveBeenCalledWith("/portfolio/accounts/4"));
     expect(onChanged).toHaveBeenCalled();
+  });
+
+  it("lists an archived account and restores it on request", async () => {
+    const patch = vi.spyOn(api, "patch").mockResolvedValue(undefined);
+    const onChanged = vi.fn();
+    const user = userEvent.setup();
+    renderEditor({
+      onChanged,
+      archivedAccounts: [
+        { id: 12, name: "Ancien PEA", kind: "pea", currency: "EUR", opened_on: null, archived: true },
+      ],
+    });
+
+    const archived = screen.getByTestId("yd-editor-archived-account-12");
+    expect(archived).toHaveTextContent("Ancien PEA");
+
+    await user.click(within(archived).getByRole("button", { name: /Réactiver/ }));
+    await waitFor(() =>
+      expect(patch).toHaveBeenCalledWith("/portfolio/accounts/12", { archived: false }),
+    );
+    expect(onChanged).toHaveBeenCalled();
+  });
+
+  it("shows no archived-accounts panel when there is nothing to restore", () => {
+    renderEditor({ archivedAccounts: [] });
+    expect(screen.queryByTestId("yd-editor-archived")).not.toBeInTheDocument();
   });
 
   it("warns that deleting a position takes its lots with it", async () => {

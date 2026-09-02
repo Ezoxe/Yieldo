@@ -54,6 +54,11 @@ interface PatrimoineData {
   /** The envelopes and the acquisitions, for the panel that declares them.
    *  Neither touches a market provider, so neither costs a quota call. */
   accounts: InvestmentAccount[];
+  /** Archived envelopes -- `GET /portfolio/accounts?archived=true`. Excluded
+   *  from `accounts` and from the valuation, but not gone: this is what lets
+   *  the editor offer a way back rather than making archiving a one-way
+   *  action by accident. */
+  archivedAccounts: InvestmentAccount[];
   lots: Lot[];
 }
 
@@ -102,14 +107,18 @@ export function PatrimoinePage() {
         // reads a price, so neither consults the quota pool, and neither can
         // collide with the rows the valuation writes.
         const accountsPromise = api.get<InvestmentAccount[]>("/portfolio/accounts");
+        const archivedAccountsPromise = api.get<InvestmentAccount[]>("/portfolio/accounts", {
+          archived: true,
+        });
         const lotsPromise = api.get<Lot[]>("/portfolio/lots");
         const valuation = await api.get<PortfolioValuation>("/portfolio/valuation");
         const allocation = await api.get<PortfolioAllocation>("/portfolio/allocation");
         const connections = await connectionsPromise;
         const accounts = await accountsPromise;
+        const archivedAccounts = await archivedAccountsPromise;
         const lots = await lotsPromise;
         if (cancelled) return;
-        setData({ valuation, allocation, connections, accounts, lots });
+        setData({ valuation, allocation, connections, accounts, archivedAccounts, lots });
         setError(null);
       } catch (err) {
         if (cancelled) return;
@@ -148,7 +157,7 @@ export function PatrimoinePage() {
   } else if (data === null) {
     body = null;
   } else {
-    const { valuation, allocation, connections, accounts, lots } = data;
+    const { valuation, allocation, connections, accounts, archivedAccounts, lots } = data;
     const { total } = valuation;
     const declaredNothing = total.positions_total === 0;
     const incomplete = total.positions_missing_price + total.positions_missing_fx > 0;
@@ -162,6 +171,7 @@ export function PatrimoinePage() {
         <h2 className="yd-panel__title">Déclarer ce que vous détenez</h2>
         <PortfolioEditor
           accounts={accounts}
+          archivedAccounts={archivedAccounts}
           positions={valuation.positions}
           lots={lots}
           onChanged={reload}

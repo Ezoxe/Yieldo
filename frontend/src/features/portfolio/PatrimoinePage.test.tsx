@@ -35,12 +35,15 @@ function mockApi(
   connections: unknown,
   accounts: unknown = ACCOUNTS,
   lots: unknown = LOTS,
+  archivedAccounts: unknown = [],
 ) {
-  vi.spyOn(api, "get").mockImplementation((path: string) => {
+  vi.spyOn(api, "get").mockImplementation((path: string, params?: Record<string, unknown>) => {
     if (path === "/portfolio/valuation") return Promise.resolve(valuation);
     if (path === "/portfolio/allocation") return Promise.resolve(allocation);
     if (path === "/connections") return Promise.resolve(connections);
-    if (path === "/portfolio/accounts") return Promise.resolve(accounts);
+    if (path === "/portfolio/accounts") {
+      return Promise.resolve(params?.archived === true ? archivedAccounts : accounts);
+    }
     if (path === "/portfolio/lots") return Promise.resolve(lots);
     throw new Error(`unexpected path ${path}`);
   });
@@ -295,10 +298,12 @@ describe("PatrimoinePage — a populated portfolio", () => {
 
 describe("PatrimoinePage — failures", () => {
   it("keeps the portfolio when only the connections read fails", async () => {
-    vi.spyOn(api, "get").mockImplementation((path: string) => {
+    vi.spyOn(api, "get").mockImplementation((path: string, params?: Record<string, unknown>) => {
       if (path === "/portfolio/valuation") return Promise.resolve(MIXED_VALUATION);
       if (path === "/portfolio/allocation") return Promise.resolve(DRIFTED_ALLOCATION);
-      if (path === "/portfolio/accounts") return Promise.resolve(ACCOUNTS);
+      if (path === "/portfolio/accounts") {
+        return Promise.resolve(params?.archived === true ? [] : ACCOUNTS);
+      }
       if (path === "/portfolio/lots") return Promise.resolve(LOTS);
       return Promise.reject(new Error("boom"));
     });

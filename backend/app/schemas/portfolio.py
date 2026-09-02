@@ -203,3 +203,99 @@ class PortfolioValuationOut(BaseModel):
     weight_by_instrument: list[WeightedGroupOut]
     weight_by_asset_class: list[WeightedGroupOut]
     weight_by_currency: list[WeightedGroupOut]
+
+
+# --- Target allocation, drift and the proposed trades -- `PUT/GET
+# --- /api/portfolio/targets` and `GET /api/portfolio/allocation` (Task 10,
+# --- wiring `engines.allocation`, Task 8).
+#
+# **There is deliberately no `AllocationTargetPatch`.** Every other editable
+# row in this app gets one; a target does not, because the invariant it lives
+# under spans rows rather than columns: `engines.allocation.validate_targets`
+# refuses a SET that does not sum to exactly 100 %. Patching one row could
+# only ever leave the set in a state the engine would refuse to read back, so
+# the API replaces the whole set atomically instead (`AllocationTargetsIn`).
+# See `models.allocation_target.AllocationTarget`'s own docstring.
+
+
+class AllocationTargetIn(BaseModel):
+    asset_class: str
+    # Basis points, CLAUDE.md's rates convention -- 6 000 is 60,00 %. The
+    # per-field bound is the same one `validate_targets` applies; the
+    # cross-field 100 % sum is the engine's, and only it can check that.
+    target_bps: int = Field(ge=0, le=10_000)
+
+
+class AllocationTargetsIn(BaseModel):
+    """The WHOLE set, always. An empty list is a legitimate payload and means
+    "clear my targets" -- the state a household starts in, and the one the
+    allocation route answers with its own French sentence rather than a
+    report."""
+
+    targets: list[AllocationTargetIn]
+
+
+class AllocationTargetOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    asset_class: str
+    target_bps: int
+
+
+class TradeOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    symbol: str
+    asset_class: str
+    action: str  # "buy" | "sell"
+    # A QUANTITY, as text -- never a monetary field, never a float. The screen
+    # renders it from this string; `formatCents` is for money alone.
+    quantity: str
+    estimated_value_cents: int
+
+
+class TradeRefusalOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    # Empty when the refusal is about the asset class as a whole rather than
+    # one instrument -- see `engines.allocation.TradeRefusal`.
+    symbol: str
+    asset_class: str
+    reason: str
+
+
+class AssetClassDriftOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    asset_class: str
+    target_bps: int
+    current_bps: int
+    current_value_cents: int
+    target_value_cents: int
+    drift_cents: int
+    drift_bps: int
+
+
+class AllocationReportOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    total_value_cents: int
+    holdings_total: int
+    holdings_valued: int
+    drifts: list[AssetClassDriftOut]
+    trades: list[TradeOut]
+    refusals: list[TradeRefusalOut]
+
+
+class PortfolioAllocationOut(BaseModel):
+    """`report` and `unavailable_reason` are mutually exclusive and exactly
+    one is always set: a household that has declared no targets has no drift
+    to report, and the sentence saying so is CONTENT on a 200, not an error
+    -- the same shape `feasibility`'s own `capacity_unavailable_reason` and
+    `engagement`'s `outcome_unavailable_reason` already use."""
+
+    reporting_currency: str
+    targets: list[AllocationTargetOut]
+    report: AllocationReportOut | None
+    unavailable_reason: str | None

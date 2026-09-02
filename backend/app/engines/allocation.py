@@ -1,4 +1,4 @@
-"""Target allocation per asset class, current drift, and the trades that
+﻿"""Target allocation per asset class, current drift, and the trades that
 would close it.
 
 Phase 3 plan Task 8. Pure: no session, no network, no implicit clock --
@@ -62,6 +62,30 @@ _CONTEXT = Context(prec=100, rounding=ROUND_HALF_UP)
 _UNIT_QUANTUM = Decimal(1).scaleb(-SCALE)
 
 BPS_WHOLE = 10_000  # 100.00%, in basis points -- CLAUDE.md's rates convention.
+
+# U+202F, the narrow no-break space French uses to group thousands -- the same
+# one the frontend's own `formatCents` emits. Spelt as an escape so this source
+# file carries no invisible character.
+_NARROW_NBSP = "\u202f"
+
+
+def _french_hundredths(value: int) -> str:
+    """An integer number of hundredths as a French decimal: 123456 -> "1 234,56".
+
+    Covers both of the quantities this module writes into a sentence -- cents
+    and basis points -- because both are integers whose last two digits ARE
+    the fractional part. Integer arithmetic throughout: `value / 100` would
+    put a float on a monetary value, which CLAUDE.md forbids at every layer.
+
+    This exists because Python's `:.2f` writes "1234.56", which is not French.
+    Every sentence built below is shown to the user verbatim -- `/patrimoine`
+    prints a refusal exactly as it was handed one -- so a decimal point here
+    is a defect on screen, not a formatting preference.
+    """
+    sign = "−" if value < 0 else ""  # typographic minus, like formatCents
+    whole, fraction = divmod(abs(value), 100)
+    grouped = f"{whole:,}".replace(",", _NARROW_NBSP)
+    return f"{sign}{grouped},{fraction:02d}"
 
 
 @dataclass(frozen=True)
@@ -133,7 +157,15 @@ class AllocationReport:
     refusals: list[TradeRefusal]
 
 
-def _validate_targets(targets: list[AllocationTarget]) -> None:
+def validate_targets(targets: list[AllocationTarget]) -> None:
+    """The 100 %-sum and no-duplicate guard, on its own.
+
+    Public because `/api/portfolio`'s own `PUT /targets` (Task 10) has to
+    apply exactly this rule at the moment a set is STORED, not only when it
+    is later read: a set persisted un-validated would make every subsequent
+    `GET /allocation` refuse, with nothing in the write path having said so.
+    `evaluate_allocation` calls it too, so there is one rule in one place.
+    """
     seen: set[str] = set()
     for target in targets:
         if target.asset_class in seen:
@@ -148,10 +180,9 @@ def _validate_targets(targets: list[AllocationTarget]) -> None:
             )
     total_bps = sum(t.target_bps for t in targets)
     if total_bps != BPS_WHOLE:
-        percent = _CONTEXT.divide(Decimal(total_bps), Decimal(100))
         raise ValueError(
             "La somme des allocations cibles doit être égale à 100 % : elle vaut "
-            f"{percent:.2f} %."
+            f"{_french_hundredths(total_bps)} %."
         )
 
 
@@ -202,14 +233,13 @@ def _size_trade(
     else:
         whole_units = _round_half_up_int(raw_units)
         if whole_units == 0:
-            gap = _CONTEXT.divide(Decimal(trade_value_cents), Decimal(100))
-            unit_price = _CONTEXT.divide(Decimal(price), Decimal(100))
             return _refuse(
                 holding.symbol, holding.asset_class,
                 f"« {holding.symbol} » n'est pas fractionnable : l'écart à corriger "
-                f"({gap:.2f} {reporting_currency}) représente moins d'une unité au prix "
-                f"actuel ({unit_price:.2f} {reporting_currency}). Aucun ordre n'est "
-                "proposé plutôt qu'une part fractionnée.",
+                f"({_french_hundredths(trade_value_cents)} {reporting_currency}) représente "
+                f"moins d'une unité au prix actuel ({_french_hundredths(price)} "
+                f"{reporting_currency}). Aucun ordre n'est proposé plutôt qu'une part "
+                "fractionnée.",
             )
         quantity = Quantity(Decimal(whole_units))
 
@@ -233,7 +263,7 @@ def evaluate_allocation(
     holdings: list[HoldingInput], targets: list[AllocationTarget],
     reporting_currency: str = "EUR",
 ) -> AllocationReport:
-    _validate_targets(targets)
+    validate_targets(targets)
 
     valued = [h for h in holdings if h.market_value_reporting_cents is not None]
     total_value_cents = sum((h.market_value_reporting_cents for h in valued), start=0)

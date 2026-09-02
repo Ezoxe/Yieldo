@@ -9,6 +9,7 @@ uses for `/api/connections`.
 
 from datetime import UTC, datetime, timedelta
 
+from app.engines import quantity
 from app.market.client import FxRate, MarketError, MarketFailureCause, Quote
 from app.market.providers import PROVIDERS
 from app.models import PricePoint, QuotaWindow, User
@@ -563,3 +564,279 @@ class TestValuation:
 
     def test_valuation_requires_authentication(self, client):
         assert client.get("/api/portfolio/valuation").status_code == 401
+
+
+# --- Allocation targets, drift and the proposed trades (plan Task 8, wired
+# --- onto this router by Task 10).
+
+
+def _put_targets(client, headers, targets):
+    return client.put(
+        "/api/portfolio/targets", headers=headers,
+        json={"targets": [{"asset_class": a, "target_bps": b} for a, b in targets]},
+    )
+
+
+def _holding(client, headers, account_id, symbol, asset_class, quantity,
+             currency="EUR", is_fractionable=False, unit_cost_cents=10_000):
+    """One instrument, one position, one lot -- the three calls every
+    allocation case below needs before there is anything to drift."""
+    instrument = _instrument(client, headers, symbol=symbol, asset_class=asset_class,
+                             currency=currency, is_fractionable=is_fractionable,
+                             name=f"{symbol} test")
+    position = _position(client, headers, account_id, instrument["id"])
+    _lot(client, headers, position["id"], quantity=quantity, unit_cost_cents=unit_cost_cents)
+    return position
+
+
+class TestAllocationTargets:
+    def test_a_user_who_has_declared_nothing_has_no_targets(self, client):
+        headers = _register(client)
+        assert client.get("/api/portfolio/targets", headers=headers).json() == []
+
+    def test_targets_summing_to_one_hundred_percent_are_stored_and_read_back(self, client):
+        headers = _register(client)
+        stored = _put_targets(client, headers, [("equity", 6_000), ("crypto", 4_000)])
+        assert stored.status_code == 200
+        assert [(t["asset_class"], t["target_bps"]) for t in stored.json()] == [
+            ("crypto", 4_000), ("equity", 6_000),
+        ]
+        read_back = client.get("/api/portfolio/targets", headers=headers).json()
+        assert [(t["asset_class"], t["target_bps"]) for t in read_back] == [
+            ("crypto", 4_000), ("equity", 6_000),
+        ]
+
+    def test_a_second_put_replaces_the_whole_set_rather_than_merging_into_it(self, client):
+        headers = _register(client)
+        _put_targets(client, headers, [("equity", 6_000), ("crypto", 4_000)])
+        _put_targets(client, headers, [("etf", 10_000)])
+        assert [
+            (t["asset_class"], t["target_bps"])
+            for t in client.get("/api/portfolio/targets", headers=headers).json()
+        ] == [("etf", 10_000)]
+
+    def test_an_empty_list_clears_the_targets(self, client):
+        headers = _register(client)
+        _put_targets(client, headers, [("equity", 10_000)])
+        assert _put_targets(client, headers, []).json() == []
+        assert client.get("/api/portfolio/targets", headers=headers).json() == []
+
+    def test_targets_that_do_not_sum_to_one_hundred_are_refused_in_the_engines_own_words(
+        self, client,
+    ):
+        headers = _register(client)
+        response = _put_targets(client, headers,
+                                [("equity", 4_500), ("crypto", 4_500), ("etf", 2_000)])
+        assert response.status_code == 422
+        assert "110,00 %" in response.json()["detail"]
+        # And nothing was stored: a refused set must never half-land.
+        assert client.get("/api/portfolio/targets", headers=headers).json() == []
+
+    def test_the_same_asset_class_twice_is_refused(self, client):
+        headers = _register(client)
+        response = _put_targets(client, headers, [("equity", 5_000), ("equity", 5_000)])
+        assert response.status_code == 422
+        assert "plus d'une allocation cible" in response.json()["detail"]
+
+    def test_an_unknown_asset_class_is_refused_before_the_engine_ever_sees_it(self, client):
+        headers = _register(client)
+        response = _put_targets(client, headers, [("actions", 10_000)])
+        assert response.status_code == 422
+        assert "Classe d'actifs inconnue" in response.json()["detail"]
+
+    def test_a_target_outside_zero_to_one_hundred_percent_is_refused(self, client):
+        headers = _register(client)
+        assert _put_targets(client, headers, [("equity", 12_000)]).status_code == 422
+
+    def test_targets_require_authentication(self, client):
+        assert client.get("/api/portfolio/targets").status_code == 401
+        assert client.put("/api/portfolio/targets", json={"targets": []}).status_code == 401
+
+
+class TestAllocation:
+    def test_without_targets_the_report_is_absent_and_a_french_sentence_says_why(self, client):
+        headers = _register(client)
+        response = client.get("/api/portfolio/allocation", headers=headers)
+        # A refusal, not a failure: 200, with the reason as content.
+        assert response.status_code == 200
+        body = response.json()
+        assert body["report"] is None
+        assert body["targets"] == []
+        assert "Aucune allocation cible" in body["unavailable_reason"]
+        assert body["reporting_currency"] == "EUR"
+
+    def test_drift_and_two_trades_one_whole_unit_and_one_fractional(self, client, monkeypatch):
+        _install_quote(monkeypatch, "finnhub", quote=_quote(price_cents=10_000, currency="EUR"))
+        _install_quote(monkeypatch, "coingecko",
+                       quote=_quote(symbol="BTC", price_cents=40_000, currency="EUR",
+                                    source="coingecko"))
+        headers = _register(client)
+        account = _account(client, headers)
+        # 6 x 100,00 EUR of equity; 1 x 400,00 EUR of crypto. Two providers, two
+        # different prices: a fixture of identical values could not tell a
+        # per-class drift from a per-instrument one.
+        _holding(client, headers, account["id"], "AAPL", "equity", "6")
+        _holding(client, headers, account["id"], "BTC", "crypto", "1", is_fractionable=True)
+        _put_targets(client, headers, [("equity", 5_000), ("crypto", 5_000)])
+
+        body = client.get("/api/portfolio/allocation", headers=headers).json()
+        report = body["report"]
+        assert report["total_value_cents"] == 100_000
+        assert report["holdings_total"] == 2
+        assert report["holdings_valued"] == 2
+
+        drifts = {d["asset_class"]: d for d in report["drifts"]}
+        assert drifts["equity"]["current_bps"] == 6_000
+        assert drifts["equity"]["drift_bps"] == 1_000  # overweight
+        assert drifts["equity"]["drift_cents"] == -10_000
+        assert drifts["crypto"]["current_bps"] == 4_000
+        assert drifts["crypto"]["drift_cents"] == 10_000
+
+        trades = {t["symbol"]: t for t in report["trades"]}
+        assert trades["AAPL"]["action"] == "sell"
+        # A whole unit, because AAPL is not fractionable -- and a QUANTITY, so
+        # it travels as TEXT at `engines.quantity`'s canonical 18-decimal
+        # scale, never through a money field. The literal string is asserted
+        # as well as the parsed value: it is the wire contract the screen has
+        # to render from, and a screen that fed it to a money formatter would
+        # print a number a thousand billion times too large.
+        assert trades["AAPL"]["quantity"] == "1.000000000000000000"
+        assert quantity.parse(trades["AAPL"]["quantity"]).value == 1
+        assert trades["AAPL"]["estimated_value_cents"] == 10_000
+        assert trades["BTC"]["action"] == "buy"
+        assert trades["BTC"]["quantity"] == "0.250000000000000000"
+        assert report["refusals"] == []
+
+    def test_a_drift_smaller_than_one_whole_unit_is_refused_rather_than_sized_at_zero(
+        self, client, monkeypatch,
+    ):
+        _install_quote(monkeypatch, "finnhub", quote=_quote(price_cents=100_000, currency="EUR"))
+        _install_quote(monkeypatch, "coingecko",
+                       quote=_quote(symbol="BTC", price_cents=1_000, currency="EUR",
+                                    source="coingecko"))
+        headers = _register(client)
+        account = _account(client, headers)
+        _holding(client, headers, account["id"], "AAPL", "equity", "1")
+        _holding(client, headers, account["id"], "BTC", "crypto", "1", is_fractionable=True)
+        _put_targets(client, headers, [("equity", 9_900), ("crypto", 100)])
+
+        report = client.get("/api/portfolio/allocation", headers=headers).json()["report"]
+        assert [t["symbol"] for t in report["trades"]] == ["BTC"]
+        [refusal] = [r for r in report["refusals"] if r["symbol"] == "AAPL"]
+        assert "pas fractionnable" in refusal["reason"]
+        assert "moins d'une unité" in refusal["reason"]
+        assert "Aucun ordre" in refusal["reason"]
+
+    def test_a_holding_whose_price_is_missing_is_excluded_and_its_class_refuses_a_trade(
+        self, client, monkeypatch,
+    ):
+        _install_quote(monkeypatch, "finnhub",
+                       error=MarketError(MarketFailureCause.NO_KEY,
+                                         "Aucune cle n'est enregistree pour Finnhub."))
+        _install_quote(monkeypatch, "coingecko",
+                       quote=_quote(symbol="BTC", price_cents=40_000, currency="EUR",
+                                    source="coingecko"))
+        headers = _register(client)
+        account = _account(client, headers)
+        _holding(client, headers, account["id"], "AAPL", "equity", "6")
+        _holding(client, headers, account["id"], "BTC", "crypto", "1", is_fractionable=True)
+        _put_targets(client, headers, [("equity", 5_000), ("crypto", 5_000)])
+
+        report = client.get("/api/portfolio/allocation", headers=headers).json()["report"]
+        # Only what could be valued drifts at all -- the crypto holding is the
+        # whole of the known total, so equity reads 0 % of 400,00 EUR.
+        assert report["holdings_total"] == 2
+        assert report["holdings_valued"] == 1
+        assert report["total_value_cents"] == 40_000
+        drifts = {d["asset_class"]: d for d in report["drifts"]}
+        assert drifts["equity"]["current_value_cents"] == 0
+        [refusal] = [r for r in report["refusals"] if r["asset_class"] == "equity"]
+        assert refusal["symbol"] == ""
+        assert "Aucun instrument avec un prix connu" in refusal["reason"]
+
+    def test_the_report_carries_the_valuation_completeness_beside_the_total(
+        self, client, monkeypatch,
+    ):
+        """`holdings_total`/`holdings_valued` are the allocation's own version
+        of `positions_total`/`positions_valued`, and the two must agree -- a
+        screen printing one number from each would contradict itself."""
+        _install_quote(monkeypatch, "finnhub",
+                       error=MarketError(MarketFailureCause.NO_KEY, "Aucune cle."))
+        headers = _register(client)
+        account = _account(client, headers)
+        _holding(client, headers, account["id"], "AAPL", "equity", "6")
+        _put_targets(client, headers, [("equity", 10_000)])
+
+        allocation = client.get("/api/portfolio/allocation", headers=headers).json()
+        valuation = client.get("/api/portfolio/valuation", headers=headers).json()
+        assert allocation["report"]["holdings_total"] == valuation["total"]["positions_total"]
+        assert allocation["report"]["holdings_valued"] == valuation["total"]["positions_valued"]
+
+    def test_a_foreign_currency_holding_is_sized_against_its_reporting_price(
+        self, client, monkeypatch,
+    ):
+        """The engine trades against a REPORTING-currency unit price. A USD
+        instrument at 100,00 USD and a rate of 0,90 is 90,00 EUR per unit --
+        sizing against the native 100,00 would propose the wrong quantity."""
+        _install_quote(monkeypatch, "finnhub", quote=_quote(price_cents=10_000, currency="USD"))
+        _install_fx(monkeypatch, "frankfurter", rate=_fx(rate="0.90"))
+        _install_quote(monkeypatch, "coingecko",
+                       quote=_quote(symbol="BTC", price_cents=9_000, currency="EUR",
+                                    source="coingecko"))
+        headers = _register(client)
+        account = _account(client, headers)
+        # 10 x 90,00 EUR = 900,00 EUR of equity, 1 x 90,00 EUR of crypto.
+        _holding(client, headers, account["id"], "AAPL", "equity", "10", currency="USD")
+        _holding(client, headers, account["id"], "BTC", "crypto", "1", is_fractionable=True)
+        _put_targets(client, headers, [("equity", 8_000), ("crypto", 2_000)])
+
+        report = client.get("/api/portfolio/allocation", headers=headers).json()["report"]
+        assert report["total_value_cents"] == 99_000
+        trades = {t["symbol"]: t for t in report["trades"]}
+        # Target equity 79 200, current 90 000: sell 10 800 cents at 90,00 EUR
+        # a unit = 1,2 units, rounded to 1 whole unit (AAPL is not fractionable).
+        assert trades["AAPL"]["action"] == "sell"
+        assert quantity.parse(trades["AAPL"]["quantity"]).value == 1
+        assert trades["AAPL"]["estimated_value_cents"] == 9_000
+
+    def test_allocation_requires_authentication(self, client):
+        assert client.get("/api/portfolio/allocation").status_code == 401
+
+
+class TestAllocationIsolation:
+    def test_another_users_targets_and_allocation_are_never_visible(self, client, monkeypatch):
+        """Seeds BOB and asserts BOB's OWN reads reflect the seed FIRST -- if
+        the seeding step silently wrote nothing (a broken fixture, a rolled-back
+        transaction), this fails here rather than letting the isolation
+        assertions below pass for the wrong reason. Only then does it check
+        that ALICE, who declared nothing, sees none of it."""
+        _install_quote(monkeypatch, "finnhub", quote=_quote(price_cents=10_000, currency="EUR"))
+        alice = _register(client, "alice@example.fr")
+        bob = _register(client, "bob@example.fr")
+
+        bob_account = _account(client, bob, name="PEA de Bob", kind="pea")
+        _holding(client, bob, bob_account["id"], "AAPL", "equity", "6")
+        assert _put_targets(client, bob, [("equity", 10_000)]).status_code == 200
+
+        # First: the seed actually took effect for the user it was written for.
+        assert [
+            (t["asset_class"], t["target_bps"])
+            for t in client.get("/api/portfolio/targets", headers=bob).json()
+        ] == [("equity", 10_000)]
+        bob_allocation = client.get("/api/portfolio/allocation", headers=bob).json()
+        assert bob_allocation["report"]["total_value_cents"] == 60_000
+        assert bob_allocation["report"]["holdings_total"] == 1
+
+        # Only now: a different user, who declared nothing, sees none of it.
+        assert client.get("/api/portfolio/targets", headers=alice).json() == []
+        alice_allocation = client.get("/api/portfolio/allocation", headers=alice).json()
+        assert alice_allocation["report"] is None
+        assert "Aucune allocation cible" in alice_allocation["unavailable_reason"]
+
+        # And Alice declaring her own targets never reaches Bob's holdings.
+        _put_targets(client, alice, [("equity", 10_000)])
+        alice_allocation = client.get("/api/portfolio/allocation", headers=alice).json()
+        assert alice_allocation["report"]["holdings_total"] == 0
+        assert alice_allocation["report"]["total_value_cents"] == 0
+        # Bob's own targets are untouched by Alice's PUT.
+        assert len(client.get("/api/portfolio/targets", headers=bob).json()) == 1

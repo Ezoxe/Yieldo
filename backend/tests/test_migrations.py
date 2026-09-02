@@ -633,3 +633,135 @@ def test_the_phase_3_migration_rolls_back_cleanly_and_leaves_nothing_behind(migr
     }
     assert tables >= PHASE_3_TABLES
     conn.close()
+
+
+# --- The allocation-targets migration (phase 3, Task 10) -------------------
+
+ALLOCATION_REVISION = "bf18816b285c"
+ALLOCATION_PREVIOUS = "5fa05f976fab"
+
+
+def test_the_allocation_targets_migration_matches_base_metadata_exactly(migration_db):
+    """Same independent-source-of-truth comparison as the phase 2C and phase 3
+    tests above: the hand-written DDL in `bf18816b285c_*.py` must agree,
+    column for column and index for index, with what `Base.metadata.create_all`
+    derives straight from `models/allocation_target.py`."""
+    command.upgrade(migration_db.config, ALLOCATION_PREVIOUS)
+    command.upgrade(migration_db.config, ALLOCATION_REVISION)
+
+    conn = _connect(migration_db)
+    migrated_columns = _table_columns(conn, "allocation_targets")
+    migrated_indexes = _index_names(conn, "allocation_targets")
+    conn.close()
+
+    reference_columns, reference_indexes = _reference_schema("allocation_targets")
+    assert migrated_columns == reference_columns
+    assert migrated_indexes == reference_indexes
+
+
+def test_the_allocation_targets_migration_keeps_one_head(migration_db):
+    """`heads` and `head` must be the same single revision -- two heads is a
+    database Alembic cannot upgrade without a merge, and nothing else in this
+    suite would notice."""
+    from alembic.script import ScriptDirectory
+
+    script = ScriptDirectory.from_config(migration_db.config)
+    assert len(script.get_heads()) == 1
+    assert script.get_current_head() == ALLOCATION_REVISION
+
+
+def test_the_allocation_targets_migration_adds_its_table_to_a_populated_database(migration_db):
+    """Run the real `upgrade()` against a database built at the PREVIOUS
+    revision with a pre-existing user already in it, and prove the isolation
+    the model promises actually holds at the schema level: the unique
+    constraint is on `(user_id, asset_class)`, so two users may each declare
+    an equity target while one user may not declare two."""
+    command.upgrade(migration_db.config, ALLOCATION_PREVIOUS)
+    conn = _connect(migration_db)
+    conn.execute(
+        "INSERT INTO users (id, email, name, password_hash, role, is_active, created_at) "
+        "VALUES (1, 'a@b.fr', 'Max', 'x', 'user', 1, '2026-01-01T00:00:00')"
+    )
+    conn.execute(
+        "INSERT INTO users (id, email, name, password_hash, role, is_active, created_at) "
+        "VALUES (2, 'c@d.fr', 'Bob', 'x', 'user', 1, '2026-01-01T00:00:00')"
+    )
+    conn.commit()
+    conn.close()
+
+    command.upgrade(migration_db.config, ALLOCATION_REVISION)
+
+    conn = _connect(migration_db)
+    tables = {
+        row[0]
+        for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()
+    }
+    assert "allocation_targets" in tables
+    assert conn.execute("SELECT COUNT(*) FROM users").fetchone()[0] == 2
+
+    conn.execute(
+        "INSERT INTO allocation_targets (user_id, asset_class, target_bps) "
+        "VALUES (1, 'equity', 6000)"
+    )
+    # A DIFFERENT user may hold the same asset class.
+    conn.execute(
+        "INSERT INTO allocation_targets (user_id, asset_class, target_bps) "
+        "VALUES (2, 'equity', 4000)"
+    )
+    conn.commit()
+    # The SAME user may not hold it twice.
+    with pytest.raises(sqlite3.IntegrityError):
+        conn.execute(
+            "INSERT INTO allocation_targets (user_id, asset_class, target_bps) "
+            "VALUES (1, 'equity', 1000)"
+        )
+    # And deleting a user takes their own targets with them, nobody else's.
+    conn.execute("DELETE FROM users WHERE id = 1")
+    conn.commit()
+    rows = conn.execute("SELECT user_id FROM allocation_targets").fetchall()
+    assert rows == [(2,)]
+    conn.close()
+
+
+def test_the_allocation_targets_migration_rolls_back_cleanly(migration_db):
+    """A downgrade must leave no table, index or row behind on the table it
+    owns, and must not touch anything the previous revision already had."""
+    command.upgrade(migration_db.config, ALLOCATION_REVISION)
+
+    conn = _connect(migration_db)
+    conn.execute(
+        "INSERT INTO users (id, email, name, password_hash, role, is_active, created_at) "
+        "VALUES (1, 'a@b.fr', 'Max', 'x', 'user', 1, '2026-01-01T00:00:00')"
+    )
+    conn.execute(
+        "INSERT INTO allocation_targets (user_id, asset_class, target_bps) VALUES (1, 'etf', 10000)"
+    )
+    conn.commit()
+    conn.close()
+
+    command.downgrade(migration_db.config, ALLOCATION_PREVIOUS)
+
+    conn = _connect(migration_db)
+    tables = {
+        row[0]
+        for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()
+    }
+    indexes = {
+        row[0]
+        for row in conn.execute("SELECT name FROM sqlite_master WHERE type='index'").fetchall()
+    }
+    assert "allocation_targets" not in tables
+    assert not any(name.startswith("ix_allocation_targets") for name in indexes)
+    # The previous revision's own tables and the pre-existing user survive.
+    assert tables >= PHASE_3_TABLES
+    assert conn.execute("SELECT COUNT(*) FROM users").fetchone()[0] == 1
+    conn.close()
+
+    command.upgrade(migration_db.config, "head")
+    conn = _connect(migration_db)
+    tables = {
+        row[0]
+        for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()
+    }
+    assert "allocation_targets" in tables
+    conn.close()

@@ -57,6 +57,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.db import get_db
+from app.engines import allocation as allocation_engine
 from app.engines import portfolio as portfolio_engine
 from app.engines import quantity
 from app.market import quota
@@ -67,6 +68,7 @@ from app.market.providers import PROVIDERS
 from app.models import (
     INSTRUMENT_ASSET_CLASSES,
     INVESTMENT_ACCOUNT_KINDS,
+    AllocationTarget,
     ApiKey,
     Instrument,
     InvestmentAccount,
@@ -77,6 +79,9 @@ from app.models import (
     User,
 )
 from app.schemas.portfolio import (
+    AllocationReportOut,
+    AllocationTargetOut,
+    AllocationTargetsIn,
     InstrumentIn,
     InstrumentOut,
     InvestmentAccountIn,
@@ -85,6 +90,7 @@ from app.schemas.portfolio import (
     LotIn,
     LotOut,
     LotPatch,
+    PortfolioAllocationOut,
     PortfolioValuationOut,
     PositionIn,
     PositionOut,
@@ -487,13 +493,20 @@ def _resolve_fx(
     return rate.rate, None
 
 
-@router.get("/valuation", response_model=PortfolioValuationOut)
-def get_valuation(
-    user: User = Depends(get_current_user), db: Session = Depends(get_db)
-) -> portfolio_engine.PortfolioValuation:
-    now = datetime.now(UTC)
-    reporting_currency = portfolio_engine.DEFAULT_REPORTING_CURRENCY
+def _valuation_inputs(
+    db: Session, user: User, now: datetime, reporting_currency: str
+) -> list[portfolio_engine.PositionInput]:
+    """Every one of this user's positions, with its price and FX rate already
+    resolved -- the single assembly step both `GET /valuation` and `GET
+    /allocation` run.
 
+    Extracted rather than duplicated: the two routes must answer from the
+    SAME prices, the same quota decisions and the same cached price points,
+    or a household would see a portfolio total on one panel that the drift
+    on the panel beside it could not be derived from. It commits, because
+    resolving a price writes both a `PricePoint` and the `QuotaWindow` row
+    that records the call was made.
+    """
     rows = (
         db.query(Position, InvestmentAccount, Instrument)
         .join(InvestmentAccount, Position.investment_account_id == InvestmentAccount.id)
@@ -552,4 +565,191 @@ def get_valuation(
         ))
 
     db.commit()
+    return inputs
+
+
+@router.get("/valuation", response_model=PortfolioValuationOut)
+def get_valuation(
+    user: User = Depends(get_current_user), db: Session = Depends(get_db)
+) -> portfolio_engine.PortfolioValuation:
+    now = datetime.now(UTC)
+    reporting_currency = portfolio_engine.DEFAULT_REPORTING_CURRENCY
+    inputs = _valuation_inputs(db, user, now, reporting_currency)
     return portfolio_engine.value_portfolio(inputs, reporting_currency)
+
+
+# --- Target allocation, drift and the trades that would close it.
+
+
+def _owned_targets(db: Session, user: User) -> list[AllocationTarget]:
+    return (
+        db.query(AllocationTarget)
+        .filter(AllocationTarget.user_id == user.id)
+        .order_by(AllocationTarget.asset_class)
+        .all()
+    )
+
+
+@router.get("/targets", response_model=list[AllocationTargetOut])
+def list_targets(
+    user: User = Depends(get_current_user), db: Session = Depends(get_db)
+) -> list[AllocationTarget]:
+    return _owned_targets(db, user)
+
+
+@router.put("/targets", response_model=list[AllocationTargetOut])
+def replace_targets(
+    payload: AllocationTargetsIn,
+    user: User = Depends(get_current_user), db: Session = Depends(get_db),
+) -> list[AllocationTarget]:
+    """The WHOLE set, replaced in one call -- never a per-row edit.
+
+    `engines.allocation.validate_targets` refuses a set that does not sum to
+    exactly 100 %, an invariant that spans rows: patching one target could
+    only ever leave the stored set in a state `GET /allocation` would refuse
+    to read back. So the set is validated BEFORE anything is written and the
+    replacement happens inside one commit -- a refused payload leaves the
+    previously stored targets exactly as they were, rather than half-landing.
+
+    An empty list is deliberately accepted and skips the engine's guard: it
+    means "I have declared no target allocation", which is where every
+    household starts and is not the same thing as a set that sums wrong.
+    """
+    for target in payload.targets:
+        # Checked here, against the same tuple `weight_by_asset_class` groups
+        # on, so a target can never key on a vocabulary the valuation does
+        # not use. The engine has no opinion on which classes exist.
+        _check_asset_class(target.asset_class)
+
+    engine_targets = [
+        allocation_engine.AllocationTarget(
+            asset_class=target.asset_class, target_bps=target.target_bps
+        )
+        for target in payload.targets
+    ]
+    if engine_targets:
+        try:
+            allocation_engine.validate_targets(engine_targets)
+        except ValueError as exc:
+            # The engine raises in French already -- the same catch-and-forward
+            # idiom `api/feasibility.py` uses for its own engines' guards.
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    db.query(AllocationTarget).filter(AllocationTarget.user_id == user.id).delete()
+    for target in payload.targets:
+        db.add(AllocationTarget(
+            user_id=user.id, asset_class=target.asset_class, target_bps=target.target_bps
+        ))
+    db.commit()
+    return _owned_targets(db, user)
+
+
+NO_TARGETS_REASON = (
+    "Aucune allocation cible n'est définie : déclarez la répartition visée par classe "
+    "d'actifs (leur somme doit faire 100 %) pour que Yieldo puisse mesurer l'écart avec "
+    "votre répartition actuelle."
+)
+
+
+def _holding_inputs(
+    inputs: list[portfolio_engine.PositionInput],
+    valuation: portfolio_engine.PortfolioValuation,
+    reporting_currency: str,
+) -> list[allocation_engine.HoldingInput]:
+    """`engines.allocation`'s own input shape, built from the valuation that
+    was just computed and the resolved inputs it came from.
+
+    **One holding per POSITION, not per instrument.** A symbol held in two
+    accounts appears twice, and the trade the engine proposes is sized
+    against whichever of the two is larger. That keeps `holdings_total` and
+    `holdings_valued` numerically identical to the valuation's own
+    `positions_total`/`positions_valued`, so the two panels on `/patrimoine`
+    can never print counts that contradict each other.
+
+    `price_reporting_cents` is the price of ONE unit expressed in the
+    reporting currency -- `convert_cents` applied to the position's own
+    native price through the SAME rate its market value went through.
+    Sizing a trade against the native price would propose the wrong quantity
+    for every foreign-currency holding.
+
+    It is `None` where no price was resolved at all, and -- the one case
+    where it is None while the market value is still known -- for a position
+    whose lots sum to zero units: `engines.portfolio` values that at a real
+    0 without ever consulting a price, so the value is known and the unit
+    price genuinely is not. The engine already filters trade candidates on a
+    known, positive price, so such a holding contributes its (zero) value to
+    its class and is never proposed as a trade.
+    """
+    by_id = {position.position_id: position for position in inputs}
+    holdings: list[allocation_engine.HoldingInput] = []
+    for valued in valuation.positions:
+        source = by_id[valued.position_id]
+        price_reporting = (
+            None if valued.price is None
+            else portfolio_engine.convert_cents(
+                valued.price.price_cents, valued.currency, reporting_currency,
+                source.fx_rate_to_reporting,
+            )
+        )
+        holdings.append(allocation_engine.HoldingInput(
+            symbol=valued.symbol, name=valued.name, asset_class=valued.asset_class,
+            is_fractionable=source.is_fractionable,
+            quantity=quantity.parse(valued.quantity),
+            price_reporting_cents=price_reporting,
+            market_value_reporting_cents=valued.market_value_reporting_cents,
+        ))
+    return holdings
+
+
+@router.get("/allocation", response_model=PortfolioAllocationOut)
+def get_allocation(
+    user: User = Depends(get_current_user), db: Session = Depends(get_db)
+) -> PortfolioAllocationOut:
+    """Target allocation, current drift, and the trades that would close it.
+
+    A household that has declared no targets gets a 200 carrying the French
+    sentence saying so, never an error and never an all-zero report: there
+    is no drift from a target nobody set, and a report full of zeroes would
+    be a measurement nobody made.
+
+    The valuation is recomputed here rather than read from `GET /valuation`:
+    both routes go through `_valuation_inputs`, so the prices, the quota
+    decisions and the cache are the same either way -- but a screen that
+    called both would otherwise depend on the ORDER it called them in.
+    """
+    now = datetime.now(UTC)
+    reporting_currency = portfolio_engine.DEFAULT_REPORTING_CURRENCY
+    rows = _owned_targets(db, user)
+    targets_out = [AllocationTargetOut.model_validate(row) for row in rows]
+
+    if not rows:
+        return PortfolioAllocationOut(
+            reporting_currency=reporting_currency, targets=targets_out,
+            report=None, unavailable_reason=NO_TARGETS_REASON,
+        )
+
+    inputs = _valuation_inputs(db, user, now, reporting_currency)
+    valuation = portfolio_engine.value_portfolio(inputs, reporting_currency)
+    holdings = _holding_inputs(inputs, valuation, reporting_currency)
+
+    try:
+        report = allocation_engine.evaluate_allocation(
+            holdings,
+            [
+                allocation_engine.AllocationTarget(
+                    asset_class=row.asset_class, target_bps=row.target_bps
+                )
+                for row in rows
+            ],
+            reporting_currency,
+        )
+    except ValueError as exc:
+        # `PUT /targets` validates before storing, so a stored set that no
+        # longer passes means the rows were edited outside this API. Surfaced
+        # in the engine's own French rather than swallowed into a blank panel.
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    return PortfolioAllocationOut(
+        reporting_currency=reporting_currency, targets=targets_out,
+        report=AllocationReportOut.model_validate(report), unavailable_reason=None,
+    )

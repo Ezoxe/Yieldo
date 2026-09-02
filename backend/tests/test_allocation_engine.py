@@ -1,8 +1,9 @@
-"""`engines/allocation.py`: target allocation per asset class, current
+﻿"""`engines/allocation.py`: target allocation per asset class, current
 drift, and the trades that would close it -- whole units where an
 instrument is not fractionable, refused rather than rounded to a fraction
 or a zero-unit no-op when it cannot be sized."""
 
+import re
 from decimal import Decimal
 
 import pytest
@@ -181,6 +182,39 @@ class TestTradesCloseTheDrift:
         refusal = next(r for r in report.refusals if r.symbol == "BRK")
         assert "fractionnable" in refusal.reason
         assert "part fractionnée" in refusal.reason
+
+    def test_every_figure_written_into_a_french_sentence_uses_a_french_decimal(self):
+        """`/patrimoine` prints these sentences VERBATIM, so a decimal point
+        in one is a defect on screen, not a formatting preference. Python's
+        own `:.2f` writes "10000.00"; French writes "10 000,00". Both the
+        refusal's two amounts and the target-sum error are covered, and the
+        assertion is on the absence of a POINT rather than on the presence of
+        a comma -- an implementation that printed "10 000,00" for one figure
+        and "10000.00" for the other would pass a comma check."""
+        holdings = [
+            _holding("A", "equity", price_cents=100_00, value_cents=990_000),
+            _holding(
+                "BRK", "bond", price_cents=1_000_000, value_cents=10_000,
+                quantity_text="0", is_fractionable=False,
+            ),
+        ]
+        report = evaluate_allocation(
+            holdings, [_target("equity", 8_900), _target("bond", 1_100)]
+        )
+        refusal = next(r for r in report.refusals if r.symbol == "BRK")
+        # A full stop ENDS a sentence here legitimately; what must never
+        # appear is one BETWEEN two digits.
+        assert re.search(r"\d\.\d", refusal.reason) is None
+        # The unit price, grouped and comma-separated: 1 000 000 cents. The
+        # thousands separator is U+202F, written as an escape here for the
+        # same reason it is in the engine -- an assertion carrying an
+        # invisible character is one nobody can read or correct.
+        assert "10 000,00" in refusal.reason
+
+        with pytest.raises(ValueError) as excinfo:
+            evaluate_allocation(holdings, [_target("equity", 5_000), _target("bond", 6_000)])
+        assert "110,00 %" in str(excinfo.value)
+        assert re.search(r"\d\.\d", str(excinfo.value)) is None
 
     def test_an_underweight_class_with_no_held_instrument_is_refused_by_class(self):
         """There is no instrument to size a buy against at all -- this

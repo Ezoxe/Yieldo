@@ -156,3 +156,25 @@ def value_cents(quantity: Quantity, price_cents: int) -> int:
     """
     exact = _CONTEXT.multiply(quantity.value, Decimal(price_cents))
     return int(_CONTEXT.quantize(exact, Decimal(1)))
+
+
+def total_value_cents(pairs: list[tuple[Quantity, int]]) -> int:
+    """`sum(quantity_i * price_cents_i)`, rounded ONCE at the end -- the
+    multi-price generalisation of `value_cents`, for the one case that
+    function cannot cover: a position's COST basis, where each lot carries
+    its OWN `unit_cost_cents` rather than all being valued at one shared
+    current price (`value_cents(total_quantity, price_cents)` already covers
+    that simpler case exactly, because summing quantities first and
+    multiplying by one shared price is equivalent to summing per-lot exact
+    products -- see `test_quantity.py`'s per-lot-vs-end-rounding fixture).
+
+    Runs the summation itself inside `_CONTEXT`, exactly like `Quantity.
+    __add__` -- never Python's `sum()`/`+` on bare `Decimal`s, which falls
+    back to the ambient global context (28 significant digits) and would
+    reopen the identical silent-truncation-or-crash trap `_CONTEXT` exists
+    to close.
+    """
+    total = Decimal(0)
+    for quantity, price_cents in pairs:
+        total = _CONTEXT.add(total, _CONTEXT.multiply(quantity.value, Decimal(price_cents)))
+    return int(_CONTEXT.quantize(total, Decimal(1)))

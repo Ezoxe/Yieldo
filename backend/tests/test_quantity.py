@@ -234,6 +234,43 @@ class TestPerLotVersusEndRounding:
         assert wrong_total == correct_total == 3_330
 
 
+class TestTotalValueCents:
+    def test_an_empty_list_of_lots_is_worth_nothing(self):
+        assert quantity.total_value_cents([]) == 0
+
+    def test_a_single_lot_matches_value_cents(self):
+        q = quantity.parse("3.5")
+        assert quantity.total_value_cents([(q, 1_000)]) == quantity.value_cents(q, 1_000)
+
+    def test_lots_at_different_unit_costs_are_summed_before_rounding_once(self):
+        """The case `value_cents` genuinely cannot cover: two lots of the
+        SAME instrument bought at two DIFFERENT unit costs, each with a
+        fractional cent of its own -- 0,005 units at 33 cents is 0,165
+        cents, and 0,005 units at 67 cents is 0,335 cents. Rounded per lot
+        first (0 + 0 = 0 cents, since each is below half a cent) that would
+        silently lose both; summed exactly first (0,165 + 0,335 = 0,5
+        cents, a tie) and rounded once, ROUND_HALF_UP carries it to 1 cent.
+        A per-lot implementation and this one disagree on this exact
+        fixture, which is the point of building it rather than asserting a
+        single arbitrary total."""
+        lots = [(quantity.parse("0.005"), 33), (quantity.parse("0.005"), 67)]
+        per_lot_wrong = sum(
+            int((q.value * Decimal(p)).quantize(Decimal(1), rounding=ROUND_HALF_UP))
+            for q, p in lots
+        )
+        assert per_lot_wrong == 0
+        assert quantity.total_value_cents(lots) == 1
+
+    def test_a_huge_lot_does_not_crash_or_corrupt(self):
+        """Same trap as `TestHugeQuantity`, reached through the multi-pair
+        summation instead of a single multiplication."""
+        raw = "123456789012345.123456789012345678"
+        q = quantity.parse(raw)
+        exact = Fraction(raw) * 733
+        expected = _round_half_up_fraction(exact)
+        assert quantity.total_value_cents([(q, 733)]) == expected
+
+
 class TestArithmetic:
     def test_addition_sums_two_quantities_exactly(self):
         assert quantity.parse("0.1") + quantity.parse("0.2") == quantity.parse("0.3")

@@ -1,15 +1,21 @@
-"""Wire shapes for the phase 3 substrate: investment accounts, positions and
-lots. `/api/portfolio` (Task 9) is not built yet -- these are the shapes it
-will use, defined now alongside the tables they mirror.
+"""Wire shapes for the phase 3 substrate: investment accounts, positions,
+lots, and -- for `/api/portfolio`'s valuation route (Task 9) -- the read-only
+output shapes mirroring `engines.portfolio`'s own dataclasses.
 
-`Instrument`, `PricePoint`, `ApiKey` and `QuotaWindow` get no `*In`/`*Patch`
-schemas here: none of the four is directly user-editable in this phase (an
-instrument is created by the market layer, a price point by a provider
-fetch, an api key and its quota window by Task 6's own dedicated,
+`PricePoint`, `ApiKey` and `QuotaWindow` get no `*In`/`*Patch` schemas here:
+none of the three is directly user-editable (a price point is written by a
+provider fetch, an api key and its quota window by Task 6's own dedicated,
 masking-aware schemas) -- see each model's docstring in `app/models/`.
+
+`Instrument` gets an `*In` (`InstrumentIn`) but deliberately no `*Patch`:
+Task 9's `POST /api/portfolio/instruments` is a find-or-create, keyed on
+`(symbol, asset_class)` -- creating a genuinely new one is how a user starts
+tracking a symbol nobody here has priced before, but an EXISTING instrument
+is shared, unowned reference data (see `models.Instrument`'s own docstring)
+and is never edited in place through this API.
 """
 
-from datetime import date
+from datetime import date, datetime
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -36,6 +42,14 @@ def _quantity_field_validator() -> classmethod:
         return str(parsed)
 
     return field_validator("quantity")(classmethod(_check))
+
+
+class InstrumentIn(BaseModel):
+    symbol: str = Field(min_length=1, max_length=32)
+    name: str = Field(min_length=1, max_length=200)
+    asset_class: str
+    currency: str = Field(min_length=3, max_length=3)
+    is_fractionable: bool = False
 
 
 class InstrumentOut(BaseModel):
@@ -122,3 +136,70 @@ class LotOut(BaseModel):
     quantity: str
     unit_cost_cents: int
     acquired_on: date
+
+
+# --- GET /api/portfolio/valuation -- mirrors engines.portfolio's own
+# dataclasses field for field (`model_config = from_attributes` validates
+# straight off them, so there is exactly one place each figure is named).
+
+
+class PriceQuoteOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    price_cents: int
+    as_of: date
+    fetched_at: datetime
+    source: str
+    is_stale: bool
+
+
+class PositionValuationOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    position_id: int
+    account_id: int
+    symbol: str
+    name: str
+    asset_class: str
+    currency: str
+    quantity: str
+    cost_basis_cents: int
+    price: PriceQuoteOut | None
+    price_unavailable_reason: str | None
+    market_value_cents: int | None
+    unrealised_gain_cents: int | None
+    fx_unavailable_reason: str | None
+    market_value_reporting_cents: int | None
+    cost_basis_reporting_cents: int | None
+    unrealised_gain_reporting_cents: int | None
+
+
+class WeightedGroupOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    key: str
+    value_cents: int
+    weight: float
+
+
+class PortfolioTotalOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    market_value_cents: int
+    cost_basis_cents: int
+    unrealised_gain_cents: int
+    positions_total: int
+    positions_valued: int
+    positions_missing_price: int
+    positions_missing_fx: int
+
+
+class PortfolioValuationOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    reporting_currency: str
+    positions: list[PositionValuationOut]
+    total: PortfolioTotalOut
+    weight_by_instrument: list[WeightedGroupOut]
+    weight_by_asset_class: list[WeightedGroupOut]
+    weight_by_currency: list[WeightedGroupOut]

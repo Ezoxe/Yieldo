@@ -101,6 +101,10 @@ FIELD_SUBJECTS: dict[str, str] = {
     "quantity": "La quantité",
     "unit_cost_cents": "Le prix de revient unitaire",
     "acquired_on": "La date d'acquisition",
+    # Task 9's instrument find-or-create (`InstrumentIn`).
+    "symbol": "Le symbole",
+    "asset_class": "La classe d'actifs",
+    "is_fractionable": "Le caractère fractionnable",
 }
 
 # One template per pydantic error type, formatted with the field's subject.

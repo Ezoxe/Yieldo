@@ -25,11 +25,12 @@ from pathlib import Path
 import pytest
 from alembic.config import Config
 from sqlalchemy import create_engine
+from sqlalchemy.exc import OperationalError
 
 from alembic import command
 from app.categorization.seed import CATEGORY_TREE, ESSENTIAL_SLUGS
 from app.config import settings
-from app.db import Base
+from app.db import Base, create_schema
 
 ALEMBIC_DIR = Path(__file__).resolve().parent.parent / "alembic"
 
@@ -764,4 +765,110 @@ def test_the_allocation_targets_migration_rolls_back_cleanly(migration_db):
         for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()
     }
     assert "allocation_targets" in tables
+    conn.close()
+
+
+# --- A database built OUTSIDE Alembic, and whether Alembic can still run on it
+
+
+def _create_all_database(harness: MigrationHarness):
+    """A database built the way `seed_fixture.py` builds one: straight from
+    `Base.metadata`, with no migration ever run against it. Returns the engine,
+    still open, so the caller decides when to dispose of it."""
+    engine = create_engine(f"sqlite:///{harness.db_path}")
+    Base.metadata.create_all(engine)
+    return engine
+
+
+def _stamped_database(harness: MigrationHarness):
+    """The same database, built through `app.db.create_schema` -- `create_all`
+    followed by the Alembic stamp. This is the one call `seed_fixture.py`
+    makes, and the only difference between the two tests below."""
+    engine = create_engine(f"sqlite:///{harness.db_path}")
+    create_schema(engine)
+    return engine
+
+
+def test_alembic_refuses_a_create_all_database_that_was_never_stamped(migration_db):
+    """The defect this pair of tests exists for, stated as a fact rather than a
+    memory.
+
+    `Base.metadata.create_all()` builds every table and writes NO
+    `alembic_version` row, so Alembic reads that database as being at revision
+    zero and replays the whole history onto tables that already exist. Every
+    session that seeded the local fixture and then ran `alembic upgrade head`
+    hit this; the last one stamped the row by hand to get past it.
+
+    Asserted rather than assumed: if a future Alembic ever started tolerating
+    this, `create_schema` below would be dead weight and this test says so.
+    """
+    engine = _create_all_database(migration_db)
+    engine.dispose()
+
+    with pytest.raises(OperationalError) as excinfo:
+        command.upgrade(migration_db.config, "head")
+    # The real failure, not just "something raised": the first migration's
+    # CREATE TABLE lands on a table create_all already made.
+    assert "already exists" in str(excinfo.value)
+
+
+def test_create_schema_leaves_a_database_alembic_can_upgrade(migration_db):
+    """`create_schema` is `create_all` plus the stamp, and the stamp is the
+    whole point: an `alembic upgrade head` on a database it built must be a
+    clean no-op rather than the crash above."""
+    engine = _stamped_database(migration_db)
+    engine.dispose()
+
+    # No raise, and nothing replayed: the database is already at head.
+    command.upgrade(migration_db.config, "head")
+
+    conn = _connect(migration_db)
+    tables = {
+        row[0]
+        for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()
+    }
+    conn.close()
+    assert tables >= PHASE_3_TABLES
+    assert "allocation_targets" in tables
+    assert "alembic_version" in tables
+
+
+def test_create_schema_stamps_exactly_the_single_head_alembic_reports(migration_db):
+    """The stamped revision must be the script directory's OWN head, read from
+    Alembic rather than hard-coded here: a revision string copied into this
+    file would go stale the day the next migration lands, and would stamp a
+    seeded database at a revision that is no longer the last one -- which is
+    the same broken state by a different route."""
+    from alembic.script import ScriptDirectory
+
+    engine = _stamped_database(migration_db)
+    engine.dispose()
+
+    script = ScriptDirectory.from_config(migration_db.config)
+    conn = _connect(migration_db)
+    stamped = [row[0] for row in conn.execute("SELECT version_num FROM alembic_version")]
+    conn.close()
+
+    assert stamped == [script.get_current_head()]
+
+
+def test_create_schema_keeps_every_row_it_was_given(migration_db):
+    """Stamping must not touch the data: a seeded fixture is stamped AFTER its
+    rows are written in real use, and a stamp that dropped or rewrote a table
+    would silently empty the operator's local database."""
+    engine = _stamped_database(migration_db)
+    engine.dispose()
+
+    conn = _connect(migration_db)
+    conn.execute(
+        "INSERT INTO users (id, email, name, password_hash, role, is_active, created_at) "
+        "VALUES (1, 'a@b.fr', 'Max', 'x', 'user', 1, '2026-01-01T00:00:00')"
+    )
+    conn.commit()
+    conn.close()
+
+    command.upgrade(migration_db.config, "head")
+
+    conn = _connect(migration_db)
+    assert conn.execute("SELECT COUNT(*) FROM users").fetchone()[0] == 1
     conn.close()

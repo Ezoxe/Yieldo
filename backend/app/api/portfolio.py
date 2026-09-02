@@ -54,6 +54,7 @@ spend quota this valuation call has no need of.
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.db import get_db
@@ -564,7 +565,30 @@ def _valuation_inputs(
             fx_unavailable_reason=fx_reason,
         ))
 
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        # A concurrent request from the SAME user resolved the same prices and
+        # inserted the same rows first -- `quota_windows` is unique on
+        # `(user_id, provider)` and `price_points` on `(instrument_id, as_of)`,
+        # so the second writer collides. Reproduced 5 times out of 5 on a
+        # cold database by loading `/patrimoine`, which reads two routes that
+        # both go through here.
+        #
+        # **This is not a swallowed failure, and nothing is invented.** The
+        # answer being returned was computed in full BEFORE any write: every
+        # price above was either resolved or has its own French cause attached.
+        # What lost the race is only the persistence of a cache row and a call
+        # counter, and the writer that won wrote the identical facts -- so
+        # rolling back leaves the database in exactly the state this request
+        # would have produced.
+        #
+        # The one real cost is bounded and deliberate: our own increment of the
+        # call counter is dropped, so a provider call may go uncounted. The
+        # pool's ceiling is pre-emptively 20 % below the published limit
+        # (`market/quota.py`), which is far more headroom than the occasional
+        # lost increment a genuine race can cost.
+        db.rollback()
     return inputs
 
 

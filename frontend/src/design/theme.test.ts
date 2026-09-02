@@ -1,9 +1,10 @@
-import { beforeEach, describe, expect, it } from "vitest";
+﻿import { beforeEach, describe, expect, it } from "vitest";
 
 import {
   centsToInput,
   formatCents,
   formatCompactCents,
+  formatQuantity,
   formatRateBps,
   parseCents,
   readStoredTheme,
@@ -145,5 +146,48 @@ describe("theme resolution", () => {
     expect(resolveTheme("system", true)).toBe("dark");
     expect(resolveTheme("system", false)).toBe("light");
     expect(resolveTheme("light", true)).toBe("light");
+  });
+});
+
+
+describe("formatQuantity", () => {
+  it("trims the canonical 18-decimal scale down to what was actually held", () => {
+    expect(formatQuantity("12.000000000000000000")).toBe("12");
+    expect(formatQuantity("0.250000000000000000")).toBe("0,25");
+  });
+
+  it("keeps every digit of a holding that genuinely is that small", () => {
+    // 15 satoshis-worth. A float cannot hold this, which is why the whole
+    // function works on the string.
+    expect(formatQuantity("0.000000015000000000")).toBe("0,000000015");
+  });
+
+  it("uses a French comma, never a decimal point", () => {
+    expect(formatQuantity("1.5")).toBe("1,5");
+    expect(formatQuantity("1.5")).not.toContain(".");
+  });
+
+  it("groups a large unit count with the narrow no-break space", () => {
+    expect(formatQuantity("1234567.000000000000000000")).toBe("1 234 567");
+  });
+
+  it("prints a whole zero as a bare zero, never as an empty string", () => {
+    expect(formatQuantity("0.000000000000000000")).toBe("0");
+  });
+
+  it("carries no currency symbol — a quantity is not money", () => {
+    expect(formatQuantity("12.000000000000000000")).not.toContain("€");
+  });
+
+  it("is not formatCents: the same text through each gives different answers", () => {
+    // The trap this function exists to prevent. `formatCents` would read the
+    // quantity as an integer number of cents; these must never agree.
+    const held = "12.000000000000000000";
+    expect(formatQuantity(held)).toBe("12");
+    expect(formatCents(Number(held))).not.toBe("12");
+  });
+
+  it("renders a negative quantity with the typographic minus", () => {
+    expect(formatQuantity("-3.500000000000000000")).toBe("−3,5");
   });
 });

@@ -1,9 +1,10 @@
-/**
+﻿/**
  * The browser gate: one screen at 375, 768 and 1440 px, in both themes, against
  * the seeded fixture, with the operator's own figures filled in.
  *
  *   node shoot.mjs <task>   # task-15 | task-16 | task-19 | task-20 |
- *                           # task-2c | task-2c-jalons
+ *                           # task-2c | task-2c-jalons |
+ *                           # task-10 | task-10-positions
  *
  * Not a test. It drives a real Chromium, saves full-page PNGs, and reports the
  * three things a passing Vitest suite has never once caught in this project:
@@ -14,6 +15,7 @@
  * and which text/background pairings to decode off the rendered page. Tasks 15
  * and 16 keep the behaviour they shipped with.
  */
+import { execFileSync } from "node:child_process";
 import { mkdirSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -27,6 +29,7 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 const OUT_DIRS = {
   "phase-2b": path.resolve(HERE, "../.superpowers/sdd/2026-08-24-yieldo-phase-2b-decision/screenshots"),
   "phase-2c": path.resolve(HERE, "../.superpowers/sdd/2026-09-01-yieldo-phase-2c-engagement/screenshots"),
+  "phase-3": path.resolve(HERE, "../.superpowers/sdd/2026-09-01-yieldo-phase-3-patrimoine/screenshots"),
 };
 const VIEWPORTS = [
   { name: "375", width: 375, height: 812 },
@@ -123,6 +126,66 @@ const SUIVI_CONTRAST = {
   jalonThreshold: ".yd-jalon__threshold",
   jalonWhen: ".yd-jalon--reached .yd-jalon__when",
   jalonCount: ".yd-jalons__count",
+};
+
+/**
+ * /patrimoine. Every selector below is a FIGURE, a sentence or a state — never
+ * a container.
+ *
+ * Four of them exist because of the distinction this whole screen is built to
+ * make. `holdingPrice` is a price that was fetched; `holdingStale` is the age
+ * carried beside a price that is real but old; `holdingAbsent` is the band
+ * standing in for a price that does not exist at all; and `holdingReason` is
+ * the French cause naming which of five things went wrong. The last two must
+ * clear AA on their own — they sit on a hatched ground, which is the one
+ * pairing on this screen whose background is not the flat card.
+ *
+ * `providerUnset` is the same problem on the market panel: "Aucune clé" is
+ * painted on a transparent, dashed cell rather than on the surface every other
+ * provider row uses.
+ */
+const PATRIMOINE_CONTRAST = {
+  lead: ".yd-patrimoine__lead",
+  note: ".yd-patrimoine__note",
+  refusal: ".yd-patrimoine__refusal",
+  link: ".yd-patrimoine__link",
+  emptyTitle: ".yd-empty__title",
+  emptyDetail: ".yd-empty__detail",
+  steps: ".yd-patrimoine__steps",
+  totalLabel: ".yd-ptotal__label",
+  totalAmount: ".yd-ptotal__amount",
+  totalCurrency: ".yd-ptotal__currency",
+  completeness: ".yd-ptotal__completeness",
+  rowLabel: ".yd-ptotal__row-label",
+  rowValue: ".yd-ptotal__row-value",
+  tableHead: ".yd-holdings__table thead th",
+  holdingSymbol: ".yd-holding__symbol",
+  holdingName: ".yd-holding__name",
+  holdingQuantity: ".yd-holding__quantity",
+  holdingPrice: ".yd-holding__price-value",
+  holdingAsOf: ".yd-holding__asof",
+  holdingStale: ".yd-holding__stale",
+  holdingAbsent: ".yd-holding__absent-band",
+  holdingReason: ".yd-holding__reason",
+  holdingValue: ".yd-holding__value",
+  holdingGain: ".yd-holding__gain",
+  providerName: ".yd-provider__name",
+  providerRole: ".yd-provider__role",
+  providerQuota: ".yd-provider__quota",
+  providerUnset: ".yd-provider--unset .yd-provider__state",
+  providerSet: ".yd-provider__state--set",
+  weightLabel: ".yd-weight__label",
+  weightPercent: ".yd-weight__percent",
+  weightAmount: ".yd-weight__amount",
+  allocBasis: ".yd-alloc__basis",
+  allocSection: ".yd-alloc__section-title",
+  driftLabel: ".yd-drift__label",
+  driftCurrent: ".yd-drift__current",
+  driftTarget: ".yd-drift__target",
+  driftGap: ".yd-drift__gap",
+  tradeAction: ".yd-trade__action",
+  tradeQuantity: ".yd-trade__quantity",
+  tradeValue: ".yd-trade__value",
 };
 
 function luminance([r, g, b]) {
@@ -489,6 +552,167 @@ async function driveSuivi(page, { theme, viewport, audit }) {
   await audit("suivi");
 }
 
+/**
+ * /patrimoine, in the two states that matter.
+ *
+ * `task-10` is the operator's ACTUAL state: zero positions, no key registered,
+ * no target allocation. That is the screen's most-read state and the one this
+ * gate exists to photograph honestly.
+ *
+ * `task-10-positions` is the same screen after three holdings have been
+ * declared through the real API (see the seeding block at the bottom of this
+ * file), one of which deliberately cannot be priced. Both are driven by this
+ * one function: the screen is the same, only the data differs, and a second
+ * drive function would let the two drift apart.
+ */
+async function drivePatrimoine(page, { theme, viewport, audit }) {
+  await page.goto(`${BASE}/patrimoine`);
+  await page.waitForSelector("text=Ce que vous détenez", { timeout: 20000 });
+
+  if (TASK === "task-10") {
+    await page.waitForSelector('[data-testid="yd-market-no-key"]', { timeout: 20000 });
+    await expectOnScreen(
+      page,
+      `${theme} ${viewport.name} patrimoine vide`,
+      // The empty state DIAGNOSES rather than showing a hero zero.
+      "Aucune position déclarée.",
+      "Un compte d'investissement",
+      "Un lot par acquisition",
+      // No key, said as itself — not as a price that went missing.
+      "Aucune clé n'est enregistrée pour l'instant",
+      "fonctionne sans aucune clé",
+      // Two providers need no key at all; saying otherwise would invent a
+      // remedy for something that is not a problem.
+      "Aucune clé requise",
+      // And no target allocation, as a refusal rather than a table of zeroes.
+      "Aucune allocation cible n'est définie",
+    );
+
+    // A hero "0,00 €" is exactly what this state must NOT show.
+    const body = await page.evaluate(() =>
+      document.body.innerText.replace(/[  ]/g, " "),
+    );
+    if (body.includes("0,00 €")) {
+      problems.push(`${theme} ${viewport.name}: an empty portfolio is showing a 0,00 € figure`);
+    }
+    // The four causes that did NOT happen must not be on screen. Matched on
+    // each cause's own SENTENCE from market/client.py, not on a keyword: the
+    // bare word "symbole" is legitimate French this screen uses to explain
+    // what an instrument is, and matching it flagged that copy as a defect.
+    const wrongCauses = [
+      "a été refusée par le fournisseur",
+      "est épuisé pour cette période",
+      "est injoignable pour le moment",
+      "est inconnu de",
+    ];
+    for (const wrong of wrongCauses) {
+      if (body.includes(wrong)) {
+        problems.push(`${theme} ${viewport.name}: empty state names the wrong cause "${wrong}"`);
+      }
+    }
+  } else {
+    await page.waitForSelector('[data-testid="yd-holdings-table"]', { timeout: 20000 });
+    await expectOnScreen(
+      page,
+      `${theme} ${viewport.name} patrimoine garni`,
+      // The total NEVER without its completeness count.
+      "positions valorisées sur 3",
+      "un plancher, pas la valeur du portefeuille",
+      // A missing price, as an absence with its own cause named.
+      "Prix indisponible",
+      "Aucune clé n'est enregistrée pour Finnhub",
+      // Weights are over what could be valued, and say so.
+      "calculées sur ce qui a pu être valorisé",
+      // A stale price is COUNTED, and carries its age rather than a failure.
+      "Prix daté du",
+      // Both halves of the allocation answer: an order it could size, and a
+      // refusal where it could not. A run showing only one photographs half
+      // the panel.
+      "Ordres qui refermeraient l'écart",
+      "Écarts qu'aucun ordre ne peut refermer",
+      "n'est pas fractionnable",
+      "moins d'une unité au prix actuel",
+    );
+
+    // The three states must be three DIFFERENT things on the rendered page,
+    // not three labels that happen to differ in the DOM.
+    const shapes = await page.evaluate(() => ({
+      absent: document.querySelectorAll(".yd-holding__absent-band").length,
+      stale: document.querySelectorAll(".yd-holding__stale").length,
+      priced: document.querySelectorAll(".yd-holding__price-value").length,
+      reasons: document.querySelectorAll(".yd-holding__reason").length,
+    }));
+    if (shapes.absent < 1) {
+      problems.push(`${theme} ${viewport.name}: no missing-price band drawn`);
+    }
+    if (shapes.reasons < 1) {
+      problems.push(`${theme} ${viewport.name}: a missing price carries no cause`);
+    }
+    // A stale price still shows a FIGURE — that is what separates it from a
+    // missing one. If every priced cell vanished, the two collapsed together.
+    if (shapes.priced < 1) {
+      problems.push(`${theme} ${viewport.name}: no price figure on any row`);
+    }
+
+    // A quantity must never have gone through a money formatter: 0,25 BTC
+    // through formatCents reads "0,00 €", and 12 shares reads as 12 cents.
+    const quantities = await page.evaluate(() =>
+      [...document.querySelectorAll(".yd-holding__quantity, .yd-trade__quantity")].map(
+        (el) => el.textContent ?? "",
+      ),
+    );
+    for (const text of quantities) {
+      if (text.includes("€")) {
+        problems.push(`${theme} ${viewport.name}: a quantity rendered with a currency: "${text}"`);
+      }
+    }
+    // The cash holding is 2 500 units. Through `formatCents` that reads
+    // "25,00 €"; through `formatQuantity` it reads "2 500" with no currency,
+    // which is what must be on screen. The narrow no-break space is
+    // normalised to a plain one, like every other expectation in this file.
+    const normalised = quantities.map((t) => t.replace(/[\u202f\u00a0]/g, " "));
+    if (!normalised.some((t) => t.trim() === "2 500")) {
+      problems.push(
+        `${theme} ${viewport.name}: the 2 500-unit cash holding is not on screen as "2 500" (got ${JSON.stringify(normalised)})`,
+      );
+    }
+  }
+
+  // Every gauge on this screen is a real scale with a real track. A percentage
+  // width in an auto-width flex column resolves to ZERO, which would make a
+  // small share indistinguishable from an absent one.
+  const tracks = await page.evaluate(() =>
+    [...document.querySelectorAll(".yd-weight__track, .yd-drift__track")].map((el) => ({
+      width: el.getBoundingClientRect().width,
+    })),
+  );
+  for (const track of tracks) {
+    if (track.width < 40) {
+      problems.push(`${theme} ${viewport.name}: a gauge track collapsed to ${track.width}px`);
+    }
+  }
+
+  // The holdings table is wide by nature. It must scroll inside its OWN box
+  // rather than push the page sideways — the rule since the credit schedule.
+  const scroller = await page.evaluate(() => {
+    const box = document.querySelector(".yd-holdings__scroller");
+    if (box === null) return null;
+    return {
+      overflowing: box.scrollWidth > box.clientWidth,
+      overflowX: getComputedStyle(box).overflowX,
+    };
+  });
+  if (scroller !== null && scroller.overflowing && scroller.overflowX !== "auto") {
+    problems.push(
+      `${theme} ${viewport.name}: the holdings table overflows something other than its own scroller`,
+    );
+  }
+
+  await page.waitForTimeout(700);
+  await shot(page, viewport, theme);
+  await audit("patrimoine");
+}
+
 const SCENARIOS = {
   "task-15": { drive: driveFeasibility, contrast: FEASIBILITY_CONTRAST, out: "phase-2b" },
   "task-16": { drive: driveFeasibility, contrast: FEASIBILITY_CONTRAST, out: "phase-2b" },
@@ -502,6 +726,17 @@ const SCENARIOS = {
   // the fixture cannot reach on its own. Run AFTER task-2c: both mutate the
   // database, and neither is reversible.
   "task-2c-jalons": { drive: driveSuivi, contrast: SUIVI_CONTRAST, out: "phase-2c" },
+  // The operator's own state exactly as seed_fixture.py leaves it: no
+  // investment account, no position, no key, no target allocation.
+  "task-10": { drive: drivePatrimoine, contrast: PATRIMOINE_CONTRAST, out: "phase-3" },
+  // The same screen after three holdings have been declared through the real
+  // /api/portfolio, one of them unpriceable. Run AFTER task-10: it mutates
+  // the database, and it is not reversible.
+  "task-10-positions": {
+    drive: drivePatrimoine,
+    contrast: PATRIMOINE_CONTRAST,
+    out: "phase-3",
+  },
 };
 
 const scenario = SCENARIOS[TASK];
@@ -557,6 +792,150 @@ if (TASK === "task-2c-jalons") {
     }, token);
     console.log("declared one goal for the milestone panel");
   }
+}
+
+/**
+ * Three holdings and a target allocation, declared through the real
+ * /api/portfolio — what a household does by hand.
+ *
+ * The three are chosen so that the screen's three price states are all on
+ * screen AT ONCE, deterministically, **with no API key and no network**:
+ *
+ * 1. `EUR-CASH`, a `cash` instrument. `api/portfolio` values cash at par
+ *    without ever touching a provider or the quota pool, so this is the one
+ *    position that is always valued. It is what makes the total a real
+ *    number rather than zero.
+ * 2. `AAPL`, an equity. A deliberately old `price_points` row is seeded
+ *    below, so the router answers from cache, finds it past its five-minute
+ *    TTL, asks Finnhub, is refused for want of a key, and falls back to the
+ *    cached value LABELLED STALE. A real value, counted in the total, shown
+ *    with its age.
+ * 3. `MC.PA`, an equity with no cached price at all. Finnhub refuses for the
+ *    same reason and there is nothing to fall back to, so this one is
+ *    genuinely MISSING: excluded from the total, carrying "aucune clé" as
+ *    its cause.
+ *
+ * The targets then put equity 12 points under its 90 % goal against a
+ * non-fractionable AAPL, which is the sub-unit refusal the allocation panel
+ * has to print rather than propose a zero-unit order for.
+ */
+if (TASK === "task-10-positions") {
+  const { access_token: token } = await api("/auth/login", {
+    method: "POST",
+    body: JSON.stringify({ email: "demo@yieldo-demo.fr", password: "MotDePasseDemo123!" }),
+  });
+
+  const accounts = await api("/portfolio/accounts", {}, token);
+  if (accounts.length === 0) {
+    const cto = await api("/portfolio/accounts", {
+      method: "POST",
+      body: JSON.stringify({ name: "CTO Boursorama", kind: "cto", currency: "EUR" }),
+    }, token);
+
+    const declare = async (instrument, quantity, unitCostCents) => {
+      const registered = await api("/portfolio/instruments", {
+        method: "POST",
+        body: JSON.stringify(instrument),
+      }, token);
+      const position = await api("/portfolio/positions", {
+        method: "POST",
+        body: JSON.stringify({
+          investment_account_id: cto.id,
+          instrument_id: registered.id,
+        }),
+      }, token);
+      await api("/portfolio/lots", {
+        method: "POST",
+        body: JSON.stringify({
+          position_id: position.id,
+          quantity,
+          unit_cost_cents: unitCostCents,
+          acquired_on: "2026-01-15",
+        }),
+      }, token);
+      return registered;
+    };
+
+    // Valued at par, with no provider and no key. 2 500,00 EUR of cash.
+    await declare(
+      {
+        symbol: "EUR-CASH",
+        name: "Liquidités du compte",
+        asset_class: "cash",
+        currency: "EUR",
+        is_fractionable: true,
+      },
+      "2500",
+      100,
+    );
+    // Will read STALE off the cached point seeded just below.
+    await declare(
+      {
+        symbol: "AAPL",
+        name: "Apple Inc.",
+        asset_class: "equity",
+        currency: "EUR",
+        is_fractionable: false,
+      },
+      "12",
+      15000,
+    );
+    // Will read MISSING: no cached price, and no key to fetch one.
+    await declare(
+      {
+        symbol: "MC.PA",
+        name: "LVMH",
+        asset_class: "equity",
+        currency: "EUR",
+        is_fractionable: false,
+      },
+      "3",
+      60000,
+    );
+    console.log("declared three holdings through the API");
+  }
+
+  // The one thing no API can do — see e2e/seed_stale_price.py for why. Run
+  // every time rather than only on first seed: "old enough to be stale" is
+  // relative to now, and a re-run days later must still be photographing a
+  // stale price rather than a merely elderly fresh one.
+  const python = path.resolve(HERE, "../backend/.venv/Scripts/python.exe");
+  const seeder = path.resolve(HERE, "seed_stale_price.py");
+  try {
+    const out = execFileSync(python, [seeder, "AAPL", "equity", "18000", "3"], {
+      encoding: "utf8",
+    });
+    console.log(out.trim());
+  } catch (error) {
+    // Loud, never silent: without the cached point AAPL reads as MISSING, and
+    // the run would photograph two identical missing rows while claiming to
+    // show a stale one beside a missing one.
+    problems.push(`could not seed the stale price point: ${error.message}`);
+  }
+
+  // Written on EVERY run, not only the first: `PUT /targets` replaces the
+  // whole set atomically, so re-running is idempotent, and the figures below
+  // are chosen against the holdings above rather than against whatever an
+  // earlier run happened to leave behind.
+  //
+  // 2 500,00 EUR of cash and 2 160,00 EUR of AAPL (12 x 180,00, the stale
+  // cached price) make 4 660,00 EUR valued — MC.PA is excluded, having no
+  // price at all. A 47 / 53 equity/cash target puts each side 30,20 EUR from
+  // its goal, and that gap is what makes BOTH branches of the panel visible
+  // at once: 30,2 units of cash, which is fractionable and gets an order,
+  // against 0,168 of an AAPL share, which is NOT fractionable and gets the
+  // refusal instead of a zero-unit order. A 90/10 target sized both cleanly
+  // and photographed only half the panel.
+  await api("/portfolio/targets", {
+    method: "PUT",
+    body: JSON.stringify({
+      targets: [
+        { asset_class: "equity", target_bps: 4_700 },
+        { asset_class: "cash", target_bps: 5_300 },
+      ],
+    }),
+  }, token);
+  console.log("declared a 47/53 equity/cash target allocation");
 }
 
 const browser = await chromium.launch();

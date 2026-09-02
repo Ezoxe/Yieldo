@@ -840,3 +840,70 @@ class TestAllocationIsolation:
         assert alice_allocation["report"]["total_value_cents"] == 0
         # Bob's own targets are untouched by Alice's PUT.
         assert len(client.get("/api/portfolio/targets", headers=bob).json()) == 1
+
+
+class TestConcurrentValuationAndAllocation:
+    """`/patrimoine` reads `/valuation` and `/allocation`, and BOTH go through
+    `_valuation_inputs`, which writes a `quota_windows` row and any freshly
+    fetched `price_points`. On a cold database neither row exists yet, so two
+    requests arriving together both INSERT and the second violates
+    `uq_quota_window_user_provider` -- a 500 on the very first load of the
+    screen, which is precisely the state every new user is in.
+
+    Reproduced 5 times out of 5 against a real uvicorn before the fix.
+    """
+
+    def test_a_second_request_racing_the_first_still_answers(self, client, monkeypatch, db):
+        _install_quote(monkeypatch, "finnhub", quote=_quote(price_cents=10_000, currency="EUR"))
+        headers = _register(client)
+        account = _account(client, headers)
+        _holding(client, headers, account["id"], "AAPL", "equity", "6")
+        _put_targets(client, headers, [("equity", 10_000)])
+
+        # The first request commits its own QuotaWindow row. Simulating the
+        # race directly -- a second session inserting the SAME row underneath
+        # an in-flight request -- is what the TestClient cannot do on its own,
+        # so the collision is provoked at the point it really happens: the
+        # commit inside `_valuation_inputs`.
+        from app.models import QuotaWindow
+
+        real_commit = db.commit
+        calls = {"n": 0}
+
+        def commit_colliding_once():
+            calls["n"] += 1
+            if calls["n"] == 1:
+                # Another request got there first with the identical row.
+                db.add(QuotaWindow(
+                    user_id=db.query(User).first().id, provider="finnhub",
+                    window_started_at=datetime.now(UTC), used=1,
+                ))
+                db.add(QuotaWindow(
+                    user_id=db.query(User).first().id, provider="finnhub",
+                    window_started_at=datetime.now(UTC), used=1,
+                ))
+            return real_commit()
+
+        monkeypatch.setattr(db, "commit", commit_colliding_once)
+
+        response = client.get("/api/portfolio/valuation", headers=headers)
+        # The answer was computed before any write -- losing the race to
+        # persist a cache row must not cost the user their valuation.
+        assert response.status_code == 200
+        assert response.json()["total"]["positions_total"] == 1
+
+    def test_the_quota_row_is_written_exactly_once_per_provider(self, client, monkeypatch, db):
+        """The invariant the unique constraint exists to hold, asserted from
+        the outside: two reads that each price the same position through the
+        same provider leave ONE window row, never two."""
+        _install_quote(monkeypatch, "finnhub", quote=_quote(price_cents=10_000, currency="EUR"))
+        headers = _register(client)
+        account = _account(client, headers)
+        _holding(client, headers, account["id"], "AAPL", "equity", "6")
+        _put_targets(client, headers, [("equity", 10_000)])
+
+        assert client.get("/api/portfolio/valuation", headers=headers).status_code == 200
+        assert client.get("/api/portfolio/allocation", headers=headers).status_code == 200
+
+        rows = db.query(QuotaWindow).filter(QuotaWindow.provider == "finnhub").all()
+        assert len(rows) == 1

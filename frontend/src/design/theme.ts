@@ -156,6 +156,40 @@ export function centsToInput(cents: number): string {
   return `${sign}${Math.trunc(absolute / 100)},${String(absolute % 100).padStart(2, "0")}`;
 }
 
+/**
+ * A `engines.quantity.Quantity`, as text, made readable.
+ *
+ * **A quantity is NOT money, and this is not `formatCents`.** It sits here, on
+ * purpose, immediately beside the money formatters: the mistake this function
+ * exists to prevent is a developer reaching for `formatCents` on a holding's
+ * unit count, which would read "12.000000000000000000" as an integer number of
+ * cents and print a hundred million billion euros. There is no `cents`
+ * parameter here and no currency anywhere in the output.
+ *
+ * The wire form is the canonical 18-decimal scale the backend stores and
+ * returns ("12.000000000000000000", "0.250000000000000000"). Trailing zeros in
+ * the fraction are meaningless precision, so they are trimmed — 12 shares read
+ * as "12" and a quarter of a bitcoin as "0,25" — while a genuinely small
+ * holding keeps every digit it was given (0,000000015 BTC stays exact).
+ *
+ * **String arithmetic throughout, never `Number(text)`.** A float cannot hold
+ * eighteen decimal places, and rounding one away here would silently change a
+ * crypto holding the whole `Quantity` type exists to keep exact.
+ */
+export function formatQuantity(text: string): string {
+  const negative = text.startsWith("-") || text.startsWith(MINUS);
+  const body = negative ? text.slice(1) : text;
+  const [whole = "0", fraction = ""] = body.split(".");
+
+  // Grouped by threes from the right, the way `toLocaleString` would — but on
+  // the STRING, so a 40-digit integer part survives intact.
+  const grouped = whole.replace(/\B(?=(\d{3})+(?!\d))/g, NARROW_NBSP);
+  const trimmed = fraction.replace(/0+$/, "");
+
+  const sign = negative ? MINUS : "";
+  return trimmed.length === 0 ? `${sign}${grouped}` : `${sign}${grouped},${trimmed}`;
+}
+
 export function formatCompactCents(cents: number, currency = "€"): string {
   const units = Math.abs(cents) / 100;
   const sign = cents < 0 ? MINUS : "";

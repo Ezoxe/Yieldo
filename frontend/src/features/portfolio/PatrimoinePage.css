@@ -1,0 +1,919 @@
+/* /patrimoine — holdings, valuation, allocation drift.
+
+   The visual problem this stylesheet exists to solve is one distinction, drawn
+   three ways so it survives a glance:
+
+   **A missing price, a stale price and a fetched price are three different
+   answers, not three degrees of one.** A fetched price is a numeral. A stale
+   price is ALSO a numeral — it counts in every total — carried with its age on
+   a warning rule, because what is wrong with it is its date and nothing else.
+   A missing price gets no numeral anywhere near it: a hatched band that says
+   the words, and the engine's own cause on its own row. The hatching is the
+   same device /suivi uses to keep a measured zero apart from an unmeasured
+   component, and for exactly the same reason — a figure and an absence must
+   not be able to be mistaken for each other at a distance.
+
+   Every colour here is a token from design/tokens.css; `design/contrast.test.ts`
+   parses that file from disk and holds both themes to 4.5:1. */
+
+.yd-patrimoine {
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-lg);
+  /* Without this a long unbroken figure in a grid child sets the track's
+     minimum width and pushes the whole page past the viewport. */
+  min-width: 0;
+}
+
+.yd-patrimoine__header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-xs);
+}
+
+.yd-patrimoine__header h1 {
+  margin: 0;
+  font-size: clamp(1.5rem, 1.2rem + 1.4vw, 2rem);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--yd-text);
+}
+
+.yd-patrimoine__lead {
+  margin: 0;
+  max-width: 76ch;
+  font-size: 0.92rem;
+  line-height: 1.6;
+  color: var(--yd-text-muted);
+}
+
+/* -- The three shared registers --------------------------------------------
+
+   Copied in recipe, deliberately not in stylesheet, from SuiviPage.css: a
+   screen importing another screen's CSS only works by accident of how the
+   bundle is assembled. The three must READ identically across screens, which
+   is why the values are the same to the pixel. */
+
+/* A refusal is content, not an error: it says what could not be measured and
+   why. The warning rule, never the negative colour, which this screen reserves
+   for something having actually gone wrong. */
+.yd-patrimoine__refusal {
+  margin: 0;
+  max-width: 96ch;
+  padding: var(--yd-space-sm) var(--yd-space-md);
+  border-radius: var(--yd-radius-sm);
+  border: 1px solid var(--yd-border-strong);
+  border-left: 3px solid var(--yd-warning);
+  background: var(--yd-surface);
+  color: var(--yd-text);
+  font-size: 0.88rem;
+  line-height: 1.55;
+}
+
+.yd-patrimoine__note {
+  margin: 0;
+  max-width: 90ch;
+  font-size: 0.82rem;
+  line-height: 1.55;
+  color: var(--yd-text-muted);
+}
+
+.yd-patrimoine__note strong {
+  color: var(--yd-text);
+  font-weight: 600;
+}
+
+/* Reserved for something having gone wrong — a failed load. A refusal from an
+   engine never lands here. */
+.yd-patrimoine__alert {
+  margin: 0;
+  padding: var(--yd-space-sm) var(--yd-space-md);
+  border-radius: var(--yd-radius-sm);
+  background: color-mix(in srgb, var(--yd-negative) 14%, transparent);
+  border: 1px solid var(--yd-negative);
+  color: var(--yd-negative-text);
+  font-size: 0.9rem;
+}
+
+.yd-patrimoine__link {
+  justify-self: start;
+  align-self: start;
+  min-height: 36px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 var(--yd-space-sm);
+  border: 1px solid var(--yd-border-control);
+  border-radius: var(--yd-radius-sm);
+  color: var(--yd-text);
+  font-size: 0.84rem;
+  text-decoration: none;
+  transition: border-color var(--yd-motion-fast) var(--yd-ease);
+}
+
+.yd-patrimoine__link:hover {
+  border-color: var(--yd-accent);
+}
+
+.yd-patrimoine__link:focus-visible {
+  outline: 2px solid var(--yd-accent);
+  outline-offset: 2px;
+}
+
+/* A bento row stretches its cells to the tallest of them, which is right when
+   both hold a comparable amount. On the empty screen they do not: the steps
+   card is three short paragraphs and the market card is five provider rows and
+   a button, so stretching left ~300px of nothing under the steps at 1440.
+   Sizing to content is the honest shape — cells of different heights are what
+   a bento grid is for. */
+.yd-patrimoine__cell--fit {
+  align-self: start;
+}
+
+/* The empty state's three steps. An ordered list because the order is real:
+   an instrument cannot be held before an account exists to hold it in. */
+.yd-patrimoine__steps {
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-sm);
+  margin: var(--yd-space-sm) 0 0;
+  padding-left: 1.25rem;
+  max-width: 84ch;
+  text-align: left;
+  font-size: 0.85rem;
+  line-height: 1.6;
+  color: var(--yd-text-muted);
+}
+
+.yd-patrimoine__steps strong {
+  color: var(--yd-text);
+  font-weight: 600;
+}
+
+/* -- Total ----------------------------------------------------------------- */
+
+.yd-ptotal {
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-sm);
+  min-width: 0;
+}
+
+.yd-ptotal__figure {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.yd-ptotal__label {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--yd-text-muted);
+}
+
+.yd-ptotal__amount {
+  margin: 0;
+  font-family: var(--yd-font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: clamp(2rem, 1.5rem + 2.6vw, 3rem);
+  line-height: 1.05;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  color: var(--yd-text);
+  overflow-wrap: anywhere;
+}
+
+.yd-ptotal__currency {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--yd-text-muted);
+}
+
+/* Never optional, on any branch — the figure above is meaningless without it.
+   Given its own border so it reads as part of the number rather than as a
+   caption that could be skipped. */
+.yd-ptotal__completeness {
+  margin: 0;
+  padding-top: var(--yd-space-xs);
+  border-top: 1px solid var(--yd-border);
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: var(--yd-text);
+}
+
+.yd-ptotal__rows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-2xs);
+}
+
+.yd-ptotal__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--yd-space-xs);
+  padding: var(--yd-space-2xs) 0;
+  min-width: 0;
+}
+
+.yd-ptotal__row-label {
+  font-size: 0.84rem;
+  color: var(--yd-text-muted);
+}
+
+.yd-ptotal__row-value {
+  font-family: var(--yd-font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--yd-text);
+  white-space: nowrap;
+}
+
+.yd-ptotal__row-value--positive {
+  color: var(--yd-positive);
+}
+
+.yd-ptotal__row-value--negative {
+  color: var(--yd-negative-text);
+}
+
+/* -- Holdings table -------------------------------------------------------- */
+
+.yd-holdings {
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-sm);
+  min-width: 0;
+}
+
+/* The table scrolls inside its OWN box rather than pushing the page sideways.
+   `min-width: 0` on the flex child is what actually lets it shrink below its
+   content — without it the scroller is as wide as the table and overflows the
+   body at 375. */
+.yd-holdings__scroller {
+  overflow-x: auto;
+  min-width: 0;
+  /* Room for the focus ring of anything inside, and for the scrollbar itself
+     on platforms that reserve space for one. */
+  padding-bottom: var(--yd-space-2xs);
+}
+
+.yd-holdings__table {
+  width: 100%;
+  min-width: 44rem;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.yd-holdings__table thead th {
+  padding: var(--yd-space-xs) var(--yd-space-sm);
+  border-bottom: 1px solid var(--yd-border-strong);
+  text-align: left;
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: var(--yd-text-muted);
+  white-space: nowrap;
+}
+
+.yd-holdings__num {
+  text-align: right;
+}
+
+.yd-holdings__table thead th.yd-holdings__num {
+  text-align: right;
+}
+
+.yd-holding > th,
+.yd-holding > td {
+  padding: var(--yd-space-sm);
+  border-bottom: 1px solid var(--yd-border);
+  vertical-align: top;
+  color: var(--yd-text);
+}
+
+.yd-holding:hover > th,
+.yd-holding:hover > td {
+  background: color-mix(in srgb, var(--yd-accent) 7%, transparent);
+}
+
+/* A row whose value is unknown steps back visually AND changes ground — two
+   channels, so it can never be mistaken at a glance for a row worth zero. */
+.yd-holding--unvalued > th,
+.yd-holding--unvalued > td {
+  background: repeating-linear-gradient(
+    135deg,
+    transparent,
+    transparent 6px,
+    color-mix(in srgb, var(--yd-text) 5%, transparent) 6px,
+    color-mix(in srgb, var(--yd-text) 5%, transparent) 12px
+  );
+}
+
+.yd-holding__id {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  text-align: left;
+  font-weight: 400;
+  min-width: 0;
+}
+
+.yd-holding__symbol {
+  font-family: var(--yd-font-mono);
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--yd-text);
+}
+
+.yd-holding__name {
+  font-size: 0.76rem;
+  color: var(--yd-text-muted);
+  overflow-wrap: anywhere;
+}
+
+/* The engine's own cause, in full. Wrapped rather than truncated: an ellipsis
+   here would hide which of five remedies applies, which is the single thing
+   this row exists to say. */
+.yd-holding__reason {
+  margin-top: var(--yd-space-2xs);
+  padding: var(--yd-space-2xs) var(--yd-space-xs);
+  border-left: 3px solid var(--yd-warning);
+  border-radius: 0 var(--yd-radius-sm) var(--yd-radius-sm) 0;
+  background: var(--yd-surface);
+  font-size: 0.76rem;
+  line-height: 1.5;
+  color: var(--yd-text);
+  white-space: normal;
+  max-width: 42ch;
+}
+
+.yd-holding__quantity {
+  font-family: var(--yd-font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.85rem;
+  color: var(--yd-text);
+  overflow-wrap: anywhere;
+}
+
+.yd-holding__price {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
+}
+
+.yd-holding__price-value {
+  font-family: var(--yd-font-mono);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: var(--yd-text);
+  white-space: nowrap;
+}
+
+.yd-holding__asof {
+  font-size: 0.72rem;
+  color: var(--yd-text-muted);
+  white-space: nowrap;
+}
+
+/* A stale price is COUNTED. The rule marks its age, not a failure — the
+   warning colour on a thin rule, never the negative colour and never on the
+   figure itself. */
+.yd-holding__stale {
+  padding: 1px var(--yd-space-2xs);
+  border-left: 2px solid var(--yd-warning);
+  font-size: 0.72rem;
+  line-height: 1.4;
+  color: var(--yd-text);
+  text-align: right;
+  max-width: 22ch;
+}
+
+/* NOT a price of zero. There is no figure here at all, because none was
+   fetched — the hatching says so, and so does the word. */
+.yd-holding__absent-band {
+  display: inline-block;
+  padding: var(--yd-space-2xs) var(--yd-space-xs);
+  border-radius: var(--yd-radius-sm);
+  border: 1px dashed var(--yd-border-control);
+  background: repeating-linear-gradient(
+    135deg,
+    transparent,
+    transparent 5px,
+    color-mix(in srgb, var(--yd-text) 8%, transparent) 5px,
+    color-mix(in srgb, var(--yd-text) 8%, transparent) 10px
+  );
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: var(--yd-text-muted);
+  white-space: nowrap;
+}
+
+.yd-holding__muted {
+  color: var(--yd-text-muted);
+  font-size: 0.8rem;
+}
+
+/* -- The holdings table, below 1200px --------------------------------------
+
+   **A six-column table does not survive a narrow viewport by scrolling.** It
+   scrolled correctly — inside its own box, with no body overflow — and the
+   browser gate passed every assertion. What the 375px screenshot showed was a
+   reader seeing "Instrument / Classe / Quan…" and NOT ONE FIGURE: the
+   quantity, the price, the value and the gain were all off-screen behind a
+   horizontal scroll there is no affordance to discover. At 768 it was worse
+   in a subtler way — the last column was clipped mid-value, which reads as
+   broken rather than as scrollable.
+
+   So below 1200px each row becomes a CARD instead: one holding per block,
+   every figure on its own labelled line. Same DOM, same single source of
+   truth — only the shape changes.
+
+   1200px, not 768, because that is where the table genuinely FITS: it needs
+   about 44rem of content width, and a full-width bento cell only clears that
+   once the viewport passes the grid's own `lg` breakpoint. Choosing the
+   breakpoint from what the content measures, rather than from the nearest
+   round number, is the difference between the table appearing and the table
+   being readable.
+
+   The labels come from each cell's `data-label`, written in the TSX beside
+   the value, so the French is never stranded in a stylesheet. The explicit
+   `role` attributes on the table elements keep the table semantics for
+   assistive technology, which `display: block` would otherwise strip. */
+@media (max-width: 1199px) {
+  .yd-holdings__scroller {
+    overflow-x: visible;
+  }
+
+  .yd-holdings__table {
+    /* The min-width is what forced the scroll in the first place. */
+    min-width: 0;
+    display: block;
+  }
+
+  .yd-holdings__table thead {
+    /* The column names are repeated on every cell below, so the header row
+       would be the same words a second time. Hidden visually AND from the
+       accessibility tree, because the per-cell labels replace it wholesale. */
+    display: none;
+  }
+
+  .yd-holdings__table tbody {
+    display: flex;
+    flex-direction: column;
+    gap: var(--yd-space-sm);
+  }
+
+  .yd-holding {
+    display: flex;
+    flex-direction: column;
+    gap: var(--yd-space-2xs);
+    padding: var(--yd-space-sm) var(--yd-space-md);
+    border: 1px solid var(--yd-border);
+    border-radius: var(--yd-radius-sm);
+    background: var(--yd-surface);
+  }
+
+  .yd-holding > th,
+  .yd-holding > td {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--yd-space-sm);
+    padding: 0;
+    /* The row-level border-bottom would draw a line under every LINE of the
+       card, not under the card. */
+    border-bottom: none;
+    text-align: left;
+    min-width: 0;
+  }
+
+  .yd-holding > td::before {
+    content: attr(data-label);
+    flex: 0 0 auto;
+    font-size: 0.74rem;
+    color: var(--yd-text-muted);
+  }
+
+  /* The instrument block is the card's heading, not a labelled line. */
+  .yd-holding > th.yd-holding__id {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start;
+    padding-bottom: var(--yd-space-2xs);
+    margin-bottom: var(--yd-space-2xs);
+    border-bottom: 1px solid var(--yd-border);
+  }
+
+  /* Right-aligned figures in a two-column line read better hard against the
+     label's opposite edge than centred in the leftover space. */
+  .yd-holdings__num {
+    text-align: right;
+  }
+
+  .yd-holding__price {
+    align-items: flex-end;
+  }
+
+  .yd-holding__reason {
+    max-width: none;
+  }
+
+  /* The hatched ground belongs to the whole card here, not to each line. */
+  .yd-holding--unvalued > th,
+  .yd-holding--unvalued > td {
+    background: none;
+  }
+
+  .yd-holding--unvalued {
+    background: repeating-linear-gradient(
+      135deg,
+      transparent,
+      transparent 6px,
+      color-mix(in srgb, var(--yd-text) 5%, transparent) 6px,
+      color-mix(in srgb, var(--yd-text) 5%, transparent) 12px
+    );
+    border-style: dashed;
+  }
+
+  .yd-holding:hover > th,
+  .yd-holding:hover > td {
+    background: none;
+  }
+}
+
+.yd-holding__value,
+.yd-holding__gain {
+  font-family: var(--yd-font-mono);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: var(--yd-text);
+  white-space: nowrap;
+}
+
+.yd-holding__gain--positive {
+  color: var(--yd-positive);
+}
+
+.yd-holding__gain--negative {
+  color: var(--yd-negative-text);
+}
+
+/* -- Market connections ---------------------------------------------------- */
+
+.yd-market {
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-sm);
+  min-width: 0;
+}
+
+.yd-providers {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--yd-space-xs);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+@media (min-width: 768px) {
+  .yd-providers {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.yd-provider {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+  gap: 2px;
+  padding: var(--yd-space-xs) var(--yd-space-sm);
+  border-radius: var(--yd-radius-sm);
+  border: 1px solid var(--yd-border);
+  background: var(--yd-surface);
+  min-width: 0;
+}
+
+/* A provider with no key steps back onto a dashed border and a transparent
+   ground — the same two-channel treatment an unvalued row gets, so "no key"
+   is never read as "configured but idle". */
+.yd-provider--unset {
+  background: transparent;
+  border-style: dashed;
+}
+
+.yd-provider__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--yd-space-2xs);
+  min-width: 0;
+}
+
+.yd-provider__name {
+  margin: 0;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--yd-text);
+}
+
+.yd-provider__state {
+  font-size: 0.72rem;
+  font-weight: 600;
+  white-space: nowrap;
+  color: var(--yd-text-muted);
+}
+
+.yd-provider__state--set {
+  color: var(--yd-positive);
+}
+
+.yd-provider__role,
+.yd-provider__quota {
+  margin: 0;
+  font-size: 0.74rem;
+  line-height: 1.45;
+  color: var(--yd-text-muted);
+}
+
+/* -- Weights --------------------------------------------------------------- */
+
+.yd-weights {
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-sm);
+  min-width: 0;
+}
+
+.yd-weights__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-sm);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.yd-weight {
+  /* A GRID, not a flex column: the track is sized as a percentage of its row,
+     and a percentage width inside an auto-width flex column resolves against
+     nothing and renders at ZERO. */
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+  gap: var(--yd-space-2xs);
+  min-width: 0;
+}
+
+.yd-weight__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--yd-space-xs);
+}
+
+.yd-weight__label {
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: var(--yd-text);
+}
+
+.yd-weight__percent,
+.yd-weight__amount {
+  font-family: var(--yd-font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.8rem;
+  color: var(--yd-text-muted);
+  white-space: nowrap;
+}
+
+.yd-weight__track {
+  height: 10px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--yd-text) 12%, transparent);
+  /* The outline is what says "this is a scale" — without it a share rounding
+     to nothing would draw no fill and the row would show nothing at all. */
+  border: 1px solid var(--yd-border-strong);
+  overflow: hidden;
+  min-width: 0;
+}
+
+.yd-weight__fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--yd-accent-strong), var(--yd-accent));
+  transition: width var(--yd-motion-base) var(--yd-ease);
+}
+
+/* -- Allocation drift ------------------------------------------------------ */
+
+.yd-alloc {
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-md);
+  min-width: 0;
+}
+
+.yd-alloc__basis {
+  margin: 0;
+  max-width: 96ch;
+  font-size: 0.84rem;
+  line-height: 1.55;
+  color: var(--yd-text);
+}
+
+.yd-alloc__section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-xs);
+  min-width: 0;
+}
+
+.yd-alloc__section-title {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--yd-text);
+}
+
+.yd-drifts {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--yd-space-md);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+@media (min-width: 1200px) {
+  .yd-drifts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.yd-drift {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+  gap: var(--yd-space-2xs);
+  padding: var(--yd-space-sm) var(--yd-space-md);
+  border-radius: var(--yd-radius-sm);
+  border: 1px solid var(--yd-border);
+  background: var(--yd-surface);
+  min-width: 0;
+}
+
+.yd-drift__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--yd-space-xs);
+  min-width: 0;
+}
+
+.yd-drift__label {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--yd-text);
+}
+
+.yd-drift__figures {
+  display: flex;
+  align-items: baseline;
+  gap: var(--yd-space-xs);
+  white-space: nowrap;
+}
+
+.yd-drift__current {
+  font-family: var(--yd-font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--yd-text);
+}
+
+.yd-drift__target {
+  font-family: var(--yd-font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.74rem;
+  color: var(--yd-text-muted);
+}
+
+.yd-drift__track {
+  position: relative;
+  height: 12px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--yd-text) 12%, transparent);
+  border: 1px solid var(--yd-border-strong);
+  min-width: 0;
+}
+
+.yd-drift__fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--yd-accent-strong), var(--yd-accent));
+  transition: width var(--yd-motion-base) var(--yd-ease);
+}
+
+/* The target, ON the same track as the current share. A separate bar elsewhere
+   would leave the reader measuring the distance between two rows by eye, which
+   is the one thing this component exists to show. */
+.yd-drift__target-mark {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  width: 2px;
+  margin-left: -1px;
+  border-radius: 1px;
+  background: var(--yd-text);
+}
+
+.yd-drift__gap {
+  margin: 0;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: var(--yd-text-muted);
+  overflow-wrap: anywhere;
+}
+
+.yd-trades,
+.yd-refusals {
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-xs);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.yd-trade {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--yd-space-2xs) var(--yd-space-sm);
+  padding: var(--yd-space-xs) var(--yd-space-sm);
+  border-radius: var(--yd-radius-sm);
+  border: 1px solid var(--yd-border);
+  background: var(--yd-surface);
+  min-width: 0;
+}
+
+.yd-trade__action {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--yd-text);
+}
+
+.yd-trade--buy .yd-trade__action {
+  color: var(--yd-positive);
+}
+
+.yd-trade--sell .yd-trade__action {
+  color: var(--yd-warning);
+}
+
+.yd-trade__quantity,
+.yd-trade__value {
+  font-family: var(--yd-font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.84rem;
+  color: var(--yd-text);
+  overflow-wrap: anywhere;
+}
+
+.yd-trade__symbol {
+  font-family: var(--yd-font-mono);
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: var(--yd-text);
+}
+
+.yd-trade__value {
+  margin-left: auto;
+  color: var(--yd-text-muted);
+}
+
+/* -- Loading --------------------------------------------------------------- */
+
+/* Sized off the block each stands in for, so the cells are as tall before the
+   data lands as after and nothing on the page moves. */
+.yd-skeleton--patrimoine-title {
+  height: calc(0.95rem * 1.5);
+  width: 38%;
+}
+
+.yd-skeleton--patrimoine-card {
+  height: 200px;
+}
+
+.yd-skeleton--patrimoine-table {
+  height: 260px;
+}

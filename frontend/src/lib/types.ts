@@ -1343,3 +1343,176 @@ export interface Engagement {
   /** Everything ever proposed: `proposed`, then `accepted`, then `rejected`. */
   challenges: Challenge[];
 }
+
+
+// --- /patrimoine: market connections, valuation, allocation ----------------
+
+/** `market.quota` state for one provider. `limit`/`ceiling`/`remaining` are
+ *  `null` for a provider with no published limit (Frankfurter) — never a large
+ *  integer standing in for "unlimited". */
+export interface QuotaState {
+  used: number;
+  limit: number | null;
+  ceiling: number | null;
+  remaining: number | null;
+  /** ISO datetime, or null when the provider has no window at all. */
+  reset_at: string | null;
+  can_call: boolean;
+}
+
+export type MarketProvider =
+  | "finnhub"
+  | "alpha_vantage"
+  | "coingecko"
+  | "frankfurter"
+  | "exchangerate_api";
+
+/** `GET /api/connections`. **Carries no key and has nowhere to put one** —
+ *  `configured` is the only thing said about whether one exists. */
+export interface Connection {
+  provider: MarketProvider;
+  configured: boolean;
+  requires_key: boolean;
+  last_used_at: string | null;
+  quota: QuotaState;
+}
+
+/** A price actually resolved for a position, in the INSTRUMENT'S own currency.
+ *
+ *  `is_stale` is the whole reason this object exists rather than a bare number:
+ *  a stale price is a real answer that still counts toward every total, and it
+ *  travels with `fetched_at` so the screen can say how old it is. A price that
+ *  could not be fetched at all is `null` here and carries its cause on the
+ *  position instead — a different state with a different remedy. */
+export interface PriceQuote {
+  price_cents: number;
+  /** ISO date the price is AS OF (the trading day), not when it was fetched. */
+  as_of: string;
+  /** ISO datetime the value was actually retrieved from the provider. */
+  fetched_at: string;
+  source: string;
+  is_stale: boolean;
+}
+
+export interface PositionValuation {
+  position_id: number;
+  account_id: number;
+  symbol: string;
+  name: string;
+  asset_class: string;
+  /** The instrument's OWN trading currency, not the reporting one. */
+  currency: string;
+  /** `engines.quantity.Quantity` as text at its canonical 18-decimal scale.
+   *  **Not money.** Render it through `formatQuantity`, never `formatCents`. */
+  quantity: string;
+  cost_basis_cents: number;
+  /** `null` exactly when no price could be fetched. */
+  price: PriceQuote | null;
+  /** French, from `market/client.py`'s five causes. Set exactly when `price`
+   *  is null. Printed verbatim — the five name five different remedies. */
+  price_unavailable_reason: string | null;
+  /** `null` means NOT VALUED — never zero. Native currency. */
+  market_value_cents: number | null;
+  unrealised_gain_cents: number | null;
+  /** French. Set when a conversion was needed and no rate was available: a
+   *  cause distinct from a missing price, because the price IS known. */
+  fx_unavailable_reason: string | null;
+  market_value_reporting_cents: number | null;
+  cost_basis_reporting_cents: number | null;
+  unrealised_gain_reporting_cents: number | null;
+}
+
+/** A share of the portfolio, over WHAT COULD BE VALUED — not over everything.
+ *  `weight` is a ratio in 0..1, and 0 when nothing could be valued at all. */
+export interface WeightedGroup {
+  key: string;
+  value_cents: number;
+  weight: number;
+}
+
+/**
+ * The portfolio total, bundled with its own completeness counts.
+ *
+ * The backend groups them into one object deliberately (`engines/portfolio.py`)
+ * so a screen cannot render `market_value_cents` without the counts sitting
+ * beside it. **Render both or neither.**
+ */
+export interface PortfolioTotal {
+  market_value_cents: number;
+  cost_basis_cents: number;
+  unrealised_gain_cents: number;
+  positions_total: number;
+  positions_valued: number;
+  positions_missing_price: number;
+  positions_missing_fx: number;
+}
+
+export interface PortfolioValuation {
+  reporting_currency: string;
+  positions: PositionValuation[];
+  total: PortfolioTotal;
+  weight_by_instrument: WeightedGroup[];
+  weight_by_asset_class: WeightedGroup[];
+  weight_by_currency: WeightedGroup[];
+}
+
+export interface AllocationTarget {
+  id: number;
+  asset_class: string;
+  /** Basis points — 6 000 is 60,00 %. Format with `formatRateBps`. */
+  target_bps: number;
+}
+
+export interface AssetClassDrift {
+  asset_class: string;
+  target_bps: number;
+  current_bps: number;
+  current_value_cents: number;
+  target_value_cents: number;
+  /** target − current. Positive means underweight (buy), negative overweight. */
+  drift_cents: number;
+  /** current − target. Positive means overweight. */
+  drift_bps: number;
+}
+
+export interface Trade {
+  symbol: string;
+  asset_class: string;
+  action: "buy" | "sell";
+  /** A QUANTITY as text, whole units when the instrument is not fractionable.
+   *  **Not money** — `formatQuantity`, never `formatCents`. */
+  quantity: string;
+  estimated_value_cents: number;
+}
+
+export interface TradeRefusal {
+  /** Empty when the refusal is about the asset class as a whole rather than
+   *  one instrument. */
+  symbol: string;
+  asset_class: string;
+  /** French, from the engine. Printed verbatim — a refusal is the answer, not
+   *  the absence of one. */
+  reason: string;
+}
+
+export interface AllocationReport {
+  /** Over holdings that could be valued, in the reporting currency. */
+  total_value_cents: number;
+  holdings_total: number;
+  holdings_valued: number;
+  drifts: AssetClassDrift[];
+  trades: Trade[];
+  refusals: TradeRefusal[];
+}
+
+/** `GET /api/portfolio/allocation`. `report` and `unavailable_reason` are
+ *  mutually exclusive and exactly one is always set. */
+export interface PortfolioAllocation {
+  reporting_currency: string;
+  targets: AllocationTarget[];
+  report: AllocationReport | null;
+  /** French. Set exactly when `report` is null — a household that declared no
+   *  target has no drift, and a report of zeroes would be a measurement
+   *  nobody made. */
+  unavailable_reason: string | null;
+}

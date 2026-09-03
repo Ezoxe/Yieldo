@@ -1,4 +1,5 @@
 from app.models.account import ACCOUNT_KINDS, Account
+from app.models.alert_settings import AlertSettings
 from app.models.allocation_target import AllocationTarget
 from app.models.api_key import MARKET_PROVIDERS, ApiKey
 from app.models.category import CATEGORY_KINDS, Category
@@ -25,7 +26,8 @@ __all__ = [
     "ACCOUNT_KINDS", "CATEGORY_KINDS", "CHALLENGE_STATES", "DEBT_KINDS",
     "INSTRUMENT_ASSET_CLASSES", "INVESTMENT_ACCOUNT_KINDS", "MARKET_PROVIDERS", "RULE_ORIGINS",
     "RULE_PRIORITIES", "SCENARIO_KINDS", "TRANSACTION_CATEGORY_SOURCES",
-    "Account", "AllocationTarget", "ApiKey", "Category", "CategoryRule", "Challenge",
+    "Account", "AlertSettings", "AllocationTarget", "ApiKey", "Category", "CategoryRule",
+    "Challenge",
     "ChatMessage", "ColumnProfile", "Debt",
     "Goal", "HealthSnapshot", "ImportBatch", "Instrument", "InvestmentAccount", "LlmSettings",
     "Lot", "Position", "PriceIndexPoint", "PricePoint", "QuotaWindow", "Scenario", "Transaction",

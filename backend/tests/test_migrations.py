@@ -886,12 +886,22 @@ def test_the_llm_settings_migration_matches_base_metadata_exactly(migration_db):
 def test_the_llm_settings_migration_keeps_one_head(migration_db):
     """`heads` and `head` must be the same single revision -- two heads is a
     database Alembic cannot upgrade without a merge, and nothing else in this
-    suite would notice."""
+    suite would notice.
+
+    Deliberately does NOT name the head revision: this file's own
+    `test_the_alert_settings_migration_is_the_single_head` owns that
+    assertion, and pinning it here too meant every new migration edited two
+    tests instead of one -- exactly the "revision string copied into this
+    file" staleness `test_create_schema_stamps_exactly_the_single_head_alembic_reports`
+    is written to avoid.
+    """
     from alembic.script import ScriptDirectory
 
     script = ScriptDirectory.from_config(migration_db.config)
     assert len(script.get_heads()) == 1
-    assert script.get_current_head() == LLM_REVISION
+    # The llm revision is still ON the path to that head, even though it is no
+    # longer the head itself.
+    assert LLM_REVISION in {rev.revision for rev in script.walk_revisions()}
 
 
 def test_the_llm_settings_migration_adds_its_table_to_a_populated_database(migration_db):
@@ -986,6 +996,126 @@ def test_the_llm_settings_migration_rolls_back_cleanly(migration_db):
         for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()
     }
     assert "llm_settings" in tables
+    conn.close()
+
+
+# --- The alert-settings migration (phase 4, Task 10) ------------------------
+
+ALERT_REVISION = "9c17b3f4d2ae"
+ALERT_PREVIOUS = "5458e8e862b1"
+
+
+def test_the_alert_settings_migration_matches_base_metadata_exactly(migration_db):
+    """The hand-written DDL must agree, column for column and index for index,
+    with what `Base.metadata.create_all` derives from
+    `models/alert_settings.py`."""
+    command.upgrade(migration_db.config, ALERT_PREVIOUS)
+    command.upgrade(migration_db.config, ALERT_REVISION)
+
+    conn = _connect(migration_db)
+    migrated_columns = _table_columns(conn, "alert_settings")
+    migrated_indexes = _index_names(conn, "alert_settings")
+    conn.close()
+
+    reference_columns, reference_indexes = _reference_schema("alert_settings")
+    assert migrated_columns == reference_columns
+    assert migrated_indexes == reference_indexes
+
+
+def test_the_alert_settings_migration_is_the_single_head(migration_db):
+    from alembic.script import ScriptDirectory
+
+    script = ScriptDirectory.from_config(migration_db.config)
+    assert len(script.get_heads()) == 1
+    assert script.get_current_head() == ALERT_REVISION
+
+
+def test_the_balance_floor_column_accepts_null_and_keeps_it_distinct_from_zero(
+    migration_db,
+):
+    """The whole reason this table exists as a nullable column.
+
+    `NULL` means "no floor has ever been stored" and `0` means "watch for the
+    balance going below zero" -- two different instructions with two different
+    consequences, and a migration that defaulted the column to 0 would turn
+    every existing household into the second without asking. Proven by
+    writing both and reading them back apart, on a database built at the
+    PREVIOUS revision with users already in it.
+    """
+    command.upgrade(migration_db.config, ALERT_PREVIOUS)
+    conn = _connect(migration_db)
+    conn.execute(
+        "INSERT INTO users (id, email, name, password_hash, role, is_active, created_at) "
+        "VALUES (1, 'a@b.fr', 'Max', 'x', 'user', 1, '2026-01-01T00:00:00'), "
+        "(2, 'c@d.fr', 'Alice', 'x', 'user', 1, '2026-01-01T00:00:00')"
+    )
+    conn.commit()
+    conn.close()
+
+    command.upgrade(migration_db.config, ALERT_REVISION)
+
+    conn = _connect(migration_db)
+    conn.execute(
+        "INSERT INTO alert_settings (user_id, balance_floor_cents, created_at, updated_at) "
+        "VALUES (1, NULL, '2026-09-03T00:00:00', '2026-09-03T00:00:00'), "
+        "(2, 0, '2026-09-03T00:00:00', '2026-09-03T00:00:00')"
+    )
+    conn.commit()
+    rows = dict(
+        conn.execute("SELECT user_id, balance_floor_cents FROM alert_settings").fetchall()
+    )
+    assert rows == {1: None, 2: 0}
+
+    # One row per user, and a delete takes only its own.
+    with pytest.raises(sqlite3.IntegrityError):
+        conn.execute(
+            "INSERT INTO alert_settings (user_id, balance_floor_cents, created_at, "
+            "updated_at) VALUES (1, -50000, '2026-09-03T00:00:00', '2026-09-03T00:00:00')"
+        )
+    conn.execute("DELETE FROM users WHERE id = 1")
+    conn.commit()
+    assert conn.execute("SELECT user_id FROM alert_settings").fetchall() == [(2,)]
+    conn.close()
+
+
+def test_the_alert_settings_migration_rolls_back_cleanly(migration_db):
+    command.upgrade(migration_db.config, ALERT_REVISION)
+
+    conn = _connect(migration_db)
+    conn.execute(
+        "INSERT INTO users (id, email, name, password_hash, role, is_active, created_at) "
+        "VALUES (1, 'a@b.fr', 'Max', 'x', 'user', 1, '2026-01-01T00:00:00')"
+    )
+    conn.execute(
+        "INSERT INTO alert_settings (user_id, balance_floor_cents, created_at, updated_at) "
+        "VALUES (1, -50000, '2026-09-03T00:00:00', '2026-09-03T00:00:00')"
+    )
+    conn.commit()
+    conn.close()
+
+    command.downgrade(migration_db.config, ALERT_PREVIOUS)
+
+    conn = _connect(migration_db)
+    tables = {
+        row[0]
+        for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()
+    }
+    indexes = {
+        row[0]
+        for row in conn.execute("SELECT name FROM sqlite_master WHERE type='index'").fetchall()
+    }
+    assert "alert_settings" not in tables
+    assert not any(name.startswith("ix_alert_settings") for name in indexes)
+    assert conn.execute("SELECT COUNT(*) FROM users").fetchone()[0] == 1
+    conn.close()
+
+    command.upgrade(migration_db.config, "head")
+    conn = _connect(migration_db)
+    tables = {
+        row[0]
+        for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()
+    }
+    assert "alert_settings" in tables
     conn.close()
 
 

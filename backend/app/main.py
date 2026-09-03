@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 
 from app.api import accounts as account_routes
+from app.api import alerts as alert_routes
 from app.api import analysis as analysis_routes
 from app.api import analytics as analytics_routes
 from app.api import assistant_llm as assistant_llm_routes
@@ -88,6 +89,7 @@ api.include_router(chat_routes.router)
 api.include_router(export_routes.router)
 api.include_router(assistant_llm_routes.router)
 api.include_router(report_routes.router)
+api.include_router(alert_routes.router)
 
 app.include_router(api)
 

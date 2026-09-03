@@ -1,7 +1,7 @@
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, useLocation } from "react-router";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { ThemeProvider } from "../../app/ThemeProvider";
 import { api } from "../../lib/api";
@@ -44,26 +44,20 @@ function renderPage(entry = "/projection") {
   );
 }
 
-beforeEach(() => {
-  // jsdom has no canvas: ECharts is never asked to paint in these tests, and
-  // the chart component's own contract is covered by ProjectionFanChart.test.
-  vi.stubGlobal("ResizeObserver", undefined);
-  Object.defineProperty(window, "matchMedia", {
-    writable: true,
-    value: vi.fn().mockImplementation((query: string) => ({
-      matches: false,
-      media: query,
-      addEventListener: vi.fn(),
-      removeEventListener: vi.fn(),
-      addListener: vi.fn(),
-      removeListener: vi.fn(),
-    })),
-  });
-});
+// `matchMedia` is stubbed once, globally, in `src/test-setup.ts` -- NOT here.
+// This file used to redefine it per-test with a bare `vi.fn()`, which
+// `vi.restoreAllMocks()` below resets to a no-op returning `undefined`
+// between tests. Under load, a passive effect from `useReducedMotion` could
+// still be flushing when that reset had already run, throwing
+// `TypeError: Cannot read properties of undefined (reading 'addEventListener')`
+// on whichever test happened to be executing -- intermittent, and clean on a
+// re-run. The global stub is a plain function no mock lifecycle ever resets,
+// which is what actually closes the race; jsdom genuinely has no
+// `ResizeObserver` of its own, so `Chart.tsx`'s `typeof ResizeObserver !==
+// "undefined"` guard is already false without stubbing it here too.
 
 afterEach(() => {
   vi.restoreAllMocks();
-  vi.unstubAllGlobals();
 });
 
 describe("the seed", () => {

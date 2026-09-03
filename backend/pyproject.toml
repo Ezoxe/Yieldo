@@ -15,10 +15,11 @@ dependencies = [
     "cryptography>=44.0",
     "python-multipart>=0.0.20",
     "httpx>=0.28",
+    "fpdf2>=2.8",
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8.3", "pytest-cov>=6.0", "ruff>=0.9"]
+dev = ["pytest>=8.3", "pytest-cov>=6.0", "ruff>=0.9", "pypdf>=6.0"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

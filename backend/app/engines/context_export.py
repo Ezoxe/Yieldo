@@ -213,10 +213,41 @@ class ExportProjection:
 
 
 @dataclass(frozen=True)
+class ExportTaxAccount:
+    """One envelope's latent gain, taxed under the regime its own kind and
+    opening date select -- `regime_label` always carries the CGI article that
+    applied, never a bare rate with no rule attached. `unavailable_reason`
+    set means every figure above is `None`: a regime without a figure would
+    be as misleading as a figure without a regime."""
+
+    account_name: str
+    account_kind: str
+    regime_label: str | None
+    unrealised_gain_cents: int | None
+    income_tax_cents: int | None
+    social_levies_cents: int | None
+    total_tax_cents: int | None
+    net_gain_cents: int | None
+    unavailable_reason: str | None
+
+
+@dataclass(frozen=True)
 class ExportTax:
-    regime_label: str
-    gain_cents: int
-    tax_cents: int
+    """The household's own latent capital-gains tax, one row per envelope.
+
+    Never one merged figure: a PEA past five years, a CTO and an eight-year
+    assurance-vie owe three different amounts under three different regimes
+    on the same kind of gain, and a single total would name none of them --
+    exactly the shape `api.projection.TaxOut` already enforces, reused here
+    rather than re-derived.
+    """
+
+    accounts: list[ExportTaxAccount]
+    # Summed over the accounts that COULD be taxed; an envelope that refused
+    # (see `ExportTaxAccount.unavailable_reason`) contributes nothing to
+    # either total, so a partial bill is never presented as the whole one.
+    total_unrealised_gain_cents: int
+    total_tax_cents: int
 
 
 @dataclass(frozen=True)
@@ -685,14 +716,35 @@ def _section_projections(inputs: ExportInputs, render: _Render) -> list[str]:
 
 
 def _section_fiscalite(inputs: ExportInputs, render: _Render) -> list[str]:
+    """One row per envelope, each naming the regime -- with its CGI article --
+    that actually applied. A refused envelope keeps its own cause on its own
+    row rather than being dropped, which would understate the bill without
+    saying so; the module as a whole is absent only when there is genuinely
+    nothing to tax, and even then `inputs.tax_unavailable_reason` is the
+    engine's own refusal, never a pointer to another screen."""
     if inputs.tax is None:
         return [inputs.tax_unavailable_reason or
                 "Aucun calcul fiscal fourni et aucune cause n'a été indiquée."]
-    return [
-        f"- Régime : {inputs.tax.regime_label}",
-        f"- Plus-value latente : {render.amount(inputs.tax.gain_cents)}",
-        f"- Imposition estimée : {render.amount(inputs.tax.tax_cents)}",
+    tax = inputs.tax
+    lines = [
+        f"- Plus-value latente totale : {render.amount(tax.total_unrealised_gain_cents)}",
+        f"- Imposition totale estimée : {render.amount(tax.total_tax_cents)}",
+        "",
+        "| Enveloppe | Régime | Plus-value latente | Imposition | Net après impôt |",
+        "| --- | --- | --- | --- | --- |",
     ]
+    for account in tax.accounts:
+        name = render.account(account.account_name)
+        if account.unavailable_reason is not None:
+            lines.append(f"| {name} | Non calculable | {account.unavailable_reason} | — | — |")
+        else:
+            lines.append(
+                f"| {name} | {account.regime_label} | "
+                f"{render.amount(account.unrealised_gain_cents)} | "
+                f"{render.amount(account.total_tax_cents)} | "
+                f"{render.amount(account.net_gain_cents)} |"
+            )
+    return lines
 
 
 # --------------------------------------------------------------------------

@@ -7,6 +7,7 @@ for the wrong reason -- there would have been nothing to see either way.
 
 from datetime import date
 
+from app.engines.tax_fr import PEA_EXEMPTION_YEARS
 from app.models import Account, Transaction, User
 
 MODULES_ALL = [
@@ -59,6 +60,35 @@ def _scope(**overrides) -> dict:
     }
     body.update(overrides)
     return body
+
+
+# --- Portfolio helpers, the same three calls `test_projection_api.py` uses --
+# named `_investment_account` rather than `_account` because that name is
+# already the ledger-account helper above.
+
+
+def _investment_account(client, headers, name="CTO Boursorama", kind="cto", opened_on=None):
+    payload = {"name": name, "kind": kind}
+    if opened_on is not None:
+        payload["opened_on"] = opened_on
+    return client.post("/api/portfolio/accounts", headers=headers, json=payload).json()
+
+
+def _instrument(client, headers, symbol="EUR", asset_class="cash", currency="EUR"):
+    return client.post("/api/portfolio/instruments", headers=headers, json={
+        "symbol": symbol, "name": f"{symbol} test", "asset_class": asset_class,
+        "currency": currency, "is_fractionable": True}).json()
+
+
+def _holding(client, headers, account_id, symbol="EUR", asset_class="cash",
+             quantity="100", unit_cost_cents=50):
+    instrument = _instrument(client, headers, symbol=symbol, asset_class=asset_class)
+    position = client.post("/api/portfolio/positions", headers=headers, json={
+        "investment_account_id": account_id, "instrument_id": instrument["id"]}).json()
+    client.post("/api/portfolio/lots", headers=headers, json={
+        "position_id": position["id"], "quantity": quantity,
+        "unit_cost_cents": unit_cost_cents, "acquired_on": "2020-01-15"})
+    return position
 
 
 # --------------------------------------------------------------------------
@@ -291,3 +321,51 @@ def test_a_module_with_nothing_behind_it_says_so_rather_than_printing_nothing(cl
     assert "## Projections" in body["markdown"]
     assert "## Fiscalité" in body["markdown"]
     assert set(body["sections"]) == set(MODULES_ALL)
+    # The zero-positions refusal is the tax engine's OWN cause -- it names
+    # every regime this household holds no envelope for, and it is never a
+    # pointer sending the reader to another screen for the figure this one
+    # could not produce itself.
+    assert "PFU, barème, PEA, assurance-vie" in body["markdown"]
+    assert "écran Projection" not in body["markdown"]
+
+
+def test_fiscalite_runs_the_real_tax_engine_and_names_the_regime_and_article(client):
+    """A PEA past its five-year exemption: the same envelope, the same
+    engine call, and the same regime `/api/projection` would name -- proven
+    here by asserting the CGI article appears, not merely a euro figure."""
+    headers = _register(client, "fiscal-pea@example.fr")
+    opened = date.today().replace(year=date.today().year - PEA_EXEMPTION_YEARS - 1)
+    account = _investment_account(client, headers, name="PEA Boursorama", kind="pea",
+                                  opened_on=opened.isoformat())
+    # 100 units at 0,50 EUR, valued at par (cash instrument) for 1,00 EUR:
+    # a 50,00 EUR latent gain.
+    _holding(client, headers, account["id"], quantity="100", unit_cost_cents=50)
+
+    body = client.post("/api/export", headers=headers,
+                       json=_scope(modules=["fiscalite"])).json()
+    assert "PEA exonéré d'impôt sur le revenu" in body["markdown"]
+    assert "art. 157" in body["markdown"]
+    assert "PEA Boursorama" in body["markdown"]
+    assert "écran Projection" not in body["markdown"]
+
+
+def test_fiscalite_never_crosses_users(client):
+    """Isolation: the household's own PEA gain must never appear on someone
+    else's export. The other user's own read is asserted FIRST so a fixture
+    that silently wrote nothing could not make the isolation assertion pass
+    for free."""
+    mine = _register(client, "fiscal-mine@example.fr")
+    theirs = _register(client, "fiscal-theirs@example.fr")
+    opened = date.today().replace(year=date.today().year - PEA_EXEMPTION_YEARS - 1)
+    account = _investment_account(client, theirs, name="PEA de l'autre", kind="pea",
+                                  opened_on=opened.isoformat())
+    _holding(client, theirs, account["id"], quantity="100", unit_cost_cents=50)
+
+    theirs_body = client.post("/api/export", headers=theirs,
+                              json=_scope(modules=["fiscalite"])).json()
+    assert "PEA de l'autre" in theirs_body["markdown"]
+
+    mine_body = client.post("/api/export", headers=mine,
+                            json=_scope(modules=["fiscalite"])).json()
+    assert "PEA de l'autre" not in mine_body["markdown"]
+    assert "PFU, barème, PEA, assurance-vie" in mine_body["markdown"]

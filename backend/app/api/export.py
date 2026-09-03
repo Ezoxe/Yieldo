@@ -27,6 +27,14 @@ from app.api.common import LIQUID_ACCOUNT_KINDS, recurrence_points
 from app.api.goals import observed_months
 from app.api.history import user_history
 from app.api.portfolio import valuation_inputs
+
+# `_PortfolioGap` and `_tax_refusal` classify the SAME portfolio gap and word
+# the SAME French refusal `/api/projection` renders on its own tax panel --
+# imported rather than re-derived, so the two screens can never disagree
+# about which envelope refused or why. `_build_tax` is the engine call
+# itself: this router runs it over the identical per-lot inputs, never a
+# figure computed a second, slightly different way.
+from app.api.projection import _build_tax, _PortfolioGap, _tax_refusal
 from app.db import get_db
 from app.engines import portfolio as portfolio_engine
 from app.engines.capacity import measure_savings_capacity
@@ -42,6 +50,8 @@ from app.engines.context_export import (
     ExportProjection,
     ExportRecurrence,
     ExportScope,
+    ExportTax,
+    ExportTaxAccount,
     ExportTransaction,
     build_context_export,
     build_templates,
@@ -202,15 +212,18 @@ def _net_worth_cents(accounts: list[ExportAccount], portfolio_cents: int) -> int
     return liquid + portfolio_cents
 
 
-def _positions(db: Session, user: User) -> tuple[list[ExportPosition], int, int]:
-    """This user's positions, the total that could be valued, and how many
-    could not. The two counts travel with the figure, like everywhere else."""
+def _valuation(db: Session, user: User) -> portfolio_engine.PortfolioValuation:
+    """This user's portfolio, valued once -- the positions module, the net
+    worth figure and the fiscalité module all read from this SAME valuation,
+    the same reuse `/api/projection` and `/patrimoine` already share, so the
+    three can never disagree about what is held or what it is worth."""
     inputs = valuation_inputs(db, user, datetime.now(UTC),
                               portfolio_engine.DEFAULT_REPORTING_CURRENCY)
-    valuation = portfolio_engine.value_portfolio(
-        inputs, portfolio_engine.DEFAULT_REPORTING_CURRENCY
-    )
-    positions = [
+    return portfolio_engine.value_portfolio(inputs, portfolio_engine.DEFAULT_REPORTING_CURRENCY)
+
+
+def _positions(valuation: portfolio_engine.PortfolioValuation) -> list[ExportPosition]:
+    return [
         ExportPosition(
             symbol=item.symbol, name=item.name, asset_class=item.asset_class,
             quantity=item.quantity,
@@ -218,7 +231,50 @@ def _positions(db: Session, user: User) -> tuple[list[ExportPosition], int, int]
         )
         for item in valuation.positions
     ]
-    return positions, valuation.total.market_value_cents, valuation.total.positions_valued
+
+
+def _tax(
+    db: Session, user: User, valuation: portfolio_engine.PortfolioValuation, today: date
+) -> tuple[ExportTax | None, str | None]:
+    """The household's own latent capital-gains tax, run through the exact
+    engine call `/api/projection` runs (`_build_tax`, over the SAME per-lot
+    valuation) and classified through the SAME `_PortfolioGap` -- so a
+    household that refuses on `/projection` refuses here for the identical
+    reason, never a softer or a differently-worded one.
+
+    No marginal rate travels through an export scope, so only the regime
+    that applies with NO election at all -- PFU, the PEA exemption past five
+    years, the assurance-vie abatement past eight -- is ever named; the
+    barème alternative `/projection` prices beside it is that screen's own
+    feature, not duplicated here without the input it needs.
+
+    `None` only when there is genuinely nothing to tax -- the engine's own
+    refusal, worded once in `api.projection._tax_refusal`, never a sentence
+    pointing the reader at another screen for the figure this one could not
+    produce itself.
+    """
+    gap = _PortfolioGap.classify(valuation.total)
+    if gap is not None:
+        return None, _tax_refusal(gap, valuation.total)
+
+    tax_out = _build_tax(db, user, valuation, today, marginal_rate_bps=None, joint_taxation=False)
+    accounts = [
+        ExportTaxAccount(
+            account_name=row.account_name, account_kind=row.account_kind,
+            regime_label=row.regime_label,
+            unrealised_gain_cents=row.unrealised_gain_cents,
+            income_tax_cents=row.income_tax_cents,
+            social_levies_cents=row.social_levies_cents,
+            total_tax_cents=row.total_tax_cents, net_gain_cents=row.net_gain_cents,
+            unavailable_reason=row.unavailable_reason,
+        )
+        for row in tax_out.accounts
+    ]
+    return ExportTax(
+        accounts=accounts,
+        total_unrealised_gain_cents=tax_out.total_unrealised_gain_cents,
+        total_tax_cents=tax_out.total_tax_cents,
+    ), None
 
 
 def _projection(
@@ -258,11 +314,15 @@ def _projection(
 
 def _build_inputs(db: Session, user: User, today: date) -> ExportInputs:
     accounts = _account_balances(db, user.id)
-    positions, portfolio_cents, positions_valued = _positions(db, user)
+    valuation = _valuation(db, user)
+    positions = _positions(valuation)
+    portfolio_cents = valuation.total.market_value_cents
+    positions_valued = valuation.total.positions_valued
     months = observed_months(db, user.id)
     projection, projection_reason = _projection(
         portfolio_cents, positions_valued, months, today
     )
+    tax, tax_reason = _tax(db, user, valuation, today)
 
     history = user_history(db, user.id)
     anchor = today if history is None else history.date_to
@@ -308,18 +368,8 @@ def _build_inputs(db: Session, user: User, today: date) -> ExportInputs:
         net_worth_cents=_net_worth_cents(accounts, portfolio_cents),
         projection=projection,
         projection_unavailable_reason=projection_reason,
-        # Yieldo prices a cession from the portfolio's own envelopes, which
-        # `/api/projection` computes. Nothing is duplicated here: when there
-        # is no valued position there is no gain to tax, and that is the whole
-        # of what this export can say without re-running that route's engine.
-        tax=None,
-        tax_unavailable_reason=(
-            "Aucune plus-value latente à imposer : aucune position valorisée. "
-            "Le détail par enveloppe est sur l'écran Projection."
-            if positions_valued == 0
-            else "Fiscalité non incluse dans l'export : le détail par enveloppe, avec "
-                 "son régime et son article du CGI, est sur l'écran Projection."
-        ),
+        tax=tax,
+        tax_unavailable_reason=tax_reason,
     )
 
 

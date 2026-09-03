@@ -21,6 +21,8 @@ from app.engines.context_export import (
     ExportPosition,
     ExportRecurrence,
     ExportScope,
+    ExportTax,
+    ExportTaxAccount,
     ExportTransaction,
     build_context_export,
     estimate_tokens,
@@ -188,6 +190,103 @@ def test_every_module_renders_when_every_module_is_asked_for():
     assert "Aucune capacité d'épargne mesurable." in document.markdown
     assert "Aucune plus-value latente à imposer." in document.markdown
     assert set(document.sections) == set(MODULES)
+
+
+# --------------------------------------------------------------------------
+# Fiscalité -- one row per envelope, each naming its own regime.
+# --------------------------------------------------------------------------
+
+
+def _tax(*accounts: ExportTaxAccount) -> ExportTax:
+    taxed = [a for a in accounts if a.unavailable_reason is None]
+    return ExportTax(
+        accounts=list(accounts),
+        total_unrealised_gain_cents=sum(a.unrealised_gain_cents or 0 for a in taxed),
+        total_tax_cents=sum(a.total_tax_cents or 0 for a in taxed),
+    )
+
+
+def test_fiscalite_names_the_regime_and_its_cgi_article_per_envelope():
+    """Two envelopes, two different regimes -- a single merged figure could
+    not name either. Each row must carry the CGI article its own regime
+    applied, not just a rate with no rule attached."""
+    tax = _tax(
+        ExportTaxAccount(
+            account_name="PEA Boursorama", account_kind="pea",
+            regime_label="PEA exonéré d'impôt sur le revenu (art. 157, 5° bis CGI) — "
+                          "17,2 % PS dus",
+            unrealised_gain_cents=50_000, income_tax_cents=0, social_levies_cents=8_600,
+            total_tax_cents=8_600, net_gain_cents=41_400, unavailable_reason=None,
+        ),
+        ExportTaxAccount(
+            account_name="CTO Boursorama", account_kind="cto",
+            regime_label="PFU — prélèvement forfaitaire unique, 30 % (12,8 % IR + 17,2 % PS)",
+            unrealised_gain_cents=10_000, income_tax_cents=1_280, social_levies_cents=1_720,
+            total_tax_cents=3_000, net_gain_cents=7_000, unavailable_reason=None,
+        ),
+    )
+    document = _build(_scope(modules=("fiscalite",)),
+                      _inputs(tax=tax, tax_unavailable_reason=None))
+    assert "art. 157, 5° bis CGI" in document.markdown
+    assert "12,8 % IR" in document.markdown
+    assert "PEA Boursorama" in document.markdown
+    assert "CTO Boursorama" in document.markdown
+    # The two regimes are never collapsed into one merged total on the row.
+    assert "86,00 €" in document.markdown
+    assert "30,00 €" in document.markdown
+
+
+def test_fiscalite_keeps_one_envelopes_refusal_from_hiding_the_others():
+    tax = _tax(
+        ExportTaxAccount(
+            account_name="PER Boursorama", account_kind="per", regime_label=None,
+            unrealised_gain_cents=None, income_tax_cents=None, social_levies_cents=None,
+            total_tax_cents=None, net_gain_cents=None,
+            unavailable_reason="Yieldo ne calcule pas la fiscalité d'un PER.",
+        ),
+        ExportTaxAccount(
+            account_name="CTO Boursorama", account_kind="cto",
+            regime_label="PFU — prélèvement forfaitaire unique, 30 % (12,8 % IR + 17,2 % PS)",
+            unrealised_gain_cents=10_000, income_tax_cents=1_280, social_levies_cents=1_720,
+            total_tax_cents=3_000, net_gain_cents=7_000, unavailable_reason=None,
+        ),
+    )
+    document = _build(_scope(modules=("fiscalite",)),
+                      _inputs(tax=tax, tax_unavailable_reason=None))
+    assert "Yieldo ne calcule pas la fiscalité d'un PER." in document.markdown
+    assert "CTO Boursorama" in document.markdown
+    assert "12,8 % IR" in document.markdown
+
+
+def test_fiscalite_absence_is_the_engines_own_refusal_not_a_pointer_elsewhere():
+    reason = (
+        "Aucune plus-value latente à imposer : vous ne détenez aucune position. "
+        "La fiscalité française (PFU, barème, PEA, assurance-vie) porte sur un gain."
+    )
+    document = _build(_scope(modules=("fiscalite",)),
+                      _inputs(tax=None, tax_unavailable_reason=reason))
+    assert reason in document.markdown
+    assert "écran Projection" not in document.markdown
+
+
+def test_anonymisation_masks_the_envelope_name_and_the_tax_amounts():
+    tax = _tax(
+        ExportTaxAccount(
+            account_name="PEA Boursorama", account_kind="pea",
+            regime_label="PEA exonéré d'impôt sur le revenu (art. 157, 5° bis CGI) — "
+                          "17,2 % PS dus",
+            unrealised_gain_cents=50_000, income_tax_cents=0, social_levies_cents=8_600,
+            total_tax_cents=8_600, net_gain_cents=41_400, unavailable_reason=None,
+        ),
+    )
+    document = _build(_scope(modules=("fiscalite",), anonymise=True),
+                      _inputs(tax=tax, tax_unavailable_reason=None))
+    assert "PEA Boursorama" not in document.markdown
+    assert "500,00" not in document.markdown
+    assert "86,00" not in document.markdown
+    # The regime's own legal rate is a rule, not a household figure -- it
+    # survives anonymisation exactly like a debt's interest rate does.
+    assert "art. 157, 5° bis CGI" in document.markdown
 
 
 # --------------------------------------------------------------------------

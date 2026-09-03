@@ -35,8 +35,8 @@ from datetime import date
 from decimal import ROUND_HALF_UP, Decimal
 from typing import Literal
 
-from app.engines.aggregate import bucket_key
-from app.engines.period import resolve_range
+from app.engines.aggregate import bucket_bounds, bucket_key
+from app.engines.period import month_end, resolve_range
 
 Granularity = Literal["annual", "monthly", "transaction"]
 
@@ -852,3 +852,149 @@ def _window_warning(estimated: int, target: TargetModel | None) -> str | None:
 
 def _fmt_int(value: int) -> str:
     return f"{value:,}".replace(",", " ")
+
+
+# --------------------------------------------------------------------------
+# The five ready-made templates. Design §8.2.
+# --------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class ExportTemplate:
+    """A pre-selected scope plus the question to put to the model.
+
+    The question travels WITH the scope on purpose: a document assembled for
+    a tax review and a document assembled for a budget diagnosis are not the
+    same document, and handing a model the wrong question over the right data
+    is how it starts inventing the parts it was not given.
+
+    `account_ids` and `category_ids` are `None` on every template -- a preset
+    that silently dropped one of the household's accounts would answer a
+    narrower question than the one it names. The reader narrows them.
+    """
+
+    key: str
+    label: str
+    summary: str
+    question: str
+    scope: ExportScope
+
+
+def _last_complete_year(today: date) -> tuple[date, date]:
+    """The last year that has actually finished. A "bilan annuel" of a year
+    still running is a bilan of however many months have elapsed, which is not
+    what the word means."""
+    year = today.year - 1
+    return date(year, 1, 1), date(year, 12, 31)
+
+
+def _months_back(today: date, count: int) -> tuple[date, date]:
+    """The `count` complete calendar months ending with the last COMPLETE one.
+
+    The current month is excluded: a month still running is not an
+    observation, and averaging it in reports a drop that is only the calendar.
+    `month_end` + `bucket_bounds` is the same month-edge arithmetic
+    `engines/aggregate.py` and `engines/intent.py` use, so a boundary is never
+    cut differently in two places.
+    """
+    end = month_end(today, -1)
+    start, _ = bucket_bounds(bucket_key(month_end(today, -count), "month"), "month")
+    return start, end
+
+
+def build_templates(today: date) -> tuple[ExportTemplate, ...]:
+    """The five design §8.2 names, in its order. `today` is a parameter."""
+    year_start, year_end = _last_complete_year(today)
+    twelve_start, twelve_end = _months_back(today, 12)
+    six_start, six_end = _months_back(today, 6)
+
+    def scope(
+        start: date, end: date, granularity: Granularity, modules: tuple[Module, ...]
+    ) -> ExportScope:
+        return ExportScope(
+            date_from=start, date_to=end, account_ids=None, category_ids=None,
+            granularity=granularity, modules=modules, anonymise=False,
+        )
+
+    return (
+        ExportTemplate(
+            key="bilan-annuel",
+            label="Bilan annuel",
+            summary=(
+                f"L'année {year_start.year} entière, mois par mois, avec les comptes, "
+                "les dettes, les objectifs et les récurrences."
+            ),
+            question=(
+                f"Voici le bilan de mon année {year_start.year}. Résume ce qui a le plus "
+                "pesé, ce qui a changé d'un mois sur l'autre, et les trois points sur "
+                "lesquels agir en priorité. N'utilise que les chiffres de ce document : "
+                "n'en calcule aucun autre et n'en invente aucun."
+            ),
+            scope=scope(year_start, year_end, "monthly",
+                        ("profil", "budget", "analyses", "patrimoine", "dettes",
+                         "objectifs", "recurrences")),
+        ),
+        ExportTemplate(
+            key="faisabilite-achat",
+            label="Faisabilité d'achat",
+            summary=(
+                "Les douze derniers mois complets, avec la capacité d'épargne, les "
+                "dettes en cours, les objectifs déjà engagés et la projection."
+            ),
+            question=(
+                "Je veux savoir si un achat important est envisageable. À partir de ce "
+                "document, dis-moi ce que mes flux permettent, ce qu'ils ne permettent "
+                "pas, et à quelles conditions. Si le document ne contient pas de quoi "
+                "trancher, dis-le au lieu de l'estimer."
+            ),
+            scope=scope(twelve_start, twelve_end, "monthly",
+                        ("profil", "budget", "analyses", "dettes", "objectifs",
+                         "patrimoine", "projections")),
+        ),
+        ExportTemplate(
+            key="revue-portefeuille",
+            label="Revue de portefeuille",
+            summary=(
+                "Les positions détenues, leur valorisation, la projection et la "
+                "fiscalité d'une cession, sur les douze derniers mois complets."
+            ),
+            question=(
+                "Passe en revue mon portefeuille : concentration, classes d'actifs "
+                "sur- ou sous-représentées, ce qui manque. Les valorisations de ce "
+                "document sont les seules à utiliser ; ne recalcule aucune performance."
+            ),
+            scope=scope(twelve_start, twelve_end, "annual",
+                        ("patrimoine", "positions", "projections", "fiscalite")),
+        ),
+        ExportTemplate(
+            key="optimisation-fiscale",
+            label="Optimisation fiscale",
+            summary=(
+                f"L'année {year_start.year}, les enveloppes détenues et l'imposition "
+                "qu'une cession déclencherait."
+            ),
+            question=(
+                "Au vu de ce document, quelles enveloppes et quels arbitrages "
+                "réduiraient mon imposition en France ? Rappelle les règles applicables "
+                "et dis explicitement ce que tu ne peux pas trancher sans information "
+                "supplémentaire. Tu n'es pas mon conseiller fiscal."
+            ),
+            scope=scope(year_start, year_end, "annual",
+                        ("profil", "patrimoine", "positions", "fiscalite")),
+        ),
+        ExportTemplate(
+            key="diagnostic-budgetaire",
+            label="Diagnostic budgétaire",
+            summary=(
+                "Les six derniers mois complets, poste par poste, avec les "
+                "prélèvements récurrents détectés."
+            ),
+            question=(
+                "Analyse mon budget : quels postes dérivent, quels abonnements méritent "
+                "d'être revus, quelle marge est réaliste. Chaque recommandation doit "
+                "citer un chiffre présent dans ce document."
+            ),
+            scope=scope(six_start, six_end, "monthly",
+                        ("profil", "budget", "analyses", "recurrences")),
+        ),
+    )

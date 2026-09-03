@@ -17,6 +17,7 @@ from app.api import chat as chat_routes
 from app.api import connections as connections_routes
 from app.api import debts as debt_routes
 from app.api import engagement as engagement_routes
+from app.api import export as export_routes
 from app.api import feasibility as feasibility_routes
 from app.api import goals as goal_routes
 from app.api import imports as import_routes
@@ -82,6 +83,7 @@ api.include_router(connections_routes.router)
 api.include_router(portfolio_routes.router)
 api.include_router(projection_routes.router)
 api.include_router(chat_routes.router)
+api.include_router(export_routes.router)
 
 app.include_router(api)
 

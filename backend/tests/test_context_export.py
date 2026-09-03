@@ -369,3 +369,80 @@ def test_an_account_scope_withholds_the_household_wide_net_worth():
 def test_with_no_account_scope_the_net_worth_is_the_household_figure():
     document = _build(_scope(modules=("patrimoine",)))
     assert "2 910,00 €" in document.markdown
+
+
+# --------------------------------------------------------------------------
+# The five ready-made templates. Design §8.2.
+# --------------------------------------------------------------------------
+
+
+def test_the_five_templates_design_8_2_names_are_all_there():
+    from app.engines.context_export import build_templates
+
+    keys = [template.key for template in build_templates(TODAY)]
+    assert keys == [
+        "bilan-annuel", "faisabilite-achat", "revue-portefeuille",
+        "optimisation-fiscale", "diagnostic-budgetaire",
+    ]
+
+
+def test_each_template_pre_selects_a_scope_and_carries_a_question():
+    from app.engines.context_export import build_templates
+
+    for template in build_templates(TODAY):
+        assert template.question.strip(), template.key
+        assert template.scope.modules, template.key
+        assert template.scope.date_from is not None, template.key
+        assert template.scope.date_to is not None, template.key
+        assert template.scope.date_from <= template.scope.date_to, template.key
+        # Every module a template names must be a real one.
+        for module in template.scope.modules:
+            assert module in MODULES_FOR_TEST, (template.key, module)
+
+
+MODULES_FOR_TEST = (
+    "profil", "budget", "patrimoine", "dettes", "objectifs",
+    "positions", "recurrences", "analyses", "projections", "fiscalite",
+)
+
+
+def test_the_templates_pre_select_different_scopes_from_each_other():
+    """Five presets that all resolved to the same scope would be one preset
+    printed five times."""
+    from app.engines.context_export import build_templates
+
+    scopes = {
+        (t.scope.date_from, t.scope.date_to, t.scope.granularity, t.scope.modules)
+        for t in build_templates(TODAY)
+    }
+    assert len(scopes) == 5
+
+
+def test_the_annual_templates_cover_the_last_COMPLETE_calendar_year():
+    """2026-09-03 is inside 2026, so the year to report on is 2025 -- a bilan
+    of a year still running would be a bilan of eight months."""
+    from app.engines.context_export import build_templates
+
+    bilan = next(t for t in build_templates(TODAY) if t.key == "bilan-annuel")
+    assert bilan.scope.date_from == date(2025, 1, 1)
+    assert bilan.scope.date_to == date(2025, 12, 31)
+
+
+def test_the_rolling_templates_stop_at_the_last_complete_month():
+    """A month still running is not an observation. 2026-09-03 means the last
+    complete month is August 2026."""
+    from app.engines.context_export import build_templates
+
+    diagnostic = next(t for t in build_templates(TODAY) if t.key == "diagnostic-budgetaire")
+    assert diagnostic.scope.date_to == date(2026, 8, 31)
+    assert diagnostic.scope.date_from == date(2026, 3, 1)  # six complete months
+
+
+def test_every_template_builds_a_real_document_on_real_inputs():
+    from app.engines.context_export import build_templates
+
+    for template in build_templates(TODAY):
+        document = build_context_export(_inputs(), template.scope, None, TODAY)
+        assert document.markdown.startswith("# Contexte financier")
+        assert document.estimated_tokens > 0
+        assert set(document.sections) == set(template.scope.modules)

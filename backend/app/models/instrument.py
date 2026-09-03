@@ -1,4 +1,4 @@
-from sqlalchemy import Boolean, String, UniqueConstraint
+from sqlalchemy import Boolean, String, UniqueConstraint, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db import Base
@@ -42,4 +42,6 @@ class Instrument(Base):
     # The instrument's own trading currency -- NOT necessarily the holder's
     # reporting currency. Converting between the two is Task 7's job.
     currency: Mapped[str] = mapped_column(String(3), nullable=False)
-    is_fractionable: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    is_fractionable: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default=text("0"), nullable=False
+    )

@@ -1,6 +1,6 @@
 from datetime import date
 
-from sqlalchemy import Date, ForeignKey, Integer, String, Text
+from sqlalchemy import Date, ForeignKey, Integer, String, Text, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db import Base
@@ -61,7 +61,9 @@ class Challenge(Base):
     )
     proposed_on: Mapped[date] = mapped_column(Date, nullable=False)
     # One of CHALLENGE_STATES.
-    state: Mapped[str] = mapped_column(String(16), default="proposed", nullable=False)
+    state: Mapped[str] = mapped_column(
+        String(16), default="proposed", server_default=text("'proposed'"), nullable=False
+    )
     decided_on: Mapped[date | None] = mapped_column(Date, nullable=True)
     # The outcome, filled in a month after acceptance. See the class
     # docstring: both stay `None` until `measure_outcome` has something real

@@ -196,6 +196,33 @@ def test_downgrade_then_upgrade_again_is_clean_and_loses_no_rows(migration_db):
 
 PHASE_2B_REVISION = "d1a4c9e77b02"
 PHASE_2B_PREVIOUS = "c3f81a20d5e4"
+PHASE_2B_TABLES = {"debts", "goals", "scenarios"}
+
+
+@pytest.mark.parametrize("table", sorted(PHASE_2B_TABLES))
+def test_the_phase_2b_migration_matches_base_metadata_exactly(migration_db, table):
+    """Same independent-source-of-truth comparison as the phase 2C and phase 3
+    tests below, added here because no such comparison existed for this
+    migration's own tables: the hand-written DDL in `d1a4c9e77b02_*.py` must
+    agree, column for column, index for index, and default for default, with
+    what `Base.metadata.create_all` derives straight from `models/debt.py`
+    and `models/goal.py` -- including the `server_default` this migration
+    sets on `debts.kind`, `debts.annual_rate_bps`, `debts.archived`,
+    `goals.saved_cents`, `goals.priority` and `goals.archived`, which the
+    ORM models must declare too or `Base.metadata.create_all()` (every
+    test's `db` fixture) builds a schema that disagrees with a migrated one.
+    """
+    command.upgrade(migration_db.config, PHASE_2B_PREVIOUS)
+    command.upgrade(migration_db.config, PHASE_2B_REVISION)
+
+    conn = _connect(migration_db)
+    migrated_columns = _table_columns(conn, table)
+    migrated_indexes = _index_names(conn, table)
+    conn.close()
+
+    reference_columns, reference_indexes = _reference_schema(table)
+    assert migrated_columns == reference_columns
+    assert migrated_indexes == reference_indexes
 
 
 def test_the_phase_2b_migration_adds_three_tables_to_a_populated_database(migration_db):
@@ -255,31 +282,39 @@ PHASE_2C_REVISION = "4aa48828b2cb"
 PHASE_2C_PREVIOUS = "d1a4c9e77b02"
 
 
-def _table_columns(conn: sqlite3.Connection, table: str) -> set[tuple[str, int]]:
-    """(name, notnull) pairs for every column of `table`. Enough to catch a
-    column the hand-written migration dropped, renamed, or gave a different
-    nullability than the ORM model declares."""
-    return {(row[1], row[3]) for row in conn.execute(f"PRAGMA table_info({table})")}
+def _table_columns(conn: sqlite3.Connection, table: str) -> set[tuple[str, int, str | None]]:
+    """(name, notnull, dflt_value) triples for every column of `table`. Enough
+    to catch a column the hand-written migration dropped, renamed, gave a
+    different nullability than the ORM model declares -- or gave a different
+    DDL-level default: a migration's `server_default` with no matching
+    `server_default=` on the model column is invisible to every other test,
+    since the ORM always supplies the value on insert either way, but it
+    means a database built by `Base.metadata.create_all()` (every test's `db`
+    fixture, and `seed_fixture.py`) disagrees at the schema level with a
+    migrated one."""
+    return {(row[1], row[3], row[4]) for row in conn.execute(f"PRAGMA table_info({table})")}
 
 
 def _index_names(conn: sqlite3.Connection, table: str) -> set[str]:
     return {row[1] for row in conn.execute(f"PRAGMA index_list({table})")}
 
 
-def _reference_schema(table: str) -> tuple[set[tuple[str, int]], set[str]]:
+def _reference_schema(table: str) -> tuple[set[tuple[str, int, str | None]], set[str]]:
     """The SAME table, built directly from `Base.metadata.create_all` rather
     than through Alembic -- the independent source of truth the migration's
-    own DDL must agree with. Nothing in the rest of this suite ever runs the
-    migration file (see the module docstring), so without this comparison a
-    typo'd column name or a nullability mismatch between `models/
-    health_snapshot.py` / `models/challenge.py` and the hand-written
-    `alembic/versions/4aa48828b2cb_*.py` would pass every other test."""
+    own DDL must agree with, column name, nullability AND DDL-level default
+    alike. Nothing in the rest of this suite ever runs the migration file
+    (see the module docstring), so without this comparison a typo'd column
+    name, a nullability mismatch, or a `server_default` the model doesn't
+    also declare, between `models/health_snapshot.py` / `models/challenge.py`
+    and the hand-written `alembic/versions/4aa48828b2cb_*.py` (or any other
+    migration), would pass every other test."""
     engine = create_engine("sqlite://")
     try:
         Base.metadata.create_all(engine, tables=[Base.metadata.tables[table]])
         with engine.connect() as conn:
             columns = {
-                (row[1], row[3])
+                (row[1], row[3], row[4])
                 for row in conn.exec_driver_sql(f"PRAGMA table_info({table})")
             }
             indexes = {row[1] for row in conn.exec_driver_sql(f"PRAGMA index_list({table})")}

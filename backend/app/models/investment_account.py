@@ -1,6 +1,6 @@
 from datetime import date
 
-from sqlalchemy import Boolean, Date, ForeignKey, String
+from sqlalchemy import Boolean, Date, ForeignKey, String, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db import Base
@@ -37,6 +37,10 @@ class InvestmentAccount(Base):
     name: Mapped[str] = mapped_column(String(120), nullable=False)
     # One of INVESTMENT_ACCOUNT_KINDS.
     kind: Mapped[str] = mapped_column(String(24), nullable=False)
-    currency: Mapped[str] = mapped_column(String(3), default="EUR", nullable=False)
+    currency: Mapped[str] = mapped_column(
+        String(3), default="EUR", server_default=text("'EUR'"), nullable=False
+    )
     opened_on: Mapped[date | None] = mapped_column(Date, nullable=True)
-    archived: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    archived: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default=text("0"), nullable=False
+    )

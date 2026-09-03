@@ -1,6 +1,6 @@
 from datetime import date
 
-from sqlalchemy import Boolean, Date, ForeignKey, Integer, String
+from sqlalchemy import Boolean, Date, ForeignKey, Integer, String, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db import Base
@@ -29,9 +29,15 @@ class Goal(Base):
     )
     name: Mapped[str] = mapped_column(String(120), nullable=False)
     target_cents: Mapped[int] = mapped_column(Integer, nullable=False)
-    saved_cents: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    saved_cents: Mapped[int] = mapped_column(
+        Integer, default=0, server_default=text("0"), nullable=False
+    )
     # Échéance souhaitée. Optional: a goal without a deadline is still a goal,
     # and `engines/goal.py` reports `on_track = None` rather than inventing one.
     due_on: Mapped[date | None] = mapped_column(Date, nullable=True)
-    priority: Mapped[int] = mapped_column(Integer, default=100, nullable=False)
-    archived: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    priority: Mapped[int] = mapped_column(
+        Integer, default=100, server_default=text("100"), nullable=False
+    )
+    archived: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default=text("0"), nullable=False
+    )

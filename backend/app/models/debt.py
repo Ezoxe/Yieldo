@@ -1,6 +1,6 @@
 from datetime import date
 
-from sqlalchemy import Boolean, Date, ForeignKey, Integer, String
+from sqlalchemy import Boolean, Date, ForeignKey, Integer, String, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db import Base
@@ -35,11 +35,15 @@ class Debt(Base):
         ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False
     )
     name: Mapped[str] = mapped_column(String(120), nullable=False)
-    kind: Mapped[str] = mapped_column(String(24), default="consumer", nullable=False)
+    kind: Mapped[str] = mapped_column(
+        String(24), default="consumer", server_default=text("'consumer'"), nullable=False
+    )
     # Capital restant dû, positive. See the class docstring.
     principal_cents: Mapped[int] = mapped_column(Integer, nullable=False)
     # Taux débiteur annuel, in basis points: 490 is 4,90 %/an. Never a float.
-    annual_rate_bps: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    annual_rate_bps: Mapped[int] = mapped_column(
+        Integer, default=0, server_default=text("0"), nullable=False
+    )
     # Mensualité contractuelle. The payoff engine treats the sum of these plus
     # any extra as a constant monthly budget -- that is what makes a snowball a
     # snowball rather than a series of unrelated repayments.
@@ -52,4 +56,6 @@ class Debt(Base):
     opened_on: Mapped[date | None] = mapped_column(Date, nullable=True)
     # Archived rather than deleted, like `accounts`: a repaid debt is part of
     # the household's history.
-    archived: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    archived: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default=text("0"), nullable=False
+    )

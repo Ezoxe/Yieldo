@@ -1874,3 +1874,64 @@ export interface ChatMessage {
    *  it against the current ledger on every read. */
   answer: ChatAnswer;
 }
+
+// -- /api/export -- the filterable context export. Design §8.2. -------------
+
+export type ExportGranularity = "annual" | "monthly" | "transaction";
+export type ExportFormat = "md" | "txt" | "json";
+
+export interface ExportScopeRequest {
+  date_from: string | null;
+  date_to: string | null;
+  /** `null` means every account; `[]` means none. The two are different
+   *  scopes and the API keeps them apart. */
+  account_ids: number[] | null;
+  category_ids: number[] | null;
+  granularity: ExportGranularity;
+  modules: string[];
+  anonymise: boolean;
+  /** `null` means no target was named: the answer then carries an estimate
+   *  with no verdict, never a verdict against a model nobody chose. */
+  target_model: string | null;
+}
+
+export interface ExportDocument {
+  markdown: string;
+  estimated_tokens: number;
+  warning: string | null;
+  transaction_count: number;
+  excluded_transfer_count: number;
+  date_from: string;
+  date_to: string;
+  sections: string[];
+}
+
+export interface ExportFile {
+  filename: string;
+  content_type: string;
+  content: string;
+}
+
+export interface ExportTemplate {
+  key: string;
+  label: string;
+  summary: string;
+  /** The question to put to the model, carried with the scope it belongs to. */
+  question: string;
+  date_from: string;
+  date_to: string;
+  granularity: ExportGranularity;
+  modules: string[];
+  anonymise: boolean;
+}
+
+export interface ExportOptions {
+  accounts: { id: number; name: string; kind: string }[];
+  categories: { id: number; name: string }[];
+  modules: { key: string; label: string }[];
+  target_models: { key: string; label: string; context_tokens: number }[];
+  /** Both null for a household that has imported nothing — never a made-up
+   *  span, and never today standing in for a ledger that does not exist. */
+  ledger_date_from: string | null;
+  ledger_date_to: string | null;
+}

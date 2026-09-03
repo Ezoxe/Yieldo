@@ -1,0 +1,459 @@
+/* /export — the context export.
+
+   Two visual problems this stylesheet exists to solve.
+
+   The first is DENSITY: the scope panel carries four groups of checkboxes and
+   the operator has 69 categories. Each group scrolls inside its own box with a
+   fixed max-height, so the panel keeps a predictable height at 375 px instead
+   of pushing the estimate and the templates off the first screen. Nothing here
+   uses a percentage height in an auto-height column — that resolves to zero.
+
+   The second is that three different things must not read alike:
+
+   * `--refusal`  an engine declining to build the document. Warning rule,
+                  content, in the panel's own voice.
+   * `--warning`  the document does not fit the chosen window. A MEASUREMENT,
+                  not a failure: the info rule, and it never turns the panel red.
+   * `--alert`    the negative tint, and only for a round trip that failed.
+
+   Every colour is a token from design/tokens.css; design/contrast.test.ts
+   parses that file from disk and holds both themes to 4.5:1. */
+
+.yd-export {
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-lg);
+  min-width: 0;
+}
+
+.yd-export__header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-xs);
+}
+
+.yd-export__header h1 {
+  margin: 0;
+  font-size: clamp(1.5rem, 1.2rem + 1.4vw, 2rem);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--yd-text);
+}
+
+.yd-export__lead {
+  margin: 0;
+  max-width: 76ch;
+  font-size: 0.92rem;
+  line-height: 1.6;
+  color: var(--yd-text-muted);
+}
+
+.yd-export__lead strong {
+  color: var(--yd-text);
+  font-weight: 600;
+}
+
+.yd-export__note {
+  margin: 0 0 var(--yd-space-sm);
+  max-width: 90ch;
+  font-size: 0.82rem;
+  line-height: 1.55;
+  color: var(--yd-text-muted);
+}
+
+.yd-export__alert {
+  margin: 0;
+  padding: var(--yd-space-sm) var(--yd-space-md);
+  border-radius: var(--yd-radius-sm);
+  border: 1px solid var(--yd-negative);
+  background: color-mix(in srgb, var(--yd-negative) 14%, transparent);
+  color: var(--yd-negative-text);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.yd-export__refusal {
+  margin: 0;
+  max-width: 96ch;
+  padding: var(--yd-space-sm) var(--yd-space-md);
+  border-radius: var(--yd-radius-sm);
+  border: 1px solid var(--yd-border-strong);
+  border-left: 3px solid var(--yd-warning);
+  background: var(--yd-surface);
+  color: var(--yd-text);
+  font-size: 0.9rem;
+  line-height: 1.55;
+}
+
+/* A document past the window is a measurement, not a breakage. The info rule
+   keeps it distinct from the refusal above it and from the alert above that. */
+.yd-export__warning {
+  margin: var(--yd-space-md) 0 0;
+  max-width: 96ch;
+  padding: var(--yd-space-sm) var(--yd-space-md);
+  border-radius: var(--yd-radius-sm);
+  border: 1px solid var(--yd-border-strong);
+  border-left: 3px solid var(--yd-info);
+  background: var(--yd-surface);
+  color: var(--yd-text);
+  font-size: 0.88rem;
+  line-height: 1.55;
+}
+
+/* The templates cell shares a row with the scope panel, which is roughly twice
+   its height at 1440. Left to its own height it leaves a page-sized hole of
+   bare background beside it — measured on the rendered screen, not guessed. So
+   it stretches to the row and the question block is pushed to the bottom of
+   the card, which fills the row with surface rather than with void. */
+.yd-export__cell--stretch {
+  display: flex;
+  flex-direction: column;
+}
+
+.yd-export__cell--stretch .yd-export__question-block {
+  margin-top: auto;
+}
+
+/* -- The scope panel ------------------------------------------------------- */
+
+.yd-scope {
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-md);
+  min-width: 0;
+}
+
+.yd-scope__dates {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--yd-space-sm);
+  min-width: 0;
+}
+
+.yd-scope__field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-2xs);
+  /* `flex: 1 1 140px`, never a percentage: a percentage width in an
+     auto-width flex column resolves to zero. */
+  flex: 1 1 140px;
+  min-width: 0;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--yd-text-muted);
+}
+
+.yd-scope__field--wide {
+  flex: 1 1 100%;
+}
+
+.yd-scope__field input,
+.yd-scope__field select {
+  min-height: 44px;
+  min-width: 0;
+  width: 100%;
+  padding: 0 var(--yd-space-sm);
+  border-radius: var(--yd-radius-sm);
+  border: 1px solid var(--yd-border-control);
+  background: var(--yd-surface);
+  color: var(--yd-text);
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 400;
+  letter-spacing: normal;
+  text-transform: none;
+}
+
+.yd-scope__field input:focus-visible,
+.yd-scope__field select:focus-visible {
+  outline: 2px solid var(--yd-accent-strong);
+  outline-offset: 2px;
+}
+
+.yd-scope__group {
+  margin: 0;
+  padding: 0;
+  border: none;
+  min-width: 0;
+}
+
+.yd-scope__legend {
+  padding: 0;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--yd-text-muted);
+}
+
+.yd-scope__hint {
+  margin: var(--yd-space-2xs) 0 var(--yd-space-xs);
+  max-width: 68ch;
+  font-size: 0.76rem;
+  line-height: 1.5;
+  color: var(--yd-text-muted);
+}
+
+/* Scrolls inside its own box. 69 categories at full height would push every
+   other cell of the grid off a 375px screen. */
+.yd-scope__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-2xs);
+  max-height: 216px;
+  overflow-y: auto;
+  padding: var(--yd-space-xs);
+  border-radius: var(--yd-radius-sm);
+  border: 1px solid var(--yd-border);
+  background: var(--yd-surface);
+  min-width: 0;
+}
+
+.yd-scope__check {
+  display: flex;
+  align-items: center;
+  gap: var(--yd-space-xs);
+  /* 44px of target even though the box itself is 16px: the whole row is the
+     control, which is what a thumb actually hits. */
+  min-height: 44px;
+  padding: 0 var(--yd-space-2xs);
+  border-radius: var(--yd-radius-sm);
+  color: var(--yd-text);
+  font-size: 0.86rem;
+  line-height: 1.4;
+  cursor: pointer;
+  transition: background var(--yd-motion-fast) var(--yd-ease);
+}
+
+.yd-scope__check:hover {
+  background: var(--yd-surface-raised);
+}
+
+.yd-scope__check input {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  accent-color: var(--yd-accent-strong);
+  cursor: pointer;
+}
+
+.yd-scope__check--switch {
+  border: 1px solid var(--yd-border-control);
+  padding: 0 var(--yd-space-sm);
+  font-weight: 600;
+}
+
+/* -- The five templates ---------------------------------------------------- */
+
+.yd-templates {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--yd-space-sm);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  min-width: 0;
+}
+
+@media (min-width: 900px) {
+  .yd-templates {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.yd-template {
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-2xs);
+  width: 100%;
+  height: 100%;
+  min-height: 44px;
+  padding: var(--yd-space-sm) var(--yd-space-md);
+  border-radius: var(--yd-radius-sm);
+  border: 1px solid var(--yd-border-control);
+  background: var(--yd-surface);
+  color: var(--yd-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background var(--yd-motion-fast) var(--yd-ease),
+    border-color var(--yd-motion-fast) var(--yd-ease);
+}
+
+.yd-template:hover {
+  background: var(--yd-surface-raised);
+  border-color: var(--yd-accent-strong);
+}
+
+.yd-template:focus-visible {
+  outline: 2px solid var(--yd-accent-strong);
+  outline-offset: 2px;
+}
+
+.yd-template--applied {
+  border-color: var(--yd-accent-strong);
+  border-left-width: 3px;
+}
+
+.yd-template__label {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--yd-text);
+}
+
+.yd-template__summary {
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: var(--yd-text-muted);
+}
+
+.yd-export__question-block {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--yd-space-xs);
+  margin-top: var(--yd-space-md);
+  padding: var(--yd-space-sm) var(--yd-space-md);
+  border-radius: var(--yd-radius-sm);
+  border: 1px solid var(--yd-border-strong);
+  border-left: 3px solid var(--yd-accent-strong);
+  background: var(--yd-surface);
+  min-width: 0;
+}
+
+.yd-export__question-label {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--yd-accent-strong);
+}
+
+.yd-export__question {
+  margin: 0;
+  max-width: 88ch;
+  font-size: 0.9rem;
+  line-height: 1.6;
+  color: var(--yd-text);
+}
+
+/* -- Volume and transmission ---------------------------------------------- */
+
+.yd-export__facts {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--yd-space-md);
+  margin: 0;
+  min-width: 0;
+}
+
+@media (min-width: 720px) {
+  .yd-export__facts {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.yd-fact {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.yd-fact__label {
+  margin: 0;
+  font-size: 0.76rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--yd-text-muted);
+}
+
+.yd-fact__value {
+  margin: 0;
+  font-family: var(--yd-font-mono);
+  font-size: 1.15rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--yd-text);
+  overflow-wrap: anywhere;
+}
+
+.yd-fact__value--words {
+  font-family: var(--yd-font);
+  font-size: 1rem;
+}
+
+.yd-fact__note {
+  margin: 0;
+  font-size: 0.78rem;
+  line-height: 1.5;
+  color: var(--yd-text-muted);
+}
+
+.yd-export__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--yd-space-xs);
+  margin-top: var(--yd-space-md);
+  min-width: 0;
+}
+
+.yd-export__action {
+  min-height: 44px;
+  padding: 0 var(--yd-space-md);
+  border-radius: var(--yd-radius-sm);
+  border: 1px solid var(--yd-border-control);
+  background: transparent;
+  color: var(--yd-text);
+  font: inherit;
+  font-size: 0.86rem;
+  cursor: pointer;
+  transition:
+    background var(--yd-motion-fast) var(--yd-ease),
+    border-color var(--yd-motion-fast) var(--yd-ease);
+}
+
+.yd-export__action:hover {
+  background: var(--yd-surface-raised);
+  border-color: var(--yd-accent-strong);
+}
+
+.yd-export__action:focus-visible {
+  outline: 2px solid var(--yd-accent-strong);
+  outline-offset: 2px;
+}
+
+.yd-export__action--primary {
+  border-color: var(--yd-accent-strong);
+  font-weight: 600;
+}
+
+.yd-export__copied {
+  font-size: 0.82rem;
+  color: var(--yd-accent-strong);
+}
+
+/* -- The preview ----------------------------------------------------------- */
+
+.yd-export__preview {
+  margin: 0;
+  max-height: 420px;
+  /* Both axes inside its OWN box: a Markdown table is wide by nature, and the
+     page must never be the thing that scrolls sideways. */
+  overflow: auto;
+  padding: var(--yd-space-md);
+  border-radius: var(--yd-radius-sm);
+  border: 1px solid var(--yd-border);
+  background: var(--yd-surface);
+  color: var(--yd-text);
+  font-family: var(--yd-font-mono);
+  font-size: 0.76rem;
+  line-height: 1.6;
+  white-space: pre;
+  tab-size: 2;
+}

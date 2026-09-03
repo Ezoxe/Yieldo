@@ -328,6 +328,43 @@ const ASSISTANT_CONTRAST = {
   emptyDetail: ".yd-empty__detail",
 };
 
+/**
+ * /export. Every selector below is a FIGURE, a sentence or a control -- never a
+ * container.
+ *
+ * Three of them exist because of the distinction this screen is built to make,
+ * and all three are different registers on the same surface: `refusal` is an
+ * engine declining to build the document (warning rule), `warning` is a
+ * document that does not fit the chosen window (info rule -- a MEASUREMENT,
+ * not a failure), and `alert` would be a round trip that failed. Reading alike
+ * would make a measurement look like a breakage.
+ *
+ * `checkLabel` is the text beside a checkbox inside a scrolling list, which is
+ * the smallest text on the screen and the one a 69-category panel repeats most.
+ */
+const EXPORT_CONTRAST = {
+  lead: ".yd-export__lead",
+  panelTitle: ".yd-panel__title",
+  note: ".yd-export__note",
+  legend: ".yd-scope__legend",
+  hint: ".yd-scope__hint",
+  fieldLabel: ".yd-scope__field > span",
+  fieldInput: ".yd-scope__field select",
+  checkLabel: ".yd-scope__check span",
+  templateLabel: ".yd-template__label",
+  templateSummary: ".yd-template__summary",
+  questionLabel: ".yd-export__question-label",
+  question: ".yd-export__question",
+  factLabel: ".yd-fact__label",
+  factValue: ".yd-fact__value",
+  factNote: ".yd-fact__note",
+  warning: ".yd-export__warning",
+  refusal: ".yd-export__refusal",
+  action: ".yd-export__action",
+  actionPrimary: ".yd-export__action--primary",
+  preview: ".yd-export__preview",
+};
+
 function luminance([r, g, b]) {
   const lin = (c) => {
     const v = c / 255;
@@ -1414,6 +1451,157 @@ async function driveAssistant(page, { theme, viewport, audit }) {
   await audit("suggestion");
 }
 
+/**
+ * /export, on the operator's own 197 transactions over five calendar months.
+ *
+ * Four states, because the screen has four and a passing suite says nothing
+ * about any of them:
+ *
+ * 1. the default scope -- the ledger's own span, four ledger-backed modules;
+ * 2. a template applied -- "Bilan annuel", with the question it carries;
+ * 3. the same scope per transaction against an 8 000-token window, which is
+ *    where the context-window warning appears. That warning is a MEASUREMENT
+ *    and must not read like the refusal or the alert;
+ * 4. anonymised -- where the promise is checked off the RENDERED preview: no
+ *    seeded merchant and no euro sign anywhere in the document, rather than
+ *    one field spot-checked.
+ */
+const SEEDED_MERCHANTS = ["CARREFOUR", "LECLERC", "TOTALENERGIES", "FNAC DARTY", "AMAZON"];
+
+async function driveExport(page, { theme, viewport, audit }) {
+  await page.goto(`${BASE}/export`);
+  await page.waitForSelector('[data-testid="yd-export-scope"]', { timeout: 30000 });
+  await page.waitForSelector('[data-testid="yd-export-tokens"]', { timeout: 30000 });
+  await page.waitForTimeout(700);
+
+  // -- 1. The default scope --------------------------------------------------
+  const firstTokens = await page.textContent('[data-testid="yd-export-tokens"]');
+  if (!/[0-9]/.test(firstTokens)) {
+    problems.push(
+      `${theme} ${viewport.name}: the token estimate is not a number ("${firstTokens}")`,
+    );
+  }
+  await expectOnScreen(
+    page,
+    `${theme} ${viewport.name} export defaut`,
+    "# Contexte financier",
+    "tout ce qui n'est pas coché est absent du document",
+    // The ledger's own span, printed rather than invented.
+    "du 2025-01-24 au 2026-01-09",
+  );
+  await shot(page, viewport, theme, "-defaut");
+  await audit("export défaut");
+
+  // -- 2. A template, applied ------------------------------------------------
+  await page.getByRole("button", { name: /Bilan annuel/ }).click();
+  await page.waitForSelector('[data-testid="yd-export-question"]', { timeout: 30000 });
+  await page.waitForTimeout(1400);
+  await expectOnScreen(
+    page,
+    `${theme} ${viewport.name} gabarit`,
+    "n'en calcule aucun autre et n'en invente aucun",
+  );
+  // Read off the DOM, never off innerText: this label is uppercased in CSS,
+  // and `innerText` reports what is PAINTED rather than what was written --
+  // the same trap that fooled a screenshot assertion on /projection.
+  const questionLabel = await page.evaluate(
+    () => document.querySelector(".yd-export__question-label")?.textContent ?? "",
+  );
+  if (!questionLabel.includes("Question à poser au modèle")) {
+    problems.push(
+      `${theme} ${viewport.name}: the question carries no label (got "${questionLabel}")`,
+    );
+  }
+  const templates = await page.evaluate(
+    () => document.querySelectorAll('[data-testid^="yd-export-template-"]').length,
+  );
+  if (templates !== 5) {
+    problems.push(`${theme} ${viewport.name}: ${templates} templates on screen, expected 5`);
+  }
+  await shot(page, viewport, theme);
+  await audit("gabarit");
+
+  // -- 3. The context-window warning ----------------------------------------
+  await page.getByLabel(/Granularité/).selectOption("transaction");
+  await page.getByLabel(/Modèle visé/).selectOption("local-4k");
+  await page.waitForSelector('[data-testid="yd-export-warning"]', { timeout: 30000 });
+  await page.waitForTimeout(1000);
+  await expectOnScreen(
+    page,
+    `${theme} ${viewport.name} avertissement`,
+    "pour une fenêtre de 4 096 tokens",
+    "Réduisez la granularité",
+    "le modèle ne lira pas la fin du document",
+  );
+  // A measurement is not a failure: nothing on this screen may be an alert.
+  const alerts = await page.evaluate(() => document.querySelectorAll('[role="alert"]').length);
+  if (alerts !== 0) {
+    problems.push(
+      `${theme} ${viewport.name}: ${alerts} alert(s) where a document merely did not fit`,
+    );
+  }
+  await shot(page, viewport, theme, "-avertissement");
+  await audit("avertissement");
+
+  // -- 4. Anonymisation, checked off the RENDERED document -------------------
+  await page.getByLabel(/Anonymiser/).click();
+  await page.waitForFunction(
+    () => {
+      const pre = document.querySelector('[data-testid="yd-export-preview"]');
+      return pre !== null && pre.textContent.includes("Anonymisation : activée");
+    },
+    { timeout: 30000 },
+  );
+  await page.waitForTimeout(1000);
+  const rendered = await page.evaluate(
+    () => document.querySelector('[data-testid="yd-export-preview"]')?.textContent ?? "",
+  );
+  for (const merchant of SEEDED_MERCHANTS) {
+    if (rendered.includes(merchant)) {
+      problems.push(`${theme} ${viewport.name}: "${merchant}" survived anonymisation`);
+    }
+  }
+  if (rendered.includes("\u20ac")) {
+    problems.push(`${theme} ${viewport.name}: an absolute amount survived anonymisation`);
+  }
+  if (!rendered.includes("Marchand 1") || !rendered.includes("%")) {
+    problems.push(
+      `${theme} ${viewport.name}: the anonymised document carries neither pseudonyms nor shares`,
+    );
+  }
+  await shot(page, viewport, theme, "-anonyme");
+  await audit("anonyme");
+
+  // Every wide or tall box scrolls inside ITSELF. The category list is 69 rows
+  // and the preview is a Markdown table: neither may be what makes the page
+  // scroll sideways.
+  const boxes = await page.evaluate(() =>
+    [...document.querySelectorAll(".yd-scope__list, .yd-export__preview")].map((box) => ({
+      className: box.className,
+      overflowingX: box.scrollWidth > box.clientWidth,
+      overflowX: getComputedStyle(box).overflowX,
+      overflowingY: box.scrollHeight > box.clientHeight,
+      overflowY: getComputedStyle(box).overflowY,
+      width: box.getBoundingClientRect().width,
+    })),
+  );
+  for (const box of boxes) {
+    if (box.overflowingX && !["auto", "scroll"].includes(box.overflowX)) {
+      problems.push(
+        `${theme} ${viewport.name}: ${box.className} overflows something other than its own scroller`,
+      );
+    }
+    if (box.overflowingY && !["auto", "scroll"].includes(box.overflowY)) {
+      problems.push(
+        `${theme} ${viewport.name}: ${box.className} spills vertically out of its own box`,
+      );
+    }
+    if (box.width < 40) {
+      problems.push(`${theme} ${viewport.name}: ${box.className} collapsed to ${box.width}px`);
+    }
+  }
+}
+
 const SCENARIOS = {
   "task-15": { drive: driveFeasibility, contrast: FEASIBILITY_CONTRAST, out: "phase-2b" },
   "task-16": { drive: driveFeasibility, contrast: FEASIBILITY_CONTRAST, out: "phase-2b" },
@@ -1469,6 +1657,15 @@ const SCENARIOS = {
   "task-4-assistant": {
     drive: driveAssistant,
     contrast: ASSISTANT_CONTRAST,
+    out: "phase-4",
+  },
+  // /export on the operator's OWN ledger, in its four states: the default
+  // scope, a template applied, a document past an 8 000-token window, and the
+  // same document anonymised. It mutates nothing, so it is re-runnable and
+  // order-independent.
+  "task-7-export": {
+    drive: driveExport,
+    contrast: EXPORT_CONTRAST,
     out: "phase-4",
   },
 };

@@ -102,6 +102,7 @@ describe("AppShell", () => {
       "Faisabilité",
       "Simulateurs",
       "Assistant",
+      "Export IA",
       "Catégories",
       "Import",
       "Réglages",

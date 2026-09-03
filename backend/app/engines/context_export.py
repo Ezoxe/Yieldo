@@ -88,9 +88,16 @@ class TargetModel:
     context_tokens: int
 
 
+# Every label carries the EXACT window, never a rounded one. A label reading
+# "4 000" beside a warning reading "4 096" is two different numbers for one
+# fact -- found in the browser, on the rendered warning, with the suite green.
 TARGET_MODELS: tuple[TargetModel, ...] = (
+    # 4 096 is the window of the smallest models a household actually runs at
+    # home, and it is the one this warning matters most for: the operator's
+    # own ledger, listed transaction by transaction, is around 6 300 tokens.
+    TargetModel("local-4k", "Modèle local, fenêtre de 4 096 tokens", 4_096),
     TargetModel("local-8k", "Modèle local, fenêtre de 8 000 tokens", 8_000),
-    TargetModel("local-32k", "Modèle local, fenêtre de 32 000 tokens", 32_768),
+    TargetModel("local-32k", "Modèle local, fenêtre de 32 768 tokens", 32_768),
     TargetModel("gpt-4o", "GPT-4o (128 000 tokens)", 128_000),
     TargetModel("claude-sonnet", "Claude Sonnet (200 000 tokens)", 200_000),
     TargetModel("gemini-1-5-pro", "Gemini 1.5 Pro (1 000 000 tokens)", 1_000_000),

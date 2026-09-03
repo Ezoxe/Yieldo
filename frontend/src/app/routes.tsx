@@ -2,6 +2,7 @@ import { createBrowserRouter } from "react-router";
 
 import { AnalysisPage } from "../features/analysis/AnalysisPage";
 import { AssistantPage } from "../features/assistant/AssistantPage";
+import { ExportPage } from "../features/export/ExportPage";
 import { LoginPage } from "../features/auth/LoginPage";
 import { BudgetsPage } from "../features/budgets/BudgetsPage";
 import { CashflowPage } from "../features/cashflow/CashflowPage";
@@ -71,6 +72,7 @@ export const router = createBrowserRouter([
           { path: "projection", element: <ProjectionPage /> },
           { path: "faisabilite", element: <FeasibilityPage /> },
           { path: "assistant", element: <AssistantPage /> },
+          { path: "export", element: <ExportPage /> },
           { path: "simulateurs", element: <SimulatorsPage /> },
           { path: "categories", element: <CategoriesPlaceholder /> },
           { path: "import", element: <ImportPage /> },

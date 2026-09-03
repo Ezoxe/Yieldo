@@ -1958,3 +1958,77 @@ export interface ExportOptions {
   ledger_date_from: string | null;
   ledger_date_to: string | null;
 }
+
+
+// --- /alertes: the five measured conditions --------------------------------
+
+export type AlertKind =
+  | "balance_floor"
+  | "missing_debit"
+  | "price_rise"
+  | "budget_crossed"
+  | "anomaly";
+
+export type AlertSeverity = "critical" | "warning" | "info";
+
+/** One alert. `measured`, `period` and `clears_when` are three separate fields
+ *  because they are three separate claims — what was measured, over what
+ *  period, and what would make this go away. Merging them on screen is exactly
+ *  what stops a reader telling a measurement from a remedy. */
+export interface Alert {
+  kind: AlertKind;
+  severity: AlertSeverity;
+  /** French, printed beside the alert: severity is never carried by colour
+   *  alone. */
+  severity_label: string;
+  /** Stable across runs for the same subject — the React key for the list. */
+  key: string;
+  title: string;
+  measured: string;
+  period: string;
+  clears_when: string;
+  amount_cents: number | null;
+  on: string | null;
+}
+
+/** One of the five conditions, in whichever of its three states it is in.
+ *
+ *  `measured: false` means it could not be measured at all and `detail` says
+ *  why — never "nothing found". `withheld` carries the subjects deliberately
+ *  not judged, each with its own French cause: an expected debit falling in a
+ *  month no statement covers lands here, and is neither an alert nor a clean
+ *  result. */
+export interface AlertCondition {
+  kind: AlertKind;
+  label: string;
+  measured: boolean;
+  detail: string;
+  alert_count: number;
+  withheld: string[];
+}
+
+/** Which months the imported statements actually hold. `missing_months` are
+ *  months INSIDE the ledger's own span holding nothing — the operator has
+ *  eight — and they are the reason no alert is raised about them. */
+export interface AlertCoverage {
+  first_on: string | null;
+  last_on: string | null;
+  covered_months: string[];
+  missing_months: string[];
+}
+
+/** `null` means no floor has ever been stored, which is a different
+ *  instruction from a floor of 0. Nothing may coerce one into the other. */
+export interface AlertSettings {
+  balance_floor_cents: number | null;
+}
+
+export interface AlertReport {
+  alerts: Alert[];
+  /** Exactly five, in the engine's own order. */
+  conditions: AlertCondition[];
+  coverage: AlertCoverage;
+  settings: AlertSettings;
+  notice: string | null;
+  ledger_last_on: string | null;
+}

@@ -97,6 +97,7 @@ describe("AppShell", () => {
       "Dettes",
       "Objectifs",
       "Suivi",
+      "Alertes",
       "Patrimoine",
       "Projection",
       "Faisabilité",

@@ -1,5 +1,6 @@
 import { createBrowserRouter } from "react-router";
 
+import { AlertsPage } from "../features/alerts/AlertsPage";
 import { AnalysisPage } from "../features/analysis/AnalysisPage";
 import { AssistantPage } from "../features/assistant/AssistantPage";
 import { ExportPage } from "../features/export/ExportPage";
@@ -69,6 +70,7 @@ export const router = createBrowserRouter([
           { path: "dettes", element: <DebtsPage /> },
           { path: "objectifs", element: <GoalsPage /> },
           { path: "suivi", element: <SuiviPage /> },
+          { path: "alertes", element: <AlertsPage /> },
           { path: "patrimoine", element: <PatrimoinePage /> },
           { path: "projection", element: <ProjectionPage /> },
           { path: "faisabilite", element: <FeasibilityPage /> },

@@ -1,0 +1,521 @@
+/* /alertes — the five measured conditions.
+
+   The visual problem this stylesheet exists to solve: on the operator's own
+   ledger the screen is mostly SILENCE, and silence has to read as an answer
+   rather than as an empty page. So the conditions table is as much a first-
+   class object as the alert feed, and a condition that could not be measured
+   is drawn as deliberately as one that fired.
+
+   Registers that must not read alike, and none of them is carried by colour
+   alone — every one also carries a WORD:
+
+   * `yd-alerts__gap`     the import gap. Warning rule. It governs how every
+                          card below it should be read, so it sits at the top.
+   * `yd-alerts__rule`    "un seuil non renseigné n'est pas un seuil à 0 €".
+                          A rule of the product: accent rule, not a warning.
+   * `--critical/--warning/--info`  three alert severities, three left rules,
+                          each beside its own printed severity label.
+   * `--unmeasured`       a condition nobody could measure. Info rule: nothing
+                          failed, and it must not read as a problem.
+   * `yd-alerts__alert`   the negative tint, and ONLY for a round trip that
+                          failed.
+
+   Every colour is a token from design/tokens.css; design/contrast.test.ts
+   parses that file from disk and holds both themes to 4.5:1. */
+
+.yd-alerts {
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-lg);
+  min-width: 0;
+}
+
+.yd-alerts__header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-xs);
+}
+
+.yd-alerts__header h1 {
+  margin: 0;
+  font-size: clamp(1.5rem, 1.2rem + 1.4vw, 2rem);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--yd-text);
+}
+
+.yd-alerts__lead {
+  margin: 0;
+  max-width: 80ch;
+  font-size: 0.92rem;
+  line-height: 1.6;
+  color: var(--yd-text-muted);
+}
+
+.yd-alerts__lead strong {
+  color: var(--yd-text);
+  font-weight: 600;
+}
+
+.yd-alerts__alert {
+  margin: 0;
+  padding: var(--yd-space-sm) var(--yd-space-md);
+  border-radius: var(--yd-radius-sm);
+  border: 1px solid var(--yd-negative);
+  background: color-mix(in srgb, var(--yd-negative) 14%, transparent);
+  color: var(--yd-negative-text);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.yd-alerts__note {
+  margin: 0 0 var(--yd-space-xs);
+  max-width: 92ch;
+  font-size: 0.82rem;
+  line-height: 1.55;
+  color: var(--yd-text-muted);
+}
+
+.yd-alerts__note strong {
+  color: var(--yd-text);
+  font-weight: 600;
+}
+
+.yd-alerts__coverage {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.55;
+  color: var(--yd-text);
+}
+
+/* The import gap. Warning rule: nothing is broken, but every alert below has
+   to be read against it. */
+.yd-alerts__gap {
+  margin: var(--yd-space-xs) 0 0;
+  max-width: 100ch;
+  padding: var(--yd-space-sm) var(--yd-space-md);
+  border-radius: var(--yd-radius-sm);
+  border: 1px solid var(--yd-border-strong);
+  border-left: 3px solid var(--yd-warning);
+  background: var(--yd-surface);
+  color: var(--yd-text);
+  font-size: 0.88rem;
+  line-height: 1.55;
+}
+
+/* The unimported months, as chips. Wraps rather than scrolls: eight of them
+   fit on two lines at 375 px, and a scroller for eight items is machinery
+   nobody needs. */
+.yd-alerts__months {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--yd-space-2xs);
+  margin: var(--yd-space-xs) 0 0;
+  padding: 0;
+  list-style: none;
+  min-width: 0;
+}
+
+.yd-alerts__months li {
+  padding: 4px var(--yd-space-xs);
+  border-radius: var(--yd-radius-sm);
+  border: 1px dashed var(--yd-border-strong);
+  font-size: 0.76rem;
+  color: var(--yd-text);
+  white-space: nowrap;
+}
+
+.yd-alerts__empty {
+  margin: 0;
+  max-width: 84ch;
+  font-size: 0.88rem;
+  line-height: 1.6;
+  color: var(--yd-text);
+}
+
+/* -- The alert feed -------------------------------------------------------- */
+
+.yd-alerts__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-sm);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  min-width: 0;
+}
+
+.yd-alert {
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-2xs);
+  min-width: 0;
+  padding: var(--yd-space-sm) var(--yd-space-md);
+  border-radius: var(--yd-radius-sm);
+  border: 1px solid var(--yd-border);
+  background: var(--yd-surface);
+}
+
+.yd-alert--critical {
+  border-left: 3px solid var(--yd-negative);
+}
+
+.yd-alert--warning {
+  border-left: 3px solid var(--yd-warning);
+}
+
+.yd-alert--info {
+  border-left: 3px solid var(--yd-info);
+}
+
+.yd-alert__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--yd-space-xs);
+  min-width: 0;
+}
+
+.yd-alert__title {
+  margin: 0;
+  min-width: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--yd-text);
+  overflow-wrap: anywhere;
+}
+
+/* The severity, as a WORD. The left rule above carries the same information in
+   colour; this is what a reader who cannot use that colour reads instead. */
+.yd-alert__severity {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.yd-alert__severity--critical {
+  color: var(--yd-negative-text);
+}
+
+.yd-alert__severity--warning {
+  color: var(--yd-warning);
+}
+
+.yd-alert__severity--info {
+  color: var(--yd-info);
+}
+
+.yd-alert__figure {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--yd-space-xs);
+  margin: 0;
+  min-width: 0;
+}
+
+.yd-alert__amount {
+  font-size: 1.15rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--yd-text);
+}
+
+.yd-alert__on {
+  font-size: 0.78rem;
+  color: var(--yd-text-muted);
+}
+
+.yd-alert__claims {
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-xs);
+  margin: var(--yd-space-2xs) 0 0;
+  min-width: 0;
+}
+
+.yd-alert__claim {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.yd-alert__claim dt {
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--yd-text-muted);
+}
+
+.yd-alert__claim dd {
+  margin: 0;
+  max-width: 92ch;
+  font-size: 0.84rem;
+  line-height: 1.55;
+  color: var(--yd-text);
+}
+
+/* -- The five conditions --------------------------------------------------- */
+
+.yd-conds {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--yd-space-sm);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  min-width: 0;
+}
+
+/* Two columns only once a column is genuinely wide enough for a full French
+   sentence. Measured on the rendered card, not guessed. */
+@media (min-width: 1100px) {
+  .yd-conds {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.yd-cond {
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-2xs);
+  min-width: 0;
+  padding: var(--yd-space-sm) var(--yd-space-md);
+  border-radius: var(--yd-radius-sm);
+  border: 1px solid var(--yd-border);
+  background: var(--yd-surface);
+}
+
+.yd-cond--firing {
+  border-left: 3px solid var(--yd-warning);
+}
+
+.yd-cond--clear {
+  border-left: 3px solid var(--yd-positive);
+}
+
+/* Nothing failed here: a condition nobody could measure takes the info rule,
+   never the warning or negative tint. */
+.yd-cond--unmeasured {
+  border-left: 3px solid var(--yd-info);
+}
+
+/* Measured, but a subject was deliberately set aside. Neither a finding nor a
+   clean bill of health, so neither the warning nor the positive rule: the
+   accent, which is this application's colour for "here is how it works". */
+.yd-cond--withheld {
+  border-left: 3px solid var(--yd-accent-strong);
+}
+
+.yd-cond__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--yd-space-xs);
+  min-width: 0;
+}
+
+.yd-cond__label {
+  margin: 0;
+  min-width: 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--yd-text);
+}
+
+.yd-cond__state {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.yd-cond__state--firing {
+  color: var(--yd-warning);
+}
+
+.yd-cond__state--clear {
+  color: var(--yd-positive);
+}
+
+.yd-cond__state--unmeasured {
+  color: var(--yd-info);
+}
+
+.yd-cond__state--withheld {
+  color: var(--yd-accent-strong);
+}
+
+.yd-cond__detail {
+  margin: 0;
+  max-width: 92ch;
+  font-size: 0.83rem;
+  line-height: 1.55;
+  color: var(--yd-text);
+}
+
+/* A subject Yieldo refuses to judge. Dashed, like every other absence in this
+   application, so it never reads as a finding. */
+.yd-cond__withheld {
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-2xs);
+  margin: var(--yd-space-xs) 0 0;
+  padding: var(--yd-space-xs) var(--yd-space-sm);
+  border-radius: var(--yd-radius-sm);
+  border: 1px dashed var(--yd-border-strong);
+  list-style: none;
+  min-width: 0;
+}
+
+.yd-cond__withheld li {
+  max-width: 92ch;
+  font-size: 0.8rem;
+  line-height: 1.55;
+  color: var(--yd-text);
+}
+
+/* -- The threshold form ---------------------------------------------------- */
+
+/* The one rule of the product on this screen: an unset threshold is not zero.
+   Accent rule — it is not a warning and not a failure. */
+.yd-alerts__rule {
+  margin: 0 0 var(--yd-space-sm);
+  max-width: 84ch;
+  padding: var(--yd-space-sm) var(--yd-space-md);
+  border-radius: var(--yd-radius-sm);
+  border: 1px solid var(--yd-border-strong);
+  border-left: 3px solid var(--yd-accent-strong);
+  background: var(--yd-surface);
+  color: var(--yd-text);
+  font-size: 0.84rem;
+  line-height: 1.55;
+}
+
+.yd-alerts__rule strong {
+  font-weight: 600;
+}
+
+.yd-floor {
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-xs);
+  min-width: 0;
+}
+
+.yd-floor__field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-2xs);
+  /* `width: 100%` on a column child, never a percentage inside an auto-width
+     flex row — that resolves to zero. */
+  width: 100%;
+  min-width: 0;
+  font-size: 0.76rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--yd-text-muted);
+}
+
+.yd-floor__field input {
+  min-height: 44px;
+  width: 100%;
+  min-width: 0;
+  padding: 0 var(--yd-space-sm);
+  border-radius: var(--yd-radius-sm);
+  border: 1px solid var(--yd-border-control);
+  background: var(--yd-surface);
+  color: var(--yd-text);
+  font: inherit;
+  font-size: 0.95rem;
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: normal;
+  text-transform: none;
+}
+
+.yd-floor__field input:focus-visible {
+  outline: 2px solid var(--yd-accent-strong);
+  outline-offset: 2px;
+}
+
+.yd-floor__field input[aria-invalid="true"] {
+  border-color: var(--yd-negative);
+}
+
+/* Beside the field that produced it, never at the top of the form. */
+.yd-floor__error {
+  margin: 0;
+  max-width: 72ch;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: var(--yd-negative-text);
+}
+
+.yd-floor__state {
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  color: var(--yd-text);
+}
+
+.yd-floor__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--yd-space-xs);
+  min-width: 0;
+}
+
+.yd-floor__action {
+  min-height: 44px;
+  padding: 0 var(--yd-space-md);
+  border-radius: var(--yd-radius-sm);
+  border: 1px solid var(--yd-border-control);
+  background: transparent;
+  color: var(--yd-text);
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background var(--yd-motion-fast) var(--yd-ease),
+    border-color var(--yd-motion-fast) var(--yd-ease);
+}
+
+.yd-floor__action:hover:not(:disabled) {
+  background: var(--yd-surface-raised);
+  border-color: var(--yd-accent-strong);
+}
+
+.yd-floor__action:focus-visible {
+  outline: 2px solid var(--yd-accent-strong);
+  outline-offset: 2px;
+}
+
+.yd-floor__action:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.yd-floor__action--primary {
+  border-color: var(--yd-accent-strong);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .yd-floor__action {
+    transition: none;
+  }
+}
+
+:root[data-motion="off"] .yd-floor__action {
+  transition: none;
+}

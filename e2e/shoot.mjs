@@ -412,6 +412,59 @@ const CONNECTIONS_CONTRAST = {
   alert: ".yd-connections__alert",
 };
 
+/**
+ * /alertes. Every selector below is a FIGURE, a sentence or a control — never
+ * a container.
+ *
+ * Five of them exist because of the distinction this screen is built to make,
+ * and on the operator's own ledger all five are on screen at once:
+ *
+ * * `gap`         the eight unimported months, on the WARNING rule. It governs
+ *                 how every card under it should be read.
+ * * `rule`        "un seuil non renseigné n'est pas un seuil à 0 €", on the
+ *                 ACCENT rule — a rule of the product, not a caution.
+ * * `condClear`   a condition measured and silent.
+ * * `condUnmeasured` a condition nobody could measure. INFO rule: nothing
+ *                 failed, and it must not read like a problem.
+ * * `withheld`    a subject Yieldo refuses to judge, on a DASHED ground — the
+ *                 one pairing here whose background is not the flat card.
+ *
+ * `claimLabel` is the smallest text on the screen ("CE QUI A ÉTÉ MESURÉ"), and
+ * it is what separates a measurement from a remedy on every alert card.
+ */
+const ALERTS_CONTRAST = {
+  lead: ".yd-alerts__lead",
+  note: ".yd-alerts__note",
+  coverage: ".yd-alerts__coverage",
+  gap: ".yd-alerts__gap",
+  month: ".yd-alerts__months li",
+  empty: ".yd-alerts__empty",
+  rule: ".yd-alerts__rule",
+  panelTitle: ".yd-panel__title",
+  alertTitle: ".yd-alert__title",
+  severityInfo: ".yd-alert__severity--info",
+  severityCritical: ".yd-alert__severity--critical",
+  amount: ".yd-alert__amount",
+  on: ".yd-alert__on",
+  claimLabel: ".yd-alert__claim dt",
+  measured: ".yd-alert__measured",
+  period: ".yd-alert__period",
+  clears: ".yd-alert__clears",
+  condLabel: ".yd-cond__label",
+  condDetail: ".yd-cond__detail",
+  condFiring: ".yd-cond__state--firing",
+  condClear: ".yd-cond__state--clear",
+  condUnmeasured: ".yd-cond__state--unmeasured",
+  condWithheld: ".yd-cond__state--withheld",
+  withheld: ".yd-cond__withheld li",
+  floorLabel: ".yd-floor__field > span",
+  floorInput: ".yd-floor__field input",
+  floorState: ".yd-floor__state",
+  floorError: ".yd-floor__error",
+  floorAction: ".yd-floor__action",
+  floorPrimary: ".yd-floor__action--primary",
+};
+
 function luminance([r, g, b]) {
   const lin = (c) => {
     const v = c / 255;
@@ -1854,6 +1907,186 @@ async function driveConnections(page, { theme, viewport, audit }) {
   );
 }
 
+/**
+ * /alertes, on the operator's own 197 transactions, in the three states that
+ * matter — and the first of them is the one he opens every day.
+ *
+ * 1. His ACTUAL state, measured live before this screen was written: two
+ *    anomalies fire and nothing else does. No threshold is stored, no budget
+ *    is declared, no subscription has risen, and the one label without a
+ *    recent charge is a pharmacy card spend whose amounts vary far too much
+ *    to call a scheduled debit — WITHHELD, with its own cause, rather than
+ *    announced as a missed payment. Eight months inside his own ledger's span
+ *    hold nothing at all, which is why the notice is at the top.
+ * 2. The threshold form refused: an empty box is not a floor of zero, and the
+ *    screen says so at the field rather than sending it as one.
+ * 3. A floor of −500 € stored, which turns the balance condition from
+ *    "non mesurée" into a real measurement — and on his own data the
+ *    projection refuses for want of history, so what appears is the FORECAST's
+ *    own refusal, not a fabricated breach.
+ *
+ * The floor is cleared again at the end of every combination, so all six runs
+ * start from the same state and the target is re-runnable.
+ */
+async function driveAlerts(page, { theme, viewport, audit }) {
+  await page.goto(`${BASE}/alertes`);
+  await page.waitForSelector('[data-testid="yd-alerts-conditions"]', { timeout: 30000 });
+
+  // -- 1. The operator's own state -------------------------------------------
+  await expectOnScreen(
+    page,
+    `${theme} ${viewport.name} alertes`,
+    // The import gap, once, at the top.
+    "8 mois de votre historique ne sont pas importés",
+    "un trou dans les données, pas un événement",
+    "avril 2025",
+    "novembre 2025",
+    // The ledger's own span, printed rather than invented.
+    "Du 24 janvier 2025 au 9 janvier 2026",
+    // The two anomalies that really do fire, with all three of their claims.
+    "Montant inhabituel : CARTE X1234 FNAC DARTY",
+    "contre 68,41 € habituellement",
+    "fenêtre analysée, du 24 janvier 2025 au 9 janvier 2026",
+    "Une opération passée ne se corrige pas",
+    // The subject that is WITHHELD rather than announced as a missed payment.
+    "Un rythme n'est pas un prélèvement programmé",
+    "leur silence ne prouve aucun paiement manqué",
+    // And the threshold rule, said as a rule.
+    "Un seuil non renseigné n'est pas un seuil à 0 €",
+    "Aucun seuil enregistré pour l'instant.",
+  );
+
+  // The exact sentence a missed payment would carry must NOT be on screen: the
+  // whole point of this task is that it is never said about an unimported
+  // month or an unscheduled rhythm.
+  const body = await page.evaluate(() => document.body.innerText.replace(/[  ]/g, " "));
+  if (body.includes("Prélèvement attendu non constaté : ")) {
+    problems.push(`${theme} ${viewport.name}: a missed-payment alert fired on this ledger`);
+  }
+
+  // Five conditions, always, whatever fired. A blank screen is otherwise
+  // indistinguishable from a broken one.
+  const shape = await page.evaluate(() => ({
+    conditions: document.querySelectorAll(".yd-cond").length,
+    alerts: document.querySelectorAll(".yd-alert").length,
+    claims: document.querySelectorAll(".yd-alert__claim").length,
+    withheld: document.querySelectorAll(".yd-cond__withheld li").length,
+    months: document.querySelectorAll(".yd-alerts__months li").length,
+    // Read off the DOM, never off innerText: these are uppercased in CSS.
+    states: [...document.querySelectorAll(".yd-cond__state")].map((el) => el.textContent.trim()),
+    severities: [...document.querySelectorAll(".yd-alert__severity")].map((el) =>
+      el.textContent.trim(),
+    ),
+  }));
+  if (shape.conditions !== 5) {
+    problems.push(`${theme} ${viewport.name}: ${shape.conditions} conditions on screen, expected 5`);
+  }
+  if (shape.alerts !== 2) {
+    problems.push(`${theme} ${viewport.name}: ${shape.alerts} alerts on screen, expected 2`);
+  }
+  // Three claims per alert: what, over what period, what would clear it.
+  if (shape.claims !== shape.alerts * 3) {
+    problems.push(
+      `${theme} ${viewport.name}: ${shape.claims} claims across ${shape.alerts} alerts, expected ${shape.alerts * 3}`,
+    );
+  }
+  if (shape.withheld !== 1) {
+    problems.push(`${theme} ${viewport.name}: ${shape.withheld} withheld subjects, expected 1`);
+  }
+  if (shape.months !== 8) {
+    problems.push(`${theme} ${viewport.name}: ${shape.months} unimported months listed, expected 8`);
+  }
+  // The three condition states are three DIFFERENT words, not one repeated.
+  for (const expected of [
+    "Non mesurée",
+    "Mesurée, rien à signaler",
+    // Measured, but a subject was set aside: NOT "rien à signaler", which
+    // would contradict the refusal printed inside the very same card.
+    "1 sujet écarté",
+    "2 alertes",
+  ]) {
+    if (!shape.states.includes(expected)) {
+      problems.push(
+        `${theme} ${viewport.name}: no condition reads "${expected}" (got ${JSON.stringify(shape.states)})`,
+      );
+    }
+  }
+  // Severity is a WORD as well as a colour.
+  if (!shape.severities.every((s) => s === "Pour information")) {
+    problems.push(
+      `${theme} ${viewport.name}: an alert carries no severity word (got ${JSON.stringify(shape.severities)})`,
+    );
+  }
+  // Nothing failed, so nothing is an alert role.
+  const alerts = await page.evaluate(() => document.querySelectorAll('[role="alert"]').length);
+  if (alerts !== 0) {
+    problems.push(`${theme} ${viewport.name}: ${alerts} alert(s) on a screen where nothing failed`);
+  }
+
+  await page.waitForTimeout(600);
+  await shot(page, viewport, theme);
+  await audit("alertes");
+
+  // -- 2. An empty box is not a floor of zero --------------------------------
+  await page.getByRole("button", { name: /Enregistrer le seuil/ }).click();
+  await page.waitForSelector('[data-testid="yd-alerts-floor-error"]', { timeout: 20000 });
+  await expectOnScreen(
+    page,
+    `${theme} ${viewport.name} refus seuil`,
+    "Un champ vide n'est pas un seuil à 0 €",
+    "Ne plus surveiller de seuil",
+  );
+  const invalid = await page.evaluate(
+    () => document.querySelectorAll('.yd-floor [aria-invalid="true"]').length,
+  );
+  if (invalid !== 1) {
+    problems.push(
+      `${theme} ${viewport.name}: ${invalid} fields marked invalid, expected exactly the threshold`,
+    );
+  }
+  await page.waitForTimeout(400);
+  await shot(page, viewport, theme, "-refus-seuil");
+  await audit("refus seuil");
+
+  // -- 3. A floor stored, and what the projection actually says about it -----
+  await page.getByLabel("Seuil (€)").fill("-500");
+  await page.getByRole("button", { name: /Enregistrer le seuil/ }).click();
+  await page.waitForFunction(
+    () =>
+      (document.querySelector('[data-testid="yd-alerts-floor-state"]')?.textContent ?? "").includes(
+        "Seuil enregistré",
+      ),
+    { timeout: 30000 },
+  );
+  await expectOnScreen(
+    page,
+    `${theme} ${viewport.name} seuil`,
+    "Seuil enregistré : −500,00 €",
+  );
+  // The balance condition must now say something OTHER than "no threshold" —
+  // whether that is a breach or the forecast's own refusal, it is a real
+  // measurement attempt and never the absent-threshold sentence.
+  const balance = await page.textContent('[data-testid="yd-cond-balance_floor"]');
+  if (balance.includes("Un seuil absent n'est pas un seuil")) {
+    problems.push(
+      `${theme} ${viewport.name}: a stored floor still reads as no floor at all`,
+    );
+  }
+  await page.waitForTimeout(600);
+  await shot(page, viewport, theme, "-seuil");
+  await audit("seuil");
+
+  // Back to the state this run started from.
+  await page.getByRole("button", { name: /Ne plus surveiller de seuil/ }).click();
+  await page.waitForFunction(
+    () =>
+      (document.querySelector('[data-testid="yd-alerts-floor-state"]')?.textContent ?? "").includes(
+        "Aucun seuil enregistré",
+      ),
+    { timeout: 30000 },
+  );
+}
+
 const SCENARIOS = {
   "task-15": { drive: driveFeasibility, contrast: FEASIBILITY_CONTRAST, out: "phase-2b" },
   "task-16": { drive: driveFeasibility, contrast: FEASIBILITY_CONTRAST, out: "phase-2b" },
@@ -1927,6 +2160,15 @@ const SCENARIOS = {
   "task-10-connexions": {
     drive: driveConnections,
     contrast: CONNECTIONS_CONTRAST,
+    out: "phase-4",
+  },
+  // /alertes on the operator's OWN ledger: two anomalies, one withheld
+  // subject, eight unimported months and three conditions that could not be
+  // measured. It stores a threshold and clears it again, so all six
+  // combinations start from the same state.
+  "task-10-alertes": {
+    drive: driveAlerts,
+    contrast: ALERTS_CONTRAST,
     out: "phase-4",
   },
 };

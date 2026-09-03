@@ -106,6 +106,11 @@ describe("AppShell", () => {
       "Catégories",
       "Import",
       "Réglages",
+      // Réglages -> Connexions, the screen every French refusal in
+      // `market/client.py` and `llm/client.py` sends the reader to. Its own
+      // nav entry, because a link buried inside another screen is not an
+      // address a sentence can point at.
+      "Connexions",
     ]);
   });
 

@@ -365,6 +365,53 @@ const EXPORT_CONTRAST = {
   preview: ".yd-export__preview",
 };
 
+/**
+ * Réglages → Connexions. Every selector below is a FIGURE, a sentence or a
+ * control — never a container.
+ *
+ * Four of them exist because of the distinction this screen is built to make,
+ * and all four are on screen at once on the operator's own installation:
+ *
+ * * `rule`        the write-only promise, on the ACCENT rule. It is a rule of
+ *                 the product, not a warning, and must not read like one.
+ * * `contract`    "le modèle ne calcule jamais", on the INFO rule. Same
+ *                 requirement, one register over.
+ * * `nokey`       what CoinGecko and Frankfurter render INSTEAD of a key
+ *                 field, painted on a dashed ground — the one pairing here
+ *                 whose background is not the flat card.
+ * * `outcomeBad`  a provider that really answered and really refused. Warning
+ *                 rule, never the negative tint, which is reserved for
+ *                 `alert` — a round trip that failed.
+ *
+ * `hint` is the smallest text on the screen and it carries the whole
+ * write-only promise under every field, so it has to clear AA on its own.
+ */
+const CONNECTIONS_CONTRAST = {
+  lead: ".yd-connections__lead",
+  rule: ".yd-connections__lead--rule",
+  contract: ".yd-connections__contract",
+  note: ".yd-connections__note",
+  steps: ".yd-connections__steps",
+  panelTitle: ".yd-panel__title",
+  connName: ".yd-conn__name",
+  connRole: ".yd-conn__role",
+  connQuota: ".yd-conn__quota",
+  connUsed: ".yd-conn__used",
+  stateSet: ".yd-conn__state--set",
+  stateUnset: ".yd-conn__state--unset",
+  stateOpen: ".yd-conn__state--open",
+  nokey: ".yd-conn__nokey",
+  fieldLabel: ".yd-conn__field > span",
+  fieldInput: ".yd-conn__field input",
+  hint: ".yd-conn__hint",
+  stateLine: ".yd-conn__state-line",
+  action: ".yd-conn__action",
+  actionPrimary: ".yd-conn__action--primary",
+  outcomeOk: ".yd-conn__outcome--ok",
+  outcomeBad: ".yd-conn__outcome--bad",
+  alert: ".yd-connections__alert",
+};
+
 function luminance([r, g, b]) {
   const lin = (c) => {
     const v = c / 255;
@@ -1602,6 +1649,211 @@ async function driveExport(page, { theme, viewport, audit }) {
   }
 }
 
+/**
+ * /reglages/connexions, in the three states that matter.
+ *
+ * 1. The operator's ACTUAL state: no key anywhere, no model configured. Three
+ *    providers asking for a key, two saying they need none — and NO key field
+ *    rendered for those two, checked off the DOM rather than assumed.
+ * 2. A key submitted and REFUSED. The provider is really called, so the
+ *    sentence that comes back really is one of `market/client.py`'s five —
+ *    which one depends on whether this machine has a network, and both are
+ *    correct. The assertion is therefore that the printed sentence is one of
+ *    the five, verbatim: "print the one you were given" is the property, not
+ *    any single wording.
+ * 3. A model configured through the real form. `PUT /assistant/llm-settings`
+ *    makes no outbound call at all — an endpoint URL and a model name are not
+ *    proven wrong until a question is asked — so this state is fully
+ *    deterministic with no key and no network.
+ *
+ * State 3 mutates, so the model is deleted again at the end of every
+ * combination: all six runs start from the same place, and the target is
+ * re-runnable and order-independent.
+ */
+const MARKET_CAUSES = [
+  "a été refusée par le fournisseur",
+  "est épuisé pour cette période",
+  "est injoignable pour le moment",
+  "Aucune clé n'est enregistrée pour",
+  "est inconnu de",
+];
+
+async function driveConnections(page, { theme, viewport, audit }) {
+  await page.goto(`${BASE}/reglages/connexions`);
+  await page.waitForSelector('[data-testid="yd-connections-list"]', { timeout: 30000 });
+
+  // -- 1. The operator's own state -------------------------------------------
+  await expectOnScreen(
+    page,
+    `${theme} ${viewport.name} connexions`,
+    // The write-only promise, said as a rule rather than implied.
+    "Une clé s'écrit, elle ne se relit pas.",
+    "il ne peut pas vous dire laquelle",
+    "n'affiche donc aucune valeur masquée",
+    // His actual state, with what it costs stated rather than left blank.
+    "Aucune clé enregistrée sur les 3 fournisseurs",
+    "prix de revient",
+    // The two providers that need none, said as themselves.
+    "Aucune clé n'est nécessaire",
+    "aucun plafond",
+    // The model, and the contract that makes it safe to switch on.
+    "Le modèle ne calcule jamais.",
+    "aucun montant à l'écran ne peut venir de lui",
+    "Aucun modèle n'est configuré",
+  );
+
+  // The three state badges, read off the DOM and never off `innerText`: they
+  // are uppercased in CSS, and `innerText` reports what is PAINTED rather than
+  // what was written — the same trap that fooled a screenshot assertion on
+  // /projection and again on /export.
+  const badges = await page.evaluate(() =>
+    [...document.querySelectorAll(".yd-conn__state")].map((el) => el.textContent.trim()),
+  );
+  for (const expected of ["Aucune clé requise", "Aucune clé"]) {
+    if (!badges.includes(expected)) {
+      problems.push(
+        `${theme} ${viewport.name}: no provider badge reads "${expected}" (got ${JSON.stringify(badges)})`,
+      );
+    }
+  }
+  if (badges.filter((b) => b === "Aucune clé requise").length !== 2) {
+    problems.push(
+      `${theme} ${viewport.name}: expected exactly 2 key-free providers, got ${JSON.stringify(badges)}`,
+    );
+  }
+
+  // A masked value is exactly what this screen must NOT show: it would read as
+  // something retrievable, and nothing on this server is.
+  const masked = await page.evaluate(() => ({
+    inText: /[•*]{3,}/.test(document.body.innerText),
+    filled: [...document.querySelectorAll("input")].filter((el) => el.value !== "").length,
+  }));
+  if (masked.inText) {
+    problems.push(`${theme} ${viewport.name}: a masked key value is painted on screen`);
+  }
+  if (masked.filled !== 0) {
+    problems.push(`${theme} ${viewport.name}: ${masked.filled} field(s) arrived prefilled`);
+  }
+
+  // CoinGecko and Frankfurter must have NO key field at all — an empty box
+  // would imply a step the household does not have.
+  const fields = await page.evaluate(() =>
+    Object.fromEntries(
+      ["finnhub", "alpha_vantage", "coingecko", "frankfurter", "exchangerate_api"].map((p) => [
+        p,
+        document.querySelectorAll(`[data-testid="yd-conn-${p}"] input`).length,
+      ]),
+    ),
+  );
+  for (const provider of ["coingecko", "frankfurter"]) {
+    if (fields[provider] !== 0) {
+      problems.push(
+        `${theme} ${viewport.name}: ${provider} needs no key but renders ${fields[provider]} field(s)`,
+      );
+    }
+  }
+  for (const provider of ["finnhub", "alpha_vantage", "exchangerate_api"]) {
+    if (fields[provider] !== 1) {
+      problems.push(
+        `${theme} ${viewport.name}: ${provider} needs a key but renders ${fields[provider]} field(s)`,
+      );
+    }
+  }
+
+  // Every control is a real touch target, measured off the rendered box.
+  const controls = await page.evaluate(() =>
+    [...document.querySelectorAll(".yd-conn__action, .yd-conn__field input")].map((el) => ({
+      height: el.getBoundingClientRect().height,
+      width: el.getBoundingClientRect().width,
+    })),
+  );
+  for (const control of controls) {
+    if (control.height < 44) {
+      problems.push(`${theme} ${viewport.name}: a control is ${control.height}px tall`);
+    }
+    if (control.width < 40) {
+      problems.push(`${theme} ${viewport.name}: a control collapsed to ${control.width}px`);
+    }
+  }
+
+  await page.waitForTimeout(500);
+  await shot(page, viewport, theme, "-vide");
+  await audit("connexions vide");
+
+  // -- 2. A key submitted, and refused ---------------------------------------
+  await page.locator('[data-testid="yd-conn-finnhub"] input').fill("cle-invalide-de-demonstration");
+  await page.locator('[data-testid="yd-conn-finnhub"] button[type="submit"]').click();
+  await page.waitForFunction(
+    () =>
+      (document.querySelector('[data-testid="yd-conn-outcome-finnhub"]')?.textContent ?? "").trim()
+        .length > 0,
+    { timeout: 40000 },
+  );
+  const outcome = (await page.textContent('[data-testid="yd-conn-outcome-finnhub"]')).trim();
+  if (!MARKET_CAUSES.some((cause) => outcome.includes(cause))) {
+    problems.push(
+      `${theme} ${viewport.name}: the refusal on screen is none of market/client.py's five causes ("${outcome}")`,
+    );
+  }
+  // Nothing was stored, and the refusal is CONTENT, not an alert: the provider
+  // really answered.
+  const afterRefusal = await page.evaluate(() => ({
+    state:
+      document.querySelector('[data-testid="yd-conn-finnhub"] .yd-conn__state')?.textContent ?? "",
+    alerts: document.querySelectorAll('[role="alert"]').length,
+    field: document.querySelector('[data-testid="yd-conn-finnhub"] input')?.value ?? "?",
+  }));
+  if (!afterRefusal.state.includes("Aucune clé")) {
+    problems.push(
+      `${theme} ${viewport.name}: a refused key left the card reading "${afterRefusal.state}"`,
+    );
+  }
+  if (afterRefusal.alerts !== 0) {
+    problems.push(
+      `${theme} ${viewport.name}: ${afterRefusal.alerts} alert(s) where a provider merely refused a key`,
+    );
+  }
+  if (afterRefusal.field !== "") {
+    problems.push(`${theme} ${viewport.name}: the key field still holds what was typed`);
+  }
+  await page.waitForTimeout(400);
+  await shot(page, viewport, theme, "-refus");
+  await audit("refus");
+
+  // -- 3. A model, configured through the real form --------------------------
+  await page.getByLabel("URL de l'endpoint").fill("http://localhost:11434/v1");
+  await page.getByLabel("Nom du modèle").fill("llama3.1:8b");
+  await page.getByRole("button", { name: /Enregistrer le modèle/ }).click();
+  await page.waitForSelector('[data-testid="yd-llm-outcome"]', { timeout: 20000 });
+  await expectOnScreen(
+    page,
+    `${theme} ${viewport.name} modèle`,
+    "Modèle configuré : llama3.1:8b sur http://localhost:11434/v1",
+    "Aucune clé n'est enregistrée — un endpoint local n'en demande pas",
+    "sa réponse reste un commentaire",
+  );
+  // The key box is STILL empty after the save: a stored configuration never
+  // fills it, because there is nothing to fill it with.
+  const modelKey = await page.evaluate(() => document.querySelector("#yd-llm-key")?.value ?? "?");
+  if (modelKey !== "") {
+    problems.push(`${theme} ${viewport.name}: the model key field was prefilled after a save`);
+  }
+  await page.waitForTimeout(400);
+  await shot(page, viewport, theme, "-modele");
+  await audit("modèle");
+
+  // Back to the state this run started from, so all six combinations are
+  // identical in effect.
+  await page.getByRole("button", { name: /Supprimer le modèle/ }).click();
+  await page.waitForFunction(
+    () =>
+      (document.querySelector('[data-testid="yd-llm-state"]')?.textContent ?? "").includes(
+        "Aucun modèle n'est configuré",
+      ),
+    { timeout: 20000 },
+  );
+}
+
 const SCENARIOS = {
   "task-15": { drive: driveFeasibility, contrast: FEASIBILITY_CONTRAST, out: "phase-2b" },
   "task-16": { drive: driveFeasibility, contrast: FEASIBILITY_CONTRAST, out: "phase-2b" },
@@ -1666,6 +1918,15 @@ const SCENARIOS = {
   "task-7-export": {
     drive: driveExport,
     contrast: EXPORT_CONTRAST,
+    out: "phase-4",
+  },
+  // Réglages → Connexions on the operator's OWN installation: no key
+  // anywhere, no model. It photographs a refused key (the provider is really
+  // called) and a model configured through the real form, then deletes the
+  // model again — so all six combinations start from the same state.
+  "task-10-connexions": {
+    drive: driveConnections,
+    contrast: CONNECTIONS_CONTRAST,
     out: "phase-4",
   },
 };

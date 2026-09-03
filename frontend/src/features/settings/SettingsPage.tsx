@@ -1,4 +1,4 @@
-import { useNavigate } from "react-router";
+import { Link, useNavigate } from "react-router";
 
 import { useDensity } from "../../app/DensityProvider";
 import { useTheme } from "../../app/ThemeProvider";
@@ -18,11 +18,13 @@ const DENSITY_OPTIONS: { value: DensityPreference; label: string }[] = [
   { value: "compact", label: "Compact" },
 ];
 
-// Phase 1's Réglages screen is deliberately small: theme, density, an
-// animation kill switch, and signing out. Registration open/close is out of
-// scope here — `registration_open` is an environment variable read once at
-// startup with no endpoint to change it; exposing it needs a server-side
-// settings table that belongs to phase 3 alongside API-key management.
+// Théme, densité, un interrupteur d'animation, et la déconnexion. Les clés
+// de marché et le modèle de langage vivent sur leur propre écran,
+// /reglages/connexions — c'est l'adresse que nomment toutes les phrases
+// françaises de `market/client.py` et `llm/client.py`, et un écran séparé est
+// ce qui rend cette adresse atteignable. Registration open/close reste hors
+// périmètre : `registration_open` est une variable d'environnement lue au
+// démarrage, sans endpoint pour la changer.
 export function SettingsPage() {
   const { preference: theme, setPreference: setTheme } = useTheme();
   const { density, setDensity } = useDensity();
@@ -82,6 +84,16 @@ export function SettingsPage() {
           aria-checked={!motionDisabled}
           onChange={(event) => setMotionDisabled(!event.target.checked)}
         />
+      </div>
+
+      <div className="yd-settings__field yd-settings__field--link">
+        <Link className="yd-settings__link" to="/reglages/connexions">
+          Connexions — clés de données de marché et modèle de langage
+        </Link>
+        <p className="yd-settings__note">
+          Rien n'y est obligatoire&nbsp;: sans aucune clé, Yieldo importe, catégorise, budgète,
+          projette et répond. Une clé s'y écrit et ne s'y relit jamais.
+        </p>
       </div>
 
       <button type="button" className="yd-settings__logout" onClick={handleLogout}>

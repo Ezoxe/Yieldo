@@ -1,26 +1,6 @@
 import { plural } from "../../lib/plural";
 import type { Connection } from "../../lib/types";
-
-/** The five providers, as `market/quota.py`'s `PROVIDER_LABELS` spells them —
- *  the same names the backend's own French sentences use, so "aucune clé pour
- *  Finnhub" points at a row the reader can actually find here. */
-const PROVIDER_LABEL: Record<string, string> = {
-  finnhub: "Finnhub",
-  alpha_vantage: "Alpha Vantage",
-  coingecko: "CoinGecko",
-  frankfurter: "Frankfurter",
-  exchangerate_api: "ExchangeRate-API",
-};
-
-/** What each provider is actually FOR — without this the panel is five brand
- *  names and no information. */
-const PROVIDER_ROLE: Record<string, string> = {
-  finnhub: "Actions, ETF et obligations",
-  alpha_vantage: "Actions (source de secours)",
-  coingecko: "Cryptomonnaies",
-  frankfurter: "Taux de change",
-  exchangerate_api: "Taux de change (source de secours)",
-};
+import { PROVIDER_LABEL, PROVIDER_ROLE } from "../connections/providers";
 
 function quotaSentence(connection: Connection): string {
   const { quota } = connection;
@@ -109,8 +89,8 @@ export function MarketPanel({ connections }: { connections: Connection[] }) {
         })}
       </ul>
 
-      <a className="yd-patrimoine__link" href="/reglages">
-        Enregistrer une clé dans Réglages
+      <a className="yd-patrimoine__link" href="/reglages/connexions">
+        Enregistrer une clé dans Réglages → Connexions
       </a>
     </div>
   );

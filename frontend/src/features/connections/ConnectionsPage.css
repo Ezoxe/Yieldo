@@ -1,0 +1,378 @@
+/* Réglages → Connexions.
+
+   The visual problem this stylesheet exists to solve: a key field must read as
+   WRITE-ONLY. Nothing here ever paints a masked value, so the whole burden of
+   saying "you cannot get this back" falls on copy and on the field's own
+   emptiness — which means the hint under the box has to be as readable as the
+   box, at 375 px, in both themes. `.yd-conn__hint` is therefore a real
+   text tone, never a decorative grey.
+
+   Three registers that must not read alike:
+
+   * `--outcome--ok`   the provider really answered and the key really works.
+                       Positive rule.
+   * `--outcome--bad`  the provider really answered and refused. A 200, not a
+                       breakage: the WARNING rule, so it never reads as the
+                       app being broken.
+   * `--alert`         the round trip itself failed. The negative tint, at the
+                       top of the screen, and nowhere else.
+
+   Every colour is a token from design/tokens.css; design/contrast.test.ts
+   parses that file from disk and holds both themes to 4.5:1. */
+
+.yd-connections {
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-lg);
+  min-width: 0;
+}
+
+.yd-connections__header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-xs);
+}
+
+.yd-connections__header h1 {
+  margin: 0;
+  font-size: clamp(1.5rem, 1.2rem + 1.4vw, 2rem);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--yd-text);
+}
+
+.yd-connections__lead {
+  margin: 0;
+  max-width: 76ch;
+  font-size: 0.92rem;
+  line-height: 1.6;
+  color: var(--yd-text-muted);
+}
+
+.yd-connections__lead strong {
+  color: var(--yd-text);
+  font-weight: 600;
+}
+
+/* The write-only promise, on the accent rule. It is a rule of the product,
+   not a warning and not a failure, so it takes the accent rather than the
+   warning or negative tint. */
+.yd-connections__lead--rule {
+  margin-top: var(--yd-space-2xs);
+  padding: var(--yd-space-sm) var(--yd-space-md);
+  border-radius: var(--yd-radius-sm);
+  border: 1px solid var(--yd-border-strong);
+  border-left: 3px solid var(--yd-accent-strong);
+  background: var(--yd-surface);
+  color: var(--yd-text);
+}
+
+.yd-connections__alert {
+  margin: 0;
+  padding: var(--yd-space-sm) var(--yd-space-md);
+  border-radius: var(--yd-radius-sm);
+  border: 1px solid var(--yd-negative);
+  background: color-mix(in srgb, var(--yd-negative) 14%, transparent);
+  color: var(--yd-negative-text);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.yd-connections__note {
+  margin: 0 0 var(--yd-space-xs);
+  max-width: 90ch;
+  font-size: 0.82rem;
+  line-height: 1.55;
+  color: var(--yd-text-muted);
+}
+
+/* "Le modèle ne calcule jamais" — the contract that makes the feature safe to
+   switch on. Info rule: it is a statement of fact, not a caution. */
+.yd-connections__contract {
+  margin: 0 0 var(--yd-space-xs);
+  max-width: 90ch;
+  padding: var(--yd-space-sm) var(--yd-space-md);
+  border-radius: var(--yd-radius-sm);
+  border: 1px solid var(--yd-border-strong);
+  border-left: 3px solid var(--yd-info);
+  background: var(--yd-surface);
+  color: var(--yd-text);
+  font-size: 0.86rem;
+  line-height: 1.55;
+}
+
+.yd-connections__contract strong {
+  font-weight: 600;
+}
+
+.yd-connections__steps {
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-sm);
+  margin: 0;
+  padding-left: 1.35em;
+  max-width: 96ch;
+  font-size: 0.86rem;
+  line-height: 1.6;
+  color: var(--yd-text-muted);
+}
+
+.yd-connections__steps strong,
+.yd-connections__steps em {
+  color: var(--yd-text);
+}
+
+.yd-connections__steps em {
+  font-style: normal;
+  font-weight: 600;
+}
+
+/* -- One provider ---------------------------------------------------------- */
+
+.yd-conns {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--yd-space-sm);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  min-width: 0;
+}
+
+/* Two columns only once a column is genuinely wide enough for a 44px control
+   plus its hint. Measured on the rendered card, not guessed: below this the
+   button wraps under the field and the row reads as two broken halves. */
+@media (min-width: 1100px) {
+  .yd-conns {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.yd-conn {
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-2xs);
+  min-width: 0;
+  padding: var(--yd-space-sm) var(--yd-space-md);
+  border-radius: var(--yd-radius-sm);
+  border: 1px solid var(--yd-border);
+  background: var(--yd-surface);
+}
+
+/* A key registered is the settled state; a key missing is the state that
+   wants attention; no key needed is neither. Three different left rules, and
+   each carries a WORD as well (`.yd-conn__state`) — the state is never
+   conveyed by colour alone. */
+.yd-conn--set {
+  border-left: 3px solid var(--yd-positive);
+}
+
+.yd-conn--unset {
+  border-left: 3px solid var(--yd-warning);
+}
+
+.yd-conn--open {
+  border-left: 3px solid var(--yd-accent-strong);
+}
+
+.yd-conn__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--yd-space-xs);
+  min-width: 0;
+}
+
+.yd-conn__name {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--yd-text);
+}
+
+.yd-conn__state {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.yd-conn__state--set {
+  color: var(--yd-positive);
+}
+
+.yd-conn__state--unset {
+  color: var(--yd-warning);
+}
+
+.yd-conn__state--open {
+  color: var(--yd-accent-strong);
+}
+
+.yd-conn__role {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--yd-text);
+}
+
+.yd-conn__quota,
+.yd-conn__used {
+  margin: 0;
+  font-size: 0.76rem;
+  line-height: 1.5;
+  color: var(--yd-text-muted);
+}
+
+/* A provider that needs no key. Its own tone, so it never reads as an empty
+   field the reader forgot to fill. */
+.yd-conn__nokey {
+  margin: var(--yd-space-xs) 0 0;
+  padding: var(--yd-space-xs) var(--yd-space-sm);
+  border-radius: var(--yd-radius-sm);
+  border: 1px dashed var(--yd-border-strong);
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: var(--yd-text);
+}
+
+.yd-conn__form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-2xs);
+  margin-top: var(--yd-space-xs);
+  min-width: 0;
+}
+
+.yd-conn__state-line {
+  margin: 0 0 var(--yd-space-2xs);
+  font-size: 0.82rem;
+  line-height: 1.55;
+  color: var(--yd-text);
+}
+
+.yd-conn__field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-2xs);
+  /* `flex`/`width: 100%` on a column child, never a percentage width inside an
+     auto-width flex row — that resolves to zero. */
+  width: 100%;
+  min-width: 0;
+  font-size: 0.76rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--yd-text-muted);
+}
+
+.yd-conn__field input {
+  min-height: 44px;
+  width: 100%;
+  min-width: 0;
+  padding: 0 var(--yd-space-sm);
+  border-radius: var(--yd-radius-sm);
+  border: 1px solid var(--yd-border-control);
+  background: var(--yd-surface);
+  color: var(--yd-text);
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 400;
+  letter-spacing: normal;
+  text-transform: none;
+}
+
+.yd-conn__field input:focus-visible {
+  outline: 2px solid var(--yd-accent-strong);
+  outline-offset: 2px;
+}
+
+.yd-conn__hint {
+  margin: 0;
+  max-width: 72ch;
+  font-size: 0.76rem;
+  line-height: 1.5;
+  color: var(--yd-text-muted);
+}
+
+.yd-conn__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--yd-space-xs);
+  margin-top: var(--yd-space-2xs);
+  min-width: 0;
+}
+
+.yd-conn__action {
+  min-height: 44px;
+  padding: 0 var(--yd-space-md);
+  border-radius: var(--yd-radius-sm);
+  border: 1px solid var(--yd-border-control);
+  background: transparent;
+  color: var(--yd-text);
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background var(--yd-motion-fast) var(--yd-ease),
+    border-color var(--yd-motion-fast) var(--yd-ease);
+}
+
+.yd-conn__action:hover:not(:disabled) {
+  background: var(--yd-surface-raised);
+  border-color: var(--yd-accent-strong);
+}
+
+.yd-conn__action:focus-visible {
+  outline: 2px solid var(--yd-accent-strong);
+  outline-offset: 2px;
+}
+
+.yd-conn__action:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.yd-conn__action--primary {
+  border-color: var(--yd-accent-strong);
+}
+
+/* Empty until something has actually happened: an outcome line reserving its
+   own height would read as a message the reader failed to notice. */
+.yd-conn__outcome:empty {
+  display: none;
+}
+
+.yd-conn__outcome {
+  margin: var(--yd-space-xs) 0 0;
+  padding: var(--yd-space-xs) var(--yd-space-sm);
+  border-radius: var(--yd-radius-sm);
+  border: 1px solid var(--yd-border-strong);
+  background: var(--yd-surface);
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: var(--yd-text);
+}
+
+.yd-conn__outcome--ok {
+  border-left: 3px solid var(--yd-positive);
+}
+
+/* A refused key is a real answer from the provider, not a breakage. Warning
+   rule, never the negative tint — that one is reserved for a round trip that
+   failed, at the top of the screen. */
+.yd-conn__outcome--bad {
+  border-left: 3px solid var(--yd-warning);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .yd-conn__action {
+    transition: none;
+  }
+}
+
+:root[data-motion="off"] .yd-conn__action {
+  transition: none;
+}

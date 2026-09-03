@@ -33,7 +33,8 @@ const NAV_ITEMS: NavItem[] = [
   { to: "/export", label: "Export IA" },
   { to: "/categories", label: "Catégories" },
   { to: "/import", label: "Import" },
-  { to: "/reglages", label: "Réglages" },
+  { to: "/reglages", label: "Réglages", end: true },
+  { to: "/reglages/connexions", label: "Connexions" },
 ];
 
 const THEME_OPTIONS: { value: ThemePreference; label: string }[] = [

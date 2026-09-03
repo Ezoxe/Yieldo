@@ -101,3 +101,57 @@
     transition: none;
   }
 }
+
+/* The way through to Réglages -> Connexions. A block rather than an inline
+   link: it is the only navigation on this screen, and a 44px target is what a
+   thumb actually hits. */
+.yd-settings__field--link {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--yd-space-2xs);
+}
+
+.yd-settings__link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 var(--yd-space-md);
+  border-radius: var(--yd-radius-sm);
+  border: 1px solid var(--yd-border-control);
+  color: var(--yd-text);
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition:
+    background var(--yd-motion-fast) var(--yd-ease),
+    border-color var(--yd-motion-fast) var(--yd-ease);
+}
+
+.yd-settings__link:hover {
+  background: var(--yd-surface-raised);
+  border-color: var(--yd-accent-strong);
+}
+
+.yd-settings__link:focus-visible {
+  outline: 2px solid var(--yd-accent-strong);
+  outline-offset: 2px;
+}
+
+.yd-settings__note {
+  margin: 0;
+  max-width: 72ch;
+  font-size: 0.78rem;
+  line-height: 1.55;
+  color: var(--yd-text-muted);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .yd-settings__link {
+    transition: none;
+  }
+}
+
+:root[data-motion="off"] .yd-settings__link {
+  transition: none;
+}

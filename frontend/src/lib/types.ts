@@ -1377,6 +1377,29 @@ export interface Connection {
   quota: QuotaState;
 }
 
+/** `POST /api/connections/{provider}`. The same state `Connection` reports,
+ *  plus whether THIS attempt worked. **Still carries no key**: `reason` is one
+ *  of `market/client.py`'s five French causes, never the value that was sent.
+ *
+ *  `valid: false` is a 200, not a failure of the round trip: the provider was
+ *  really called and really answered. The screen prints `reason` verbatim —
+ *  the five causes name five different remedies, and rewording one here is how
+ *  a household ends up told to fix a key when the quota is what ran out. */
+export interface ConnectionValidation extends Connection {
+  valid: boolean;
+  reason: string | null;
+}
+
+/** `GET/PUT/DELETE /api/assistant/llm-settings`. **Has nowhere to put a key** —
+ *  `has_key` is the only thing said about whether one exists, exactly like
+ *  `Connection.configured`. */
+export interface LlmSettings {
+  configured: boolean;
+  endpoint_url: string | null;
+  model_name: string | null;
+  has_key: boolean;
+}
+
 /** A price actually resolved for a position, in the INSTRUMENT'S own currency.
  *
  *  `is_stale` is the whole reason this object exists rather than a bare number:

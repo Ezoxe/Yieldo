@@ -6,6 +6,7 @@ import { ExportPage } from "../features/export/ExportPage";
 import { LoginPage } from "../features/auth/LoginPage";
 import { BudgetsPage } from "../features/budgets/BudgetsPage";
 import { CashflowPage } from "../features/cashflow/CashflowPage";
+import { ConnectionsPage } from "../features/connections/ConnectionsPage";
 import { DebtsPage } from "../features/debts/DebtsPage";
 import { DesignSystemPage } from "../features/design-system/DesignSystemPage";
 import { SuiviPage } from "../features/engagement/SuiviPage";
@@ -77,6 +78,12 @@ export const router = createBrowserRouter([
           { path: "categories", element: <CategoriesPlaceholder /> },
           { path: "import", element: <ImportPage /> },
           { path: "reglages", element: <SettingsPage /> },
+          // Réglages -> Connexions. A route of its own rather than a section
+          // of /reglages: every French refusal in `market/client.py` and
+          // `llm/client.py` points the reader at "Réglages -> Connexions",
+          // and a URL they can be sent to is what makes that sentence
+          // actionable.
+          { path: "reglages/connexions", element: <ConnectionsPage /> },
           ...devRoutes,
         ],
       },

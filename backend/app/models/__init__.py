@@ -10,6 +10,7 @@ from app.models.health_snapshot import HealthSnapshot
 from app.models.import_batch import ColumnProfile, ImportBatch
 from app.models.instrument import INSTRUMENT_ASSET_CLASSES, Instrument
 from app.models.investment_account import INVESTMENT_ACCOUNT_KINDS, InvestmentAccount
+from app.models.llm_settings import LlmSettings
 from app.models.lot import Lot
 from app.models.position import Position
 from app.models.price_index import PriceIndexPoint
@@ -26,7 +27,7 @@ __all__ = [
     "RULE_PRIORITIES", "SCENARIO_KINDS", "TRANSACTION_CATEGORY_SOURCES",
     "Account", "AllocationTarget", "ApiKey", "Category", "CategoryRule", "Challenge",
     "ChatMessage", "ColumnProfile", "Debt",
-    "Goal", "HealthSnapshot", "ImportBatch", "Instrument", "InvestmentAccount", "Lot",
-    "Position", "PriceIndexPoint", "PricePoint", "QuotaWindow", "Scenario", "Transaction",
+    "Goal", "HealthSnapshot", "ImportBatch", "Instrument", "InvestmentAccount", "LlmSettings",
+    "Lot", "Position", "PriceIndexPoint", "PricePoint", "QuotaWindow", "Scenario", "Transaction",
     "User",
 ]

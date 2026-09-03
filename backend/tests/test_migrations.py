@@ -781,17 +781,6 @@ def test_the_chat_messages_migration_matches_base_metadata_exactly(migration_db)
     assert migrated_indexes == reference_indexes
 
 
-def test_the_chat_messages_migration_keeps_one_head(migration_db):
-    """`heads` and `head` must be the same single revision -- two heads is a
-    database Alembic cannot upgrade without a merge, and nothing else in this
-    suite would notice."""
-    from alembic.script import ScriptDirectory
-
-    script = ScriptDirectory.from_config(migration_db.config)
-    assert len(script.get_heads()) == 1
-    assert script.get_current_head() == CHAT_REVISION
-
-
 def test_the_chat_messages_migration_adds_its_table_to_a_populated_database(migration_db):
     """Run the real `upgrade()` against a database built at the PREVIOUS
     revision with two pre-existing users already in it, and prove the
@@ -867,6 +856,136 @@ def test_the_chat_messages_migration_rolls_back_cleanly(migration_db):
         for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()
     }
     assert "chat_messages" in tables
+    conn.close()
+
+
+# --- The llm-settings migration (phase 4, Task 8) ---------------------------
+
+LLM_REVISION = "5458e8e862b1"
+LLM_PREVIOUS = "035256084eae"
+
+
+def test_the_llm_settings_migration_matches_base_metadata_exactly(migration_db):
+    """Same independent-source-of-truth comparison as the migrations above:
+    the hand-written DDL in `5458e8e862b1_*.py` must agree, column for column
+    and index for index, with what `Base.metadata.create_all` derives
+    straight from `models/llm_settings.py`."""
+    command.upgrade(migration_db.config, LLM_PREVIOUS)
+    command.upgrade(migration_db.config, LLM_REVISION)
+
+    conn = _connect(migration_db)
+    migrated_columns = _table_columns(conn, "llm_settings")
+    migrated_indexes = _index_names(conn, "llm_settings")
+    conn.close()
+
+    reference_columns, reference_indexes = _reference_schema("llm_settings")
+    assert migrated_columns == reference_columns
+    assert migrated_indexes == reference_indexes
+
+
+def test_the_llm_settings_migration_keeps_one_head(migration_db):
+    """`heads` and `head` must be the same single revision -- two heads is a
+    database Alembic cannot upgrade without a merge, and nothing else in this
+    suite would notice."""
+    from alembic.script import ScriptDirectory
+
+    script = ScriptDirectory.from_config(migration_db.config)
+    assert len(script.get_heads()) == 1
+    assert script.get_current_head() == LLM_REVISION
+
+
+def test_the_llm_settings_migration_adds_its_table_to_a_populated_database(migration_db):
+    """Run the real `upgrade()` against a database built at the PREVIOUS
+    revision with two pre-existing users already in it, and prove the
+    isolation the model promises actually holds at the schema level: at most
+    one row per user (`uq_llm_settings_user`), and deleting one user takes
+    their own row with them, nobody else's."""
+    command.upgrade(migration_db.config, LLM_PREVIOUS)
+    conn = _connect(migration_db)
+    conn.execute(
+        "INSERT INTO users (id, email, name, password_hash, role, is_active, created_at) "
+        "VALUES (1, 'a@b.fr', 'Max', 'x', 'user', 1, '2026-01-01T00:00:00'), "
+        "(2, 'c@d.fr', 'Alice', 'x', 'user', 1, '2026-01-01T00:00:00')"
+    )
+    conn.commit()
+    conn.close()
+
+    command.upgrade(migration_db.config, LLM_REVISION)
+
+    conn = _connect(migration_db)
+    conn.execute(
+        "INSERT INTO llm_settings (user_id, endpoint_url, model_name, api_key_encrypted, "
+        "created_at, updated_at) VALUES "
+        "(1, 'http://localhost:11434/v1', 'llama3', NULL, "
+        "'2026-09-03T00:00:00', '2026-09-03T00:00:00')"
+    )
+    conn.commit()
+    # A second row for the SAME user violates the unique constraint.
+    with pytest.raises(sqlite3.IntegrityError):
+        conn.execute(
+            "INSERT INTO llm_settings (user_id, endpoint_url, model_name, api_key_encrypted, "
+            "created_at, updated_at) VALUES "
+            "(1, 'http://localhost:1234/v1', 'other-model', NULL, "
+            "'2026-09-03T00:00:00', '2026-09-03T00:00:00')"
+        )
+    # A DIFFERENT user may hold their own row.
+    conn.execute(
+        "INSERT INTO llm_settings (user_id, endpoint_url, model_name, api_key_encrypted, "
+        "created_at, updated_at) VALUES "
+        "(2, 'https://api.openai.com/v1', 'gpt-4o-mini', 'gAAAA...', "
+        "'2026-09-03T00:00:00', '2026-09-03T00:00:00')"
+    )
+    conn.commit()
+    # The SAME user's row survives; deleting a different one is unaffected.
+    conn.execute("DELETE FROM users WHERE id = 1")
+    conn.commit()
+    rows = conn.execute("SELECT user_id FROM llm_settings").fetchall()
+    assert rows == [(2,)]
+    conn.close()
+
+
+def test_the_llm_settings_migration_rolls_back_cleanly(migration_db):
+    """A downgrade must leave no table, index or row behind on the table it
+    owns, and must not touch anything the previous revision already had."""
+    command.upgrade(migration_db.config, LLM_REVISION)
+
+    conn = _connect(migration_db)
+    conn.execute(
+        "INSERT INTO users (id, email, name, password_hash, role, is_active, created_at) "
+        "VALUES (1, 'a@b.fr', 'Max', 'x', 'user', 1, '2026-01-01T00:00:00')"
+    )
+    conn.execute(
+        "INSERT INTO llm_settings (user_id, endpoint_url, model_name, api_key_encrypted, "
+        "created_at, updated_at) VALUES "
+        "(1, 'http://localhost:11434/v1', 'llama3', NULL, "
+        "'2026-09-03T00:00:00', '2026-09-03T00:00:00')"
+    )
+    conn.commit()
+    conn.close()
+
+    command.downgrade(migration_db.config, LLM_PREVIOUS)
+
+    conn = _connect(migration_db)
+    tables = {
+        row[0]
+        for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()
+    }
+    indexes = {
+        row[0]
+        for row in conn.execute("SELECT name FROM sqlite_master WHERE type='index'").fetchall()
+    }
+    assert "llm_settings" not in tables
+    assert not any(name.startswith("ix_llm_settings") for name in indexes)
+    assert conn.execute("SELECT COUNT(*) FROM users").fetchone()[0] == 1
+    conn.close()
+
+    command.upgrade(migration_db.config, "head")
+    conn = _connect(migration_db)
+    tables = {
+        row[0]
+        for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()
+    }
+    assert "llm_settings" in tables
     conn.close()
 
 

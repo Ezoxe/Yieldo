@@ -127,3 +127,33 @@ describe("ThinkingIndicator", () => {
     expect(status).not.toHaveTextContent("engines/");
   });
 });
+
+describe("conversationMeta", () => {
+  it("counts the questions and dates the thread by its LAST one", async () => {
+    // `last_at`, because the list is ordered on it: a date naming the first
+    // question would put the rows in an order the dates appear to contradict.
+    const { conversationMeta } = await import("./AssistantDrawer");
+    expect(
+      conversationMeta({
+        id: 1,
+        title: "Où en sont mes budgets ?",
+        started_at: "2026-09-01T09:00:00Z",
+        last_at: "2026-09-04T09:00:00Z",
+        message_count: 3,
+      }),
+    ).toBe("3 questions · 4 septembre");
+  });
+
+  it("keeps the singular for a thread of one", async () => {
+    const { conversationMeta } = await import("./AssistantDrawer");
+    expect(
+      conversationMeta({
+        id: 2,
+        title: "Quel est mon solde net ?",
+        started_at: "2026-09-04T09:00:00Z",
+        last_at: "2026-09-04T09:00:00Z",
+        message_count: 1,
+      }),
+    ).toBe("1 question · 4 septembre");
+  });
+});

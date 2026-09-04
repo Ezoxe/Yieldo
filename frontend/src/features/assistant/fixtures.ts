@@ -29,6 +29,7 @@ export const SUPPORTED_FORMULATIONS = [
 /** A real answer, with the monthly decomposition of the very figure it quotes. */
 export const ANSWERED: ChatMessage = {
   id: 1,
+  conversation_id: 1,
   text: "Combien j'ai dépensé depuis novembre 2025 ?",
   created_at: "2026-09-03T09:00:00Z",
   answer: {
@@ -81,6 +82,7 @@ export const ANSWERED: ChatMessage = {
  *  verbatim: it already names its own cause and its own remedy. */
 export const REFUSED: ChatMessage = {
   id: 2,
+  conversation_id: 1,
   text: "Quelle sera la valeur de mon patrimoine dans 5 ans ?",
   created_at: "2026-09-03T09:01:00Z",
   answer: {
@@ -122,6 +124,7 @@ export const REFUSED: ChatMessage = {
  *  sentence for every refusal. */
 export const REFUSED_GOAL: ChatMessage = {
   id: 3,
+  conversation_id: 1,
   text: "Où en est mon objectif Vacances ?",
   created_at: "2026-09-03T09:02:00Z",
   answer: {
@@ -158,6 +161,7 @@ export const REFUSED_GOAL: ChatMessage = {
 /** The unrecognised-intent state: a designed state, not an error banner. */
 export const UNRECOGNISED: ChatMessage = {
   id: 4,
+  conversation_id: 1,
   text: "Quel temps fera-t-il demain ?",
   created_at: "2026-09-03T09:03:00Z",
   answer: {

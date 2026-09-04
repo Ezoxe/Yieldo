@@ -37,24 +37,10 @@
   border-bottom: 1px solid var(--yd-border);
 }
 
-/* The one piece of ornament on this panel, and it earns it: the assistant is
-   the only surface in the app that speaks, and the lit mark is what says so. */
-.yd-assistant-drawer__mark {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 2.2rem;
-  height: 2.2rem;
-  flex: 0 0 auto;
-  border-radius: 12px;
-  border: 1px solid color-mix(in srgb, var(--yd-accent) 34%, transparent);
-  background:
-    radial-gradient(120% 120% at 30% 20%, color-mix(in srgb, var(--yd-accent) 42%, transparent), transparent 70%),
-    color-mix(in srgb, var(--yd-accent) 14%, transparent);
-  box-shadow: 0 4px 14px color-mix(in srgb, var(--yd-accent) 28%, transparent);
-  color: var(--yd-accent);
-  font-size: 1.1rem;
-}
+/* No local mark rule any more: the head uses `IconBadge`, like every other
+   panel head in the app. What stood here was a second badge with a radial
+   gradient and a coloured drop shadow, which is exactly what the icon contract
+   forbids — the glyph is the drawing, the container is a ground for it. */
 
 .yd-assistant-drawer__heading {
   flex: 1;
@@ -324,6 +310,162 @@
   .yd-assistant-drawer__opener,
   .yd-exchange__chip,
   .yd-assistant-drawer__close {
+    transition: none;
+  }
+}
+
+/* -- Les actions de l'en-tête ---------------------------------------------- */
+
+/* « Nouvelle conversation » et « Conversations ». Discrètes à côté du titre :
+   ce sont des outils, pas la raison d'ouvrir le tiroir. */
+.yd-assistant-drawer__action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--yd-border-control);
+  border-radius: var(--yd-radius-sm);
+  background: transparent;
+  color: var(--yd-text-muted);
+  cursor: pointer;
+  transition:
+    border-color var(--yd-motion-fast) var(--yd-ease),
+    color var(--yd-motion-fast) var(--yd-ease);
+}
+
+.yd-assistant-drawer__action:hover,
+.yd-assistant-drawer__action[aria-expanded="true"] {
+  border-color: var(--yd-accent);
+  color: var(--yd-accent);
+}
+
+.yd-assistant-drawer__action:focus-visible {
+  outline: 2px solid var(--yd-accent);
+  outline-offset: 2px;
+}
+
+.yd-assistant-drawer__action .yd-icon {
+  width: 15px;
+  height: 15px;
+}
+
+/* -- La liste des conversations -------------------------------------------- */
+
+/* Une hauteur bornée : la liste s'ouvre PAR-DESSUS le fil, elle ne le pousse
+   pas hors de l'écran. Un foyer qui vient chercher une ancienne conversation
+   doit pouvoir refermer et retrouver la sienne au même endroit. */
+.yd-convos {
+  max-height: 40vh;
+  overflow: auto;
+  border-bottom: 1px solid var(--yd-border);
+  background: color-mix(in srgb, var(--yd-surface-strong) 60%, transparent);
+}
+
+.yd-convos__empty {
+  margin: 0;
+  padding: var(--yd-space-md);
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: var(--yd-text-muted);
+}
+
+.yd-convos__list {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: var(--yd-space-2xs);
+  list-style: none;
+}
+
+.yd-convos__item {
+  display: flex;
+  align-items: stretch;
+  gap: 2px;
+  min-width: 0;
+}
+
+.yd-convos__open {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  padding: var(--yd-space-xs) var(--yd-space-sm);
+  border: 0;
+  border-radius: var(--yd-radius-sm);
+  background: transparent;
+  color: var(--yd-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--yd-motion-fast) var(--yd-ease);
+}
+
+.yd-convos__open:hover {
+  background: color-mix(in srgb, var(--yd-text) 6%, transparent);
+}
+
+.yd-convos__open:focus-visible {
+  outline: 2px solid var(--yd-accent);
+  outline-offset: -2px;
+}
+
+/* Le fil ouvert. Un filet à gauche, pas un fond plein : la ligne dit « vous
+   êtes ici » sans faire croire que la ligne est sélectionnée pour une action. */
+.yd-convos__open[data-current] {
+  background: color-mix(in srgb, var(--yd-accent) 10%, transparent);
+  box-shadow: inset 2px 0 0 var(--yd-accent);
+}
+
+/* Une seule ligne, coupée : le titre est la première question, et une question
+   de trois lignes ferait une liste que l'on ne survole plus. */
+.yd-convos__title {
+  font-size: 0.82rem;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.yd-convos__meta {
+  font-size: 0.7rem;
+  color: var(--yd-text-muted);
+}
+
+.yd-convos__delete {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 30px;
+  border: 0;
+  border-radius: var(--yd-radius-sm);
+  background: transparent;
+  color: var(--yd-text-muted);
+  cursor: pointer;
+  transition: color var(--yd-motion-fast) var(--yd-ease);
+}
+
+.yd-convos__delete:hover {
+  color: var(--yd-negative);
+}
+
+.yd-convos__delete:focus-visible {
+  outline: 2px solid var(--yd-accent);
+  outline-offset: -2px;
+}
+
+.yd-convos__delete .yd-icon {
+  width: 14px;
+  height: 14px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .yd-assistant-drawer__action,
+  .yd-convos__open,
+  .yd-convos__delete {
     transition: none;
   }
 }

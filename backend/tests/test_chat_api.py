@@ -286,3 +286,102 @@ def test_the_trace_is_recomputed_on_every_read_like_the_answer(client, db):
     ledger_after = next(s for s in after if s["tool"] == "relevé")["source"]
     assert "0 opérations" in ledger_before
     assert "1 opérations" in ledger_after
+
+
+# --------------------------------------------------------------------------
+# Conversations: starting a new one, and finding the old ones again.
+# --------------------------------------------------------------------------
+
+
+def test_a_first_question_opens_a_conversation(client):
+    headers = _register(client)
+    body = client.post("/api/chat", headers=headers,
+                       json={"text": "Combien j'ai dépensé en mars 2026 ?"}).json()
+    assert body["conversation_id"] >= 1
+
+
+def test_questions_without_a_stated_conversation_start_new_ones(client):
+    """Omitting the id means "start fresh", never "guess which thread this
+    belongs to". A client that lost track must not silently append to a
+    conversation the reader thought was closed."""
+    headers = _register(client)
+    first = client.post("/api/chat", headers=headers, json={"text": "Quel est mon solde net ?"}).json()
+    second = client.post("/api/chat", headers=headers, json={"text": "Et mes budgets ?"}).json()
+    assert first["conversation_id"] != second["conversation_id"]
+
+
+def test_a_stated_conversation_is_continued(client):
+    headers = _register(client)
+    first = client.post("/api/chat", headers=headers, json={"text": "Quel est mon solde net ?"}).json()
+    second = client.post("/api/chat", headers=headers, json={
+        "text": "Et mes budgets ?", "conversation_id": first["conversation_id"]}).json()
+    assert second["conversation_id"] == first["conversation_id"]
+
+
+def test_the_conversation_list_is_newest_first_and_titled_by_its_first_question(client):
+    """The title is DERIVED from the first question, never stored: a stored
+    title is a second copy of the same fact, free to drift from it."""
+    headers = _register(client)
+    client.post("/api/chat", headers=headers, json={"text": "Quel est mon solde net ce mois-ci ?"})
+    client.post("/api/chat", headers=headers, json={"text": "Où en sont mes budgets ?"})
+
+    rows = client.get("/api/chat/conversations", headers=headers).json()
+    assert [row["title"] for row in rows] == [
+        "Où en sont mes budgets ?", "Quel est mon solde net ce mois-ci ?"]
+    assert rows[0]["message_count"] == 1
+
+
+def test_a_conversation_can_be_read_on_its_own(client):
+    headers = _register(client)
+    first = client.post("/api/chat", headers=headers, json={"text": "Quel est mon solde net ?"}).json()
+    client.post("/api/chat", headers=headers, json={"text": "Où en sont mes budgets ?"})
+
+    only = client.get(f"/api/chat?conversation_id={first['conversation_id']}", headers=headers).json()
+    assert [row["text"] for row in only] == ["Quel est mon solde net ?"]
+
+
+def test_one_conversation_can_be_deleted_without_touching_the_others(client):
+    headers = _register(client)
+    first = client.post("/api/chat", headers=headers, json={"text": "Quel est mon solde net ?"}).json()
+    client.post("/api/chat", headers=headers, json={"text": "Où en sont mes budgets ?"})
+
+    assert client.delete(
+        f"/api/chat?conversation_id={first['conversation_id']}", headers=headers
+    ).status_code == 204
+    remaining = client.get("/api/chat/conversations", headers=headers).json()
+    assert [row["title"] for row in remaining] == ["Où en sont mes budgets ?"]
+
+
+def test_deleting_without_naming_a_conversation_still_clears_everything(client):
+    """The existing contract, unchanged: "Effacer la conversation" on the full
+    screen wiped the lot, and a household that presses it expects the lot."""
+    headers = _register(client)
+    client.post("/api/chat", headers=headers, json={"text": "Quel est mon solde net ?"})
+    client.post("/api/chat", headers=headers, json={"text": "Où en sont mes budgets ?"})
+    assert client.delete("/api/chat", headers=headers).status_code == 204
+    assert client.get("/api/chat/conversations", headers=headers).json() == []
+
+
+def test_another_household_s_conversation_cannot_be_written_into(client):
+    """CLAUDE.md's isolation rule, at the one place this feature could break
+    it: `conversation_id` arrives from the client and is the only field on
+    this API that names someone else's row."""
+    mine = _register(client, "mine@example.fr")
+    theirs = _register(client, "theirs@example.fr")
+    opened = client.post("/api/chat", headers=theirs, json={"text": "Quel est mon solde net ?"}).json()
+
+    refused = client.post("/api/chat", headers=mine, json={
+        "text": "Où en sont mes budgets ?", "conversation_id": opened["conversation_id"]})
+    assert refused.status_code == 404
+    assert client.get("/api/chat/conversations", headers=mine).json() == []
+
+
+def test_another_household_s_conversation_cannot_be_read_or_deleted(client):
+    mine = _register(client, "mine2@example.fr")
+    theirs = _register(client, "theirs2@example.fr")
+    opened = client.post("/api/chat", headers=theirs, json={"text": "Quel est mon solde net ?"}).json()
+    cid = opened["conversation_id"]
+
+    assert client.get(f"/api/chat?conversation_id={cid}", headers=mine).json() == []
+    assert client.delete(f"/api/chat?conversation_id={cid}", headers=mine).status_code == 204
+    assert len(client.get("/api/chat/conversations", headers=theirs).json()) == 1

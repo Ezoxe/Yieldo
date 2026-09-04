@@ -613,7 +613,8 @@ const ROUTES: Record<string, (params: Params) => unknown> = {
     months_saved: 1,
   }),
   "/api/goals": goalsPayload,
-  "/api/chat": () => [],
+  "/api/chat": () => MOCK_CHATS,
+  "/api/chat/conversations": () => mockConversations(),
   // Réglages → Connexions. Un modèle local configuré, avec un plafond relevé :
   // c'est l'état intéressant à regarder, celui d'un foyer qui a un modèle qui
   // raisonne et l'a dit.
@@ -694,6 +695,39 @@ function jsonOk(body: unknown): Response {
 // dans aucune réponse du serveur.
 const MUTABLE_LLM: LlmSettings = { ...LLM_LOCAL, endpoint_url: "http://192.168.1.15:8080/v1", model_name: "gemma-4-E2B-it-qat" };
 
+// Les conversations de l'aperçu : un vrai petit magasin, pas deux tableaux
+// figés — « nouvelle conversation », l'ouverture d'un ancien fil et la
+// suppression doivent se comporter comme sur le serveur, sinon l'aperçu ne
+// dit rien de l'écran qu'on est en train de juger.
+interface MockChat {
+  id: number;
+  conversation_id: number;
+  text: string;
+  created_at: string;
+  answer: Record<string, unknown>;
+}
+
+let MOCK_CHATS: MockChat[] = [];
+let NEXT_CHAT_ID = 1;
+
+function mockConversations() {
+  const threads = new Map<number, MockChat[]>();
+  for (const row of MOCK_CHATS) {
+    const bucket = threads.get(row.conversation_id) ?? [];
+    bucket.push(row);
+    threads.set(row.conversation_id, bucket);
+  }
+  return [...threads.entries()]
+    .map(([id, rows]) => ({
+      id,
+      title: rows[0].text,
+      started_at: rows[0].created_at,
+      last_at: rows[rows.length - 1].created_at,
+      message_count: rows.length,
+    }))
+    .sort((a, b) => b.last_at.localeCompare(a.last_at));
+}
+
 const WRITES: Record<string, (body: Record<string, unknown>) => Response> = {
   "POST /api/chat": (body) => {
     const asked = String(body.text ?? "");
@@ -765,8 +799,13 @@ const WRITES: Record<string, (body: Record<string, unknown>) => Response> = {
             },
           ],
         };
-    return jsonOk({
-      id: Date.now(),
+    const conversationId =
+      typeof body.conversation_id === "number"
+        ? body.conversation_id
+        : Math.max(0, ...MOCK_CHATS.map((row) => row.conversation_id)) + 1;
+    const stored: MockChat = {
+      id: NEXT_CHAT_ID++,
+      conversation_id: conversationId,
       text: asked,
       created_at: new Date().toISOString(),
       answer: {
@@ -779,7 +818,9 @@ const WRITES: Record<string, (body: Record<string, unknown>) => Response> = {
         chart: null,
         steps: about.steps,
       },
-    });
+    };
+    MOCK_CHATS.push(stored);
+    return jsonOk(stored);
   },
   "PUT /api/assistant/llm-settings": (body) => {
     const seconds = body.timeout_seconds;
@@ -836,6 +877,24 @@ export function installMockApi(): void {
     if (!url.pathname.startsWith("/api/")) return real(input as RequestInfo, init);
 
     const method = (init?.method ?? "GET").toUpperCase();
+
+    // Les deux seules routes de l'application dont le comportement dépend d'un
+    // paramètre de requête. Le répartiteur ci-dessous n'indexe que le chemin,
+    // et un aperçu qui rendrait tous les messages quel que soit le fil ne
+    // dirait rien de l'écran qu'on juge.
+    if (url.pathname === "/api/chat") {
+      const scope = url.searchParams.get("conversation_id");
+      if (method === "GET" && scope !== null) {
+        await new Promise((resolve) => setTimeout(resolve, 120));
+        return jsonOk(MOCK_CHATS.filter((row) => String(row.conversation_id) === scope));
+      }
+      if (method === "DELETE") {
+        MOCK_CHATS =
+          scope === null ? [] : MOCK_CHATS.filter((row) => String(row.conversation_id) !== scope);
+        return new Response(null, { status: 204 });
+      }
+    }
+
     const write = WRITES[`${method} ${url.pathname}`];
     if (write) {
       // Une question à l'assistant parcourt tout le relevé côté serveur ; le

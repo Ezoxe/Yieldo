@@ -1931,8 +1931,24 @@ export interface ChatAnswer {
   steps: ChatStep[];
 }
 
+/** One thread, summarised from its own messages by `GET /api/chat/conversations`.
+ *
+ *  There is no conversations table behind this: a conversation is exactly the
+ *  messages sharing `id`, and every field here is read from them. `title` is
+ *  the first question asked — derived, never stored, so it cannot drift from
+ *  the question it names. */
+export interface Conversation {
+  id: number;
+  title: string;
+  started_at: string;
+  last_at: string;
+  message_count: number;
+}
+
 export interface ChatMessage {
   id: number;
+  /** Which thread this question belongs to. */
+  conversation_id: number;
   text: string;
   created_at: string;
   /** Always freshly computed: the server stores the QUESTION and re-executes

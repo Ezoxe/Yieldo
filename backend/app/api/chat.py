@@ -25,7 +25,8 @@ in this codebase uses.
 
 from datetime import UTC, date, datetime
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.api.common import liquid_balance_cents, recurrence_points
@@ -47,6 +48,7 @@ from app.engines.intent import UnrecognisedQuery, parse_intent
 from app.models import Category, ChatMessage, Debt, Goal, User
 from app.schemas.chat import (
     ChatAnswerOut,
+    ConversationOut,
     ChatChartOut,
     ChatChartPointOut,
     ChatMessageIn,
@@ -180,6 +182,38 @@ def _compute_answer(text: str, ctx: ChatContext, today: date) -> ChatAnswerOut:
     )
 
 
+def _next_conversation_id(db: Session, user_id: int) -> int:
+    """One past this account's highest. Per user, so the numbers a household
+    sees start at 1 and never reveal how many other households exist."""
+    highest = (
+        db.query(func.max(ChatMessage.conversation_id))
+        .filter(ChatMessage.user_id == user_id)
+        .scalar()
+    )
+    return 1 if highest is None else highest + 1
+
+
+def _resolve_conversation(db: Session, user_id: int, requested: int | None) -> int:
+    """The thread to write into.
+
+    `None` opens a new one. A stated id must already belong to THIS account:
+    an id that does not is a 404, never a silently created thread under a
+    number the client picked. This is the one place `user_id` scoping has to
+    be checked against a value the client chose rather than derived from the
+    session, so it is checked here and nowhere else.
+    """
+    if requested is None:
+        return _next_conversation_id(db, user_id)
+    exists = (
+        db.query(ChatMessage.id)
+        .filter(ChatMessage.user_id == user_id, ChatMessage.conversation_id == requested)
+        .first()
+    )
+    if exists is None:
+        raise HTTPException(status_code=404, detail="Cette conversation n'existe pas.")
+    return requested
+
+
 @router.post("", response_model=ChatMessageOut, status_code=status.HTTP_201_CREATED)
 def ask(
     payload: ChatMessageIn, user: User = Depends(get_current_user), db: Session = Depends(get_db)
@@ -189,19 +223,62 @@ def ask(
     ctx = _build_context(db, user, today)
     answer = _compute_answer(payload.text, ctx, today)
 
-    message = ChatMessage(user_id=user.id, text=payload.text)
+    conversation_id = _resolve_conversation(db, user.id, payload.conversation_id)
+    message = ChatMessage(user_id=user.id, conversation_id=conversation_id, text=payload.text)
     db.add(message)
     db.commit()
     db.refresh(message)
 
     return ChatMessageOut(
-        id=message.id, text=message.text, created_at=message.created_at, answer=answer
+        id=message.id, conversation_id=message.conversation_id, text=message.text,
+        created_at=message.created_at, answer=answer,
     )
+
+
+@router.get("/conversations", response_model=list[ConversationOut])
+def conversation_list(
+    user: User = Depends(get_current_user), db: Session = Depends(get_db)
+) -> list[ConversationOut]:
+    """Every thread this account has, newest activity first.
+
+    Summarised WITHOUT re-executing a single question: this route answers
+    "which conversations exist", and walking the ledger once per stored
+    question to draw a list of titles would make opening the list cost what
+    reading every thread costs. `GET /api/chat` is where answers are computed.
+    """
+    rows = (
+        db.query(ChatMessage)
+        .filter(ChatMessage.user_id == user.id)
+        .order_by(ChatMessage.conversation_id, ChatMessage.id)
+        .all()
+    )
+
+    threads: dict[int, list[ChatMessage]] = {}
+    for row in rows:
+        threads.setdefault(row.conversation_id, []).append(row)
+
+    out = [
+        ConversationOut(
+            id=conversation_id,
+            # The first question, which is what a reader recognises the thread
+            # by. Truncation is the CLIENT's business: a title cut short here
+            # could not be shown in full anywhere.
+            title=messages[0].text,
+            started_at=messages[0].created_at,
+            last_at=messages[-1].created_at,
+            message_count=len(messages),
+        )
+        for conversation_id, messages in threads.items()
+    ]
+    out.sort(key=lambda thread: thread.last_at, reverse=True)
+    return out
 
 
 @router.get("", response_model=list[ChatMessageOut])
 def history_list(
-    user: User = Depends(get_current_user), db: Session = Depends(get_db)
+    conversation_id: int | None = Query(default=None, ge=1),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
 ) -> list[ChatMessageOut]:
     """Every stored question, oldest first, each RE-EXECUTED against the
     current ledger -- see the module docstring. One `ChatContext` is built
@@ -209,15 +286,16 @@ def history_list(
     the ledger, not a hundred."""
     today = date.today()
     ctx = _build_context(db, user, today)
-    rows = (
-        db.query(ChatMessage)
-        .filter(ChatMessage.user_id == user.id)
-        .order_by(ChatMessage.id)
-        .limit(MAX_HISTORY)
-        .all()
-    )
+    query = db.query(ChatMessage).filter(ChatMessage.user_id == user.id)
+    if conversation_id is not None:
+        # No 404 for an unknown id here, and deliberately: a GET that filters
+        # to nothing is an empty list, which is the honest answer and the same
+        # one another household's thread gets. Only a WRITE has to refuse.
+        query = query.filter(ChatMessage.conversation_id == conversation_id)
+    rows = query.order_by(ChatMessage.id).limit(MAX_HISTORY).all()
     return [
-        ChatMessageOut(id=row.id, text=row.text, created_at=row.created_at,
+        ChatMessageOut(id=row.id, conversation_id=row.conversation_id, text=row.text,
+                       created_at=row.created_at,
                        answer=_compute_answer(row.text, ctx, today))
         for row in rows
     ]
@@ -225,14 +303,24 @@ def history_list(
 
 @router.delete("", status_code=status.HTTP_204_NO_CONTENT)
 def clear_history(
-    user: User = Depends(get_current_user), db: Session = Depends(get_db)
+    conversation_id: int | None = Query(default=None, ge=1),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
 ) -> None:
-    """Forget every stored question of THIS user, and only this user's.
+    """Forget one conversation, or every stored question of THIS user.
 
     A conversation is the one thing on this screen the household writes rather
     than measures, so it is the one thing it must be able to take back. The
-    filter is `user_id`, like every other query in this router."""
-    db.query(ChatMessage).filter(ChatMessage.user_id == user.id).delete(
-        synchronize_session=False
-    )
+    filter is `user_id`, like every other query in this router — which is also
+    why naming another household's conversation deletes nothing rather than
+    erroring: there is no row matching BOTH, and saying "that id exists"
+    would answer a question about someone else's account.
+
+    Omitting `conversation_id` still clears the lot, unchanged: "Effacer la
+    conversation" meant everything before this route learned about threads,
+    and a household that presses it expects everything."""
+    query = db.query(ChatMessage).filter(ChatMessage.user_id == user.id)
+    if conversation_id is not None:
+        query = query.filter(ChatMessage.conversation_id == conversation_id)
+    query.delete(synchronize_session=False)
     db.commit()

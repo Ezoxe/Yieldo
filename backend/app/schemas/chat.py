@@ -13,6 +13,13 @@ from pydantic import BaseModel, Field
 
 class ChatMessageIn(BaseModel):
     text: str = Field(min_length=1, max_length=500)
+    # Which thread to continue. **None means "open a new one"**, never "guess
+    # which thread this belongs to": a client that lost track must not silently
+    # append to a conversation the reader believed was closed. An id naming a
+    # conversation this account does not have is a 404, not a new thread --
+    # `conversation_id` is the one field on this API that names a row by
+    # number, so it is the one place isolation could be lost.
+    conversation_id: int | None = Field(default=None, ge=1)
 
 
 class ChatChartPointOut(BaseModel):
@@ -64,8 +71,26 @@ class ChatAnswerOut(BaseModel):
     steps: list[ChatStepOut]
 
 
+class ConversationOut(BaseModel):
+    """One thread, summarised from its own messages.
+
+    Every field here is READ from the messages that share `id` -- nothing is
+    stored alongside them. See `models.ChatMessage.conversation_id`.
+    """
+
+    id: int
+    #: The first question asked, which is what a reader recognises a thread by.
+    #: Derived, never stored: a stored title is a second copy of that question.
+    title: str
+    started_at: datetime
+    #: The most recent question in the thread — what the list is ordered on.
+    last_at: datetime
+    message_count: int
+
+
 class ChatMessageOut(BaseModel):
     id: int
+    conversation_id: int
     text: str
     created_at: datetime
     answer: ChatAnswerOut

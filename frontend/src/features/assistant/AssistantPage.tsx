@@ -173,6 +173,13 @@ export function AssistantPage() {
   // Answered in this session. Only these stage their trace in; a history of
   // fifty exchanges replaying its reveals on every load would be noise.
   const [fresh, setFresh] = useState<Set<number>>(() => new Set());
+  // The thread this screen is writing into. This page shows the WHOLE history
+  // — it is the place to read a conversation back, and always has been — but a
+  // question still has to land in one thread. `null` opens a new one, which is
+  // what a fresh visit and "Nouvelle conversation" both mean. Without this,
+  // every question on this screen opened its own single-message thread and
+  // filled the drawer's list with them.
+  const [conversation, setConversation] = useState<number | null>(null);
   const field = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -181,7 +188,13 @@ export function AssistantPage() {
     async function run() {
       try {
         const history = await api.get<ChatMessage[]>("/chat");
-        if (!cancelled) setMessages(history);
+        if (cancelled) return;
+        setMessages(history);
+        // Continue the most recent thread rather than opening one on the first
+        // question: this screen reads as one running conversation, and it
+        // should keep writing into the one it is showing the end of.
+        const last = history[history.length - 1];
+        if (last !== undefined) setConversation(last.conversation_id);
       } catch (err) {
         if (!cancelled) setError(messageFor(err));
       } finally {
@@ -206,9 +219,13 @@ export function AssistantPage() {
     setIsAsking(true);
     setError(null);
     try {
-      const answered = await api.post<ChatMessage>("/chat", { text: question });
+      const answered = await api.post<ChatMessage>("/chat", {
+        text: question,
+        conversation_id: conversation,
+      });
       setMessages((current) => [...current, answered]);
       setFresh((current) => new Set(current).add(answered.id));
+      setConversation(answered.conversation_id);
       setDraft("");
     } catch (err) {
       // A failure of the ROUND TRIP, never a refusal: an engine declining to
@@ -287,15 +304,30 @@ export function AssistantPage() {
         <BentoCell as={motion.div} span={SPAN.full} className="yd-panel" {...entryProps(reduced)}>
           <div className="yd-assistant__conversation-head">
             <PanelHead icon={AssistantIcon}>Conversation</PanelHead>
-            {messages.length > 0 ? (
+            <div className="yd-assistant__conversation-actions">
               <button
                 type="button"
                 className="yd-assistant__clear"
-                onClick={() => void clearConversation()}
+                onClick={() => {
+                  // Nothing is written until the next question lands, so this
+                  // erases nothing — it only stops adding to the thread above.
+                  setConversation(null);
+                  setError(null);
+                  field.current?.focus();
+                }}
               >
-                Effacer la conversation
+                Nouvelle conversation
               </button>
-            ) : null}
+              {messages.length > 0 ? (
+                <button
+                  type="button"
+                  className="yd-assistant__clear"
+                  onClick={() => void clearConversation()}
+                >
+                  Effacer tout l'historique
+                </button>
+              ) : null}
+            </div>
           </div>
 
           {isLoading ? (

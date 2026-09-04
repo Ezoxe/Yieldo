@@ -256,7 +256,7 @@ describe("clearing the conversation", () => {
     mockApi([]);
     renderPage();
     await screen.findByTestId("yd-assistant-empty");
-    expect(screen.queryByRole("button", { name: /Effacer la conversation/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /Effacer tout l.historique/ })).toBeNull();
   });
 
   it("calls the API and empties the screen", async () => {
@@ -265,9 +265,70 @@ describe("clearing the conversation", () => {
     renderPage();
     await screen.findByTestId("yd-exchange-1");
 
-    await user.click(screen.getByRole("button", { name: /Effacer la conversation/ }));
+    await user.click(screen.getByRole("button", { name: /Effacer tout l.historique/ }));
 
     await waitFor(() => expect(deleted).toBe(1));
     expect(await screen.findByTestId("yd-assistant-empty")).toBeInTheDocument();
+  });
+});
+
+describe("conversations", () => {
+  it("continues the thread it is showing rather than opening one per question", async () => {
+    // Before threads existed every question here landed in the same flat list.
+    // Now that it lands in one, this screen must keep writing into the thread
+    // whose end it is displaying — otherwise every question on this page would
+    // open its own single-message thread and fill the drawer's list with them.
+    const posted: unknown[] = [];
+    mockApi([{ ...ANSWERED, conversation_id: 7 }]);
+    vi.spyOn(api, "post").mockImplementation((_path: string, body?: unknown) => {
+      posted.push(body);
+      return Promise.resolve({ ...ANSWERED, id: 950, conversation_id: 7 } as never);
+    });
+    renderPage();
+    await screen.findByTestId("yd-exchange-1");
+
+    await ask("Et mes budgets ?");
+
+    await waitFor(() => expect(posted).toHaveLength(1));
+    expect(posted[0]).toMatchObject({ conversation_id: 7 });
+  });
+
+  it("opens a new thread on an empty history", async () => {
+    const posted: unknown[] = [];
+    mockApi([]);
+    vi.spyOn(api, "post").mockImplementation((_path: string, body?: unknown) => {
+      posted.push(body);
+      return Promise.resolve({ ...ANSWERED, id: 951, conversation_id: 1 } as never);
+    });
+    renderPage();
+    await screen.findByTestId("yd-assistant-empty");
+
+    await ask("Quel est mon solde net ?");
+
+    await waitFor(() => expect(posted).toHaveLength(1));
+    // null, never a number this screen invented.
+    expect(posted[0]).toMatchObject({ conversation_id: null });
+  });
+
+  it("«Nouvelle conversation» stops adding to the thread without erasing it", async () => {
+    const user = userEvent.setup();
+    const posted: unknown[] = [];
+    mockApi([{ ...ANSWERED, conversation_id: 7 }]);
+    vi.spyOn(api, "post").mockImplementation((_path: string, body?: unknown) => {
+      posted.push(body);
+      return Promise.resolve({ ...ANSWERED, id: 952, conversation_id: 8 } as never);
+    });
+    renderPage();
+    await screen.findByTestId("yd-exchange-1");
+
+    await user.click(screen.getByRole("button", { name: /Nouvelle conversation/ }));
+    // Erases nothing: the thread stays on screen until the next question opens
+    // a new one. Deleting is a different button, with a different word on it.
+    expect(screen.getByTestId("yd-exchange-1")).toBeInTheDocument();
+    expect(deleted).toBe(0);
+
+    await ask("Quel est mon solde net ?");
+    await waitFor(() => expect(posted).toHaveLength(1));
+    expect(posted[0]).toMatchObject({ conversation_id: null });
   });
 });

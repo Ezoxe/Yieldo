@@ -228,20 +228,20 @@
   backdrop-filter: blur(var(--yd-glass-blur)) saturate(var(--yd-glass-saturate));
   -webkit-backdrop-filter: blur(var(--yd-glass-blur)) saturate(var(--yd-glass-saturate));
   border-bottom: 1px solid var(--yd-border);
-  /* Sticks, so the theme control and the reader's own name stay reachable on a
+  /* Sticks, so the assistant and the reader's own name stay reachable on a
      screen four viewports tall. */
   position: sticky;
   top: 0;
   z-index: 20;
 }
 
-/* The way into the assistant, on every screen. Accent-tinted: it is the one
-   control in the header that does something rather than setting something. */
+/* The way into the assistant, on every screen, and now the only control in
+   the header. Accent-tinted, and last in the row: it is the thing that acts,
+   so it sits where the eye finishes rather than where it starts. */
 .yd-shell__assistant {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  margin-right: auto;
   border: 1px solid color-mix(in srgb, var(--yd-accent) 34%, transparent);
   border-radius: var(--yd-radius-pill);
   background: color-mix(in srgb, var(--yd-accent) 10%, transparent);
@@ -275,37 +275,6 @@
 .yd-shell__user {
   color: var(--yd-text-muted);
   font-size: 0.9rem;
-}
-
-/* The icon sits INSIDE the control's border, beside the select, so the pair
-   reads as one object rather than as a decoration next to a dropdown. */
-.yd-shell__theme-select {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 5px 8px 5px 10px;
-  border: 1px solid var(--yd-border-control);
-  border-radius: var(--yd-radius-sm);
-  color: var(--yd-text-muted);
-  transition: border-color var(--yd-motion-fast) var(--yd-ease);
-}
-
-.yd-shell__theme-select:hover {
-  border-color: var(--yd-accent);
-}
-
-.yd-shell__theme-select select {
-  background: transparent;
-  color: var(--yd-text);
-  border: 0;
-  padding: 0;
-  font: inherit;
-  cursor: pointer;
-}
-
-.yd-shell__theme-select select:focus-visible {
-  outline: 2px solid var(--yd-accent);
-  outline-offset: 3px;
 }
 
 /* The one place the application's content width is decided. Eleven screens
@@ -349,8 +318,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .yd-shell__sidebar a,
-  .yd-shell__sidebar a .yd-icon,
-  .yd-shell__theme-select {
+  .yd-shell__sidebar a .yd-icon {
     transition: none;
   }
 

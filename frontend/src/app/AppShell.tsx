@@ -25,7 +25,6 @@ import {
   SettingsIcon,
   SimulatorsIcon,
   StreakIcon,
-  ThemeIcon,
   TransactionsIcon,
   YieldoMark,
   type IconComponent,
@@ -33,9 +32,7 @@ import {
 import { AssistantDrawer } from "../features/assistant/AssistantDrawer";
 import { slideOver } from "../design/motion/variants";
 import { useReducedMotion } from "../design/motion/useReducedMotion";
-import { type ThemePreference } from "../design/theme";
 import "./AppShell.css";
-import { useTheme } from "./ThemeProvider";
 
 interface NavItem {
   to: string;
@@ -106,12 +103,6 @@ const NAV_SECTIONS: NavSection[] = [
       { to: "/reglages/connexions", label: "Connexions", icon: ConnectionsIcon },
     ],
   },
-];
-
-const THEME_OPTIONS: { value: ThemePreference; label: string }[] = [
-  { value: "system", label: "Système" },
-  { value: "light", label: "Clair" },
-  { value: "dark", label: "Sombre" },
 ];
 
 interface SidebarNavProps {
@@ -186,7 +177,6 @@ export function AppShell({ userName }: AppShellProps) {
   // mobile nav drawer above: the two are different surfaces and can be open at
   // once without either closing the other.
   const [assistantOpen, setAssistantOpen] = useState(false);
-  const { preference, setPreference } = useTheme();
   const reducedMotion = useReducedMotion();
   const location = useLocation();
   const navId = useId();
@@ -280,7 +270,15 @@ export function AppShell({ userName }: AppShellProps) {
 
       {/* Focus must not wander behind the scrim while the drawer is open. */}
       <div className="yd-shell__body" inert={drawerOpen || undefined}>
+        {/* The header carries the reader's name and the one control that DOES
+            something. The theme select used to sit here and no longer does:
+            it is a preference, set once and rarely again, and it already has a
+            home in Réglages → Apparence beside the density and animation
+            switches. A permanent slot in the header for a yearly decision was
+            spending the most valuable strip of the page on the least frequent
+            action. */}
         <header className="yd-shell__header">
+          <span className="yd-shell__user">{userName}</span>
           <button
             type="button"
             className="yd-shell__assistant"
@@ -290,21 +288,6 @@ export function AppShell({ userName }: AppShellProps) {
             <AssistantIcon />
             Assistant
           </button>
-          <span className="yd-shell__user">{userName}</span>
-          <label className="yd-shell__theme-select">
-            <span className="sr-only">Thème</span>
-            <ThemeIcon />
-            <select
-              value={preference}
-              onChange={(event) => setPreference(event.target.value as ThemePreference)}
-            >
-              {THEME_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </label>
         </header>
         <main className="yd-shell__main">
           {/* The screen arrives rather than appearing: a short rise and fade,

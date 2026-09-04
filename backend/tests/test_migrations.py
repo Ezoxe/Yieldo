@@ -800,11 +800,16 @@ CHAT_PREVIOUS = "bf18816b285c"
 
 def test_the_chat_messages_migration_matches_base_metadata_exactly(migration_db):
     """Same independent-source-of-truth comparison as the migrations above:
-    the hand-written DDL in `035256084eae_*.py` must agree, column for column
-    and index for index, with what `Base.metadata.create_all` derives
-    straight from `models/chat_message.py`."""
+    the hand-written DDL must agree, column for column and index for index,
+    with what `Base.metadata.create_all` derives straight from
+    `models/chat_message.py`.
+
+    Upgraded to `head`, not to `CHAT_REVISION`: this table is now built by two
+    migrations (`c4a1e78b2d95` adds `conversation_id`), and the claim worth
+    testing is that the FINISHED chain agrees with the model — stopping
+    halfway would only ever assert that a later column had not arrived yet."""
     command.upgrade(migration_db.config, CHAT_PREVIOUS)
-    command.upgrade(migration_db.config, CHAT_REVISION)
+    command.upgrade(migration_db.config, "head")
 
     conn = _connect(migration_db)
     migrated_columns = _table_columns(conn, "chat_messages")
@@ -1304,9 +1309,10 @@ def test_the_agent_keys_migration_is_on_the_path(migration_db):
 
 
 LLM_TIMEOUT_REVISION = "b7d3f0a91c48"
+CONVERSATIONS_REVISION = "c4a1e78b2d95"
 
 
-def test_the_llm_timeout_migration_is_the_single_head(migration_db):
+def test_the_conversations_migration_is_the_single_head(migration_db):
     """`heads` and `head` must be the same single revision — two heads is a
     database Alembic cannot upgrade without a merge, and nothing else in this
     suite would notice. This assertion moves to the newest migration each time
@@ -1315,7 +1321,42 @@ def test_the_llm_timeout_migration_is_the_single_head(migration_db):
 
     script = ScriptDirectory.from_config(migration_db.config)
     assert len(script.get_heads()) == 1
-    assert script.get_current_head() == LLM_TIMEOUT_REVISION
+    assert script.get_current_head() == CONVERSATIONS_REVISION
+
+
+def test_the_conversations_migration_gathers_old_questions_into_one_thread(migration_db):
+    """Not a default standing in for missing data: before this migration every
+    question a household had asked WAS one continuous thread, because there was
+    nowhere else to put one. Numbering them 1 records that, and the column
+    ends up NOT NULL because every message belongs to a thread."""
+    command.upgrade(migration_db.config, LLM_TIMEOUT_REVISION)
+    conn = _connect(migration_db)
+    conn.execute(
+        "INSERT INTO users (email, name, password_hash, role, is_active, created_at)"
+        " VALUES ('max@example.com', 'Max', 'x', 'admin', 1, '2026-01-01T00:00:00+00:00')"
+    )
+    for text in ("Quel est mon solde net ?", "Et mes budgets ?"):
+        conn.execute(
+            "INSERT INTO chat_messages (user_id, text, created_at)"
+            f" VALUES (1, '{text}', '2026-01-01T00:00:00+00:00')"
+        )
+    conn.commit()
+    conn.close()
+
+    command.upgrade(migration_db.config, CONVERSATIONS_REVISION)
+
+    conn = _connect(migration_db)
+    stored = conn.execute(
+        "SELECT conversation_id FROM chat_messages ORDER BY id"
+    ).fetchall()
+    nullable = [
+        row[3]
+        for row in conn.execute("PRAGMA table_info(chat_messages)").fetchall()
+        if row[1] == "conversation_id"
+    ]
+    conn.close()
+    assert stored == [(1,), (1,)]
+    assert nullable == [1], "conversation_id must be NOT NULL"
 
 
 def test_the_llm_timeout_migration_leaves_an_existing_model_on_the_default(migration_db):

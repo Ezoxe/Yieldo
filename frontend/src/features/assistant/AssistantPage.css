@@ -343,3 +343,12 @@
   list-style: none;
   margin-top: var(--yd-space-sm);
 }
+
+/* Les deux boutons de la tête de conversation. « Nouvelle » n'efface rien ;
+   « Effacer tout l'historique » efface tout — ils ne se ressemblent que parce
+   qu'ils vivent au même endroit, et leurs libellés portent la différence. */
+.yd-assistant__conversation-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--yd-space-xs);
+}

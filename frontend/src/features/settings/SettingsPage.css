@@ -1,14 +1,11 @@
+/* No `max-width` of its own: the screen is a bento like every other, and
+   `.yd-shell__main` decides how wide the application is. The 480px column this
+   used to be left the account form on a strip a third of the way across a
+   1440 display. */
 .yd-settings {
-  max-width: 480px;
   display: flex;
   flex-direction: column;
   gap: var(--yd-space-lg);
-}
-
-.yd-settings h1 {
-  margin: 0;
-  font-size: 1.4rem;
-  color: var(--yd-text);
 }
 
 .yd-settings__intro {
@@ -23,6 +20,13 @@
   gap: var(--yd-space-md);
   padding: var(--yd-space-sm) 0;
   border-bottom: 1px solid var(--yd-border);
+}
+
+/* The last row of a panel carries no rule: a hairline with nothing under it
+   reads as a list that was cut off. */
+.yd-settings__field:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
 }
 
 .yd-settings__field label {
@@ -84,15 +88,28 @@
 
 .yd-settings__logout {
   align-self: flex-start;
-  margin-top: var(--yd-space-2xs);
-  border: 1px solid var(--yd-border-control);
+  margin-top: auto;
+  border: 1px solid color-mix(in srgb, var(--yd-negative) 36%, transparent);
   border-radius: var(--yd-radius-sm);
-  background: transparent;
+  background: color-mix(in srgb, var(--yd-negative) 10%, transparent);
   color: var(--yd-negative);
   padding: var(--yd-space-xs) var(--yd-space-md);
   font: inherit;
   font-weight: 600;
   cursor: pointer;
+  transition:
+    background-color var(--yd-motion-fast) var(--yd-ease),
+    border-color var(--yd-motion-fast) var(--yd-ease);
+}
+
+.yd-settings__logout:hover {
+  background: color-mix(in srgb, var(--yd-negative) 18%, transparent);
+  border-color: var(--yd-negative);
+}
+
+.yd-settings__logout:focus-visible {
+  outline: 2px solid var(--yd-negative);
+  outline-offset: 2px;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -154,4 +171,128 @@
 
 :root[data-motion="off"] .yd-settings__link {
   transition: none;
+}
+
+/* -- Account forms --------------------------------------------------------- */
+
+/* Both account panels lay their fields out the same way, so the two cards read
+   as one pair rather than as two screens that happen to sit side by side. */
+.yd-account__form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-sm);
+}
+
+.yd-account__field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-2xs);
+}
+
+.yd-account__field > span {
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--yd-text-muted);
+}
+
+.yd-account__field input {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  background: var(--yd-surface);
+  border: 1px solid var(--yd-border-control);
+  border-radius: var(--yd-radius-sm);
+  padding: var(--yd-space-xs) var(--yd-space-sm);
+  color: var(--yd-text);
+  font: inherit;
+  font-size: 0.9rem;
+  transition: border-color var(--yd-motion-fast) var(--yd-ease);
+}
+
+.yd-account__field input:hover {
+  border-color: var(--yd-text-muted);
+}
+
+.yd-account__field input:focus-visible {
+  outline: 2px solid var(--yd-accent);
+  outline-offset: 1px;
+  border-color: var(--yd-accent);
+}
+
+.yd-account__note {
+  margin: 0;
+  font-size: 0.78rem;
+  line-height: 1.55;
+  color: var(--yd-text-muted);
+}
+
+/* A refusal from the backend, printed verbatim: "Un compte avec cet email
+   existe déjà" says which of two things went wrong, and paraphrasing it here
+   is how a screen ends up reporting the wrong one. */
+.yd-account__error {
+  margin: 0;
+  padding: var(--yd-space-xs) var(--yd-space-sm);
+  border-radius: var(--yd-radius-sm);
+  border: 1px solid var(--yd-negative);
+  background: color-mix(in srgb, var(--yd-negative) 14%, transparent);
+  color: var(--yd-negative-text);
+  font-size: 0.84rem;
+  line-height: 1.5;
+}
+
+.yd-account__saved {
+  margin: 0;
+  display: inline-flex;
+  align-self: flex-start;
+  padding: 2px 9px;
+  border-radius: var(--yd-radius-pill);
+  border: 1px solid color-mix(in srgb, var(--yd-positive) 26%, transparent);
+  background: color-mix(in srgb, var(--yd-positive) 12%, transparent);
+  color: var(--yd-positive);
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+/* Pinned to the bottom of its panel, so the two account cards' buttons line up
+   however many fields each of them holds. */
+.yd-account__submit {
+  align-self: flex-start;
+  margin-top: auto;
+  border: 1px solid color-mix(in srgb, var(--yd-accent) 40%, transparent);
+  border-radius: var(--yd-radius-sm);
+  background: color-mix(in srgb, var(--yd-accent) 12%, transparent);
+  color: var(--yd-accent);
+  padding: var(--yd-space-xs) var(--yd-space-md);
+  font: inherit;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background-color var(--yd-motion-fast) var(--yd-ease),
+    border-color var(--yd-motion-fast) var(--yd-ease);
+}
+
+.yd-account__submit:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--yd-accent) 20%, transparent);
+  border-color: var(--yd-accent);
+}
+
+.yd-account__submit:focus-visible {
+  outline: 2px solid var(--yd-accent);
+  outline-offset: 2px;
+}
+
+/* Disabled means "nothing to save yet", not "broken": it keeps its colour and
+   only loses the pointer, so the button still reads as the way forward. */
+.yd-account__submit:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .yd-account__field input,
+  .yd-account__submit,
+  .yd-settings__logout {
+    transition: none;
+  }
 }

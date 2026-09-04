@@ -104,7 +104,7 @@
   min-height: 42px;
   pointer-events: none;
   --yd-sparkline-line: color-mix(in srgb, var(--yd-accent) 55%, transparent);
-  --yd-sparkline-fill: color-mix(in srgb, var(--yd-accent) 12%, transparent);
+  --yd-sparkline-fill: color-mix(in srgb, var(--yd-accent) 26%, transparent);
 }
 
 /* The band's tint follows the figure it stands under, set on the CELL so the
@@ -112,15 +112,15 @@
    fallback declared above. */
 .yd-cell--stat-positive .yd-stat-tile__sparkline {
   --yd-sparkline-line: color-mix(in srgb, var(--yd-positive) 55%, transparent);
-  --yd-sparkline-fill: color-mix(in srgb, var(--yd-positive) 12%, transparent);
+  --yd-sparkline-fill: color-mix(in srgb, var(--yd-positive) 26%, transparent);
 }
 
 .yd-cell--stat-negative .yd-stat-tile__sparkline {
   --yd-sparkline-line: color-mix(in srgb, var(--yd-negative) 55%, transparent);
-  --yd-sparkline-fill: color-mix(in srgb, var(--yd-negative) 12%, transparent);
+  --yd-sparkline-fill: color-mix(in srgb, var(--yd-negative) 26%, transparent);
 }
 
 .yd-cell--stat-info .yd-stat-tile__sparkline {
   --yd-sparkline-line: color-mix(in srgb, var(--yd-info) 55%, transparent);
-  --yd-sparkline-fill: color-mix(in srgb, var(--yd-info) 12%, transparent);
+  --yd-sparkline-fill: color-mix(in srgb, var(--yd-info) 26%, transparent);
 }

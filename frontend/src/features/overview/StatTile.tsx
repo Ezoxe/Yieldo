@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useId, type ReactNode } from "react";
 
 import { CountUp } from "../../design/CountUp";
 import type { IconComponent } from "../../design/icons";
@@ -41,11 +41,46 @@ interface SparklineProps {
   className?: string;
   /**
    * Fills the area under the line with a vertical fade of the line's own
-   * colour. What turns a hairline into a shape at 40px tall — used by the
-   * tile's background band, not by the hero's own plot.
+   * colour. What turns a hairline into a shape at 40px tall.
    */
   filled?: boolean;
+  /**
+   * The dot on the last reading. Defaults to on for an unfilled line and off
+   * for a filled one — a filled band is bled to its container's edges, where
+   * the marker would be sliced down the middle by the clip.
+   */
+  endMarker?: boolean;
 }
+
+/** One point of a sparkline, in the 100x24 viewBox the drawing is laid out in. */
+export interface SparklinePoint {
+  x: number;
+  y: number;
+}
+
+/**
+ * Where every value of a series lands in the 100x24 viewBox.
+ *
+ * Exported because anything drawn OVER a sparkline — the hero's hover cursor,
+ * for one — has to land on exactly the point the line was drawn at. A second
+ * copy of this arithmetic beside the first is how a crosshair ends up a pixel
+ * off the curve it is supposed to be reading.
+ */
+export function sparklinePoints(values: number[]): SparklinePoint[] {
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  return values.map((value, index) => ({
+    x: values.length === 1 ? 50 : (index / (values.length - 1)) * 100,
+    // A series that never moved is flat through the middle of the band. The
+    // arithmetic fallback for a zero range used to put it on the floor, which
+    // draws a number that held steady as a number at its lowest.
+    y: 22 - (max === min ? 0.5 : (value - min) / (max - min)) * 20 - 1,
+  }));
+}
+
+/** The viewBox height `sparklinePoints` maps into — the divisor anything
+ *  positioning itself over the drawing needs. */
+export const SPARKLINE_VIEWBOX_HEIGHT = 24;
 
 /**
  * A bare trend line: no axes, no labels, just the shape of a series.
@@ -59,20 +94,18 @@ interface SparklineProps {
  * coordinate system is an ellipse -- so the marker is a zero-length line with
  * a round cap, which renders as a dot of exactly `strokeWidth` pixels.
  */
-export function Sparkline({ values, className = "", filled = false }: SparklineProps) {
-  const min = Math.min(...values);
-  const max = Math.max(...values);
-  const toXY = (value: number, index: number) => {
-    const x = (index / (values.length - 1)) * 100;
-    // A series that never moved is flat through the middle of the band. The
-    // arithmetic fallback for a zero range used to put it on the floor, which
-    // draws a number that held steady as a number at its lowest.
-    const ratio = max === min ? 0.5 : (value - min) / (max - min);
-    const y = 22 - ratio * 20 - 1;
-    return [x, y] as const;
-  };
-  const points = values.map((value, index) => toXY(value, index).join(",")).join(" ");
-  const [lastX, lastY] = toXY(values[values.length - 1], values.length - 1);
+export function Sparkline({
+  values,
+  className = "",
+  filled = false,
+  endMarker = !filled,
+}: SparklineProps) {
+  const geometry = sparklinePoints(values);
+  const points = geometry.map((point) => `${point.x},${point.y}`).join(" ");
+  const last = geometry[geometry.length - 1];
+  // One gradient per instance: two sparklines on the same page sharing an id
+  // would both resolve to whichever <defs> the browser saw last.
+  const fillId = useId().replace(/:/g, "");
   // The line, closed down to the floor of the viewBox and back. Only used when
   // `filled` — an unclosed polyline cannot be filled without the fill cutting
   // the chord between its first and last point.
@@ -81,7 +114,19 @@ export function Sparkline({ values, className = "", filled = false }: SparklineP
   return (
     <svg className={className} viewBox="0 0 100 24" preserveAspectRatio="none" aria-hidden="true" focusable="false">
       {filled ? (
-        <polygon points={area} style={{ fill: "var(--yd-sparkline-fill, transparent)" }} />
+        <>
+          {/* A vertical fade, not a flat wash: the same shape the ECharts
+              plots below the hero put under their own lines (`areaFade` in
+              charts/theme.ts). A single opaque colour under a curve reads as a
+              filled block, which is a different chart. */}
+          <defs>
+            <linearGradient id={fillId} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" style={{ stopColor: "var(--yd-sparkline-fill, transparent)" }} />
+              <stop offset="1" style={{ stopColor: "transparent" }} />
+            </linearGradient>
+          </defs>
+          <polygon points={area} fill={`url(#${fillId})`} />
+        </>
       ) : null}
       <polyline
         points={points}
@@ -92,18 +137,18 @@ export function Sparkline({ values, className = "", filled = false }: SparklineP
         vectorEffect="non-scaling-stroke"
         style={{ stroke: "var(--yd-sparkline-line, var(--yd-text-muted))" }}
       />
-      {filled ? null : (
+      {endMarker ? (
         <line
-          x1={lastX}
-          y1={lastY}
-          x2={lastX}
-          y2={lastY}
+          x1={last.x}
+          y1={last.y}
+          x2={last.x}
+          y2={last.y}
           strokeWidth={6}
           strokeLinecap="round"
           vectorEffect="non-scaling-stroke"
           style={{ stroke: "var(--yd-sparkline-dot, var(--yd-accent))" }}
         />
-      )}
+      ) : null}
     </svg>
   );
 }

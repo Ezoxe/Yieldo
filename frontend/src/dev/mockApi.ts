@@ -577,12 +577,8 @@ function goalsPayload() {
 }
 
 const ROUTES: Record<string, (params: Params) => unknown> = {
-  "/api/auth/refresh": () => ({
-    access_token: "apercu",
-    token_type: "bearer",
-    user: { id: 1, email: "apercu@yieldo.local", name: "Maxime", role: "owner" },
-  }),
-  "/api/auth/me": () => ({ id: 1, email: "apercu@yieldo.local", name: "Maxime", role: "owner" }),
+  "/api/auth/refresh": () => ({ access_token: "apercu", token_type: "bearer", user: MUTABLE_USER }),
+  "/api/auth/me": () => MUTABLE_USER,
   "/api/categories": () => CATEGORY_PAYLOAD,
   "/api/accounts": () => [
     { id: 1, name: "Compte courant", kind: "checking", currency: "EUR", opening_balance_cents: 412_000, opened_on: "2025-09-01", include_in_net_worth: true, archived: false },
@@ -610,11 +606,53 @@ const ROUTES: Record<string, (params: Params) => unknown> = {
   "/api/goals": goalsPayload,
 };
 
+/**
+ * Endpoints that WRITE. Keyed by method and path, checked before the read table
+ * so a PATCH and a GET on the same path do not collide. The harness keeps the
+ * change in memory for the rest of the tab, which is enough to see the screen
+ * behave — it is not a database.
+ */
+const MUTABLE_USER = { id: 1, email: "apercu@yieldo.local", name: "Maxime", role: "owner" };
+
+const WRITES: Record<string, (body: Record<string, unknown>) => Response> = {
+  "PATCH /api/auth/me": (body) => {
+    if (typeof body.email === "string" && body.email.includes("lea@")) {
+      return new Response(JSON.stringify({ detail: "Un compte avec cet email existe déjà" }), {
+        status: 409,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+    if (typeof body.name === "string") MUTABLE_USER.name = body.name;
+    if (typeof body.email === "string") MUTABLE_USER.email = body.email.toLowerCase();
+    return new Response(JSON.stringify(MUTABLE_USER), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  },
+  "POST /api/auth/password": (body) => {
+    if (body.current_password !== "apercu") {
+      return new Response(JSON.stringify({ detail: "Le mot de passe actuel est incorrect" }), {
+        status: 403,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+    return new Response(null, { status: 204 });
+  },
+};
+
 export function installMockApi(): void {
   const real = window.fetch.bind(window);
   window.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
     const url = new URL(typeof input === "string" ? input : input instanceof URL ? input.href : input.url, window.location.origin);
     if (!url.pathname.startsWith("/api/")) return real(input as RequestInfo, init);
+
+    const method = (init?.method ?? "GET").toUpperCase();
+    const write = WRITES[`${method} ${url.pathname}`];
+    if (write) {
+      await new Promise((resolve) => setTimeout(resolve, 220));
+      const raw = typeof init?.body === "string" ? init.body : "{}";
+      return write(JSON.parse(raw) as Record<string, unknown>);
+    }
 
     const handler = ROUTES[url.pathname];
     if (!handler) {

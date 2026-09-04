@@ -566,3 +566,47 @@ export function RefreshIcon(props: IconProps) {
     </Icon>
   );
 }
+
+/* -- Account --------------------------------------------------------------- */
+
+/** The person the account belongs to. */
+export function AccountIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <circle cx="12" cy="8" r="4" />
+      <path d="M4.5 20a7.5 7.5 0 0 1 15 0" />
+    </Icon>
+  );
+}
+
+/** A secret: the password, and nothing else. */
+export function LockIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <rect x="4" y="10" width="16" height="11" rx="2.5" />
+      <path d="M8 10V7a4 4 0 0 1 8 0v3" />
+      <path d="M12 14.5v2.5" />
+    </Icon>
+  );
+}
+
+/** Appearance: theme, density, motion. */
+export function AppearanceIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 3a9 9 0 0 0 0 18z" fill="currentColor" stroke="none" opacity="0.55" />
+    </Icon>
+  );
+}
+
+/** Leaving: the session ends. */
+export function SignOutIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M14 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3" />
+      <path d="M10 8 6 12l4 4" />
+      <path d="M6 12h9" />
+    </Icon>
+  );
+}

@@ -33,6 +33,10 @@ interface SessionState {
   register: (input: RegisterInput) => Promise<void>;
   logout: () => Promise<void>;
   hydrate: () => Promise<void>;
+  /** Replaces the stored user after the account screen changes their own name
+   *  or email. The session itself is untouched: the token still identifies the
+   *  same account, only the details the shell prints have moved. */
+  setUser: (user: User) => void;
 }
 
 // Hoisted out of the store creator (rather than closed over inside it) so
@@ -79,6 +83,10 @@ export const useSession = create<SessionState>(() => ({
     } finally {
       clearSession();
     }
+  },
+
+  setUser(user) {
+    useSession.setState({ user });
   },
 
   async hydrate() {

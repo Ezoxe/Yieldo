@@ -178,3 +178,143 @@ def test_admin_role_is_granted_exactly_once_across_sequential_registrations(clie
 
     admins = db.query(User).filter(User.role == "admin").count()
     assert admins == 1
+
+
+# -- Account management -------------------------------------------------------
+#
+# The operator has to be able to change their own name, email and password
+# without editing the database by hand. All three live under /auth because the
+# session is what they alter: an email change moves the identity a login is
+# looked up by, and a password change invalidates the only secret there is.
+
+
+def _registered(client, password="motdepasse123"):
+    """A registered user and the Authorization header for them."""
+    response = client.post("/api/auth/register", json={
+        "name": "Max", "email": "max@example.com", "password": password})
+    token = response.json()["access_token"]
+    return {"Authorization": f"Bearer {token}"}
+
+
+def test_profile_update_requires_authentication(client):
+    assert client.patch("/api/auth/me", json={"name": "Max"}).status_code == 401
+
+
+def test_profile_update_changes_the_name(client):
+    headers = _registered(client)
+
+    response = client.patch("/api/auth/me", json={"name": "Maxime"}, headers=headers)
+
+    assert response.status_code == 200
+    assert response.json()["name"] == "Maxime"
+    assert client.get("/api/auth/me", headers=headers).json()["name"] == "Maxime"
+
+
+def test_profile_update_changes_the_email_and_the_login_follows_it(client):
+    headers = _registered(client)
+
+    response = client.patch("/api/auth/me", json={"email": "Nouveau@Example.com"},
+                            headers=headers)
+
+    assert response.status_code == 200
+    # Normalised on the way in, exactly as registration does it.
+    assert response.json()["email"] == "nouveau@example.com"
+    assert client.post("/api/auth/login", json={
+        "email": "nouveau@example.com", "password": "motdepasse123"}).status_code == 200
+    assert client.post("/api/auth/login", json={
+        "email": "max@example.com", "password": "motdepasse123"}).status_code == 401
+
+
+def test_profile_update_refuses_an_email_another_account_already_uses(client):
+    client.post("/api/auth/register", json={
+        "name": "Lea", "email": "lea@example.com", "password": "motdepasse123"})
+    headers = _registered(client)
+
+    response = client.patch("/api/auth/me", json={"email": "lea@example.com"},
+                            headers=headers)
+
+    assert response.status_code == 409
+    assert "existe déjà" in response.json()["detail"]
+
+
+def test_profile_update_accepts_the_email_the_account_already_has(client):
+    """Re-submitting an unchanged form is not a conflict with oneself."""
+    headers = _registered(client)
+
+    response = client.patch("/api/auth/me", json={"email": "max@example.com"},
+                            headers=headers)
+
+    assert response.status_code == 200
+
+
+def test_profile_update_refuses_a_blank_name(client):
+    headers = _registered(client)
+
+    assert client.patch("/api/auth/me", json={"name": "   "},
+                        headers=headers).status_code == 422
+
+
+def test_profile_update_with_nothing_to_change_leaves_the_account_alone(client):
+    headers = _registered(client)
+
+    response = client.patch("/api/auth/me", json={}, headers=headers)
+
+    assert response.status_code == 200
+    assert response.json()["name"] == "Max"
+    assert response.json()["email"] == "max@example.com"
+
+
+def test_password_change_requires_authentication(client):
+    response = client.post("/api/auth/password", json={
+        "current_password": "motdepasse123", "new_password": "nouveaumotdepasse"})
+    assert response.status_code == 401
+
+
+def test_password_change_replaces_the_password(client):
+    headers = _registered(client)
+
+    response = client.post("/api/auth/password", json={
+        "current_password": "motdepasse123",
+        "new_password": "nouveaumotdepasse"}, headers=headers)
+
+    assert response.status_code == 204
+    assert client.post("/api/auth/login", json={
+        "email": "max@example.com", "password": "nouveaumotdepasse"}).status_code == 200
+    assert client.post("/api/auth/login", json={
+        "email": "max@example.com", "password": "motdepasse123"}).status_code == 401
+
+
+def test_password_change_refuses_a_wrong_current_password(client):
+    headers = _registered(client)
+
+    response = client.post("/api/auth/password", json={
+        "current_password": "paslebon", "new_password": "nouveaumotdepasse"},
+        headers=headers)
+
+    assert response.status_code == 403
+    assert "actuel" in response.json()["detail"]
+    # And the old password still works, which is the point of refusing.
+    assert client.post("/api/auth/login", json={
+        "email": "max@example.com", "password": "motdepasse123"}).status_code == 200
+
+
+def test_password_change_refuses_a_short_new_password(client):
+    headers = _registered(client)
+
+    response = client.post("/api/auth/password", json={
+        "current_password": "motdepasse123", "new_password": "court"}, headers=headers)
+
+    assert response.status_code == 422
+
+
+def test_password_change_refuses_the_password_already_in_use(client):
+    """Not a validation nicety: a form that reports success without changing
+    anything teaches the operator that the button does nothing."""
+    headers = _registered(client)
+
+    response = client.post("/api/auth/password", json={
+        "current_password": "motdepasse123", "new_password": "motdepasse123"},
+        headers=headers)
+
+    assert response.status_code == 422
+    assert "différent" in response.json()["detail"]

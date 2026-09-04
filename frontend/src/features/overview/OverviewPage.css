@@ -81,7 +81,10 @@
      in for it. Two literals here would drift, and a drift of even a few pixels
      reflows the whole grid the moment the data lands. */
   --yd-hero-figure-size: clamp(2.4rem, 7cqw, 5rem);
-  --yd-hero-trend-min: clamp(160px, 24cqw, 260px);
+  /* Roughly half what it was. The band is context for the figure above it, not
+     a chart in its own right: at 260px it was the tallest thing on the
+     dashboard and pushed everything else below the fold. */
+  --yd-hero-trend-min: clamp(88px, 11cqw, 132px);
   container-type: inline-size;
   display: flex;
   flex-direction: column;
@@ -211,13 +214,91 @@
    nothing, and simply fills whatever height this box settles at. */
 .yd-hero__plot {
   position: relative;
+  /* A control now — it reads a point under the pointer or the arrow keys. */
+  cursor: crosshair;
+  border-radius: var(--yd-radius-sm);
+}
+
+.yd-hero__plot:focus-visible {
+  outline: 2px solid var(--yd-accent);
+  outline-offset: 4px;
+}
+
+/* The vertical guide under the pointer. A hairline, not a band: it marks a
+   position, it does not select a range. */
+.yd-hero__cursor {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  translate: -0.5px 0;
+  background: color-mix(in srgb, var(--yd-accent) 55%, transparent);
+  pointer-events: none;
+}
+
+.yd-hero__cursor-dot {
+  position: absolute;
+  width: 9px;
+  height: 9px;
+  translate: -50% -50%;
+  border-radius: 50%;
+  background: var(--yd-accent-strong);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--yd-accent) 22%, transparent);
+  pointer-events: none;
+}
+
+/* The reading itself: the bucket's date and its running total. Floats over the
+   band on the side the cursor is not, so it never runs off the card. */
+.yd-hero__readout {
+  position: absolute;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: var(--yd-space-2xs) var(--yd-space-xs);
+  border-radius: var(--yd-radius-sm);
+  border: 1px solid var(--yd-border-strong);
+  background: var(--yd-surface-raised);
+  backdrop-filter: blur(var(--yd-glass-blur)) saturate(var(--yd-glass-saturate));
+  -webkit-backdrop-filter: blur(var(--yd-glass-blur)) saturate(var(--yd-glass-saturate));
+  box-shadow: var(--yd-shadow-pop);
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.yd-hero__readout[data-side="right"] {
+  margin-left: var(--yd-space-sm);
+}
+
+.yd-hero__readout[data-side="left"] {
+  translate: -100% 0;
+  margin-left: calc(var(--yd-space-sm) * -1);
+}
+
+.yd-hero__readout-date {
+  font-size: 0.7rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--yd-text-muted);
+}
+
+.yd-hero__readout-value {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--yd-text);
 }
 
 /* Accent-strong is the colour the cash-flow chart already draws "Solde net"
-   in -- one quantity, one encoding, across the two places it appears. */
+   in -- one quantity, one encoding, across the two places it appears. The
+   fill under it is the same fade the charts below use (see `areaFade` in
+   charts/theme.ts), so the hero band and the plots read as one family. */
 .yd-hero__spark {
   --yd-sparkline-line: var(--yd-accent-strong);
   --yd-sparkline-dot: var(--yd-accent-strong);
+  /* The same wash the cash-flow and projection plots put under their own
+     lines: 22% at the curve, nothing at the floor. */
+  --yd-sparkline-fill: color-mix(in srgb, var(--yd-accent) 34%, transparent);
   position: absolute;
   inset: 0;
   display: block;

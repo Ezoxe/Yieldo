@@ -6,7 +6,7 @@ from app.categorization.seed import seed_categories, seed_rules
 from app.config import settings
 from app.db import get_db
 from app.models import User
-from app.schemas.auth import LoginIn, RegisterIn, TokenOut, UserOut
+from app.schemas.auth import LoginIn, PasswordChangeIn, ProfileIn, RegisterIn, TokenOut, UserOut
 from app.security.deps import get_current_user
 from app.security.passwords import hash_password, verify_password
 from app.security.tokens import TokenError, create_access_token, create_refresh_token, decode_token
@@ -122,3 +122,74 @@ def logout(response: Response) -> None:
 @router.get("/me", response_model=UserOut)
 def me(user: User = Depends(get_current_user)) -> UserOut:
     return UserOut.model_validate(user)
+
+
+@router.patch("/me", response_model=UserOut)
+def update_profile(
+    payload: ProfileIn,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> UserOut:
+    """Change the name and/or the email on the authenticated account.
+
+    The email is normalised exactly as registration normalises it (stripped,
+    lower-cased), because it is the key a login is looked up by — an account
+    saved as "Nouveau@Example.com" here could never be signed into again.
+
+    The uniqueness check excludes the caller's own row: re-submitting an
+    unchanged form is not a conflict with oneself, and reporting one would make
+    the screen unusable.
+    """
+    if payload.name is not None:
+        user.name = payload.name
+
+    if payload.email is not None:
+        email = payload.email.strip().lower()
+        taken = (
+            db.query(User)
+            .filter(User.email == email, User.id != user.id)
+            .first()
+        )
+        if taken is not None:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT,
+                                detail="Un compte avec cet email existe déjà")
+        user.email = email
+
+    db.commit()
+    db.refresh(user)
+    return UserOut.model_validate(user)
+
+
+@router.post("/password", status_code=status.HTTP_204_NO_CONTENT)
+def change_password(
+    payload: PasswordChangeIn,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> None:
+    """Replace the account's password.
+
+    403, not 401: the caller IS authenticated — what they got wrong is the
+    current password, and a 401 here would send the front end's own
+    retry-then-log-out machinery (api.ts) after a refresh it does not need,
+    ending in the user being signed out for a typo.
+
+    The refresh cookie is deliberately left alone. Every session this account
+    has open keeps working, because the alternative — signing the operator out
+    of the tab they just changed their password in — is what makes people stop
+    changing their password. Tokens carry no jti, so revoking OTHER sessions
+    specifically is not something this design can offer, and pretending
+    otherwise would be worse than saying nothing.
+    """
+    if not verify_password(payload.current_password, user.password_hash):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
+                            detail="Le mot de passe actuel est incorrect")
+
+    if verify_password(payload.new_password, user.password_hash):
+        # The bare literal, like every other 422 in app/api: Starlette has
+        # deprecated HTTP_422_UNPROCESSABLE_ENTITY and renamed it, and this
+        # file is not the place to pick a side.
+        raise HTTPException(status_code=422,
+                            detail="Le nouveau mot de passe doit être différent de l'actuel")
+
+    user.password_hash = hash_password(payload.new_password)
+    db.commit()

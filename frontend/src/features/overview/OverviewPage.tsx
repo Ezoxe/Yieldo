@@ -20,7 +20,8 @@ import { formatCents } from "../../design/theme";
 import { useTheme } from "../../app/ThemeProvider";
 import { ApiError, api } from "../../lib/api";
 import type { CalendarPoint, Category, CategoryBreakdown, Granularity, SeriesBucket, Summary } from "../../lib/types";
-import { Sparkline, StatTile } from "./StatTile";
+import { HeroTrend } from "./HeroTrend";
+import { StatTile } from "./StatTile";
 import "./OverviewPage.css";
 import { PeriodSelector } from "../transactions/PeriodSelector";
 import { usePeriod, type UsePeriodResult } from "../transactions/usePeriod";
@@ -280,9 +281,7 @@ function NetHero({
       <figure className="yd-hero__trend">
         <figcaption className="yd-hero__trend-caption">Solde cumulé sur la période</figcaption>
         {trend.length > 1 ? (
-          <div className="yd-hero__plot">
-            <Sparkline values={trend} className="yd-hero__spark" />
-          </div>
+          <HeroTrend buckets={series} values={trend} />
         ) : (
           // Never an empty box standing in for a line that could not be drawn:
           // one bucket has no shape, and a failed series load says so in the

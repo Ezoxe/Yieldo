@@ -33,6 +33,21 @@ class ChatChartOut(BaseModel):
     points: list[ChatChartPointOut]
 
 
+class ChatStepOut(BaseModel):
+    """One step of what was actually executed to reach the figure.
+
+    Produced by `engines/answer.trace_query`, never assembled here: the front
+    end animates the reveal, and an animation over a list this router had
+    invented would be exactly the theatre design forbids.
+    """
+
+    tool: str
+    label: str
+    source: str
+    #: The route showing the same data, or null when nothing on screen does.
+    screen: str | None
+
+
 class ChatAnswerOut(BaseModel):
     # False when the question could not be parsed at all -- `query_description`
     # and `amount_cents` are then both empty/null, and `text` carries the
@@ -44,6 +59,9 @@ class ChatAnswerOut(BaseModel):
     is_refusal: bool
     supported_formulations: list[str] | None
     chart: ChatChartOut | None
+    # Never empty: even a question that could not be parsed was READ, and the
+    # reading is a step. See `engines/answer.AnswerStep`.
+    steps: list[ChatStepOut]
 
 
 class ChatMessageOut(BaseModel):

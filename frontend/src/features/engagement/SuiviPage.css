@@ -788,7 +788,17 @@
   flex-direction: column;
   align-items: center;
   gap: var(--yd-space-2xs);
-  align-self: flex-start;
+  /* Centred in its panel, not pinned to the left of it. `flex-start` left a
+     132px ring hugging the left edge of a 256px card with 124px of nothing
+     beside it — the one element on this screen that is a picture, and it was
+     off to one side. */
+  align-self: center;
+}
+
+/* The ring's own box, and the frame the reading is centred in. */
+.yd-gauge__dial {
+  position: relative;
+  display: flex;
 }
 
 .yd-gauge__ring {
@@ -812,11 +822,11 @@
   transition: stroke-dasharray var(--yd-motion-slow) var(--yd-ease);
 }
 
-/* Centred in the ring's own opening. Absolute, so the numeral's size cannot
-   push the ring around. */
+/* Centred on the ring's own centre, in the ring's own box. Absolute, so the
+   numeral's size cannot push the ring around. */
 .yd-gauge__reading {
   position: absolute;
-  top: 46%;
+  top: 50%;
   left: 50%;
   translate: -50% -50%;
   display: flex;

@@ -692,11 +692,65 @@ const WRITES: Record<string, (body: Record<string, unknown>) => Response> = {
           text: "Ton budget Courses a explosé ce mois-ci : 244,43 € pour une enveloppe de 450,00 €. Tes abonnements pèsent aussi sur ton solde net.",
           amount_cents: -24443,
           query: "Somme des dépenses de la catégorie Courses sur le mois en cours.",
+          // The shape `engines/answer.trace_query` returns for
+          // `total_by_category`, with this fixture's own counts.
+          steps: [
+            {
+              tool: "engines/intent",
+              label: "Lecture de la question",
+              source: "intention reconnue : total_by_category",
+              screen: null,
+            },
+            {
+              tool: "relevé",
+              label: "Lecture du relevé",
+              source: "142 opérations, 9 catégories, du 2025-10-01 au 2026-09-03",
+              screen: "/transactions",
+            },
+            {
+              tool: "engines/period",
+              label: "Résolution de la période",
+              source: "le mois en cours (septembre 2026)",
+              screen: null,
+            },
+            {
+              tool: "engines/aggregate",
+              label: "Somme par catégorie",
+              source: "catégorie « Courses »",
+              screen: "/budgets",
+            },
+          ],
         }
       : {
           text: "Ton autonomie est de 2,2 mois au rythme actuel. Le flux de trésorerie du mois reste négatif.",
           amount_cents: null,
           query: "Solde disponible divisé par le rythme de dépenses médian des 11 derniers mois.",
+          steps: [
+            {
+              tool: "engines/intent",
+              label: "Lecture de la question",
+              source: "intention reconnue : feasibility",
+              screen: null,
+            },
+            {
+              tool: "engines/capacity",
+              label: "Mesure des rythmes mensuels",
+              source: "11 mois observés",
+              screen: "/tresorerie",
+            },
+            {
+              tool: "solde",
+              label: "Relevé du solde disponible",
+              source: "4 182,60 € disponibles",
+              screen: "/tresorerie",
+            },
+            {
+              tool: "engines/feasibility",
+              label: "Évaluation de la faisabilité",
+              source: "mensualités de dettes déjà engagées 425,00 €",
+              screen: "/faisabilite",
+            },
+          ],
         };
     return jsonOk({
       id: Date.now(),
@@ -710,6 +764,7 @@ const WRITES: Record<string, (body: Record<string, unknown>) => Response> = {
         is_refusal: false,
         supported_formulations: null,
         chart: null,
+        steps: about.steps,
       },
     });
   },
@@ -755,7 +810,11 @@ export function installMockApi(): void {
     const method = (init?.method ?? "GET").toUpperCase();
     const write = WRITES[`${method} ${url.pathname}`];
     if (write) {
-      await new Promise((resolve) => setTimeout(resolve, 220));
+      // Une question à l'assistant parcourt tout le relevé côté serveur ; le
+      // délai plus long ici sert à voir l'état d'attente, que les 220 ms des
+      // autres écritures ne laissent pas apercevoir.
+      const wait = url.pathname === "/api/chat" && method === "POST" ? 900 : 220;
+      await new Promise((resolve) => setTimeout(resolve, wait));
       const raw = typeof init?.body === "string" ? init.body : "{}";
       return write(JSON.parse(raw) as Record<string, unknown>);
     }

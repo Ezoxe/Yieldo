@@ -48,6 +48,32 @@ export const ANSWERED: ChatMessage = {
         { label: "janvier 2026", amount_cents: -265_449 },
       ],
     },
+    steps: [
+      {
+        tool: "engines/intent",
+        label: "Lecture de la question",
+        source: "intention reconnue : total_by_category",
+        screen: null,
+      },
+      {
+        tool: "relevé",
+        label: "Lecture du relevé",
+        source: "197 opérations, 12 catégories, du 2025-11-01 au 2026-09-03",
+        screen: "/transactions",
+      },
+      {
+        tool: "engines/period",
+        label: "Résolution de la période",
+        source: "depuis novembre 2025 (jusqu'à aujourd'hui)",
+        screen: null,
+      },
+      {
+        tool: "engines/aggregate",
+        label: "Somme par catégorie",
+        source: "toutes catégories",
+        screen: "/budgets",
+      },
+    ],
   },
 };
 
@@ -65,6 +91,29 @@ export const REFUSED: ChatMessage = {
     is_refusal: true,
     supported_formulations: null,
     chart: null,
+    // A refusal is not a blank trace: the engines DID run, and what they found
+    // is exactly why the answer refuses. Zero valued positions, printed here,
+    // is the cause the sentence above names.
+    steps: [
+      {
+        tool: "engines/intent",
+        label: "Lecture de la question",
+        source: "intention reconnue : patrimoine_projection",
+        screen: null,
+      },
+      {
+        tool: "engines/portfolio",
+        label: "Valorisation du portefeuille",
+        source: "0 lignes valorisées sur 0, 0,00 €",
+        screen: "/patrimoine",
+      },
+      {
+        tool: "engines/capacity",
+        label: "Mesure des rythmes mensuels",
+        source: "3 mois observés",
+        screen: "/tresorerie",
+      },
+    ],
   },
 };
 
@@ -83,6 +132,26 @@ export const REFUSED_GOAL: ChatMessage = {
     is_refusal: true,
     supported_formulations: null,
     chart: null,
+    steps: [
+      {
+        tool: "engines/intent",
+        label: "Lecture de la question",
+        source: "intention reconnue : goal_status",
+        screen: null,
+      },
+      {
+        tool: "engines/capacity",
+        label: "Mesure des rythmes mensuels",
+        source: "3 mois observés",
+        screen: "/tresorerie",
+      },
+      {
+        tool: "engines/goal",
+        label: "Avancement des objectifs",
+        source: "0 objectifs, filtré sur « Vacances »",
+        screen: "/objectifs",
+      },
+    ],
   },
 };
 
@@ -99,6 +168,16 @@ export const UNRECOGNISED: ChatMessage = {
     is_refusal: true,
     supported_formulations: SUPPORTED_FORMULATIONS,
     chart: null,
+    // The sentence was read and nothing else ran. Saying so is what tells
+    // "je n'ai pas compris" apart from a request that never reached an engine.
+    steps: [
+      {
+        tool: "engines/intent",
+        label: "Lecture de la question",
+        source: "aucune intention reconnue",
+        screen: null,
+      },
+    ],
   },
 };
 

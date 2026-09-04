@@ -64,6 +64,18 @@ A component becomes pointable by carrying `data-ai-target="…"` and nothing
 else; `AISpotlightProvider` sets `data-ai-active` on the matching node.
 `useSpotlightTarget(id)` is the React-owned alternative.
 
+## The assistant's trace
+
+`answer.steps` is what the assistant actually ran: the engines, the ledger it
+read with THIS account's counts, and the route showing the same data. It comes
+from `engines/answer.trace_query`, one declared branch per intent beside
+`_HANDLERS`, and `test_every_intent_declares_a_trace` fails if the two tables
+drift apart. `ReasoningTrace` staggers the reveal and never writes a step of
+its own; it prints no duration, because the stagger is a rhythm and not a
+measurement. While a question is in flight the front end says only what it can
+see — one query is running — never a simulated progress report through phases
+it cannot observe.
+
 ## Shared UI primitives
 
 - Icons: `frontend/src/design/icons/`. One grid (24x24, 1.75px stroke,

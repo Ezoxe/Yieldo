@@ -24,10 +24,13 @@
    carry a refusal paragraph while its neighbour carries a date — and a
    stretched cell leaves a card's worth of blank surface under its last line,
    which reads as something having failed to load. */
-.yd-goals .yd-bento {
-  align-items: start;
-}
+/* No `align-items: start` here any more.
 
+   Three screens carried it on their own grid, which is the same defect as the
+   `align-self: start` the cells used to carry: it stopped a short card from
+   filling its row, so two panels side by side ended on two different lines.
+   Bento.css stretches every cell, and the panels inside fill the height they
+   are given — a card with room in it, aligned with its neighbour. */
 /* Prose ------------------------------------------------------------------ */
 
 .yd-goals__note {

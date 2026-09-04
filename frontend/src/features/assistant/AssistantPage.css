@@ -336,3 +336,10 @@
   text-transform: uppercase;
   color: var(--yd-text-muted);
 }
+
+/* L'attente, à la fin de la conversation. Une puce de liste ici ne
+   désignerait pas un échange : rien n'est encore arrivé. */
+.yd-assistant__waiting {
+  list-style: none;
+  margin-top: var(--yd-space-sm);
+}

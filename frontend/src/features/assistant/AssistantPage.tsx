@@ -14,6 +14,7 @@ import "../../design/Skeleton.css";
 import { api } from "../../lib/api";
 import { messageFor } from "../../lib/refusal";
 import type { ChatMessage } from "../../lib/types";
+import { ReasoningTrace, ThinkingIndicator } from "./ReasoningTrace";
 import "./AssistantPage.css";
 
 const SPAN = {
@@ -91,10 +92,13 @@ function Exchange({
   message,
   onPick,
   busy,
+  fresh,
 }: {
   message: ChatMessage;
   onPick: (text: string) => void;
   busy: boolean;
+  /** Answered in this session, so its trace stages in rather than appearing. */
+  fresh: boolean;
 }) {
   const { answer } = message;
 
@@ -137,6 +141,11 @@ function Exchange({
           <AnswerChart chart={answer.chart} />
         </div>
       ) : null}
+
+      {/* Design §8.1 asks for the executed query beside every figure; this is
+          the same promise one level down — the engines that ran, the ledger
+          they read, and the screens showing the same data. */}
+      <ReasoningTrace steps={answer.steps} fresh={fresh} />
     </li>
   );
 }
@@ -161,6 +170,9 @@ export function AssistantPage() {
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isAsking, setIsAsking] = useState(false);
+  // Answered in this session. Only these stage their trace in; a history of
+  // fifty exchanges replaying its reveals on every load would be noise.
+  const [fresh, setFresh] = useState<Set<number>>(() => new Set());
   const field = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -196,6 +208,7 @@ export function AssistantPage() {
     try {
       const answered = await api.post<ChatMessage>("/chat", { text: question });
       setMessages((current) => [...current, answered]);
+      setFresh((current) => new Set(current).add(answered.id));
       setDraft("");
     } catch (err) {
       // A failure of the ROUND TRIP, never a refusal: an engine declining to
@@ -290,7 +303,11 @@ export function AssistantPage() {
               <div className="yd-skeleton yd-skeleton--patrimoine-title" aria-hidden="true" />
               <div className="yd-skeleton yd-skeleton--patrimoine-card" aria-hidden="true" />
             </div>
-          ) : messages.length === 0 ? (
+          ) : messages.length === 0 && !isAsking ? (
+            // `&& !isAsking`: the very first question of a conversation must
+            // show the wait too. Without it the empty state stayed on screen
+            // for the whole round trip and nothing said anything was
+            // happening — seen in a browser on a fresh account.
             <div data-testid="yd-assistant-empty">
               <EmptyState
                 title="Aucune question posée pour l'instant."
@@ -309,9 +326,17 @@ export function AssistantPage() {
                   key={message.id}
                   message={message}
                   busy={isAsking}
+                  fresh={fresh.has(message.id)}
                   onPick={(text) => void askQuestion(text)}
                 />
               ))}
+              {/* The wait, said once, at the end of the conversation where the
+                  answer is about to land. */}
+              {isAsking ? (
+                <li className="yd-assistant__waiting">
+                  <ThinkingIndicator />
+                </li>
+              ) : null}
             </ul>
           )}
         </BentoCell>

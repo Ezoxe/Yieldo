@@ -10,6 +10,7 @@ import { SIGNATURE_EASE } from "../../design/motion/variants";
 import { formatCents } from "../../design/theme";
 import { ApiError, api } from "../../lib/api";
 import type { Category, ChatMessage } from "../../lib/types";
+import { ReasoningTrace, ThinkingIndicator } from "./ReasoningTrace";
 import "./AssistantDrawer.css";
 
 const GENERIC_ERROR = "Une erreur inattendue est survenue.";
@@ -40,6 +41,10 @@ export function AssistantDrawer({ open, onClose }: AssistantDrawerProps) {
   const [categories, setCategories] = useState<Category[]>([]);
   const [question, setQuestion] = useState("");
   const [asking, setAsking] = useState(false);
+  // The ids answered in THIS session. Only they play the staggered reveal;
+  // history arrives already computed and replaying it would be motion for
+  // its own sake. A Set, because the check is per row on every render.
+  const [fresh, setFresh] = useState<Set<number>>(() => new Set());
   const [error, setError] = useState<string | null>(null);
   const reduced = useReducedMotion();
   const panel = useRef<HTMLDivElement>(null);
@@ -91,6 +96,7 @@ export function AssistantDrawer({ open, onClose }: AssistantDrawerProps) {
     try {
       const answered = await api.post<ChatMessage>("/chat", { text: asked });
       setMessages((current) => [...current, answered]);
+      setFresh((current) => new Set(current).add(answered.id));
       setQuestion("");
     } catch (err) {
       setError(err instanceof ApiError ? err.detail : GENERIC_ERROR);
@@ -152,9 +158,18 @@ export function AssistantDrawer({ open, onClose }: AssistantDrawerProps) {
           </div>
         ) : (
           messages.map((message) => (
-            <Exchange key={message.id} message={message} extraTargets={extraTargets} />
+            <Exchange
+              key={message.id}
+              message={message}
+              extraTargets={extraTargets}
+              fresh={fresh.has(message.id)}
+            />
           ))
         )}
+
+        {/* The question is already on screen above; this is the only thing the
+            front end knows while the answer is being computed. */}
+        {asking ? <ThinkingIndicator /> : null}
 
         {error !== null ? (
           <p role="alert" className="yd-assistant-drawer__error">
@@ -211,7 +226,15 @@ export function AssistantDrawer({ open, onClose }: AssistantDrawerProps) {
  * the target lives on another screen and can be navigated to — see
  * `design/ai/targets.ts` for why nothing is ever guessed here.
  */
-function Exchange({ message, extraTargets }: { message: ChatMessage; extraTargets: AiTarget[] }) {
+function Exchange({
+  message,
+  extraTargets,
+  fresh,
+}: {
+  message: ChatMessage;
+  extraTargets: AiTarget[];
+  fresh: boolean;
+}) {
   const answer = message.answer;
   const targets = targetsMentionedIn(`${message.text} ${answer.text}`, extraTargets);
 
@@ -231,6 +254,10 @@ function Exchange({ message, extraTargets }: { message: ChatMessage; extraTarget
         {answer.query_description !== null ? (
           <p className="yd-exchange__query">{answer.query_description}</p>
         ) : null}
+
+        {/* What was actually run to get there — the engines, the ledger it
+            read, and the screens showing the same data. */}
+        <ReasoningTrace steps={answer.steps} fresh={fresh} />
 
         {targets.length > 0 ? (
           <p className="yd-exchange__chips">

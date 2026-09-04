@@ -3,7 +3,7 @@ from datetime import date
 from app.engines.answer import ChatContext, PortfolioSnapshot, answer_query
 from app.engines.capacity import MonthObservation
 from app.engines.goal import GoalInput
-from app.engines.intent import parse_intent
+from app.engines.intent import ParsedQuery, parse_intent
 from app.engines.recurrence import RecurringTx
 
 TODAY = date(2026, 9, 2)
@@ -560,3 +560,68 @@ def test_goal_status_deserves_no_chart():
     )
     answer = answer_query(_q("Où en est mon objectif Vacances ?"), ctx, TODAY)
     assert answer.chart is None
+
+
+# --------------------------------------------------------------------------
+# The trace: what the assistant actually ran
+# --------------------------------------------------------------------------
+
+
+def test_every_intent_declares_a_trace():
+    """`trace_query` is a declared table, exactly like `_HANDLERS`. A new
+    intent that answers but reports nothing about how would leave the
+    assistant's reasoning panel silently empty on that one question."""
+    from app.engines.answer import _HANDLERS, trace_query
+
+    for intent in _HANDLERS:
+        query = ParsedQuery(intent=intent, raw_text="")
+        steps = trace_query(query, _ctx())
+        assert steps, f"{intent} declares no trace"
+
+
+def test_the_trace_starts_by_reading_the_question():
+    """Whatever is asked, the first thing that happened is the parse. The
+    panel shows the round trip in order, so the order here is the contract."""
+    from app.engines.answer import trace_query
+
+    steps = trace_query(_q("Combien j'ai dépensé en restaurant en mars ?"), _ctx())
+    assert steps[0].tool == "engines/intent"
+
+
+def test_the_trace_counts_the_ledger_it_actually_read():
+    """The source line carries live counts, not a fixed sentence: an account
+    with three operations and one with three thousand must not read alike."""
+    from app.engines.answer import trace_query
+
+    ctx = _ctx(
+        categories={1: "Restaurant", 2: "Transport"},
+        transactions=[
+            _tx(date(2026, 3, 5), -3_000, "Le Bistrot", category_id=1),
+            _tx(date(2026, 3, 12), -1_500, "Sushi", category_id=1),
+        ],
+    )
+    steps = trace_query(_q("Combien j'ai dépensé en restaurant en mars ?"), ctx)
+    ledger = [step for step in steps if step.tool == "relevé"]
+    assert len(ledger) == 1
+    assert "2 opérations" in ledger[0].source
+    assert "2 catégories" in ledger[0].source
+
+
+def test_a_trace_step_names_the_screen_showing_the_same_data():
+    """"Les pages qu'il interroge" is a real link, not a label: every screen
+    named here is a route the front end actually serves."""
+    from app.engines.answer import trace_query
+
+    routes = {
+        step.screen
+        for intent in ("total_by_category", "goal_status", "subscription_cost")
+        for step in trace_query(ParsedQuery(intent=intent, raw_text=""), _ctx())
+        if step.screen is not None
+    }
+    assert routes <= {
+        "/", "/transactions", "/budgets", "/tresorerie", "/recurrences",
+        "/objectifs", "/analyse", "/dettes", "/patrimoine", "/projection",
+        "/faisabilite", "/suivi",
+    }
+    assert "/objectifs" in routes
+    assert "/recurrences" in routes

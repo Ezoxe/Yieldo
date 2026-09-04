@@ -58,46 +58,53 @@ export function ScoreGauge({ score }: ScoreGaugeProps) {
 
   return (
     <div className="yd-gauge" data-band={reading.band}>
-      <svg
-        className="yd-gauge__ring"
-        viewBox={`0 0 ${SIZE} ${SIZE}`}
-        width={SIZE}
-        height={SIZE}
-        aria-hidden="true"
-        focusable="false"
-      >
-        {/* Rotated so the opening sits at the bottom and the arc starts from
-            the lower left, which is where a gauge is read from. */}
-        <g transform={`rotate(135 ${SIZE / 2} ${SIZE / 2})`}>
-          <circle
-            cx={SIZE / 2}
-            cy={SIZE / 2}
-            r={RADIUS}
-            fill="none"
-            strokeWidth={STROKE}
-            strokeLinecap="round"
-            strokeDasharray={`${track} ${CIRCUMFERENCE}`}
-            className="yd-gauge__track"
-          />
-          <circle
-            cx={SIZE / 2}
-            cy={SIZE / 2}
-            r={RADIUS}
-            fill="none"
-            strokeWidth={STROKE}
-            strokeLinecap="round"
-            strokeDasharray={`${filled} ${CIRCUMFERENCE}`}
-            className="yd-gauge__fill"
-            style={{ stroke: reading.color }}
-          />
-        </g>
-      </svg>
+      {/* The ring and its reading share one positioned box, and the band word
+          sits outside it. The reading used to be absolute against the whole
+          column — svg plus gap plus word — so "50 %" of that column landed
+          below the ring's own centre, and the numeral sat low in the circle.
+          Nudging the percentage down to 46 % only made the error smaller. */}
+      <div className="yd-gauge__dial">
+        <svg
+          className="yd-gauge__ring"
+          viewBox={`0 0 ${SIZE} ${SIZE}`}
+          width={SIZE}
+          height={SIZE}
+          aria-hidden="true"
+          focusable="false"
+        >
+          {/* Rotated so the opening sits at the bottom and the arc starts from
+              the lower left, which is where a gauge is read from. */}
+          <g transform={`rotate(135 ${SIZE / 2} ${SIZE / 2})`}>
+            <circle
+              cx={SIZE / 2}
+              cy={SIZE / 2}
+              r={RADIUS}
+              fill="none"
+              strokeWidth={STROKE}
+              strokeLinecap="round"
+              strokeDasharray={`${track} ${CIRCUMFERENCE}`}
+              className="yd-gauge__track"
+            />
+            <circle
+              cx={SIZE / 2}
+              cy={SIZE / 2}
+              r={RADIUS}
+              fill="none"
+              strokeWidth={STROKE}
+              strokeLinecap="round"
+              strokeDasharray={`${filled} ${CIRCUMFERENCE}`}
+              className="yd-gauge__fill"
+              style={{ stroke: reading.color }}
+            />
+          </g>
+        </svg>
 
-      <div className="yd-gauge__reading">
-        <p className="yd-gauge__score yd-num" data-testid="yd-health-score">
-          {score}
-        </p>
-        <p className="yd-gauge__scale">sur 100</p>
+        <div className="yd-gauge__reading">
+          <p className="yd-gauge__score yd-num" data-testid="yd-health-score">
+            {score}
+          </p>
+          <p className="yd-gauge__scale">sur 100</p>
+        </div>
       </div>
 
       <p className="yd-gauge__band" style={{ color: reading.color }}>

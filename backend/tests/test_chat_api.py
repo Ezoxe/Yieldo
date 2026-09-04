@@ -238,3 +238,51 @@ def test_clearing_the_conversation_removes_this_users_history_only(client):
     assert client.delete("/api/chat", headers=mine).status_code == 204
     assert client.get("/api/chat", headers=mine).json() == []
     assert len(client.get("/api/chat", headers=theirs).json()) == 1
+
+
+# --------------------------------------------------------------------------
+# The trace travels with the answer.
+# --------------------------------------------------------------------------
+
+
+def test_an_answer_carries_the_steps_that_produced_it(client):
+    """"Les outils qu'il utilise, les pages et données qu'il interroge" is a
+    payload, not a front-end animation: the drawer may stagger the reveal,
+    but it never invents a line."""
+    headers = _register(client)
+    answer = client.post("/api/chat", headers=headers,
+                         json={"text": "Combien j'ai dépensé en mars 2026 ?"}).json()["answer"]
+    steps = answer["steps"]
+    assert [step["tool"] for step in steps][0] == "engines/intent"
+    assert any(step["tool"] == "relevé" for step in steps)
+    assert all(step["label"] and step["source"] for step in steps)
+
+
+def test_an_unrecognised_question_reports_the_one_step_that_did_run(client):
+    """A refusal is not a blank trace: the sentence WAS read, and saying so is
+    what distinguishes "je n'ai pas compris" from "rien ne s'est passé"."""
+    headers = _register(client)
+    answer = client.post("/api/chat", headers=headers,
+                         json={"text": "Quelle est la météo à Lyon ?"}).json()["answer"]
+    assert [step["tool"] for step in answer["steps"]] == ["engines/intent"]
+    assert answer["steps"][0]["screen"] is None
+
+
+def test_the_trace_is_recomputed_on_every_read_like_the_answer(client, db):
+    """The trace counts the ledger, so a stored question re-read after an
+    import must report the bigger ledger -- same staleness contract as the
+    figure it stands beside."""
+    headers = _register(client)
+    client.post("/api/chat", headers=headers, json={"text": "Combien j'ai dépensé en mars 2026 ?"})
+    before = client.get("/api/chat", headers=headers).json()[0]["answer"]["steps"]
+
+    user_id = _user_id(db, "chat@example.fr")
+    account = _account(db, user_id)
+    _tx(db, user_id, account.id, date(2026, 3, 4), -2_500, "Le Bistrot")
+    db.commit()
+
+    after = client.get("/api/chat", headers=headers).json()[0]["answer"]["steps"]
+    ledger_before = next(s for s in before if s["tool"] == "relevé")["source"]
+    ledger_after = next(s for s in after if s["tool"] == "relevé")["source"]
+    assert "0 opérations" in ledger_before
+    assert "1 opérations" in ledger_after

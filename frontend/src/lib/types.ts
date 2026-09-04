@@ -1887,6 +1887,24 @@ export interface ChatChart {
   points: ChatChartPoint[];
 }
 
+/**
+ * One step of what the assistant actually ran to reach the figure.
+ *
+ * Produced by `engines/answer.trace_query` and transcribed by the router, so
+ * every line is a fact about the code that answered THIS question — the
+ * drawer staggers the reveal, it never writes a step of its own.
+ */
+export interface ChatStep {
+  /** The engine module or data source, verbatim: "engines/aggregate",
+   *  "relevé". Shown as written. */
+  tool: string;
+  label: string;
+  /** What it read, with this account's own counts. */
+  source: string;
+  /** The route showing the same data, or null when nothing on screen does. */
+  screen: string | null;
+}
+
 export interface ChatAnswer {
   /** `false` when the question could not be parsed at all. `query_description`
    *  is then null and `supported_formulations` carries the ten phrasings the
@@ -1902,6 +1920,9 @@ export interface ChatAnswer {
   is_refusal: boolean;
   supported_formulations: string[] | null;
   chart: ChatChart | null;
+  /** Never empty: a question that could not be parsed was still READ, and the
+   *  reading is a step. */
+  steps: ChatStep[];
 }
 
 export interface ChatMessage {

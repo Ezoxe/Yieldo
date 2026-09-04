@@ -1,0 +1,327 @@
+/* The assistant's trace — what it ran, and the screens it read.
+
+   Every value here is presentational; the CONTENT is `answer.steps`, produced
+   by `engines/answer.trace_query`. See ReasoningTrace.tsx for why the panel
+   staggers a reveal but never prints a duration. */
+
+.yd-trace {
+  margin-top: var(--yd-space-xs);
+  border-radius: var(--yd-radius-sm);
+  border: 1px solid var(--yd-border);
+  background: color-mix(in srgb, var(--yd-surface) 70%, transparent);
+  overflow: hidden;
+}
+
+/* The whole head is the control, so the target is the width of the panel
+   rather than a caret the size of a full stop. */
+.yd-trace__toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--yd-space-xs);
+  width: 100%;
+  min-height: 36px;
+  padding: var(--yd-space-2xs) var(--yd-space-sm);
+  border: 0;
+  background: transparent;
+  color: var(--yd-text-muted);
+  font: inherit;
+  font-size: 0.78rem;
+  text-align: left;
+  cursor: pointer;
+  transition: color var(--yd-motion-fast) var(--yd-ease);
+}
+
+.yd-trace__toggle:hover {
+  color: var(--yd-text);
+}
+
+.yd-trace__toggle:focus-visible {
+  outline: 2px solid var(--yd-accent);
+  outline-offset: -2px;
+}
+
+.yd-trace__toggle-mark {
+  display: inline-flex;
+  flex: 0 0 auto;
+  color: var(--yd-accent);
+  /* `ChevronIcon` is drawn pointing RIGHT — its own closed state — so closed
+     is 0deg here and open turns it a quarter-turn down. */
+  rotate: 0deg;
+  transition: rotate var(--yd-motion-fast) var(--yd-ease);
+}
+
+.yd-trace__toggle[aria-expanded="true"] .yd-trace__toggle-mark {
+  rotate: 90deg;
+}
+
+.yd-trace__toggle-mark .yd-icon {
+  width: 14px;
+  height: 14px;
+}
+
+.yd-trace__toggle-text {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  color: var(--yd-text);
+}
+
+.yd-trace__count {
+  min-width: 18px;
+  padding: 1px 5px;
+  border-radius: var(--yd-radius-pill);
+  background: color-mix(in srgb, var(--yd-accent) 16%, transparent);
+  color: var(--yd-text);
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-align: center;
+}
+
+.yd-trace__toggle-hint {
+  margin-left: auto;
+  font-size: 0.72rem;
+  white-space: nowrap;
+}
+
+.yd-trace__steps {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0 var(--yd-space-sm) var(--yd-space-xs);
+  list-style: none;
+}
+
+/* -- One step -------------------------------------------------------------- */
+
+.yd-trace__step {
+  position: relative;
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  gap: var(--yd-space-xs);
+  padding: var(--yd-space-2xs) 0;
+  min-width: 0;
+}
+
+/* The rail joining the dots. Drawn from each step DOWN to the next, and
+   suppressed on the last, so the line ends at the final dot instead of
+   trailing into the padding. */
+.yd-trace__step::before {
+  content: "";
+  position: absolute;
+  left: 8px;
+  top: 22px;
+  bottom: -2px;
+  width: 1px;
+  /* Tinted, not a plain hairline: at `--yd-border-strong` the connector was
+     measured at 15 % alpha and disappeared between the dots, which left four
+     bullets where a sequence was meant to be. */
+  background: color-mix(in srgb, var(--yd-accent) 32%, transparent);
+}
+
+.yd-trace__step:last-child::before {
+  display: none;
+}
+
+.yd-trace__dot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 17px;
+  height: 17px;
+  margin-top: 3px;
+  border-radius: 50%;
+  border: 1px solid color-mix(in srgb, var(--yd-accent) 45%, transparent);
+  background: color-mix(in srgb, var(--yd-accent) 14%, transparent);
+  color: var(--yd-accent);
+}
+
+.yd-trace__dot .yd-icon {
+  width: 11px;
+  height: 11px;
+}
+
+.yd-trace__body {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.yd-trace__label {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--yd-space-2xs);
+  margin: 0;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--yd-text);
+}
+
+/* The module that ran, spelled exactly as it is in the repository. Mono,
+   because it is an identifier and not prose. */
+.yd-trace__tool {
+  padding: 1px 5px;
+  border-radius: var(--yd-radius-sm);
+  background: color-mix(in srgb, var(--yd-text) 8%, transparent);
+  color: var(--yd-text-muted);
+  font-family: var(--yd-font-mono);
+  font-size: 0.68rem;
+  font-weight: 400;
+}
+
+.yd-trace__source {
+  margin: 0;
+  font-size: 0.74rem;
+  line-height: 1.45;
+  color: var(--yd-text-muted);
+  overflow-wrap: anywhere;
+}
+
+/* "Les pages qu'il interroge", made a real link: the screen showing the same
+   data is one click away, and the click lands somewhere. */
+.yd-trace__screen {
+  align-self: start;
+  margin-top: 2px;
+  padding: 1px 7px;
+  border-radius: var(--yd-radius-pill);
+  border: 1px solid var(--yd-border-control);
+  color: var(--yd-text);
+  font-size: 0.7rem;
+  text-decoration: none;
+  transition:
+    border-color var(--yd-motion-fast) var(--yd-ease),
+    background var(--yd-motion-fast) var(--yd-ease);
+}
+
+.yd-trace__screen:hover {
+  border-color: var(--yd-accent);
+  background: color-mix(in srgb, var(--yd-accent) 10%, transparent);
+}
+
+.yd-trace__screen:focus-visible {
+  outline: 2px solid var(--yd-accent);
+  outline-offset: 2px;
+}
+
+/* -- The wait -------------------------------------------------------------- */
+
+.yd-thinking {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  gap: var(--yd-space-xs);
+  padding: var(--yd-space-xs) var(--yd-space-sm);
+  border-radius: var(--yd-radius-sm);
+  border: 1px solid var(--yd-border);
+  background: color-mix(in srgb, var(--yd-accent) 6%, transparent);
+}
+
+.yd-thinking__rail {
+  position: relative;
+  display: block;
+  width: 17px;
+  height: 17px;
+  margin-top: 2px;
+  border-radius: 50%;
+  border: 1px solid color-mix(in srgb, var(--yd-accent) 45%, transparent);
+}
+
+/* One dot breathing inside the ring: the shape a completed step will take,
+   before it has anything to report. */
+.yd-thinking__pulse {
+  position: absolute;
+  inset: 4px;
+  border-radius: 50%;
+  background: var(--yd-accent);
+  animation: yd-thinking-pulse 1.4s var(--yd-ease) infinite;
+}
+
+.yd-thinking__body {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.yd-thinking__label {
+  display: flex;
+  align-items: baseline;
+  gap: 2px;
+  margin: 0;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--yd-text);
+}
+
+.yd-thinking__dots {
+  display: inline-flex;
+  gap: 2px;
+  padding-left: 2px;
+}
+
+.yd-thinking__dots span {
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: var(--yd-accent);
+  animation: yd-thinking-dot 1.2s var(--yd-ease) infinite;
+}
+
+.yd-thinking__dots span:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.yd-thinking__dots span:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+.yd-thinking__note {
+  margin: 0;
+  font-size: 0.72rem;
+  line-height: 1.45;
+  color: var(--yd-text-muted);
+}
+
+@keyframes yd-thinking-pulse {
+  0%,
+  100% {
+    opacity: 0.35;
+    scale: 0.7;
+  }
+  50% {
+    opacity: 1;
+    scale: 1;
+  }
+}
+
+@keyframes yd-thinking-dot {
+  0%,
+  100% {
+    opacity: 0.25;
+    translate: 0 0;
+  }
+  50% {
+    opacity: 1;
+    translate: 0 -2px;
+  }
+}
+
+/* The wait still has to be legible as a wait when motion is off, so the pulse
+   settles at full opacity rather than disappearing. */
+@media (prefers-reduced-motion: reduce) {
+  .yd-thinking__pulse,
+  .yd-thinking__dots span {
+    animation: none;
+    opacity: 1;
+  }
+  .yd-trace__toggle-mark {
+    transition: none;
+  }
+}
+
+:root[data-motion="off"] .yd-thinking__pulse,
+:root[data-motion="off"] .yd-thinking__dots span {
+  animation: none;
+  opacity: 1;
+}

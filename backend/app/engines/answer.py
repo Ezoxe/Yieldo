@@ -775,6 +775,239 @@ _HANDLERS = {
 }
 
 
+# --------------------------------------------------------------------------
+# The trace
+# --------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class AnswerStep:
+    """One thing that actually happened on the way to the figure.
+
+    The assistant has no model and no tool calls to narrate, so the honest
+    account of "what it did" is the fixed sequence its own code runs: parse
+    the sentence, read the ledger, call these engines. That sequence is
+    knowable per intent, because each handler's imports are fixed -- so it is
+    DECLARED, in `trace_query` below, next to `_HANDLERS`, and a test asserts
+    the two tables cover the same intents.
+
+    Nothing here is invented and nothing is timed: the front end may animate
+    the reveal, but every line it reveals was produced by this module for
+    this question.
+    """
+
+    #: The engine module or data source, verbatim -- "engines/aggregate",
+    #: "releve". Displayed as written; it is a fact about the code.
+    tool: str
+    #: What it did, in French.
+    label: str
+    #: What it read, in French, with the counts THIS account actually has.
+    #: A ledger of three operations must not read like one of three thousand.
+    source: str
+    #: The route showing the same data, so a reader can go and check it, or
+    #: None when nothing on screen corresponds. Always a route the front end
+    #: really serves -- `design/ai/targets.ts` holds the same list.
+    screen: str | None = None
+
+
+def _ledger_step(ctx: ChatContext) -> AnswerStep:
+    span = (
+        "aucune période couverte"
+        if ctx.ledger_start is None or ctx.ledger_end is None
+        else f"du {ctx.ledger_start.isoformat()} au {ctx.ledger_end.isoformat()}"
+    )
+    return AnswerStep(
+        tool="relevé",
+        label="Lecture du relevé",
+        source=f"{len(ctx.transactions)} opérations, {len(ctx.categories)} catégories, {span}",
+        screen="/transactions",
+    )
+
+
+def _months_step(ctx: ChatContext) -> AnswerStep:
+    return AnswerStep(
+        tool="engines/capacity",
+        label="Mesure des rythmes mensuels",
+        source=f"{len(ctx.months)} mois observés",
+        screen="/tresorerie",
+    )
+
+
+def trace_query(query: ParsedQuery, ctx: ChatContext) -> tuple[AnswerStep, ...]:
+    """The steps this query runs through, in the order the code runs them.
+
+    One branch per intent, deliberately: a `dict` of static tuples could not
+    carry the counts, and counting is what keeps this from being decoration.
+    Adding an intent to `_HANDLERS` without adding it here fails
+    `test_every_intent_declares_a_trace`.
+    """
+    read = AnswerStep(
+        tool="engines/intent",
+        label="Lecture de la question",
+        source=f"intention reconnue : {query.intent}",
+    )
+
+    if query.intent == "total_by_category":
+        return (
+            read,
+            _ledger_step(ctx),
+            AnswerStep(
+                tool="engines/period",
+                label="Résolution de la période",
+                source="aucune période" if query.period is None else query.period.label,
+            ),
+            AnswerStep(
+                tool="engines/aggregate",
+                label="Somme par catégorie",
+                source=(
+                    "toutes catégories"
+                    if query.category_hint is None
+                    else f"catégorie « {query.category_hint} »"
+                ),
+                screen="/budgets",
+            ),
+        )
+
+    if query.intent == "period_comparison":
+        return (
+            read,
+            _ledger_step(ctx),
+            AnswerStep(
+                tool="engines/aggregate",
+                label="Comparaison de deux périodes",
+                source=(
+                    "périodes non résolues"
+                    if query.period is None or query.compare_period is None
+                    else f"{query.period.label} contre {query.compare_period.label}"
+                ),
+                screen="/analyse",
+            ),
+        )
+
+    if query.intent in ("recurrence_evolution", "subscription_cost"):
+        return (
+            read,
+            _ledger_step(ctx),
+            AnswerStep(
+                tool="engines/recurrence",
+                label="Détection des prélèvements réguliers",
+                source=(
+                    f"relevé arrêté au {ctx.recurrence_anchor.isoformat()}"
+                    + ("" if query.entity is None else f", filtré sur « {query.entity} »")
+                ),
+                screen="/recurrences",
+            ),
+        )
+
+    if query.intent == "feasibility":
+        return (
+            read,
+            _months_step(ctx),
+            AnswerStep(
+                tool="solde",
+                label="Relevé du solde disponible",
+                source=f"{_fmt_eur(ctx.balance_cents)} disponibles",
+                screen="/tresorerie",
+            ),
+            AnswerStep(
+                tool="engines/feasibility",
+                label="Évaluation de la faisabilité",
+                source=(
+                    (
+                        "montant non lu"
+                        if query.amount_cents is None
+                        else _fmt_eur(query.amount_cents)
+                    )
+                    + ", mensualités de dettes déjà engagées "
+                    + _fmt_eur(ctx.existing_debt_payments_cents)
+                ),
+                screen="/faisabilite",
+            ),
+        )
+
+    if query.intent == "savings_simulation":
+        return (
+            read,
+            AnswerStep(
+                tool="engines/savings",
+                label="Projection d'épargne",
+                source=(
+                    (
+                        "versement non lu"
+                        if query.amount_cents is None
+                        else f"{_fmt_eur(query.amount_cents)} par mois"
+                    )
+                    + f", taux supposé {DEFAULT_ANNUAL_RETURN_BPS / 100:.2f} %/an"
+                ),
+                screen="/projection",
+            ),
+        )
+
+    if query.intent == "goal_status":
+        return (
+            read,
+            _months_step(ctx),
+            AnswerStep(
+                tool="engines/goal",
+                label="Avancement des objectifs",
+                source=(
+                    f"{len(ctx.goals)} objectifs"
+                    + ("" if query.entity is None else f", filtré sur « {query.entity} »")
+                ),
+                screen="/objectifs",
+            ),
+        )
+
+    if query.intent == "transaction_search":
+        return (
+            read,
+            _ledger_step(ctx),
+            AnswerStep(
+                tool="engines/period",
+                label="Résolution de la période",
+                source="aucune période" if query.period is None else query.period.label,
+            ),
+            AnswerStep(
+                tool="recherche",
+                label="Filtrage des opérations",
+                source=(
+                    "aucun libellé"
+                    if query.entity is None
+                    else f"libellé « {query.entity} »"
+                ),
+                screen="/transactions",
+            ),
+        )
+
+    if query.intent == "patrimoine_projection":
+        return (
+            read,
+            AnswerStep(
+                tool="engines/portfolio",
+                label="Valorisation du portefeuille",
+                source=(
+                    f"{ctx.portfolio.positions_valued} lignes valorisées sur "
+                    f"{ctx.portfolio.positions_total}, "
+                    f"{_fmt_eur(ctx.portfolio.market_value_cents)}"
+                ),
+                screen="/patrimoine",
+            ),
+            _months_step(ctx),
+            AnswerStep(
+                tool="engines/savings",
+                label="Projection du patrimoine",
+                source=f"taux supposé {DEFAULT_ANNUAL_RETURN_BPS / 100:.2f} %/an",
+                screen="/projection",
+            ),
+        )
+
+    # Unreachable while `_HANDLERS` and this function agree, which is what
+    # `test_every_intent_declares_a_trace` measures. Never a silent empty
+    # tuple: a question that answered but reported nothing about how would
+    # look like a defect in the panel rather than a gap in this table.
+    raise ValueError(f"Aucune trace déclarée pour l'intention « {query.intent} ».")
+
+
 def answer_query(query: ParsedQuery, ctx: ChatContext, today: date) -> Answer:
     """Execute one parsed query and return the figure with its provenance.
 

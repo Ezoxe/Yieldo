@@ -34,7 +34,14 @@ from app.api.history import user_history
 from app.api.portfolio import valuation_inputs
 from app.db import get_db
 from app.engines import portfolio as portfolio_engine
-from app.engines.answer import AnswerChart, ChatContext, PortfolioSnapshot, answer_query
+from app.engines.answer import (
+    AnswerChart,
+    AnswerStep,
+    ChatContext,
+    PortfolioSnapshot,
+    answer_query,
+    trace_query,
+)
 from app.engines.goal import GoalInput
 from app.engines.intent import UnrecognisedQuery, parse_intent
 from app.models import Category, ChatMessage, Debt, Goal, User
@@ -44,6 +51,7 @@ from app.schemas.chat import (
     ChatChartPointOut,
     ChatMessageIn,
     ChatMessageOut,
+    ChatStepOut,
 )
 from app.security.deps import get_current_user
 
@@ -128,6 +136,16 @@ def _chart_out(chart: AnswerChart | None) -> ChatChartOut | None:
     )
 
 
+def _steps_out(steps: tuple[AnswerStep, ...]) -> list[ChatStepOut]:
+    """The engine's trace, transcribed. Nothing is added here for the same
+    reason `_chart_out` adds nothing: a step this router invented would be a
+    step no engine ran."""
+    return [
+        ChatStepOut(tool=step.tool, label=step.label, source=step.source, screen=step.screen)
+        for step in steps
+    ]
+
+
 def _compute_answer(text: str, ctx: ChatContext, today: date) -> ChatAnswerOut:
     parsed = parse_intent(text, today)
     if isinstance(parsed, UnrecognisedQuery):
@@ -136,6 +154,17 @@ def _compute_answer(text: str, ctx: ChatContext, today: date) -> ChatAnswerOut:
             amount_cents=None, is_refusal=True,
             supported_formulations=list(parsed.supported_formulations),
             chart=None,
+            # The sentence was read; that is the one step that ran, and
+            # reporting it is what tells "je n'ai pas compris" apart from a
+            # request that never reached an engine.
+            steps=[
+                ChatStepOut(
+                    tool="engines/intent",
+                    label="Lecture de la question",
+                    source="aucune intention reconnue",
+                    screen=None,
+                )
+            ],
         )
     try:
         answer = answer_query(parsed, ctx, today)
@@ -147,6 +176,7 @@ def _compute_answer(text: str, ctx: ChatContext, today: date) -> ChatAnswerOut:
         recognised=True, query_description=answer.query_description, text=answer.text,
         amount_cents=answer.amount_cents, is_refusal=answer.is_refusal,
         supported_formulations=None, chart=_chart_out(answer.chart),
+        steps=_steps_out(trace_query(parsed, ctx)),
     )
 
 

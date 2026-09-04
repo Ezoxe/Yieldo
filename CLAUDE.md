@@ -14,6 +14,11 @@ touching code.
 
 - Every query on a business table filters on `user_id`, via the
   `get_current_user` dependency. No route reads across users.
+- `get_current_user` accepts EITHER a session JWT or an agent access key
+  (`app/security/agent_keys.py`). Routes that change the account's own
+  credentials — the password, the email, the access key itself, and the
+  provider keys in Réglages → Connexions — take `get_session_user` instead.
+  A key opens the ledger; it does not open the account.
 
 ## Pure engines
 

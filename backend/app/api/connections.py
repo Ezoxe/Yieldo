@@ -33,8 +33,12 @@ from app.market.providers import PROVIDERS
 from app.models import MARKET_PROVIDERS, ApiKey, QuotaWindow, User
 from app.schemas.connections import ApiKeyIn, ConnectionOut, ConnectionValidationOut, QuotaStateOut
 from app.security.crypto import encrypt_secret
-from app.security.deps import get_current_user
+from app.security.deps import get_session_user
 
+# Every route here takes `get_session_user`, not `get_current_user`: this screen
+# holds credentials to services OUTSIDE this machine, and an agent holding a
+# 24-hour access key must not be able to walk off with them. See
+# `app/security/deps.py` for the whole of that boundary.
 router = APIRouter(prefix="/connections", tags=["connections"])
 
 
@@ -94,7 +98,7 @@ def _connection_out(
 
 @router.get("", response_model=list[ConnectionOut])
 def list_connections(
-    user: User = Depends(get_current_user), db: Session = Depends(get_db)
+    user: User = Depends(get_session_user), db: Session = Depends(get_db)
 ) -> list[ConnectionOut]:
     now = datetime.now(UTC)
     out = []
@@ -108,7 +112,7 @@ def list_connections(
 @router.post("/{provider}", response_model=ConnectionValidationOut)
 def set_connection(
     provider: str, payload: ApiKeyIn,
-    user: User = Depends(get_current_user), db: Session = Depends(get_db),
+    user: User = Depends(get_session_user), db: Session = Depends(get_db),
 ) -> ConnectionValidationOut:
     provider = _provider_or_404(provider)
     now = datetime.now(UTC)
@@ -169,7 +173,7 @@ def set_connection(
 
 @router.delete("/{provider}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_connection(
-    provider: str, user: User = Depends(get_current_user), db: Session = Depends(get_db)
+    provider: str, user: User = Depends(get_session_user), db: Session = Depends(get_db)
 ) -> None:
     provider = _provider_or_404(provider)
     key_row = _fetch_key(db, user, provider)

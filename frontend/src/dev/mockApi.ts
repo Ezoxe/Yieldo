@@ -579,6 +579,12 @@ function goalsPayload() {
 const ROUTES: Record<string, (params: Params) => unknown> = {
   "/api/auth/refresh": () => ({ access_token: "apercu", token_type: "bearer", user: MUTABLE_USER }),
   "/api/auth/me": () => MUTABLE_USER,
+  "/api/access-key": () => {
+    // A read issues one when there is none, and never rotates an existing one
+    // — the same contract the backend route documents.
+    agentKey = agentKey ?? mintAgentKey();
+    return agentKey;
+  },
   "/api/categories": () => CATEGORY_PAYLOAD,
   "/api/accounts": () => [
     { id: 1, name: "Compte courant", kind: "checking", currency: "EUR", opening_balance_cents: 412_000, opened_on: "2025-09-01", include_in_net_worth: true, archived: false },
@@ -614,7 +620,41 @@ const ROUTES: Record<string, (params: Params) => unknown> = {
  */
 const MUTABLE_USER = { id: 1, email: "apercu@yieldo.local", name: "Maxime", role: "owner" };
 
+/** The harness's own agent key, with the same 24-hour shape the backend gives
+ *  it. Held in memory for the tab: enough to see the panel behave. */
+function mintAgentKey() {
+  const now = new Date();
+  const hex = (bytes: number) =>
+    Array.from(
+      { length: bytes * 2 },
+      (_, i) => "0123456789abcdef"[Math.floor(rand(i + now.getTime() / 1000) * 16)],
+    ).join("");
+  return {
+    key: `yld_${hex(6)}_${hex(32)}`,
+    created_at: now.toISOString(),
+    expires_at: new Date(now.getTime() + 24 * 3_600_000).toISOString(),
+    last_used_at: null as string | null,
+  };
+}
+
+let agentKey: ReturnType<typeof mintAgentKey> | null = null;
+
+function jsonOk(body: unknown): Response {
+  return new Response(JSON.stringify(body), {
+    status: 200,
+    headers: { "Content-Type": "application/json" },
+  });
+}
+
 const WRITES: Record<string, (body: Record<string, unknown>) => Response> = {
+  "POST /api/access-key/rotate": () => {
+    agentKey = mintAgentKey();
+    return jsonOk(agentKey);
+  },
+  "DELETE /api/access-key": () => {
+    agentKey = null;
+    return new Response(null, { status: 204 });
+  },
   "PATCH /api/auth/me": (body) => {
     if (typeof body.email === "string" && body.email.includes("lea@")) {
       return new Response(JSON.stringify({ detail: "Un compte avec cet email existe déjà" }), {

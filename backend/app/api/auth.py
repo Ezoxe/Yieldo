@@ -7,7 +7,7 @@ from app.config import settings
 from app.db import get_db
 from app.models import User
 from app.schemas.auth import LoginIn, PasswordChangeIn, ProfileIn, RegisterIn, TokenOut, UserOut
-from app.security.deps import get_current_user
+from app.security.deps import get_current_user, get_session_user
 from app.security.passwords import hash_password, verify_password
 from app.security.tokens import TokenError, create_access_token, create_refresh_token, decode_token
 
@@ -127,7 +127,9 @@ def me(user: User = Depends(get_current_user)) -> UserOut:
 @router.patch("/me", response_model=UserOut)
 def update_profile(
     payload: ProfileIn,
-    user: User = Depends(get_current_user),
+    # A session, never an agent key: an agent that could move the email could
+    # move the account to an address its owner cannot sign in to.
+    user: User = Depends(get_session_user),
     db: Session = Depends(get_db),
 ) -> UserOut:
     """Change the name and/or the email on the authenticated account.
@@ -163,7 +165,8 @@ def update_profile(
 @router.post("/password", status_code=status.HTTP_204_NO_CONTENT)
 def change_password(
     payload: PasswordChangeIn,
-    user: User = Depends(get_current_user),
+    # A session, never an agent key. See `get_session_user`.
+    user: User = Depends(get_session_user),
     db: Session = Depends(get_db),
 ) -> None:
     """Replace the account's password.

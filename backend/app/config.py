@@ -13,6 +13,11 @@ class Settings(BaseSettings):
     data_dir: Path = Path("./data")
     access_token_minutes: int = 30
     refresh_token_days: int = 30
+    # How long an agent access key lives before it stops authenticating and the
+    # next look at Réglages issues its replacement. A day is short enough that a
+    # key pasted into a third-party agent and forgotten stops mattering, and long
+    # enough that a working session is not interrupted by a rotation.
+    agent_key_hours: int = 24
     registration_open: bool = True
     cors_origins: list[str] = ["http://localhost:5173"]
     version: str = "0.1.0"

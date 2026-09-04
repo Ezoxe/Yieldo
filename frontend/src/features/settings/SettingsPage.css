@@ -296,3 +296,138 @@
     transition: none;
   }
 }
+
+/* -- The agent access key -------------------------------------------------- */
+
+/* The key and its two controls, on one recessed row. Monospace and a groove
+   rather than an input: it is a value to read and copy, never one to type. */
+.yd-key {
+  display: flex;
+  align-items: center;
+  gap: var(--yd-space-2xs);
+  padding: var(--yd-space-2xs) var(--yd-space-2xs) var(--yd-space-2xs) var(--yd-space-sm);
+  border-radius: var(--yd-radius-sm);
+  border: 1px solid var(--yd-border-strong);
+  background: color-mix(in srgb, var(--yd-text) 5%, transparent);
+}
+
+.yd-key__value {
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+  white-space: nowrap;
+  font-family: var(--yd-font-mono);
+  font-size: 0.8rem;
+  letter-spacing: 0.01em;
+  color: var(--yd-text);
+  /* A masked key is a run of bullets with no word boundaries; without this the
+     row can be selected but never scrolled on a narrow card. */
+  scrollbar-width: thin;
+}
+
+.yd-key__action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 auto;
+  border: 0;
+  border-radius: var(--yd-radius-sm);
+  background: transparent;
+  color: var(--yd-text-muted);
+  cursor: pointer;
+  transition:
+    color var(--yd-motion-fast) var(--yd-ease),
+    background-color var(--yd-motion-fast) var(--yd-ease);
+}
+
+.yd-key__action:hover {
+  color: var(--yd-text);
+  background: var(--yd-surface-raised);
+}
+
+.yd-key__action:focus-visible {
+  outline: 2px solid var(--yd-accent);
+  outline-offset: 1px;
+}
+
+.yd-key__meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--yd-space-2xs) var(--yd-space-xs);
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--yd-text-muted);
+}
+
+/* The countdown. Amber, because a credential with hours to live is a thing to
+   keep an eye on — never red: nothing has gone wrong. */
+.yd-key__chip {
+  display: inline-flex;
+  padding: 2px 9px;
+  border-radius: var(--yd-radius-pill);
+  border: 1px solid color-mix(in srgb, var(--yd-warning) 26%, transparent);
+  background: color-mix(in srgb, var(--yd-warning) 12%, transparent);
+  color: var(--yd-warning);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.yd-key__howto {
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-xs);
+}
+
+.yd-key__howto code {
+  font-family: var(--yd-font-mono);
+  font-size: 0.78rem;
+  color: var(--yd-accent);
+}
+
+.yd-key__buttons {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--yd-space-xs);
+  margin-top: auto;
+}
+
+/* Destructive, and dressed as such — but no confirmation dialog: revoking is
+   undone by pressing "Émettre une clé", which is one click away and costs
+   nothing. A modal here would be ceremony over a reversible act. */
+.yd-key__revoke {
+  border: 1px solid color-mix(in srgb, var(--yd-negative) 36%, transparent);
+  border-radius: var(--yd-radius-sm);
+  background: transparent;
+  color: var(--yd-negative);
+  padding: var(--yd-space-xs) var(--yd-space-md);
+  font: inherit;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color var(--yd-motion-fast) var(--yd-ease);
+}
+
+.yd-key__revoke:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--yd-negative) 14%, transparent);
+}
+
+.yd-key__revoke:focus-visible {
+  outline: 2px solid var(--yd-negative);
+  outline-offset: 2px;
+}
+
+.yd-key__revoke:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .yd-key__action,
+  .yd-key__revoke {
+    transition: none;
+  }
+}

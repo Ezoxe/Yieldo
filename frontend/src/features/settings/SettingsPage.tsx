@@ -11,6 +11,7 @@ import {
   AppearanceIcon,
   ChevronIcon,
   ConnectionsIcon,
+  KeyIcon,
   LockIcon,
   SettingsIcon,
   SignOutIcon,
@@ -21,6 +22,7 @@ import { useReducedMotion } from "../../design/motion/useReducedMotion";
 import { PageHead } from "../../design/PageHead";
 import type { DensityPreference, ThemePreference } from "../../design/theme";
 import { useSession } from "../auth/session";
+import { AccessKeyPanel } from "./AccessKeyPanel";
 import { PasswordForm } from "./PasswordForm";
 import { ProfileForm } from "./ProfileForm";
 import "./SettingsPage.css";
@@ -129,6 +131,13 @@ export function SettingsPage() {
               onChange={(event) => setMotionDisabled(!event.target.checked)}
             />
           </div>
+        </BentoCell>
+
+        <BentoCell as={motion.div} span={SPAN.half} className="yd-panel" {...entryProps(reduced)}>
+          <PanelHead icon={KeyIcon} tone="warning">
+            Accès par API
+          </PanelHead>
+          <AccessKeyPanel />
         </BentoCell>
 
         <BentoCell as={motion.div} span={SPAN.half} className="yd-panel" {...entryProps(reduced)}>

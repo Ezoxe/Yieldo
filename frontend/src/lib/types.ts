@@ -9,6 +9,21 @@ export interface User {
   role: string;
 }
 
+/**
+ * The rotating credential a program uses to drive Yieldo on this account's
+ * behalf. `key` is the token in the clear — Yieldo issues it, so unlike a
+ * provider credential it is meant to be read back and pasted somewhere.
+ */
+export interface AgentKey {
+  key: string;
+  /** ISO-8601 instant. */
+  created_at: string;
+  /** ISO-8601 instant. Past it the key authenticates nothing. */
+  expires_at: string;
+  /** null until a program has actually used it. */
+  last_used_at: string | null;
+}
+
 export interface Account {
   id: number;
   name: string;

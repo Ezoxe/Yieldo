@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 
 from app.api import accounts as account_routes
+from app.api import agent_keys as agent_key_routes
 from app.api import alerts as alert_routes
 from app.api import analysis as analysis_routes
 from app.api import analytics as analytics_routes
@@ -68,6 +69,7 @@ def health() -> dict[str, str]:
 
 
 api.include_router(auth_routes.router)
+api.include_router(agent_key_routes.router)
 api.include_router(account_routes.router)
 api.include_router(import_routes.router)
 api.include_router(transaction_routes.router)

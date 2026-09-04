@@ -142,6 +142,59 @@ Les lignes déjà importées (même compte bancaire, même date, même montant,
 même libellé) sont détectées comme doublons et exclues par défaut — vous
 pouvez choisir de les importer quand même, ligne par ligne.
 
+## Piloter Yieldo depuis un programme (clé d'accès API)
+
+Yieldo expose la totalité de ses routes en HTTP, et **Réglages → Accès par API**
+délivre une clé qui permet à un programme — un agent, un script, Claude — de s'en
+servir à votre place.
+
+### La clé
+
+- Une seule clé à la fois, valable **24 heures**. Passée l'échéance elle
+  n'authentifie plus rien, et le prochain affichage de Réglages délivre la
+  suivante. Ouvrir l'écran ne renouvelle jamais une clé encore valide : il faut
+  presser « Renouveler maintenant », ce qui tue l'ancienne immédiatement.
+- Elle donne **les mêmes droits que vous sur vos données** : tout lire, tout
+  écrire. Ce n'est pas une clé en lecture seule.
+- « Révoquer » la supprime : plus aucun programme ne peut accéder au compte
+  jusqu'à ce que vous en demandiez une autre.
+
+### Ce que la clé ne peut pas faire
+
+Cinq opérations exigent une vraie session et refusent une clé, avec un 401 qui
+le dit :
+
+- changer le mot de passe ;
+- changer l'adresse email ;
+- lire, renouveler ou révoquer la clé elle-même ;
+- lire ou écrire les clés de **Réglages → Connexions**.
+
+Autrement dit : un agent peut travailler sur vos finances, il ne peut pas vous
+verrouiller dehors de votre propre compte, ni se prolonger la vie, ni repartir
+avec vos identifiants de services tiers.
+
+### S'en servir
+
+La clé se présente dans l'en-tête `Authorization`, comme un jeton de session :
+
+```bash
+curl -H "Authorization: Bearer yld_…" http://localhost:8080/api/auth/me
+curl -H "Authorization: Bearer yld_…"      "http://localhost:8080/api/analytics/summary?date_from=2026-01-01&date_to=2026-12-31"
+```
+
+La description complète de l'API — chaque route, chaque paramètre, chaque forme
+de réponse — est servie par Yieldo lui-même :
+
+- `GET /api/openapi.json` : le schéma OpenAPI, à donner tel quel à un agent ;
+- `/api/docs` : la même chose en page lisible.
+
+### Ce qu'il faut savoir avant de la coller quelque part
+
+Une clé collée dans un service tiers est une clé confiée à ce service pour vingt-quatre
+heures. Yieldo la stocke chiffrée (Fernet, dérivée de `SECRET_KEY`, qui n'est pas
+dans la base), mais rien ne protège une clé partie ailleurs. Si vous doutez :
+« Renouveler maintenant », et l'ancienne est morte à la requête suivante.
+
 ## Dépannage
 
 **Le port habituel est occupé.**

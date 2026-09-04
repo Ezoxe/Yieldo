@@ -1057,12 +1057,17 @@ def test_the_alert_settings_migration_matches_base_metadata_exactly(migration_db
     assert migrated_indexes == reference_indexes
 
 
-def test_the_alert_settings_migration_is_the_single_head(migration_db):
+def test_the_alert_settings_migration_is_still_on_the_path_to_the_head(migration_db):
+    """It is no longer the head — `agent_keys` is — but it must stay reachable,
+    or a database stamped at it could never be upgraded again.
+
+    The "which revision is the head" assertion belongs to the NEWEST migration
+    and moves with it; see `test_the_agent_keys_migration_is_the_single_head`.
+    """
     from alembic.script import ScriptDirectory
 
     script = ScriptDirectory.from_config(migration_db.config)
-    assert len(script.get_heads()) == 1
-    assert script.get_current_head() == ALERT_REVISION
+    assert ALERT_REVISION in {rev.revision for rev in script.walk_revisions()}
 
 
 def test_the_balance_floor_column_accepts_null_and_keeps_it_distinct_from_zero(
@@ -1257,4 +1262,89 @@ def test_create_schema_keeps_every_row_it_was_given(migration_db):
 
     conn = _connect(migration_db)
     assert conn.execute("SELECT COUNT(*) FROM users").fetchone()[0] == 1
+    conn.close()
+
+
+# --- The agent-key migration (phase 4, agent access) ------------------------
+
+AGENT_REVISION = "e2c9a4d1f730"
+AGENT_PREVIOUS = "9c17b3f4d2ae"
+
+
+def test_the_agent_keys_migration_matches_base_metadata_exactly(migration_db):
+    """The hand-written DDL must agree, column for column and index for index,
+    with what `Base.metadata.create_all` derives from `models/agent_key.py`."""
+    command.upgrade(migration_db.config, AGENT_PREVIOUS)
+    command.upgrade(migration_db.config, AGENT_REVISION)
+
+    conn = _connect(migration_db)
+    migrated_columns = _table_columns(conn, "agent_keys")
+    migrated_indexes = _index_names(conn, "agent_keys")
+    conn.close()
+
+    reference_columns, reference_indexes = _reference_schema("agent_keys")
+    assert migrated_columns == reference_columns
+    assert migrated_indexes == reference_indexes
+
+
+def test_the_agent_keys_migration_is_the_single_head(migration_db):
+    """`heads` and `head` must be the same single revision — two heads is a
+    database Alembic cannot upgrade without a merge, and nothing else in this
+    suite would notice."""
+    from alembic.script import ScriptDirectory
+
+    script = ScriptDirectory.from_config(migration_db.config)
+    assert len(script.get_heads()) == 1
+    assert script.get_current_head() == AGENT_REVISION
+
+
+def test_the_agent_keys_migration_adds_no_key_to_an_existing_household(migration_db):
+    """No backfill, on purpose.
+
+    A key created by a migration would start its twenty-four hours on the day
+    of the deployment rather than on the day anyone asked for it — and would
+    sit in the database, valid, for a household that never wanted programmatic
+    access at all.
+    """
+    command.upgrade(migration_db.config, AGENT_PREVIOUS)
+    conn = _connect(migration_db)
+    conn.execute(
+        "INSERT INTO users (email, name, password_hash, role, is_active, created_at)"
+        " VALUES ('max@example.com', 'Max', 'x', 'admin', 1, '2026-01-01T00:00:00+00:00')"
+    )
+    conn.commit()
+    conn.close()
+
+    command.upgrade(migration_db.config, AGENT_REVISION)
+
+    conn = _connect(migration_db)
+    assert conn.execute("SELECT COUNT(*) FROM agent_keys").fetchone()[0] == 0
+    assert conn.execute("SELECT COUNT(*) FROM users").fetchone()[0] == 1
+    conn.close()
+
+
+def test_deleting_a_user_takes_their_agent_key_with_them(migration_db):
+    """The same `ondelete="CASCADE"` isolation every other per-user table has.
+    A key outliving its account would authenticate as a user that no longer
+    exists."""
+    command.upgrade(migration_db.config, AGENT_REVISION)
+    conn = _connect(migration_db)
+    conn.execute("PRAGMA foreign_keys=ON")
+    conn.execute(
+        "INSERT INTO users (email, name, password_hash, role, is_active, created_at)"
+        " VALUES ('max@example.com', 'Max', 'x', 'admin', 1, '2026-01-01T00:00:00+00:00')"
+    )
+    user_id = conn.execute("SELECT id FROM users").fetchone()[0]
+    conn.execute(
+        "INSERT INTO agent_keys (user_id, selector, secret_encrypted, created_at, expires_at)"
+        " VALUES (?, 'abc123', 'ciphertext', '2026-01-01T00:00:00+00:00',"
+        " '2026-01-02T00:00:00+00:00')",
+        (user_id,),
+    )
+    conn.commit()
+
+    conn.execute("DELETE FROM users WHERE id = ?", (user_id,))
+    conn.commit()
+
+    assert conn.execute("SELECT COUNT(*) FROM agent_keys").fetchone()[0] == 0
     conn.close()

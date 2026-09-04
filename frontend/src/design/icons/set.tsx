@@ -610,3 +610,47 @@ export function SignOutIcon(props: IconProps) {
     </Icon>
   );
 }
+
+/** The agent access key: a credential, not a lock. */
+export function KeyIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <circle cx="7.5" cy="14.5" r="4" />
+      <path d="m10.4 11.6 8-8" />
+      <path d="m15.5 6.5 2.5 2.5" />
+      <path d="m18.4 3.6 2 2" />
+    </Icon>
+  );
+}
+
+/** Copy to the clipboard. */
+export function CopyIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <rect x="9" y="9" width="12" height="12" rx="2.5" />
+      <path d="M15 5.5A2.5 2.5 0 0 0 12.5 3h-7A2.5 2.5 0 0 0 3 5.5v7A2.5 2.5 0 0 0 5.5 15" />
+    </Icon>
+  );
+}
+
+/** Reveal what is hidden. */
+export function EyeIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12Z" />
+      <circle cx="12" cy="12" r="2.8" />
+    </Icon>
+  );
+}
+
+/** Hide it again. */
+export function EyeOffIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M4 4l16 16" />
+      <path d="M9.6 6A10.9 10.9 0 0 1 12 5.5c6.4 0 10 6.5 10 6.5a18 18 0 0 1-3.4 4.2" />
+      <path d="M15.5 15.6A10.5 10.5 0 0 1 12 18.5C5.6 18.5 2 12 2 12a18.4 18.4 0 0 1 4.6-5.2" />
+      <path d="M9.9 9.9a2.8 2.8 0 0 0 3.9 3.9" />
+    </Icon>
+  );
+}

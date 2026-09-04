@@ -1,6 +1,5 @@
 import { motion } from "motion/react";
 import { useEffect, useState, type ReactNode } from "react";
-import { Link } from "react-router";
 
 import { ForecastFanChart } from "../../charts/ForecastFanChart";
 import { BentoCell, type BentoSpan } from "../../design/bento/BentoCell";
@@ -9,6 +8,8 @@ import { PanelHead } from "../../design/bento/PanelHead";
 import { CountUp } from "../../design/CountUp";
 import { frenchDate } from "../../design/EmptyState";
 import { CashflowIcon, ClockIcon, CoinsIcon, ProjectionIcon } from "../../design/icons";
+import { DataProgress } from "../../design/DataProgress";
+import { InfoTip } from "../../design/InfoTip";
 import { PageHead } from "../../design/PageHead";
 import { useReducedMotion } from "../../design/motion/useReducedMotion";
 import { entryProps, staggerProps } from "../../design/motion/variants";
@@ -21,6 +22,29 @@ import { RunwayPanel } from "./RunwayPanel";
 import "./CashflowPage.css";
 
 const GENERIC_ERROR = "Une erreur inattendue est survenue.";
+
+/**
+ * `MIN_MONTHS_FOR_FORECAST` in `backend/app/engines/forecast.py`, repeated here
+ * only to draw the progress towards it. Nothing on this screen is computed
+ * from it — the gate itself travels on the wire as `insufficient_reason`, so a
+ * change of floor on the backend cannot leave the screen applying the old one;
+ * it would only leave this bar out of step, which is visible. Same arrangement
+ * as `ANNUALISATION_FLOOR_DAYS` on the recurrences screen.
+ */
+const MIN_MONTHS_FOR_FORECAST = 6;
+
+/**
+ * The two populations behind the band, in one sentence.
+ *
+ * The ledger's calendar span and the months that could actually be measured
+ * are different things: a thirteen-month ledger with a nine-month import hole
+ * looks identical to a dense three-month one without both numbers. Written
+ * once and read from both branches — it used to exist twice, with a clause of
+ * difference between the copies.
+ */
+function forecastScopeSentence(forecast: Forecast): string {
+  return `Votre historique compte ${forecast.ledger_months_observed} ${plural(forecast.ledger_months_observed, "mois complet", "mois complets")}, dont ${forecast.months_observed} ${plural(forecast.months_observed, "porte", "portent")} une activité non récurrente : c'est sur ces mois que la fourchette est mesurée.`;
+}
 
 /**
  * `capacity.MIN_MONTHS_FOR_RATE`. Three complete months is the floor at which a
@@ -271,7 +295,19 @@ export function CashflowPage() {
           className="yd-panel yd-cashflow__balance-cell"
           {...entryProps(reduced)}
         >
-          <PanelHead icon={CoinsIcon}>Solde disponible</PanelHead>
+          <PanelHead
+            icon={CoinsIcon}
+            actions={
+              // What counts as "disponible" is method, not a reading of the
+              // figure: it belongs behind the mark, not under the number.
+              <InfoTip label="Ce que ce solde compte">
+                Comptes courants, livrets et espèces. Les placements ne sont pas comptés : les
+                vendre est une décision, pas un retrait.
+              </InfoTip>
+            }
+          >
+            Solde disponible
+          </PanelHead>
           {balanceCents !== null ? (
             <>
               <CountUp
@@ -294,10 +330,6 @@ export function CashflowPage() {
                   reste aucune autonomie à compter.
                 </p>
               ) : null}
-              <p className="yd-cashflow__note">
-                Comptes courants, livrets et espèces. Les placements ne sont pas comptés : les
-                vendre est une décision, pas un retrait.
-              </p>
             </>
           ) : (
             <p className="yd-cashflow__note">
@@ -307,7 +339,33 @@ export function CashflowPage() {
         </BentoCell>
 
         <BentoCell as={motion.div} span={SPAN.runway} className="yd-panel" {...entryProps(reduced)}>
-          <PanelHead icon={ClockIcon}>Combien de temps sans revenu</PanelHead>
+          <PanelHead
+            icon={ClockIcon}
+            actions={
+              runway === null ? null : (
+                <InfoTip label="Comment cette autonomie est mesurée">
+                  <span className="yd-cashflow__method">
+                    <span>{runwayScopeSentence(runway, runwayMeasured)}</span>
+                    <span>{runwayAnchorSentence(runway, runwayMeasured)}</span>
+                    <span>
+                      {runway.essential_category_count > 0
+                        ? `Le scénario réduit repose sur ${runway.essential_category_count} ${plural(runway.essential_category_count, "catégorie marquée essentielle", "catégories marquées essentielles")}. `
+                        : "Aucune catégorie n'est marquée essentielle : le scénario réduit ne repose sur rien. "}
+                      {/* Not "Modifier cette liste": nothing in the app edits
+                          `is_essential` yet — /categories is still a
+                          placeholder — and a link promising an editor that
+                          does not exist is the same kind of small lie this
+                          screen exists to avoid. */}
+                      Cette liste n'est pas encore modifiable ici ; l'écran Budgets signale les
+                      catégories concernées.
+                    </span>
+                  </span>
+                </InfoTip>
+              )
+            }
+          >
+            Combien de temps sans revenu
+          </PanelHead>
           {runway === null ? null : (
             <>
               <p className="yd-cashflow__caption">
@@ -335,26 +393,15 @@ export function CashflowPage() {
               {/* Requirement 3: the ledger's calendar span and the months that
                   could actually be measured are two different populations. A
                   thirteen-month ledger with a nine-month import hole looks
-                  identical to a dense three-month one without both numbers. */}
-              <p className="yd-cashflow__note" data-testid="yd-runway-scope">
+                  identical to a dense three-month one without both numbers.
+
+                  All three sentences are method — over which months, from
+                  which date, on which category list — so they are behind the
+                  mark in the panel's head rather than stacked under two
+                  figures. `data-testid` travels with the first of them. */}
+              <div className="sr-only" data-testid="yd-runway-scope">
                 {runwayScopeSentence(runway, runwayMeasured)}
-              </p>
-
-              <p className="yd-cashflow__note">
-                {runwayAnchorSentence(runway, runwayMeasured)}
-              </p>
-
-              <p className="yd-cashflow__note">
-                {runway.essential_category_count > 0
-                  ? `Le scénario réduit repose sur ${runway.essential_category_count} ${plural(runway.essential_category_count, "catégorie marquée essentielle", "catégories marquées essentielles")}. `
-                  : "Aucune catégorie n'est marquée essentielle : le scénario réduit ne repose sur rien. "}
-                {/* Not "Modifier cette liste": nothing in the app edits
-                    `is_essential` yet — /categories is still a placeholder —
-                    and a link promising an editor that does not exist is the
-                    same kind of small lie this screen exists to avoid. */}
-                Cette liste n'est pas encore modifiable ici ; l'écran{" "}
-                <Link to="/budgets">Budgets</Link> signale les catégories concernées.
-              </p>
+              </div>
             </>
           )}
         </BentoCell>
@@ -365,15 +412,61 @@ export function CashflowPage() {
           className="yd-panel"
           {...entryProps(reduced)}
         >
-          <PanelHead icon={ProjectionIcon}>Prévision sur douze mois</PanelHead>
+          <PanelHead
+            icon={ProjectionIcon}
+            actions={
+              forecast === null || forecast.insufficient_reason !== null ? null : (
+                <InfoTip label="Comment cette prévision est établie">
+                  <span className="yd-cashflow__method">
+                    <span>
+                      {forecast.ledger_last_on !== null
+                        ? `Projection établie à partir du ${frenchDate(forecast.projected_from)}, dernière date de votre historique, et non de la date du jour : les mois projetés commencent en ${monthLongLabel(forecast.months[0].key)}.`
+                        : `Projection établie à partir du ${frenchDate(forecast.projected_from)}.`}
+                    </span>
+                    <span>{forecastScopeSentence(forecast)}</span>
+                    <span>
+                      {`${forecast.recurrences_projected} ${plural(forecast.recurrences_projected, "récurrence a été portée", "récurrences ont été portées")} dans la projection. `}
+                      {/* Detected but not projected is a real gap: an ended or
+                          too-young recurrence is deliberately absent from the
+                          chart, and a reader comparing this figure with the
+                          Récurrences screen must not read the difference as a
+                          loss. */}
+                      Une récurrence terminée, ou trop récente pour être fiable, en est écartée.
+                    </span>
+                    <span>
+                      {forecast.seasonality_used
+                        ? "La saisonnalité observée est prise en compte : certains mois sont estimés sur les mêmes mois des années précédentes."
+                        : "Aucun mois civil n'a été observé assez de fois : la saisonnalité n'est pas prise en compte, chaque mois est estimé au rythme moyen."}
+                      {forecast.pooled_scale_cents > 0
+                        ? ` La bande indique une fourchette, pas une certitude : elle est bâtie sur un écart de ${formatCents(forecast.pooled_scale_cents)} d'un mois à l'autre.`
+                        : " La bande indique une fourchette, pas une certitude."}
+                    </span>
+                  </span>
+                </InfoTip>
+              )
+            }
+          >
+            Prévision sur douze mois
+          </PanelHead>
           {forecast === null ? null : forecast.insufficient_reason !== null ? (
             <>
               {/* Requirement 6: a refusal is a deliberate answer. The backend's
                   own sentence, not a paraphrase — it knows exactly what is
-                  missing — and no empty chart beside it. */}
-              <p className="yd-cashflow__insufficient">{forecast.insufficient_reason}</p>
+                  missing — and no empty chart beside it.
+
+                  Drawn as a measurement in progress rather than as a warning
+                  banner: what is true here is that the household is partway to
+                  a figure, and a thick amber rule said "something broke". The
+                  sentence itself is unchanged and still printed in full. */}
+              <DataProgress
+                have={forecast.months_observed}
+                need={MIN_MONTHS_FOR_FORECAST}
+                unit="mois"
+              >
+                {forecast.insufficient_reason}
+              </DataProgress>
               <p className="yd-cashflow__note" data-testid="yd-forecast-scope">
-                {`Votre historique compte ${forecast.ledger_months_observed} ${plural(forecast.ledger_months_observed, "mois complet", "mois complets")}, dont ${forecast.months_observed} ${plural(forecast.months_observed, "porte", "portent")} une activité non récurrente — c'est cette seconde mesure qui donnerait sa largeur à la fourchette.`}
+                {forecastScopeSentence(forecast)}
               </p>
               {forecast.ledger_last_on !== null ? (
                 <p className="yd-cashflow__note">
@@ -394,37 +487,16 @@ export function CashflowPage() {
                   : `Le solde ne passe sous ${formatCents(forecast.threshold_cents)} sur aucun des mois projetés.`}
               </p>
 
-              {/* Requirement 1, forecast side: the horizon starts the month
-                  after the ledger's last transaction, which on a stale ledger
-                  is months behind the real calendar. Naming the first projected
-                  month is the concrete form of that statement. */}
-              <p className="yd-cashflow__note">
-                {forecast.ledger_last_on !== null
-                  ? `Projection établie à partir du ${frenchDate(forecast.projected_from)}, dernière date de votre historique, et non de la date du jour : les mois projetés commencent en ${monthLongLabel(forecast.months[0].key)}.`
-                  : `Projection établie à partir du ${frenchDate(forecast.projected_from)}.`}
-              </p>
-
-              <p className="yd-cashflow__note" data-testid="yd-forecast-scope">
-                {`Votre historique compte ${forecast.ledger_months_observed} ${plural(forecast.ledger_months_observed, "mois complet", "mois complets")}, dont ${forecast.months_observed} ${plural(forecast.months_observed, "porte", "portent")} une activité non récurrente : c'est sur ces mois que la fourchette est mesurée.`}
-              </p>
-
-              <p className="yd-cashflow__note">
-                {`${forecast.recurrences_projected} ${plural(forecast.recurrences_projected, "récurrence a été portée", "récurrences ont été portées")} dans la projection. `}
-                {/* Detected but not projected is a real gap: an ended or
-                    too-young recurrence is deliberately absent from the chart,
-                    and a reader comparing this figure with the Récurrences
-                    screen must not read the difference as a loss. */}
-                Une récurrence terminée, ou trop récente pour être fiable, en est écartée.
-              </p>
-
-              <p className="yd-cashflow__note">
-                {forecast.seasonality_used
-                  ? "La saisonnalité observée est prise en compte : certains mois sont estimés sur les mêmes mois des années précédentes."
-                  : "Aucun mois civil n'a été observé assez de fois : la saisonnalité n'est pas prise en compte, chaque mois est estimé au rythme moyen."}
-                {forecast.pooled_scale_cents > 0
-                  ? ` La bande indique une fourchette, pas une certitude : elle est bâtie sur un écart de ${formatCents(forecast.pooled_scale_cents)} d'un mois à l'autre.`
-                  : " La bande indique une fourchette, pas une certitude."}
-              </p>
+              {/* Four sentences of method — which date the horizon starts
+                  from, which months the band was measured on, how many
+                  recurrences were carried, and what the band is — used to sit
+                  stacked under the chart. They qualify the whole projection,
+                  not any one month, so they are behind the mark in this
+                  panel's head. Every one of them still ships, word for word.
+                  `data-testid` travels with the scope sentence. */}
+              <div className="sr-only" data-testid="yd-forecast-scope">
+                {forecastScopeSentence(forecast)}
+              </div>
             </>
           )}
         </BentoCell>

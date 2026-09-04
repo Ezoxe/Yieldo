@@ -52,10 +52,16 @@
    figure above it is not the number the reader came for. */
 .yd-recurrences__notice {
   margin: 0;
-  padding-left: var(--yd-space-sm);
-  border-left: 3px solid var(--yd-warning);
-  font-size: 0.86rem;
+  max-width: 96ch;
+  display: flex;
+  gap: var(--yd-space-xs);
+  padding: var(--yd-space-xs) var(--yd-space-sm);
+  border-radius: var(--yd-radius-sm);
+  border: 1px solid color-mix(in srgb, var(--yd-warning) 26%, transparent);
+  background: color-mix(in srgb, var(--yd-warning) 9%, transparent);
   color: var(--yd-text);
+  font-size: 0.82rem;
+  line-height: 1.55;
 }
 
 /* Alerts ----------------------------------------------------------------- */
@@ -104,14 +110,77 @@
 /* One recurrence. A GRID, not an auto-width flex column: everything inside is
    full-bleed text and `minmax(0, 1fr)` is what lets a long label wrap instead
    of setting the track's width. */
+/* One line, and the whole of it is the way into the detail.
+
+   It used to be a card of seven stacked paragraphs — the observed window, the
+   annualisation, the spread, the status, the confidence, a price change, an
+   exclusion reason — repeated down the screen. That is a report, not a list.
+   The row now carries the five things a reader scans for; everything else is
+   in the panel it opens (see design/Drawer.tsx).
+
+   No border and no fill at rest: twenty outlined boxes in a card is a second
+   card per row. The separator between rows is the list's, below. */
 .yd-recurrence {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: var(--yd-space-2xs);
-  padding: var(--yd-space-sm);
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--yd-space-2xs) var(--yd-space-xs);
+  width: 100%;
+  padding: var(--yd-space-xs) var(--yd-space-2xs);
+  border: 0;
   border-radius: var(--yd-radius-sm);
-  border: 1px solid var(--yd-border);
-  background: var(--yd-surface);
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  color: var(--yd-text);
+  cursor: pointer;
+  transition: background-color var(--yd-motion-fast) var(--yd-ease);
+}
+
+.yd-recurrence:hover {
+  background: color-mix(in srgb, var(--yd-accent) 8%, transparent);
+}
+
+.yd-recurrence:focus-visible {
+  outline: 2px solid var(--yd-accent);
+  outline-offset: -2px;
+}
+
+/* The merchant takes the slack; everything after it is sized by its content,
+   so the badges and the amounts line up down the list. */
+.yd-recurrence__label {
+  display: flex;
+  align-items: center;
+  gap: var(--yd-space-xs);
+  flex: 1 1 14ch;
+  min-width: 0;
+}
+
+.yd-recurrence__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.yd-recurrence__rhythm {
+  font-size: 0.76rem;
+  color: var(--yd-text-muted);
+  white-space: nowrap;
+}
+
+.yd-recurrence__chevron {
+  font-size: 0.9rem;
+  color: var(--yd-text-muted);
+  flex: 0 0 auto;
+}
+
+/* A hairline between rows, and none under the last: the list's own rhythm,
+   rather than a box around each line. */
+.yd-recurrences__list > li + li .yd-recurrence {
+  border-top: 1px solid var(--yd-border);
+  border-radius: 0;
 }
 
 .yd-recurrence__head {
@@ -190,13 +259,59 @@
 /* Status colour reinforces the word, never replaces it (WCAG 1.4.1): every
    badge already carries "Actif" / "Prélèvement manquant" / "Sans prélèvement
    récent". */
+/* A pill, not a bold word. On the row it is the only thing that carries a
+   state, so it has to read as a state — and it is tinted by what it says, not
+   coloured for decoration. */
 .yd-recurrence__badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 8px;
+  border-radius: var(--yd-radius-pill);
+  border: 1px solid var(--yd-border-strong);
+  font-size: 0.7rem;
   font-weight: 600;
-  color: var(--yd-text);
+  white-space: nowrap;
+  color: var(--yd-text-muted);
 }
 
 .yd-recurrence__badge--missing {
   color: var(--yd-warning);
+  border-color: color-mix(in srgb, var(--yd-warning) 30%, transparent);
+  background: color-mix(in srgb, var(--yd-warning) 12%, transparent);
+}
+
+.yd-recurrence__badge--ended {
+  color: var(--yd-text-muted);
+  border-color: var(--yd-border-strong);
+}
+
+/* A price that moved: the app's one "look at this" colour, never the negative
+   one — a subscription going up is not a failure. */
+.yd-recurrence__badge--change {
+  color: var(--yd-info);
+  border-color: color-mix(in srgb, var(--yd-info) 30%, transparent);
+  background: color-mix(in srgb, var(--yd-info) 12%, transparent);
+  font-family: var(--yd-font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.yd-recurrence__badge--unstable {
+  color: var(--yd-warning);
+  border-color: color-mix(in srgb, var(--yd-warning) 30%, transparent);
+}
+
+/* The detail panel's own body: the seven paragraphs, spaced to be read rather
+   than scanned. */
+.yd-recurrence-detail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-sm);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .yd-recurrence {
+    transition: none;
+  }
 }
 
 .yd-recurrence__badge--ended {

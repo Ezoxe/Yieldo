@@ -311,11 +311,26 @@ describe("AnalysisPage — inflation", () => {
 });
 
 describe("AnalysisPage — anomalies", () => {
-  it("explains what an anomaly is before listing any", async () => {
+  /**
+   * Opens the anomaly panel's note.
+   *
+   * Requirement 1's paragraph qualifies the whole list rather than any one
+   * row, so it moved into the panel head's mark — five lines of it above the
+   * list is what buried the list. Unchanged word for word; one interaction
+   * away, and these tests take it.
+   */
+  async function openAnomalyNote() {
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: "Ce qu'est une anomalie ici" }));
+    return screen.getByRole("tooltip");
+  }
+
+  it("explains what an anomaly is, for anyone who asks", async () => {
     setupFetch();
     renderPage();
-    expect(await screen.findByText(/n'est pas un reproche/)).toBeInTheDocument();
-    expect(screen.getByText(/prime d'assurance annuelle/)).toBeInTheDocument();
+    const note = await openAnomalyNote();
+    expect(note).toHaveTextContent(/n'est pas un reproche/);
+    expect(note).toHaveTextContent(/prime d'assurance annuelle/);
   });
 
   // With MAD 0 the score falls back to the mean absolute deviation, rounded to
@@ -327,7 +342,7 @@ describe("AnalysisPage — anomalies", () => {
   it("does not promise that six cents always surfaces a line", async () => {
     setupFetch();
     renderPage();
-    const caption = await screen.findByText(/n'est pas un reproche/);
+    const caption = await openAnomalyNote();
     expect(caption).toHaveTextContent(/quelques centimes peuvent suffire/);
     expect(caption.textContent).not.toMatch(/six centimes/);
   });

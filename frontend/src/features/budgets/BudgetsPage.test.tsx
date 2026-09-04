@@ -105,6 +105,19 @@ function renderPage(entry = "/budgets") {
   );
 }
 
+/**
+ * Opens the inline editor for one category.
+ *
+ * The field used to be present on every row from the first paint; the panel
+ * now shows what a category cost and one discreet "Fixer un seuil", and the
+ * field appears when that is pressed. Every assertion below still holds — they
+ * just have to ask for the field the way a person does.
+ */
+async function openCeiling(name: string | RegExp) {
+  await userEvent.click(await screen.findByRole("button", { name: new RegExp(`Fixer un seuil pour ${typeof name === "string" ? name : name.source}`) }));
+  return screen.getByLabelText(new RegExp(`Budget mensuel pour ${typeof name === "string" ? name : name.source}`));
+}
+
 describe("BudgetsPage", () => {
   it("names the month it is showing, in French", async () => {
     setupFetch();
@@ -123,13 +136,13 @@ describe("BudgetsPage", () => {
     setupFetch();
     renderPage();
     expect(await screen.findByText("Restaurants")).toBeInTheDocument();
-    expect(screen.getByLabelText(/Budget mensuel pour Restaurants/)).toBeInTheDocument();
+    expect(await openCeiling("Restaurants")).toBeInTheDocument();
   });
 
   it("sends a budget typed in euros as integer cents", async () => {
     setupFetch();
     renderPage();
-    const input = await screen.findByLabelText(/Budget mensuel pour Restaurants/);
+    const input = await openCeiling("Restaurants");
     await userEvent.clear(input);
     await userEvent.type(input, "250,50");
     await userEvent.click(screen.getByRole("button", { name: /Enregistrer le budget de Restaurants/ }));
@@ -144,7 +157,7 @@ describe("BudgetsPage", () => {
   it("refuses an unreadable amount instead of sending a zero", async () => {
     setupFetch();
     renderPage();
-    const input = await screen.findByLabelText(/Budget mensuel pour Restaurants/);
+    const input = await openCeiling("Restaurants");
     await userEvent.type(input, "abc");
     await userEvent.click(screen.getByRole("button", { name: /Enregistrer le budget de Restaurants/ }));
 
@@ -158,7 +171,7 @@ describe("BudgetsPage", () => {
   it("states an unreadable amount at the field that caused it", async () => {
     setupFetch();
     renderPage();
-    const input = await screen.findByLabelText(/Budget mensuel pour Restaurants/);
+    const input = await openCeiling("Restaurants");
     await userEvent.type(input, "abc");
     await userEvent.click(screen.getByRole("button", { name: /Enregistrer le budget de Restaurants/ }));
 
@@ -171,7 +184,7 @@ describe("BudgetsPage", () => {
   it("states a rejected save at the field too, verbatim from the backend", async () => {
     setupFetch({ patch: () => jsonResponse({ detail: "Budget mensuel trop élevé." }, 422) });
     renderPage();
-    const input = await screen.findByLabelText(/Budget mensuel pour Restaurants/);
+    const input = await openCeiling("Restaurants");
     await userEvent.type(input, "150");
     await userEvent.click(screen.getByRole("button", { name: /Enregistrer le budget de Restaurants/ }));
 
@@ -186,8 +199,10 @@ describe("BudgetsPage", () => {
   it("keeps what is typed in the other fields when one budget is saved", async () => {
     setupFetch();
     renderPage();
-    const restaurants = await screen.findByLabelText(/Budget mensuel pour Restaurants/);
+    const restaurants = await openCeiling("Restaurants");
+    await userEvent.clear(restaurants);
     await userEvent.type(restaurants, "150");
+    await userEvent.clear(await openCeiling("Énergie"));
     await userEvent.type(screen.getByLabelText(/Budget mensuel pour Énergie/), "120");
     await userEvent.click(screen.getByRole("button", { name: /Enregistrer le budget de Restaurants/ }));
 
@@ -209,14 +224,16 @@ describe("BudgetsPage", () => {
     });
     renderPage();
     await screen.findByText("Courses");
-    await userEvent.type(await screen.findByLabelText(/Budget mensuel pour Restaurants/), "150");
+    const field = await openCeiling("Restaurants");
+    await userEvent.clear(field);
+    await userEvent.type(field, "150");
     await userEvent.click(screen.getByRole("button", { name: /Enregistrer le budget de Restaurants/ }));
 
     // The reload is held open here: with the skeleton branch taken, "Courses"
     // and every input would be gone from the document by now.
     await waitFor(() => expect(budgetMonthsAsked()).toHaveLength(2));
     expect(screen.getByText("Courses")).toBeInTheDocument();
-    expect(screen.getByLabelText(/Budget mensuel pour Énergie/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Fixer un seuil pour Énergie/ })).toBeInTheDocument();
 
     release(jsonResponse(report));
     await waitFor(() => expect(screen.getByText("Courses")).toBeInTheDocument());

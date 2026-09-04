@@ -1,4 +1,5 @@
 import { render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 
 import { ThemeProvider } from "../../app/ThemeProvider";
@@ -146,12 +147,19 @@ describe("HealthScoreSummary", () => {
     expect(screen.getByText(ONLY_ONE_COMPONENT)).toBeInTheDocument();
   });
 
-  it("states the fixed weighting, and that it was renormalised", () => {
-    // `health.py`: the weights are fixed integers summing to 100 and never
-    // move with how much data exists. Saying so on screen is design §10.
+  // `health.py`: the weights are fixed integers summing to 100 and never move
+  // with how much data exists. Saying so on screen is design §10 — it moved
+  // behind the mark beside the score, because it is the same five lines on
+  // every reading and it was the tallest thing on the card.
+  it("states the fixed weighting, and that it was renormalised, for anyone who asks", async () => {
+    const user = userEvent.setup();
     render(<HealthScoreSummary health={OPERATOR_HEALTH} />);
-    expect(screen.getByText(/poids fixes/i)).toBeInTheDocument();
-    expect(screen.getByText(/80 % du barème/)).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Comment le score est pondéré" }));
+
+    const note = screen.getByRole("tooltip");
+    expect(note).toHaveTextContent(/poids fixes/i);
+    expect(note).toHaveTextContent(/80 % du barème/);
   });
 });
 

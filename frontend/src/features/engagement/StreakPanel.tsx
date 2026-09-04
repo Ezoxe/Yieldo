@@ -151,6 +151,10 @@ export function StreakPanel({ streak }: { streak: Streak }) {
                         key={month.key}
                         className={`yd-streak__month yd-streak__month--${monthState(month)}`}
                         data-testid={`yd-streak-month-${month.key}`}
+                        // The exact count, on hover. The mark says whether the
+                        // month is covered; how many operations it holds is a
+                        // detail, and a detail on a strip of twelve is a title.
+                        title={monthSentence(month)}
                       >
                         <span className="yd-streak__month-num" aria-hidden="true">
                           {monthNumber(month.key)}

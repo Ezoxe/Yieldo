@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 
 import type { BudgetLine } from "../../lib/types";
 import { BudgetBar, consumedPercent, fillPercent } from "./BudgetBar";
+import { suggestedCeiling } from "./BudgetsPage";
 
 const line: BudgetLine = {
   category_id: 1,
@@ -117,5 +118,26 @@ describe("BudgetBar", () => {
   it("offers no projection mark when there is no pace to project", () => {
     render(<BudgetBar line={line} />);
     expect(screen.queryByRole("button", { name: /Projection/ })).not.toBeInTheDocument();
+  });
+});
+
+// The ceiling proposed for a category that has none. One month is not an
+// average, and the panel says so on screen — but a suggestion drawn from the
+// one figure this screen has beats an empty field.
+describe("suggestedCeiling", () => {
+  it("rounds the observed spend up to the next ten euros", () => {
+    expect(suggestedCeiling(-24312)).toBe("250");
+    expect(suggestedCeiling(-25000)).toBe("250");
+    expect(suggestedCeiling(-25001)).toBe("260");
+  });
+
+  it("takes the magnitude, whichever sign the payload carries", () => {
+    expect(suggestedCeiling(24312)).toBe(suggestedCeiling(-24312));
+  });
+
+  // A category that cost 3,20 € would otherwise propose a ceiling of 0.
+  it("never proposes a ceiling of zero", () => {
+    expect(suggestedCeiling(-320)).toBe("10");
+    expect(suggestedCeiling(0)).toBe("10");
   });
 });

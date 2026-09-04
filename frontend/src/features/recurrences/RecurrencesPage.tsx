@@ -6,6 +6,7 @@ import { BentoCell, type BentoSpan } from "../../design/bento/BentoCell";
 import { BentoGrid } from "../../design/bento/BentoGrid";
 import { PanelHead } from "../../design/bento/PanelHead";
 import { CountUp } from "../../design/CountUp";
+import { Drawer } from "../../design/Drawer";
 import { EmptyState, frenchDate } from "../../design/EmptyState";
 import { ListIcon, RecurrencesIcon } from "../../design/icons";
 import { PageHead } from "../../design/PageHead";
@@ -20,6 +21,8 @@ import {
   ANNUALISATION_FLOOR_DAYS,
   describeSpread,
   exclusionReason,
+  PERIODICITY_LABEL,
+  RecurrenceDetail,
   RecurrenceRow,
 } from "./RecurrenceRow";
 import "./RecurrencesPage.css";
@@ -172,6 +175,10 @@ export function RecurrencesPage() {
     () => splitRecurrences(report?.recurrences ?? []),
     [report?.recurrences],
   );
+
+  // Which recurrence the detail panel is showing, or null for none. The whole
+  // of the prose that used to sit under every row lives in there now.
+  const [opened, setOpened] = useState<Recurrence | null>(null);
 
   let body: ReactNode;
   if (isLoading) {
@@ -334,11 +341,7 @@ export function RecurrencesPage() {
             </p>
             <ul className="yd-recurrences__list" aria-label={COUNTED_LIST_LABEL}>
               {split.counted.map((item) => (
-                <RecurrenceRow
-                  key={item.label_key}
-                  recurrence={item}
-                  ledgerLastOn={report.ledger_last_on}
-                />
+                <RecurrenceRow key={item.label_key} recurrence={item} onOpen={setOpened} />
               ))}
             </ul>
           </BentoCell>
@@ -379,11 +382,7 @@ export function RecurrencesPage() {
             </p>
             <ul className="yd-recurrences__list" aria-label={EXCLUDED_LIST_LABEL}>
               {split.excluded.map((item) => (
-                <RecurrenceRow
-                  key={item.label_key}
-                  recurrence={item}
-                  ledgerLastOn={report.ledger_last_on}
-                />
+                <RecurrenceRow key={item.label_key} recurrence={item} onOpen={setOpened} />
               ))}
             </ul>
           </BentoCell>
@@ -391,6 +390,24 @@ export function RecurrencesPage() {
       </BentoGrid>
     );
   }
+
+  const detail = (
+    <Drawer
+      open={opened !== null}
+      onClose={() => setOpened(null)}
+      title={opened?.label ?? ""}
+      icon={RecurrencesIcon}
+      subtitle={
+        opened === null
+          ? null
+          : `${formatCents(opened.amount_cents, { signed: true })} · ${PERIODICITY_LABEL[opened.periodicity]}`
+      }
+    >
+      {opened !== null ? (
+        <RecurrenceDetail recurrence={opened} ledgerLastOn={report?.ledger_last_on ?? null} />
+      ) : null}
+    </Drawer>
+  );
 
   return (
     <section className="yd-recurrences">
@@ -408,6 +425,7 @@ export function RecurrencesPage() {
       ) : null}
 
       {body}
+      {detail}
     </section>
   );
 }

@@ -1,3 +1,4 @@
+import userEvent from "@testing-library/user-event";
 import { render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -240,6 +241,37 @@ function renderPage() {
   );
 }
 
+/**
+ * Opens the runway panel's method tip.
+ *
+ * The three sentences it holds — over which months, from which date, on which
+ * category list — used to sit stacked under the two figures. They are all
+ * still written, in full; they are one hover away. See `InfoTip`.
+ */
+/**
+ * Opens the forecast panel's method note.
+ *
+ * The four sentences it holds — the horizon's start, the months the band was
+ * measured on, how many recurrences were carried, what the band is — used to
+ * sit stacked under the chart. All four still ship, word for word, one hover
+ * away.
+ */
+async function openForecastMethod() {
+  const user = userEvent.setup();
+  await user.click(
+    await screen.findByRole("button", { name: "Comment cette prévision est établie" }),
+  );
+  return screen.getByRole("tooltip");
+}
+
+async function openRunwayMethod() {
+  const user = userEvent.setup();
+  await user.click(
+    await screen.findByRole("button", { name: "Comment cette autonomie est mesurée" }),
+  );
+  return screen.getByRole("tooltip");
+}
+
 describe("CashflowPage", () => {
   it("shows both runway scenarios", async () => {
     setupFetch();
@@ -320,8 +352,9 @@ describe("CashflowPage", () => {
     // The scope note: two months that measured nothing were not "exploitables".
     expect(screen.getByTestId("yd-runway-scope")).not.toHaveTextContent(/exploitable/);
     // The anchor sentence: no autonomy is being counted from today.
-    expect(screen.queryByText(/^Autonomie comptée à partir du/)).not.toBeInTheDocument();
-    expect(screen.getByText(/^Aucune autonomie n'est comptée/)).toBeInTheDocument();
+    const method = await openRunwayMethod();
+    expect(method).not.toHaveTextContent(/Autonomie comptée à partir du/);
+    expect(method).toHaveTextContent(/Aucune autonomie n'est comptée/);
   });
 
   it("does not call two months the minimum, nor call a missing rate fragile", async () => {
@@ -417,7 +450,7 @@ describe("CashflowPage", () => {
     setupFetch({ forecast: () => jsonResponse(thinForecast), runway: () => jsonResponse(staleRunway) });
     renderPage();
 
-    expect(await screen.findByText(/mesuré jusqu'au 9 janvier 2026/)).toBeInTheDocument();
+    expect(await openRunwayMethod()).toHaveTextContent(/mesuré jusqu'au 9 janvier 2026/);
   });
 
   // Requirement 6: the operator's own mixed state. The forecast refusing while
@@ -520,7 +553,7 @@ describe("CashflowPage", () => {
     setupFetch();
     renderPage();
 
-    expect(await screen.findByText(/21 catégories marquées essentielles/)).toBeInTheDocument();
+    expect(await openRunwayMethod()).toHaveTextContent(/21 catégories marquées essentielles/);
   });
 
   // Requirement 3 again, on the forecast's own pair: `months_observed` counts
@@ -539,7 +572,7 @@ describe("CashflowPage", () => {
     setupFetch();
     renderPage();
 
-    expect(await screen.findByText(/5 récurrences/)).toBeInTheDocument();
+    expect(await openForecastMethod()).toHaveTextContent(/5 récurrences/);
   });
 
   it("surfaces a failed load in French", async () => {

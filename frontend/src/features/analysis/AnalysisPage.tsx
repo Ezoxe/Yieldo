@@ -608,7 +608,24 @@ export function AnalysisPage() {
           className="yd-panel"
           {...entryProps(reduced)}
         >
-          <PanelHead icon={ListIcon}>{ANOMALY_LIST_LABEL}</PanelHead>
+          <PanelHead
+            icon={ListIcon}
+            actions={
+              // Requirement 1's paragraph. It qualifies the whole list rather
+              // than any one row, which is exactly what a panel-head note is
+              // for — and five lines of it above a list is what buried the
+              // list. Unchanged, word for word, one hover away.
+              <InfoTip label="Ce qu'est une anomalie ici">
+                Une anomalie n'est pas un reproche. C'est une opération qui s'écarte de
+                l'historique de sa propre catégorie, rien de plus : une prime d'assurance
+                annuelle au milieu de petites mensualités y figure, et dans une catégorie dont
+                les montants ne bougent jamais, quelques centimes peuvent suffire à faire
+                apparaître une ligne.
+              </InfoTip>
+            }
+          >
+            {ANOMALY_LIST_LABEL}
+          </PanelHead>
           {anomalies === null ? (
             <p className="yd-analysis__note">Ce panneau n'a pas pu être chargé.</p>
           ) : (
@@ -629,13 +646,6 @@ export function AnalysisPage() {
                   `None`, and no line appears at all. The size that surfaces a
                   line depends on how long the group's history is, so no
                   particular number of cents can be promised here. */}
-              <p className="yd-analysis__caption">
-                Une anomalie n'est pas un reproche. C'est une opération qui s'écarte de
-                l'historique de sa propre catégorie, rien de plus : une prime d'assurance
-                annuelle au milieu de petites mensualités y figure, et dans une catégorie dont
-                les montants ne bougent jamais, quelques centimes peuvent suffire à faire
-                apparaître une ligne.
-              </p>
 
               {anomalies.anomalies.length === 0 ? (
                 <p className="yd-analysis__note yd-analysis__note--strong">

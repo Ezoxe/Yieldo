@@ -1,0 +1,80 @@
+/* "Pas encore calculable", drawn as a measurement in progress. See
+   design/DataProgress.tsx for why it replaces a warning banner. */
+
+.yd-progress {
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-2xs);
+  max-width: 62ch;
+}
+
+.yd-progress__head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--yd-space-xs);
+  margin: 0;
+}
+
+/* The count, in the app's "a measurement to qualify" colour. Amber and not
+   red: nothing has gone wrong, there is simply not enough history yet. */
+.yd-progress__chip {
+  display: inline-flex;
+  padding: 1px 9px;
+  border-radius: var(--yd-radius-pill);
+  border: 1px solid color-mix(in srgb, var(--yd-warning) 30%, transparent);
+  background: color-mix(in srgb, var(--yd-warning) 12%, transparent);
+  color: var(--yd-warning);
+  font-family: var(--yd-font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.yd-progress__label {
+  font-size: 0.75rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--yd-text-muted);
+}
+
+/* Thin, and recessed rather than outlined: it is a gauge, not a control. */
+.yd-progress__track {
+  height: 5px;
+  border-radius: var(--yd-radius-pill);
+  background: color-mix(in srgb, var(--yd-text) 9%, transparent);
+  overflow: hidden;
+}
+
+.yd-progress__fill {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--yd-warning) 55%, transparent),
+    var(--yd-warning)
+  );
+  transition: width var(--yd-motion-slow) var(--yd-ease);
+}
+
+/* The engine's own sentence, printed verbatim and quietly: it says which of
+   several causes applies, and paraphrasing it is how a screen ends up naming
+   the wrong one. */
+.yd-progress__reason {
+  margin: 0;
+  font-size: 0.8rem;
+  line-height: 1.55;
+  color: var(--yd-text-muted);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .yd-progress__fill {
+    transition: none;
+  }
+}
+
+:root[data-motion="off"] .yd-progress__fill {
+  transition: none;
+}

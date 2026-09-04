@@ -219,13 +219,14 @@
 .yd-sim__refusal {
   margin: 0;
   max-width: 96ch;
-  padding: var(--yd-space-sm) var(--yd-space-md);
+  display: flex;
+  gap: var(--yd-space-xs);
+  padding: var(--yd-space-xs) var(--yd-space-sm);
   border-radius: var(--yd-radius-sm);
-  border: 1px solid var(--yd-border-strong);
-  border-left: 3px solid var(--yd-warning);
-  background: var(--yd-surface);
+  border: 1px solid color-mix(in srgb, var(--yd-warning) 26%, transparent);
+  background: color-mix(in srgb, var(--yd-warning) 9%, transparent);
   color: var(--yd-text);
-  font-size: 0.88rem;
+  font-size: 0.82rem;
   line-height: 1.55;
 }
 
@@ -235,9 +236,8 @@
   max-width: 96ch;
   padding: var(--yd-space-sm) var(--yd-space-md);
   border-radius: var(--yd-radius-sm);
-  border: 1px solid var(--yd-border-strong);
-  border-left: 3px solid var(--yd-accent);
-  background: var(--yd-surface-strong);
+  border: 1px solid color-mix(in srgb, var(--yd-accent) 24%, transparent);
+  background: color-mix(in srgb, var(--yd-accent) 8%, transparent);
   color: var(--yd-text);
   font-size: 0.9rem;
   line-height: 1.55;
@@ -671,9 +671,8 @@
   max-width: 96ch;
   padding: var(--yd-space-sm) var(--yd-space-md);
   border-radius: var(--yd-radius-sm);
-  border: 1px solid var(--yd-border-strong);
-  border-left: 3px solid var(--yd-accent);
-  background: var(--yd-surface-strong);
+  border: 1px solid color-mix(in srgb, var(--yd-accent) 24%, transparent);
+  background: color-mix(in srgb, var(--yd-accent) 8%, transparent);
   color: var(--yd-text);
   font-size: 0.88rem;
   line-height: 1.6;
@@ -691,9 +690,8 @@
   max-width: 96ch;
   padding: var(--yd-space-sm) var(--yd-space-md);
   border-radius: var(--yd-radius-sm);
-  border: 1px solid var(--yd-border-strong);
-  border-left: 3px solid var(--yd-warning);
-  background: var(--yd-surface);
+  border: 1px solid color-mix(in srgb, var(--yd-warning) 24%, transparent);
+  background: color-mix(in srgb, var(--yd-warning) 8%, transparent);
   color: var(--yd-text);
   font-size: 0.84rem;
   line-height: 1.55;

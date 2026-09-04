@@ -1,4 +1,5 @@
 import { frenchDate } from "../../design/EmptyState";
+import { ChevronIcon } from "../../design/icons";
 import { formatCents } from "../../design/theme";
 import { plural } from "../../lib/plural";
 import type { Periodicity, Recurrence, RecurrenceStatus } from "../../lib/types";
@@ -173,18 +174,25 @@ function statusSentence(recurrence: Recurrence, ledgerLastOn: string | null): st
 
 interface RecurrenceRowProps {
   recurrence: Recurrence;
-  /**
-   * The ledger's own last date — the clock the backend judged every status
-   * against. Null only when the ledger is empty, in which case there are no
-   * recurrences to render either.
-   */
-  ledgerLastOn: string | null;
+  /** Opens the detail panel on this recurrence. */
+  onOpen: (recurrence: Recurrence) => void;
 }
 
-export function RecurrenceRow({ recurrence, ledgerLastOn }: RecurrenceRowProps) {
-  const change = recurrence.price_change;
+/**
+ * One line of the list: the mark, the merchant, the rhythm, the state, the
+ * amount. Nothing else.
+ *
+ * It used to carry seven paragraphs — the observed window, the annualisation,
+ * the spread, the status sentence, the confidence, a price change, an
+ * exclusion reason — stacked under every single row. Twenty of those is not a
+ * list, it is a report. All seven are still written, in full, in
+ * `RecurrenceDetail`, which this row opens.
+ *
+ * A `<button>`, not a div with a click handler: it is the way into the detail,
+ * and a keyboard has to be able to take it.
+ */
+export function RecurrenceRow({ recurrence, onOpen }: RecurrenceRowProps) {
   const spread = describeSpread(recurrence.amount_cents, recurrence.amount_spread_cents);
-  const reason = exclusionReason(recurrence);
 
   const classes = [
     "yd-recurrence",
@@ -195,8 +203,8 @@ export function RecurrenceRow({ recurrence, ledgerLastOn }: RecurrenceRowProps) 
     .join(" ");
 
   return (
-    <li className={classes}>
-      <div className="yd-recurrence__head">
+    <li>
+      <button type="button" className={classes} onClick={() => onOpen(recurrence)}>
         <span className="yd-recurrence__label">
           {recurrence.category_color !== null ? (
             <span
@@ -205,16 +213,70 @@ export function RecurrenceRow({ recurrence, ledgerLastOn }: RecurrenceRowProps) 
               aria-hidden="true"
             />
           ) : null}
-          {recurrence.label}
+          <span className="yd-recurrence__name">{recurrence.label}</span>
         </span>
+
+        <span className="yd-recurrence__rhythm">
+          {PERIODICITY_LABEL[recurrence.periodicity]}
+        </span>
+
+        {/* Two states earn a badge, and only two: a debit that did not arrive
+            and a run that has gone quiet. "Actif" is the ordinary case, and a
+            green chip on every ordinary row is a wall of green chips. */}
+        {recurrence.status !== "active" ? (
+          <span className={`yd-recurrence__badge yd-recurrence__badge--${recurrence.status}`}>
+            {STATUS_LABEL[recurrence.status]}
+          </span>
+        ) : null}
+
+        {recurrence.price_change !== null ? (
+          <span className="yd-recurrence__badge yd-recurrence__badge--change">
+            {formatRatio(recurrence.price_change.ratio)}
+          </span>
+        ) : null}
+
+        {spread.unstable ? (
+          <span className="yd-recurrence__badge yd-recurrence__badge--unstable">
+            Montant variable
+          </span>
+        ) : null}
+
         {/* Signed, always: a recurring credit and a recurring debit are two
             different objects and the sign is the only thing telling them
             apart at a glance. */}
         <span className="yd-recurrence__amount yd-num">
           {formatCents(recurrence.amount_cents, { signed: true })}
         </span>
-      </div>
 
+        <ChevronIcon className="yd-recurrence__chevron" />
+      </button>
+    </li>
+  );
+}
+
+interface RecurrenceDetailProps {
+  recurrence: Recurrence;
+  /**
+   * The ledger's own last date — the clock the backend judged every status
+   * against. Null only when the ledger is empty, in which case there are no
+   * recurrences to render either.
+   */
+  ledgerLastOn: string | null;
+}
+
+/**
+ * Everything the row does not say, in the panel the row opens.
+ *
+ * Nothing here is new and nothing was dropped: this is the seven paragraphs
+ * that used to sit under every row, moved somewhere a reader goes on purpose.
+ */
+export function RecurrenceDetail({ recurrence, ledgerLastOn }: RecurrenceDetailProps) {
+  const change = recurrence.price_change;
+  const spread = describeSpread(recurrence.amount_cents, recurrence.amount_spread_cents);
+  const reason = exclusionReason(recurrence);
+
+  return (
+    <div className="yd-recurrence-detail">
       <p className="yd-recurrence__meta">
         <span className="yd-recurrence__periodicity">
           {PERIODICITY_LABEL[recurrence.periodicity]}
@@ -273,6 +335,6 @@ export function RecurrenceRow({ recurrence, ledgerLastOn }: RecurrenceRowProps) 
       ) : null}
 
       {reason !== null ? <p className="yd-recurrence__excluded">{reason}</p> : null}
-    </li>
+    </div>
   );
 }

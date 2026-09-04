@@ -14,7 +14,7 @@ import { formatCents, parseCents } from "../../design/theme";
 import { ApiError, api } from "../../lib/api";
 import { plural } from "../../lib/plural";
 import type { BudgetReport } from "../../lib/types";
-import { BudgetsIcon, CalendarIcon, ChevronIcon, ListIcon } from "../../design/icons";
+import { BudgetsIcon, CalendarIcon, ChevronIcon, ListIcon, PlusIcon } from "../../design/icons";
 import { Swap } from "../../design/motion/Swap";
 import { PageHead } from "../../design/PageHead";
 import { BudgetBar } from "./BudgetBar";
@@ -90,12 +90,40 @@ interface BudgetInputProps {
  * and nothing else change. Only a failed *load* has no field to attach to, and
  * that one is still the page's to report.
  */
+/**
+ * A ceiling to propose for a category that has none, from the one figure this
+ * screen actually has: what the category cost this month, rounded up to the
+ * next ten euros.
+ *
+ * Deliberately NOT called an average — it is a single month, and the panel
+ * says so on screen. A suggestion drawn from one observation is still a better
+ * starting point than an empty field; claiming it is a mean would not be.
+ */
+export function suggestedCeiling(spentCents: number): string {
+  const euros = Math.abs(spentCents) / 100;
+  const rounded = Math.max(10, Math.ceil(euros / 10) * 10);
+  return String(rounded);
+}
+
 function BudgetInput({ categoryId, name, spentCents, onSaved }: BudgetInputProps) {
+  // Collapsed until asked for. A text field and a "Définir" button on every
+  // row turned this panel into an unfinished spreadsheet — twelve inputs
+  // nobody was filling in. The row now states what the category cost and
+  // offers one discreet way to give it a ceiling.
+  const [editing, setEditing] = useState(false);
   const [value, setValue] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // Category ids are unique across this list, so this needs no useId.
   const errorId = `yd-budget-error-${categoryId}`;
+
+  function open() {
+    // Pre-filled with the suggestion rather than with nothing: an empty field
+    // asks the operator to invent a number, and the one number they have is
+    // right there on the row.
+    setValue(suggestedCeiling(spentCents));
+    setEditing(true);
+  }
 
   async function save() {
     const cents = parseCents(value);
@@ -118,34 +146,53 @@ function BudgetInput({ categoryId, name, spentCents, onSaved }: BudgetInputProps
   return (
     <li className="yd-budgets__suggestion">
       <span className="yd-budgets__suggestion-name">{name}</span>
-      <span className="yd-budgets__suggestion-spent">{formatCents(Math.abs(spentCents))}</span>
-      <label className="yd-budgets__suggestion-field">
-        <span className="sr-only">{`Budget mensuel pour ${name}`}</span>
-        <input
-          type="text"
-          inputMode="decimal"
-          aria-label={`Budget mensuel pour ${name}`}
-          aria-invalid={error !== null}
-          aria-describedby={error !== null ? errorId : undefined}
-          value={value}
-          onChange={(event) => {
-            setValue(event.target.value);
-            // What was typed is what was rejected; once it changes, the
-            // message no longer describes the field it sits under.
-            if (error !== null) setError(null);
-          }}
-          placeholder="250,00"
-        />
-      </label>
-      <button
-        type="button"
-        className="yd-budgets__suggestion-save"
-        disabled={saving}
-        onClick={() => void save()}
-      >
-        <span className="sr-only">{`Enregistrer le budget de ${name}`}</span>
-        <span aria-hidden="true">Définir</span>
-      </button>
+      <span className="yd-budgets__suggestion-spent yd-num">
+        {formatCents(Math.abs(spentCents))}
+      </span>
+
+      {editing ? (
+        <>
+          <label className="yd-budgets__suggestion-field">
+            <span className="sr-only">{`Budget mensuel pour ${name}`}</span>
+            <input
+              type="text"
+              inputMode="decimal"
+              autoFocus
+              aria-label={`Budget mensuel pour ${name}`}
+              aria-invalid={error !== null}
+              aria-describedby={error !== null ? errorId : undefined}
+              value={value}
+              onChange={(event) => {
+                setValue(event.target.value);
+                // What was typed is what was rejected; once it changes, the
+                // message no longer describes the field it sits under.
+                if (error !== null) setError(null);
+              }}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") void save();
+                if (event.key === "Escape") setEditing(false);
+              }}
+              placeholder="250,00"
+            />
+          </label>
+          <button
+            type="button"
+            className="yd-budgets__suggestion-save"
+            disabled={saving}
+            onClick={() => void save()}
+          >
+            <span className="sr-only">{`Enregistrer le budget de ${name}`}</span>
+            <span aria-hidden="true">Définir</span>
+          </button>
+        </>
+      ) : (
+        <button type="button" className="yd-budgets__suggestion-open" onClick={open}>
+          <PlusIcon />
+          <span className="sr-only">{`Fixer un seuil pour ${name}`}</span>
+          <span aria-hidden="true">Fixer un seuil</span>
+        </button>
+      )}
+
       {error !== null ? (
         <p id={errorId} role="alert" className="yd-budgets__suggestion-error">
           {error}

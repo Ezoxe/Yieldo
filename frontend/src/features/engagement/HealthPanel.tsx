@@ -3,6 +3,7 @@ import { frenchDate } from "../../design/EmptyState";
 import { formatRateBps } from "../../design/theme";
 import { plural } from "../../lib/plural";
 import type { Health, HealthComponent } from "../../lib/types";
+import { InfoTip } from "../../design/InfoTip";
 import { ScoreGauge } from "./ScoreGauge";
 
 /** U+00A0, the same non-breaking space `formatCents` and `formatRateBps` set
@@ -152,15 +153,14 @@ export function HealthScoreSummary({ health }: { health: Health }) {
       {/* Design §10: the hypotheses travel beside the result. The weights are
           fixed integers that never move with how much data exists — that is
           the property this sentence exists to state, because a score whose
-          own scale shifted with the sample size would be worthless. */}
-      <p className="yd-suivi__note">
-        Les quatre composantes ont des <strong>poids fixes</strong>, jamais ajustés à la quantité
-        de données : taux d'épargne 30 %, part des dépenses essentielles 25 %, autonomie
-        financière 25 %, adhérence aux budgets 20 %.
-        {weight < 100
-          ? ` Ce score est calculé sur les ${weight} % du barème qui ont pu être mesurés, redistribués à l'identique.`
-          : " Les 100 % du barème ont pu être mesurés."}
-      </p>
+          own scale shifted with the sample size would be worthless.
+
+          Behind the mark rather than under the ring: it is the method of the
+          score, it is five lines long, and it is the same five lines on every
+          reading. `HealthWeights` is what SuiviPage puts in the panel head. */}
+      <InfoTip label="Comment le score est pondéré" className="yd-health__method">
+        <HealthWeights weight={weight} />
+      </InfoTip>
     </div>
   );
 }
@@ -291,5 +291,32 @@ export function HealthHistoryPanel({ health }: { health: Health }) {
         {`${history.length} relevés enregistrés, un par jour d'ouverture de cet écran au plus. Les jours sans relevé ne sont pas des zéros : ils ne sont pas mesurés, et l'axe ne les invente pas.`}
       </p>
     </>
+  );
+}
+
+
+interface HealthWeightsProps {
+  /** How much of the scale could actually be measured, in points out of 100. */
+  weight: number;
+}
+
+/**
+ * The scale behind the score.
+ *
+ * Exported so the panel head can carry it too — see `SuiviPage`. The weights
+ * are fixed integers and never move with how much data exists; a score whose
+ * own scale shifted with the sample size would be worthless, which is the
+ * whole reason this is stated at all.
+ */
+export function HealthWeights({ weight }: HealthWeightsProps) {
+  return (
+    <span>
+      Les quatre composantes ont des <strong>poids fixes</strong>, jamais ajustés à la quantité de
+      données : taux d'épargne 30 %, part des dépenses essentielles 25 %, autonomie financière
+      25 %, adhérence aux budgets 20 %.
+      {weight < 100
+        ? ` Ce score est calculé sur les ${weight} % du barème qui ont pu être mesurés, redistribués à l'identique.`
+        : " Les 100 % du barème ont pu être mesurés."}
+    </span>
   );
 }

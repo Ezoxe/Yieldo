@@ -30,9 +30,8 @@
   max-width: 96ch;
   padding: var(--yd-space-sm) var(--yd-space-md);
   border-radius: var(--yd-radius-sm);
-  border: 1px solid var(--yd-border-strong);
-  border-left: 3px solid var(--yd-info);
-  background: var(--yd-surface-strong);
+  border: 1px solid color-mix(in srgb, var(--yd-info) 24%, transparent);
+  background: color-mix(in srgb, var(--yd-info) 8%, transparent);
   color: var(--yd-text);
   font-size: 0.88rem;
   line-height: 1.55;
@@ -194,13 +193,14 @@
 .yd-cashflow__insufficient {
   margin: 0;
   max-width: 96ch;
-  padding: var(--yd-space-sm) var(--yd-space-md);
+  display: flex;
+  gap: var(--yd-space-xs);
+  padding: var(--yd-space-xs) var(--yd-space-sm);
   border-radius: var(--yd-radius-sm);
-  border: 1px solid var(--yd-border-strong);
-  border-left: 3px solid var(--yd-warning);
-  background: var(--yd-surface);
+  border: 1px solid color-mix(in srgb, var(--yd-warning) 26%, transparent);
+  background: color-mix(in srgb, var(--yd-warning) 9%, transparent);
   color: var(--yd-text);
-  font-size: 0.92rem;
+  font-size: 0.82rem;
   line-height: 1.55;
 }
 
@@ -245,4 +245,12 @@
 /* The chart, at the height ForecastFanChart passes to <Chart>. */
 .yd-skeleton--cf-chart {
   height: 340px;
+}
+
+/* The method sentences, inside the panel head's tip: one per line, so three
+   statements do not read as one paragraph. */
+.yd-cashflow__method {
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-xs);
 }

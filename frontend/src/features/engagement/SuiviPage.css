@@ -45,13 +45,14 @@
 .yd-suivi__refusal {
   margin: 0;
   max-width: 96ch;
-  padding: var(--yd-space-sm) var(--yd-space-md);
+  display: flex;
+  gap: var(--yd-space-xs);
+  padding: var(--yd-space-xs) var(--yd-space-sm);
   border-radius: var(--yd-radius-sm);
-  border: 1px solid var(--yd-border-strong);
-  border-left: 3px solid var(--yd-warning);
-  background: var(--yd-surface);
+  border: 1px solid color-mix(in srgb, var(--yd-warning) 26%, transparent);
+  background: color-mix(in srgb, var(--yd-warning) 9%, transparent);
   color: var(--yd-text);
-  font-size: 0.88rem;
+  font-size: 0.82rem;
   line-height: 1.55;
 }
 
@@ -211,22 +212,56 @@
    unrelated rows. */
 .yd-streak__months {
   display: grid;
-  grid-template-columns: repeat(12, minmax(0, 1fr));
-  gap: 3px;
+  grid-template-columns: repeat(12, 26px);
+  /* Air between the marks: butted together they merged back into one bar. */
+  gap: var(--yd-space-2xs);
+  justify-content: start;
   margin: 0;
   padding: 0;
   list-style: none;
   min-width: 0;
 }
 
+/* A pastille per month, not a block.
+
+   Twelve 26px filled rectangles butted together read as a bar chart of
+   nothing — a solid slab of accent across the card. A row of round marks reads
+   as what it is: a presence check, one dot per month. The month number stays
+   inside it (the frieze has to be readable without hovering), and the exact
+   operation count is in the title on hover, where it belongs. */
 .yd-streak__month {
   display: flex;
   align-items: center;
   justify-content: center;
   min-width: 0;
+  width: 26px;
   height: 26px;
-  border-radius: 5px;
+  border-radius: 50%;
   overflow: hidden;
+  cursor: default;
+  transition:
+    transform var(--yd-motion-fast) var(--yd-ease),
+    box-shadow var(--yd-motion-fast) var(--yd-ease);
+}
+
+/* Lifts a little under the pointer, which is what says the title is worth
+   waiting for. */
+.yd-streak__month:hover {
+  transform: scale(1.12);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--yd-accent) 18%, transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .yd-streak__month {
+    transition: none;
+  }
+  .yd-streak__month:hover {
+    transform: none;
+  }
+}
+
+:root[data-motion="off"] .yd-streak__month:hover {
+  transform: none;
 }
 
 .yd-streak__month-num {
@@ -678,9 +713,8 @@
   margin: 0;
   padding: var(--yd-space-sm) var(--yd-space-md);
   border-radius: var(--yd-radius-sm);
-  border: 1px solid var(--yd-border-strong);
-  border-left: 3px solid var(--yd-accent);
-  background: var(--yd-surface-strong);
+  border: 1px solid color-mix(in srgb, var(--yd-accent) 24%, transparent);
+  background: color-mix(in srgb, var(--yd-accent) 8%, transparent);
   font-size: 0.88rem;
   line-height: 1.55;
   color: var(--yd-text);

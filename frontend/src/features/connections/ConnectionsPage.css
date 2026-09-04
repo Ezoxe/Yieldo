@@ -49,9 +49,8 @@
   margin-top: var(--yd-space-2xs);
   padding: var(--yd-space-sm) var(--yd-space-md);
   border-radius: var(--yd-radius-sm);
-  border: 1px solid var(--yd-border-strong);
-  border-left: 3px solid var(--yd-accent-strong);
-  background: var(--yd-surface);
+  border: 1px solid color-mix(in srgb, var(--yd-accent-strong) 24%, transparent);
+  background: color-mix(in srgb, var(--yd-accent-strong) 8%, transparent);
   color: var(--yd-text);
 }
 
@@ -81,9 +80,8 @@
   max-width: 90ch;
   padding: var(--yd-space-sm) var(--yd-space-md);
   border-radius: var(--yd-radius-sm);
-  border: 1px solid var(--yd-border-strong);
-  border-left: 3px solid var(--yd-info);
-  background: var(--yd-surface);
+  border: 1px solid color-mix(in srgb, var(--yd-info) 24%, transparent);
+  background: color-mix(in srgb, var(--yd-info) 8%, transparent);
   color: var(--yd-text);
   font-size: 0.86rem;
   line-height: 1.55;

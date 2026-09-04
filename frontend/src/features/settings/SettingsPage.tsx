@@ -133,7 +133,10 @@ export function SettingsPage() {
           </div>
         </BentoCell>
 
-        <BentoCell as={motion.div} span={SPAN.half} className="yd-panel" {...entryProps(reduced)}>
+        {/* Pleine largeur : c'est le panneau le plus dense de l'écran depuis
+            qu'il montre le brief qu'un agent reçoit. Une centaine de lignes de
+            texte technique dans une demi-colonne ne se relit pas. */}
+        <BentoCell as={motion.div} span={SPAN.full} className="yd-panel" {...entryProps(reduced)}>
           <PanelHead icon={KeyIcon} tone="warning">
             Accès par API
           </PanelHead>

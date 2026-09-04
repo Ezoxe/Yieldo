@@ -431,3 +431,73 @@
     transition: none;
   }
 }
+
+/* -- Le brief d'agent ------------------------------------------------------
+
+   Le bloc complet qu'un agent reçoit : adresse, en-tête, échéance,
+   conventions, routes. Séparé du reste par un filet, parce que c'est un
+   second objet à copier et non une variante du premier. */
+
+.yd-key__brief {
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-xs);
+  margin-top: var(--yd-space-sm);
+  padding-top: var(--yd-space-sm);
+  border-top: 1px solid var(--yd-border);
+}
+
+.yd-key__brief-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--yd-space-xs);
+}
+
+.yd-key__brief-toggle {
+  min-height: 36px;
+  padding: 0 var(--yd-space-sm);
+  border: 1px solid var(--yd-border-control);
+  border-radius: var(--yd-radius-sm);
+  background: transparent;
+  color: var(--yd-text);
+  font: inherit;
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: border-color var(--yd-motion-fast) var(--yd-ease);
+}
+
+.yd-key__brief-toggle:hover {
+  border-color: var(--yd-accent);
+}
+
+.yd-key__brief-toggle:focus-visible {
+  outline: 2px solid var(--yd-accent);
+  outline-offset: 2px;
+}
+
+.yd-key__brief-note {
+  margin: 0;
+  max-width: 76ch;
+  font-size: 0.82rem;
+  line-height: 1.55;
+  color: var(--yd-text-muted);
+}
+
+/* Une hauteur bornée : le brief fait une centaine de lignes, et l'écran
+   Réglages ne doit pas devenir un long document à faire défiler. */
+.yd-key__brief-text {
+  max-height: 22rem;
+  margin: 0;
+  padding: var(--yd-space-sm);
+  overflow: auto;
+  border-radius: var(--yd-radius-sm);
+  border: 1px solid var(--yd-border);
+  background: var(--yd-surface-strong);
+  color: var(--yd-text-muted);
+  font-family: var(--yd-font-mono);
+  font-size: 0.72rem;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

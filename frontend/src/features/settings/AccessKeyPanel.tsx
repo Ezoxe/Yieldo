@@ -4,6 +4,7 @@ import { CopyIcon, EyeIcon, EyeOffIcon, RefreshIcon, TrashIcon } from "../../des
 import { InfoTip } from "../../design/InfoTip";
 import { ApiError, api } from "../../lib/api";
 import type { AgentKey } from "../../lib/types";
+import { SESSION_ONLY_ROUTES, buildAgentBrief } from "./agentBrief";
 
 const GENERIC_ERROR = "Une erreur inattendue est survenue.";
 
@@ -41,7 +42,9 @@ export function lastUsedLabel(lastUsedAt: string | null): string {
 export function AccessKeyPanel() {
   const [key, setKey] = useState<AgentKey | null>(null);
   const [revealed, setRevealed] = useState(false);
-  const [copied, setCopied] = useState(false);
+  // Which of the two copies just happened, so the confirmation says which.
+  const [copied, setCopied] = useState<"key" | "brief" | null>(null);
+  const [briefOpen, setBriefOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -66,7 +69,7 @@ export function AccessKeyPanel() {
   async function rotate() {
     setBusy(true);
     setError(null);
-    setCopied(false);
+    setCopied(null);
     try {
       setKey(await api.post<AgentKey>("/access-key/rotate"));
       setRevealed(true);
@@ -80,7 +83,7 @@ export function AccessKeyPanel() {
   async function revoke() {
     setBusy(true);
     setError(null);
-    setCopied(false);
+    setCopied(null);
     try {
       await api.delete("/access-key");
       setKey(null);
@@ -104,16 +107,37 @@ export function AccessKeyPanel() {
     }
   }
 
-  async function copy() {
+  /**
+   * The two things worth copying.
+   *
+   * The key alone is what a program already configured for Yieldo needs. The
+   * brief is what an agent that has never seen Yieldo needs — the address, the
+   * header, the expiry, the conventions and the routes — because a key on its
+   * own tells an agent nothing about where to send it or what a figure means.
+   */
+  async function copy(what: "key" | "brief") {
     if (key === null) return;
+    const text =
+      what === "key"
+        ? key.key
+        : buildAgentBrief({
+            key: key.key,
+            expiresAt: key.expires_at,
+            origin: window.location.origin,
+          });
     try {
-      await navigator.clipboard.writeText(key.key);
-      setCopied(true);
+      await navigator.clipboard.writeText(text);
+      setCopied(what);
     } catch {
-      // A clipboard a browser refuses is not an error worth a red panel: the
-      // key is one click from being visible and selectable by hand.
+      // A clipboard a browser refuses is not an error worth a red panel: both
+      // are one click from being visible and selectable by hand.
       setRevealed(true);
-      setError("Le presse-papiers est indisponible : la clé est affichée, copiez-la à la main.");
+      setBriefOpen(what === "brief");
+      setError(
+        what === "brief"
+          ? "Le presse-papiers est indisponible : le brief est affiché ci-dessous, copiez-le à la main."
+          : "Le presse-papiers est indisponible : la clé est affichée, copiez-la à la main.",
+      );
     }
   }
 
@@ -164,7 +188,7 @@ export function AccessKeyPanel() {
               type="button"
               className="yd-key__action"
               aria-label="Copier la clé"
-              onClick={copy}
+              onClick={() => void copy("key")}
             >
               <CopyIcon />
             </button>
@@ -185,19 +209,59 @@ export function AccessKeyPanel() {
                   version lisible.
                 </span>
                 <span>
-                  Cinq routes lui restent fermées, et exigent une vraie session&nbsp;: changer le
-                  mot de passe, changer l'email, lire cette clé, la renouveler, la révoquer, et les
-                  clés de Réglages → Connexions. Un agent ne peut pas vous verrouiller dehors.
+                  {SESSION_ONLY_ROUTES.length} routes lui restent fermées et exigent une vraie
+                  session&nbsp;: changer le mot de passe, changer l'email, lire cette clé, la
+                  renouveler, la révoquer, et les trois routes des clés de Réglages →
+                  Connexions. Un agent ne peut pas vous verrouiller dehors.
                 </span>
               </span>
             </InfoTip>
           </p>
 
-          {copied ? (
+          {copied !== null ? (
             <p role="status" className="yd-account__saved">
-              Clé copiée.
+              {copied === "key" ? "Clé copiée." : "Brief complet copié."}
             </p>
           ) : null}
+
+          {/* The brief: everything an agent needs in one paste. Offered beside
+              the key rather than instead of it — a program already configured
+              for Yieldo wants the key alone. */}
+          <div className="yd-key__brief">
+            <div className="yd-key__brief-head">
+              <button
+                type="button"
+                className="yd-account__submit"
+                onClick={() => void copy("brief")}
+              >
+                <CopyIcon />
+                Copier le brief complet
+              </button>
+              <button
+                type="button"
+                className="yd-key__brief-toggle"
+                aria-expanded={briefOpen}
+                onClick={() => setBriefOpen((open) => !open)}
+              >
+                {briefOpen ? "Masquer" : "Voir ce qui sera copié"}
+              </button>
+            </div>
+            <p className="yd-key__brief-note">
+              L'adresse de cette instance, l'en-tête d'authentification, l'échéance, les
+              conventions de Yieldo (montants en centimes, dates ISO) et les points d'entrée de
+              l'API. De quoi permettre à un agent qui n'a jamais vu Yieldo de commencer sans rien deviner.
+              Aucun mot de passe&nbsp;: l'API n'en accepte aucun, la clé suffit.
+            </p>
+            {briefOpen ? (
+              <pre className="yd-key__brief-text">
+                {buildAgentBrief({
+                  key: revealed ? key.key : "yld_" + "•".repeat(28),
+                  expiresAt: key.expires_at,
+                  origin: window.location.origin,
+                })}
+              </pre>
+            ) : null}
+          </div>
 
           <div className="yd-key__buttons">
             <button type="button" className="yd-account__submit" onClick={rotate} disabled={busy}>

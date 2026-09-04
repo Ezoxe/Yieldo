@@ -1,4 +1,5 @@
 import { AlertsIcon, AnomalyIcon, CheckIcon, type IconComponent } from "../../design/icons";
+import { categoryTargetId } from "../../design/ai/targets";
 import { InfoTip } from "../../design/InfoTip";
 import { formatCents } from "../../design/theme";
 import type { BudgetLine } from "../../lib/types";
@@ -49,7 +50,7 @@ export function BudgetBar({ line }: BudgetBarProps) {
   const over = line.remaining_cents < 0;
 
   return (
-    <div className={`yd-budget yd-budget--${line.status}`}>
+    <div className={`yd-budget yd-budget--${line.status}`} data-ai-target={categoryTargetId(line.name)}>
       <div className="yd-budget__head">
         <span className="yd-budget__name">{line.name}</span>
         {line.is_essential ? (

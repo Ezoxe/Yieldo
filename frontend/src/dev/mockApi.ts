@@ -610,6 +610,7 @@ const ROUTES: Record<string, (params: Params) => unknown> = {
     months_saved: 1,
   }),
   "/api/goals": goalsPayload,
+  "/api/chat": () => [],
   "/api/engagement": () => ({
     streak: {
       current: 7,
@@ -681,6 +682,37 @@ function jsonOk(body: unknown): Response {
 }
 
 const WRITES: Record<string, (body: Record<string, unknown>) => Response> = {
+  "POST /api/chat": (body) => {
+    const asked = String(body.text ?? "");
+    // Two canned answers, chosen so the drawer's chips have something real to
+    // point at: one names a budget category, the other a card on another
+    // screen.
+    const about = /budget|courses/i.test(asked)
+      ? {
+          text: "Ton budget Courses a explosé ce mois-ci : 244,43 € pour une enveloppe de 450,00 €. Tes abonnements pèsent aussi sur ton solde net.",
+          amount_cents: -24443,
+          query: "Somme des dépenses de la catégorie Courses sur le mois en cours.",
+        }
+      : {
+          text: "Ton autonomie est de 2,2 mois au rythme actuel. Le flux de trésorerie du mois reste négatif.",
+          amount_cents: null,
+          query: "Solde disponible divisé par le rythme de dépenses médian des 11 derniers mois.",
+        };
+    return jsonOk({
+      id: Date.now(),
+      text: asked,
+      created_at: new Date().toISOString(),
+      answer: {
+        recognised: true,
+        query_description: about.query,
+        text: about.text,
+        amount_cents: about.amount_cents,
+        is_refusal: false,
+        supported_formulations: null,
+        chart: null,
+      },
+    });
+  },
   "POST /api/access-key/rotate": () => {
     agentKey = mintAgentKey();
     return jsonOk(agentKey);

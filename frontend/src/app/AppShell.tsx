@@ -2,6 +2,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { Fragment, useEffect, useId, useState } from "react";
 import { NavLink, Outlet, useLocation } from "react-router";
 
+import { AISpotlightProvider } from "../design/ai/AISpotlight";
 import { AtmosphericBackground } from "../design/atmosphere/AtmosphericBackground";
 import {
   AlertsIcon,
@@ -29,6 +30,7 @@ import {
   YieldoMark,
   type IconComponent,
 } from "../design/icons";
+import { AssistantDrawer } from "../features/assistant/AssistantDrawer";
 import { slideOver } from "../design/motion/variants";
 import { useReducedMotion } from "../design/motion/useReducedMotion";
 import { type ThemePreference } from "../design/theme";
@@ -180,6 +182,10 @@ interface AppShellProps {
 
 export function AppShell({ userName }: AppShellProps) {
   const [drawerOpen, setDrawerOpen] = useState(false);
+  // The assistant panel, reachable from every screen. Separate state from the
+  // mobile nav drawer above: the two are different surfaces and can be open at
+  // once without either closing the other.
+  const [assistantOpen, setAssistantOpen] = useState(false);
   const { preference, setPreference } = useTheme();
   const reducedMotion = useReducedMotion();
   const location = useLocation();
@@ -199,6 +205,7 @@ export function AppShell({ userName }: AppShellProps) {
   }, [drawerOpen]);
 
   return (
+    <AISpotlightProvider>
     <div className="yd-shell">
       {/* A sibling of the content, never an ancestor: the content lifts itself
           above it with its own stacking context (see AppShell.css). */}
@@ -274,6 +281,15 @@ export function AppShell({ userName }: AppShellProps) {
       {/* Focus must not wander behind the scrim while the drawer is open. */}
       <div className="yd-shell__body" inert={drawerOpen || undefined}>
         <header className="yd-shell__header">
+          <button
+            type="button"
+            className="yd-shell__assistant"
+            aria-expanded={assistantOpen}
+            onClick={() => setAssistantOpen((open) => !open)}
+          >
+            <AssistantIcon />
+            Assistant
+          </button>
           <span className="yd-shell__user">{userName}</span>
           <label className="yd-shell__theme-select">
             <span className="sr-only">Thème</span>
@@ -311,6 +327,9 @@ export function AppShell({ userName }: AppShellProps) {
           )}
         </main>
       </div>
+
+      <AssistantDrawer open={assistantOpen} onClose={() => setAssistantOpen(false)} />
     </div>
+    </AISpotlightProvider>
   );
 }

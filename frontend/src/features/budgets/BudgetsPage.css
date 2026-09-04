@@ -230,7 +230,11 @@
   width: 100%;
   height: 6px;
   border-radius: var(--yd-radius-pill);
+  /* Recessed: an inset shadow makes the groove read as cut into the card
+     rather than drawn on it, which is what gives the fill something to sit
+     in. */
   background: color-mix(in srgb, var(--yd-text) 9%, transparent);
+  box-shadow: inset 0 1px 2px color-mix(in srgb, #000 14%, transparent);
   overflow: hidden;
 }
 
@@ -247,6 +251,10 @@
   /* `width`, not `transform: scaleX()`: this fill sits inside a cell rendered
      as a motion.* element, which carries an inline `transform: none` once its
      entry animation settles and would kill a transform-based bar outright. */
+  /* A highlight along the top of the fill: the bar catches the same light the
+     card does, which is the difference between a coloured rectangle and a
+     filled gauge. */
+  box-shadow: inset 0 1px 0 color-mix(in srgb, #fff 34%, transparent);
   transition:
     width var(--yd-motion-slow) var(--yd-ease),
     box-shadow var(--yd-motion-base) var(--yd-ease);

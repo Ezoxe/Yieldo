@@ -373,7 +373,8 @@ export function BudgetsPage() {
           </div>
         </BentoCell>
 
-        <BentoCell as={motion.div} span={SPAN.lines} className="yd-panel" {...entryProps(reduced)}>
+        <BentoCell as={motion.div} span={SPAN.lines}
+          data-ai-target="panel-budgets" className="yd-panel" {...entryProps(reduced)}>
           <PanelHead icon={BudgetsIcon}>Budgets par catégorie</PanelHead>
           {report.lines.length === 0 ? (
             // Named, not placed: `SPAN.unbudgeted` is `{ base: 1, md: 6 }`, so

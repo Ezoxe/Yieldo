@@ -292,6 +292,7 @@ export function CashflowPage() {
         <BentoCell
           as={motion.div}
           span={SPAN.balance}
+          data-ai-target="kpi-solde-disponible"
           className="yd-panel yd-cashflow__balance-cell"
           {...entryProps(reduced)}
         >
@@ -338,7 +339,8 @@ export function CashflowPage() {
           )}
         </BentoCell>
 
-        <BentoCell as={motion.div} span={SPAN.runway} className="yd-panel" {...entryProps(reduced)}>
+        <BentoCell as={motion.div} span={SPAN.runway}
+          data-ai-target="kpi-autonomie" className="yd-panel" {...entryProps(reduced)}>
           <PanelHead
             icon={ClockIcon}
             actions={
@@ -409,6 +411,7 @@ export function CashflowPage() {
         <BentoCell
           as={motion.div}
           span={SPAN.forecast}
+          data-ai-target="panel-prevision"
           className="yd-panel"
           {...entryProps(reduced)}
         >

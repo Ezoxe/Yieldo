@@ -112,6 +112,11 @@
   --yd-surface: rgba(24, 24, 30, 0.66);
   --yd-surface-strong: #17171d;
   --yd-surface-raised: rgba(44, 44, 54, 0.72);
+  /* The frosted pane: a floating panel that must let the figures it is talking
+     about show through behind it. High enough alpha to read text on, low
+     enough that the page is still there — an assistant that hid the card its
+     own chips point at would be pointing at nothing. */
+  --yd-surface-frosted: rgba(23, 23, 29, 0.82);
 
   /* Hairlines, drawn in white rather than in the accent: an accent-tinted
      border makes every container look selected. 6% is the resting edge, 12%
@@ -187,9 +192,11 @@
   /* Atmospheric base. Nearly flat on purpose now: the depth comes from the
      surfaces, not from the ground. */
   --yd-bg-gradient: linear-gradient(155deg, #0b0b11 0%, #08080c 48%, #060608 100%);
-  --yd-blob-a: rgba(129, 140, 248, 0.85);
-  --yd-blob-b: rgba(45, 212, 191, 0.6);
-  --yd-blob-c: rgba(52, 211, 153, 0.6);
+  /* Indigo first and largest: the ground's own light comes from the same hue
+     as the accent, which is what ties a lit card to the room it sits in. */
+  --yd-blob-a: rgba(139, 92, 246, 0.95);
+  --yd-blob-b: rgba(99, 102, 241, 0.8);
+  --yd-blob-c: rgba(45, 212, 191, 0.55);
 }
 
 :root[data-theme="light"] {
@@ -208,6 +215,7 @@
   --yd-surface: rgba(255, 255, 255, 0.72);
   --yd-surface-strong: #ffffff;
   --yd-surface-raised: rgba(255, 255, 255, 0.92);
+  --yd-surface-frosted: rgba(255, 255, 255, 0.86);
 
   /* Ink-tinted rather than white-tinted: a white hairline on a white card is
      nothing at all. */
@@ -272,9 +280,9 @@
   --yd-scrim: rgba(24, 24, 29, 0.32);
 
   --yd-bg-gradient: linear-gradient(155deg, #e7e8ee 0%, #ecedf2 46%, #e3e4eb 100%);
-  --yd-blob-a: rgba(79, 70, 229, 0.5);
-  --yd-blob-b: rgba(13, 148, 136, 0.4);
-  --yd-blob-c: rgba(4, 120, 87, 0.4);
+  --yd-blob-a: rgba(124, 58, 237, 0.55);
+  --yd-blob-b: rgba(79, 70, 229, 0.45);
+  --yd-blob-c: rgba(13, 148, 136, 0.32);
 }
 
 @media (prefers-reduced-motion: reduce) {

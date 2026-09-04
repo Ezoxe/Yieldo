@@ -1,0 +1,91 @@
+/* The halo the assistant puts around whatever it is talking about.
+
+   Drawn entirely in `box-shadow` and `outline`, never in `border` or in
+   layout: a ring that changed an element's box would move the page every time
+   the assistant mentioned something, which is precisely the opposite of
+   "here, look at this". */
+
+[data-ai-active] {
+  position: relative;
+  /* Above its neighbours, so the glow is not clipped by the next card's own
+     background. */
+  z-index: 3;
+  outline: 2px solid color-mix(in srgb, var(--yd-accent) 80%, transparent);
+  outline-offset: 2px;
+  border-radius: var(--yd-radius);
+  box-shadow:
+    var(--yd-shadow-raised),
+    0 0 0 6px color-mix(in srgb, var(--yd-accent) 14%, transparent),
+    0 0 28px color-mix(in srgb, var(--yd-accent) 35%, transparent);
+  animation: yd-spotlight-pulse 2.2s var(--yd-ease) infinite;
+}
+
+/* A slow breath, not a flash. The ring never disappears between beats — a
+   blinking outline is an error state in every other interface a person has
+   used, and this one is an invitation. */
+@keyframes yd-spotlight-pulse {
+  0%,
+  100% {
+    box-shadow:
+      var(--yd-shadow-raised),
+      0 0 0 6px color-mix(in srgb, var(--yd-accent) 14%, transparent),
+      0 0 28px color-mix(in srgb, var(--yd-accent) 35%, transparent);
+  }
+  50% {
+    box-shadow:
+      var(--yd-shadow-raised),
+      0 0 0 10px color-mix(in srgb, var(--yd-accent) 8%, transparent),
+      0 0 40px color-mix(in srgb, var(--yd-accent) 22%, transparent);
+  }
+}
+
+/* The wrapper variant inherits the ring but must not become a box of its own:
+   it is a handle on whatever it contains. */
+.yd-spotlight-wrap {
+  display: contents;
+}
+
+.yd-spotlight-wrap[data-ai-active] {
+  display: block;
+}
+
+/* The optional dimming, for a guided walk-through. Very light — the point is
+   to lower everything else, not to hide the page: a reader who cannot see the
+   surroundings cannot tell where the thing being pointed at sits. */
+.yd-spotlight__veil {
+  position: fixed;
+  inset: 0;
+  z-index: 2;
+  background: color-mix(in srgb, var(--yd-bg) 55%, transparent);
+  backdrop-filter: saturate(0.85);
+  -webkit-backdrop-filter: saturate(0.85);
+  animation: yd-spotlight-veil var(--yd-motion-base) var(--yd-ease);
+}
+
+@keyframes yd-spotlight-veil {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* The ring stays; only the breathing stops. Someone who has asked for less
+   motion still needs to be able to find what the assistant is pointing at. */
+@media (prefers-reduced-motion: reduce) {
+  [data-ai-active] {
+    animation: none;
+  }
+  .yd-spotlight__veil {
+    animation: none;
+  }
+}
+
+:root[data-motion="off"] [data-ai-active] {
+  animation: none;
+}
+
+:root[data-motion="off"] .yd-spotlight__veil {
+  animation: none;
+}

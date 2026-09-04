@@ -419,6 +419,7 @@ export function AnalysisPage() {
         <BentoCell
           as={motion.div}
           span={SPAN.basket}
+          data-ai-target="panel-panier"
           className="yd-panel"
           data-testid="yd-analysis-basket"
           {...entryProps(reduced)}
@@ -605,6 +606,7 @@ export function AnalysisPage() {
         <BentoCell
           as={motion.div}
           span={SPAN.anomalies}
+          data-ai-target="panel-anomalies"
           className="yd-panel"
           {...entryProps(reduced)}
         >

@@ -804,7 +804,11 @@
 /* The filled arc grows into place on mount, and animates between two scores
    when the period changes. `stroke-dasharray` is the only property that can
    carry it — a width or a transform would move the ring, not fill it. */
+/* The arc glows in its own band's colour — the one place in the app where a
+   filter earns its cost, because the ring IS the reading and it should look
+   lit rather than printed. */
 .yd-gauge__fill {
+  filter: drop-shadow(0 0 6px color-mix(in srgb, currentColor 45%, transparent));
   transition: stroke-dasharray var(--yd-motion-slow) var(--yd-ease);
 }
 

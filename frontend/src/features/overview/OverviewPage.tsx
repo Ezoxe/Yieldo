@@ -280,6 +280,7 @@ function NetHero({
       span={SPAN.hero}
       rows={HERO_ROWS}
       className="yd-hero"
+      data-ai-target="kpi-solde-net"
       {...entryProps(reduced)}
     >
       <div className="yd-hero__head">
@@ -503,6 +504,7 @@ export function OverviewPage() {
           as={motion.div}
           span={SPAN.stat}
           className="yd-cell--stat yd-cell--stat-positive"
+          data-ai-target="kpi-entrees"
           {...entryProps(reduced)}
         >
           <StatTile
@@ -519,6 +521,7 @@ export function OverviewPage() {
           as={motion.div}
           span={SPAN.stat}
           className="yd-cell--stat yd-cell--stat-negative"
+          data-ai-target="kpi-sorties"
           {...entryProps(reduced)}
         >
           <StatTile
@@ -535,6 +538,7 @@ export function OverviewPage() {
           as={motion.div}
           span={SPAN.stat}
           className="yd-cell--stat yd-cell--stat-info"
+          data-ai-target="kpi-taux-epargne"
           {...entryProps(reduced)}
         >
           <StatTile
@@ -552,7 +556,13 @@ export function OverviewPage() {
           />
         </BentoCell>
 
-        <BentoCell as={motion.div} span={SPAN.treemap} className="yd-panel" {...entryProps(reduced)}>
+        <BentoCell
+          as={motion.div}
+          span={SPAN.treemap}
+          className="yd-panel"
+          data-ai-target="chart-repartition"
+          {...entryProps(reduced)}
+        >
           <PanelHead icon={BreakdownIcon}>Répartition des dépenses</PanelHead>
           <CategoryTreemap items={treemapItems} />
         </BentoCell>
@@ -569,12 +579,24 @@ export function OverviewPage() {
           </BentoCell>
         ) : null}
 
-        <BentoCell as={motion.div} span={SPAN.calendar} className="yd-panel" {...entryProps(reduced)}>
+        <BentoCell
+          as={motion.div}
+          span={SPAN.calendar}
+          className="yd-panel"
+          data-ai-target="panel-calendrier"
+          {...entryProps(reduced)}
+        >
           <PanelHead icon={CalendarIcon}>Calendrier des dépenses</PanelHead>
           <SpendingCalendar points={calendarPoints} />
         </BentoCell>
 
-        <BentoCell as={motion.div} span={SPAN.recent} className="yd-panel" {...entryProps(reduced)}>
+        <BentoCell
+          as={motion.div}
+          span={SPAN.recent}
+          className="yd-panel"
+          data-ai-target="panel-recent"
+          {...entryProps(reduced)}
+        >
           <PanelHead
             icon={ListIcon}
             actions={

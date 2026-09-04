@@ -16,6 +16,13 @@
 /* The rounded square an icon sits in at the head of a panel, a stat or a row.
    It is what makes a card legible at a glance across a dashboard: the reader
    finds the panel by its mark before reading its title. */
+/* Lit from the top-left, and casting its own colour underneath.
+
+   Three things give it volume, and none of them is a texture: a radial
+   highlight where the light lands, a flat tint underneath it so the body of
+   the badge keeps its colour, and a drop shadow in that same colour rather
+   than in black — a grey shadow under a violet mark looks like dirt, a violet
+   one looks like light passing through it. */
 .yd-icon-badge {
   display: inline-flex;
   align-items: center;
@@ -24,8 +31,17 @@
   width: 2rem;
   height: 2rem;
   border-radius: 10px;
-  border: 1px solid color-mix(in srgb, var(--yd-icon-tint, var(--yd-accent)) 26%, transparent);
-  background: color-mix(in srgb, var(--yd-icon-tint, var(--yd-accent)) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--yd-icon-tint, var(--yd-accent)) 30%, transparent);
+  background:
+    radial-gradient(
+      120% 120% at 28% 18%,
+      color-mix(in srgb, var(--yd-icon-tint, var(--yd-accent)) 38%, transparent),
+      transparent 68%
+    ),
+    color-mix(in srgb, var(--yd-icon-tint, var(--yd-accent)) 13%, transparent);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, #fff 24%, transparent),
+    0 3px 10px color-mix(in srgb, var(--yd-icon-tint, var(--yd-accent)) 22%, transparent);
   color: var(--yd-icon-tint, var(--yd-accent));
   font-size: 1.05rem;
   transition:
@@ -39,8 +55,10 @@
 .yd-bento__cell:hover .yd-icon-badge,
 .yd-glass:hover .yd-icon-badge {
   scale: 1.06;
-  background: color-mix(in srgb, var(--yd-icon-tint, var(--yd-accent)) 20%, transparent);
-  border-color: color-mix(in srgb, var(--yd-icon-tint, var(--yd-accent)) 44%, transparent);
+  border-color: color-mix(in srgb, var(--yd-icon-tint, var(--yd-accent)) 48%, transparent);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, #fff 30%, transparent),
+    0 6px 18px color-mix(in srgb, var(--yd-icon-tint, var(--yd-accent)) 34%, transparent);
 }
 
 /* Smaller variant, for a list row rather than a panel head. */

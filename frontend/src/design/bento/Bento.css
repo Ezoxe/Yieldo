@@ -31,14 +31,23 @@
   position: relative;
   border-radius: var(--yd-radius);
   border: 1px solid var(--yd-border);
-  /* Opaque: a cell holds data, and figures must not be read through a blur.
-     backdrop-filter is reserved for floating surfaces (drawer, modals).
-     Two layers, not one: the flat fill, and a few percent of light falling on
-     the top 40% of it. On a near-black ground a single flat grey reads as a
-     rectangle someone drew; the gradient is what makes it read as a surface
-     catching light. */
-  background-color: var(--yd-surface-strong);
+  /* Frosted, not opaque — a deliberate reversal of the phase-1.5 rule that
+     reserved `backdrop-filter` for floating surfaces on the grounds that
+     figures must not be read through a blur.
+
+     What changed is the alpha. At 82-86% the card is a pane of glass over the
+     room rather than a window into it: the ground's violet halos pass through
+     as a tint, the text sits on a nearly solid fill, and the figures are as
+     legible as they were on the flat colour. What that buys is the one thing
+     the flat fill could not give — the card belongs to the page behind it
+     instead of being a white rectangle pasted onto it.
+
+     Three layers: the frosted fill, a few percent of light falling on the top
+     40%, and the masked edge ring below. */
+  background-color: var(--yd-surface-frosted);
   background-image: var(--yd-surface-veil);
+  backdrop-filter: blur(16px) saturate(var(--yd-glass-saturate));
+  -webkit-backdrop-filter: blur(16px) saturate(var(--yd-glass-saturate));
   box-shadow: var(--yd-shadow);
   padding: var(--yd-space-lg);
   transition:

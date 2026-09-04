@@ -50,6 +50,20 @@ touching code.
   seen and confirmed the mapping on screen, and any change to it invalidates
   the preview until the analysis is re-run. Never auto-commit a suggestion.
 
+## The assistant's spotlight
+
+`design/ai/targets.ts` is the list of things the assistant may point at, and
+the French terms that name each one. The answer from `POST /chat` carries a
+sentence and a figure — never an element id — so the link is made by matching
+that sentence against this list. Two rules hold it honest: nothing is invented
+(a chip appears only when its `data-ai-target` is really in the document, or
+its route can be navigated to), and the list is data, so a new card means a new
+line here.
+
+A component becomes pointable by carrying `data-ai-target="…"` and nothing
+else; `AISpotlightProvider` sets `data-ai-active` on the matching node.
+`useSpotlightTarget(id)` is the React-owned alternative.
+
 ## Shared UI primitives
 
 - Icons: `frontend/src/design/icons/`. One grid (24x24, 1.6px stroke,

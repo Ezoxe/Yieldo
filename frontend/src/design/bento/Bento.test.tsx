@@ -99,8 +99,18 @@ describe("Bento.css", () => {
     );
   });
 
-  it("keeps cells opaque — no backdrop-filter on a data surface", () => {
-    expect(css).not.toMatch(/backdrop-filter/);
+  // The rule this used to hold was "no blur on a data surface", against
+  // figures being read through one. The card is frosted now, and what makes
+  // that safe is the ALPHA, not the absence of the blur: at 82-86% the fill is
+  // nearly solid and the ground shows through as a tint. So the assertion
+  // moves to the property that carries the danger — the fill must stay the
+  // frosted token, never a transparency a figure could be read across.
+  it("keeps a nearly solid fill under the blur, so no figure is read through it", () => {
+    const cell = /\.yd-bento__cell \{([^}]*)\}/.exec(css);
+    expect(cell, "no rule for .yd-bento__cell").not.toBeNull();
+    const body = (cell as RegExpExecArray)[1];
+    expect(body).toMatch(/background-color:\s*var\(--yd-surface-frosted\)\s*;/);
+    expect(body).not.toMatch(/background-color:\s*transparent/);
   });
 
   // The lift must use `translate`, not `transform`. A cell rendered as a

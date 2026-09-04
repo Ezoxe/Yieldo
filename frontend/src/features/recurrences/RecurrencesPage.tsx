@@ -351,6 +351,7 @@ export function RecurrencesPage() {
           <BentoCell
             as={motion.div}
             span={SPAN.list}
+          data-ai-target="panel-recurrences"
             className="yd-panel"
             {...entryProps(reduced)}
           >

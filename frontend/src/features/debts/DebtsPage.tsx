@@ -330,7 +330,8 @@ export function DebtsPage() {
   } else {
     body = (
       <BentoGrid as={motion.div} {...staggerProps(reduced)}>
-        <BentoCell as={motion.div} span={SPAN.debts} className="yd-panel" {...entryProps(reduced)}>
+        <BentoCell as={motion.div} span={SPAN.debts}
+          data-ai-target="panel-dettes" className="yd-panel" {...entryProps(reduced)}>
           <PanelHead icon={DebtsIcon}>Vos dettes</PanelHead>
 
           {debts === null ? null : debts.length === 0 && editing === null ? (

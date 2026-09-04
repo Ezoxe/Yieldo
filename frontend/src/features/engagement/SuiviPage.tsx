@@ -123,12 +123,24 @@ export function SuiviPage() {
   } else {
     body = (
       <BentoGrid as={motion.div} {...staggerProps(reduced)}>
-        <BentoCell as={motion.div} span={SPAN.full} className="yd-panel" {...entryProps(reduced)}>
+        <BentoCell
+          as={motion.div}
+          span={SPAN.full}
+          className="yd-panel"
+          data-ai-target="panel-regularite"
+          {...entryProps(reduced)}
+        >
           <PanelHead icon={StreakIcon}>Régularité du suivi</PanelHead>
           <StreakPanel streak={engagement.streak} />
         </BentoCell>
 
-        <BentoCell as={motion.div} span={SPAN.score} className="yd-panel" {...entryProps(reduced)}>
+        <BentoCell
+          as={motion.div}
+          span={SPAN.score}
+          className="yd-panel"
+          data-ai-target="kpi-sante"
+          {...entryProps(reduced)}
+        >
           <PanelHead icon={CheckIcon}>Santé financière</PanelHead>
           <HealthScoreSummary health={engagement.health} />
         </BentoCell>

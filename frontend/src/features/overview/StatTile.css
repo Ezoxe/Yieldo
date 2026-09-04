@@ -38,14 +38,18 @@
    `.yd-num`, which CountUp supplies). Tabular is not a preference here — the
    value is animated by CountUp, and proportional digits change width as they
    tick, which makes the whole figure shiver horizontally for the length of the
-   count. */
+   count.
+
+   Tighter tracking than the body and a size that scales with the viewport: a
+   KPI is the one place in the app where the number should be the largest thing
+   on its card by a clear margin. */
 .yd-stat-tile__value {
   display: block;
   color: var(--yd-text);
-  font-size: clamp(1.5rem, 2.4vw, 2rem);
+  font-size: clamp(1.65rem, 2.7vw, 2.25rem);
   font-weight: 600;
-  line-height: 1.1;
-  letter-spacing: -0.02em;
+  line-height: 1.05;
+  letter-spacing: -0.035em;
 }
 
 .yd-stat-tile__unavailable {

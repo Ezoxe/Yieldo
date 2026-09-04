@@ -587,6 +587,7 @@ export function GoalsPage() {
           <BentoCell
             as={motion.div}
             span={SPAN.capacity}
+          data-ai-target="panel-objectifs"
             // Only a card when it holds something: a full-width panel carrying
             // one button and nothing else is a card's worth of empty surface,
             // which reads as content having failed to load.

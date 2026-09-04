@@ -314,14 +314,32 @@
   flex-shrink: 0;
 }
 
+/* A pill that happens to be a select, not a box that happens to hold a
+   category. Twenty of these down a screen used to read as a form: a filled
+   200px control on every row, whether or not anyone was going to touch it.
+
+   What is NOT removed is the boundary. A control drawn with no visible edge
+   fails WCAG 1.4.11, and `design/controlBorders.test.ts` exists in this repo
+   because that is a defect it has already shipped once. So the weight comes
+   off everywhere else — no fill, pill radius, a smaller face, and a width that
+   fits the category name instead of a fixed 200px — and the edge stays. */
 .yd-transactions__select {
-  background: var(--yd-surface);
+  background: transparent;
   border: 1px solid var(--yd-border-control);
-  border-radius: var(--yd-radius-sm);
-  padding: var(--yd-space-2xs) var(--yd-space-xs);
+  border-radius: var(--yd-radius-pill);
+  padding: 1px var(--yd-space-2xs) 1px var(--yd-space-xs);
   color: var(--yd-text);
   font: inherit;
+  font-size: 0.78rem;
   max-width: 200px;
+  cursor: pointer;
+  transition: border-color var(--yd-motion-fast) var(--yd-ease);
+}
+
+/* The edge only gets louder when the row is actually being worked on. */
+.yd-transactions__row:hover .yd-transactions__select,
+.yd-transactions__select:hover {
+  border-color: var(--yd-accent);
 }
 
 .yd-transactions__select:focus-visible,
@@ -332,15 +350,20 @@
   outline-offset: 1px;
 }
 
+/* Where a category came from — a rule, or the reader's own correction. Real
+   information, and the reason the learning loop is visible at all; but it is
+   the third object on a row that already carries a colour dot and a picker, so
+   it is drawn as a word rather than as a chip. It was a bordered pill on a
+   raised surface, which gave it the same weight as the control beside it. */
 .yd-transactions__badge {
   display: inline-block;
-  padding: 2px var(--yd-space-xs);
-  border-radius: 999px;
-  background: var(--yd-surface-raised);
-  border: 1px solid var(--yd-border);
-  font-size: 0.68rem;
+  font-size: 0.66rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
   color: var(--yd-text-muted);
   white-space: nowrap;
+  opacity: 0.75;
 }
 
 /* The money column, and the only place on this screen where colour carries

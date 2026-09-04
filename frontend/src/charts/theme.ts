@@ -52,7 +52,7 @@ const DARK_TOKENS: ChartTokens = {
 const LIGHT_TOKENS: ChartTokens = {
   text: "#18181d",
   muted: "#55555f",
-  border: "rgba(9, 9, 16, 0.08)",
+  border: "rgba(9, 9, 16, 0.1)",
   positive: "#047857",
   negative: "#be123c",
   warning: "#92400e",
@@ -115,6 +115,20 @@ const DARK_CATEGORICAL = [
   "#f472b6", // pink
 ];
 
+/**
+ * The fill for a tile that stands for an ABSENCE rather than for a category —
+ * "Non catégorisé" on the treemap, and nothing else so far.
+ *
+ * Deliberately outside the categorical ramp and deliberately neutral: on a
+ * ledger that has not been tidied it is often the largest tile on the chart,
+ * and painting it in an identity hue makes "unknown" look like the household's
+ * biggest spending category. A neutral says what it is — the part of the
+ * picture that has not been filled in yet.
+ */
+export function neutralFill(resolved: Resolved): string {
+  return resolved === "dark" ? "#2f2f3a" : "#d6d8e0";
+}
+
 export function seriesColors(resolved: Resolved): string[] {
   return resolved === "dark" ? DARK_CATEGORICAL : LIGHT_CATEGORICAL;
 }
@@ -169,7 +183,7 @@ export interface EChartsThemeShape {
     axisLine: { show: boolean };
     axisTick: { show: boolean };
     axisLabel: { color: string; fontSize: number; fontFamily: string };
-    splitLine: { lineStyle: { color: string; type: "solid" } };
+    splitLine: { lineStyle: { color: string; type: number[]; width: number } };
   };
   tooltip: {
     backgroundColor: string;
@@ -206,9 +220,12 @@ export function buildEchartsTheme(resolved: Resolved): EChartsThemeShape {
         fontSize: 11,
         fontFamily: "Geist Mono Variable, Geist Mono, ui-monospace, monospace",
       },
-      // Solid hairline, never dashed: a dashed grid reads as a projection or
-      // threshold, not a neutral reference (dataviz skill anti-pattern).
-      splitLine: { lineStyle: { color: tones.border, type: "solid" } },
+      // A very light dashed hairline. The anti-pattern a solid grid guarded
+      // against is a HEAVY dash reading as a projection or a threshold; a 3-3
+      // dash at the border colour reads as graph paper, which is what a
+      // reference grid is. What distinguishes it from a threshold line in this
+      // app is weight and colour, and no threshold is ever drawn this faint.
+      splitLine: { lineStyle: { color: tones.border, type: [3, 3], width: 1 } },
     },
     tooltip: {
       backgroundColor: tones.surfaceStrong,

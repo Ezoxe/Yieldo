@@ -103,9 +103,12 @@ describe("buildCalendarOption", () => {
     expect(width * weekColumns(span)).toBeLessThanOrEqual(293 - 40 - 16);
   });
 
-  // Left to fill the box, the five columns of a single month came out 200px
-  // wide: a row of bars, not a calendar.
-  it("never stretches a short span into bars", () => {
+  // Two failures, opposite directions. Left to fill the box, the five columns
+  // of a single month came out 200px wide: a row of bars, not a calendar.
+  // Capped at 16 for every span, the same month came out as five small squares
+  // adrift in a 1130px card, which reads as a rendering fault. A month gets
+  // the biggest square the bounds allow.
+  it("draws a short span as a calendar a person can point at, not as bars", () => {
     const oneMonth: CalendarPoint[] = [
       { date: "2026-01-02", inflow_cents: 0, outflow_cents: -500, net_cents: -500, count: 1 },
       { date: "2026-01-09", inflow_cents: 0, outflow_cents: -900, net_cents: -900, count: 1 },
@@ -118,7 +121,7 @@ describe("buildCalendarOption", () => {
       1095,
     );
     const calendar = calendarOf(option);
-    expect(calendar?.cellSize).toEqual([16, 16]);
+    expect(calendar?.cellSize).toEqual([34, 34]);
     // ... and it sits in the middle of the panel rather than hugging the left.
     expect(calendar?.left).toBe("center");
   });

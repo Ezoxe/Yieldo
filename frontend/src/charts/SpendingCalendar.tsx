@@ -21,6 +21,8 @@ export interface CalendarSpan {
 export interface CalendarOptionResult {
   option: EChartsOption;
   exportRows: ChartExportRow[];
+  /** The day cell's side, so the caller can size the chart box around it. */
+  cell: number;
 }
 
 function frenchDate(iso: string): string {
@@ -115,8 +117,20 @@ function monthCount(span: CalendarSpan): number {
   return (toYear - fromYear) * 12 + (toMonth - fromMonth) + 1;
 }
 
-/** A day cell's side, in px, when there is room for it. */
-const CELL = 16;
+/** The biggest a day cell is allowed to get.
+ *
+ * 16 for years, and it used to be 16 for everything — which is how a single
+ * month ended up as five 16px squares adrift in a 1130px card, reading as a
+ * rendering fault rather than as a calendar. A month has room to be drawn at
+ * a size a person can actually point at; a thirteen-month span does not, and
+ * `cellSizeFor` below is what tells them apart. */
+const MAX_CELL = 34;
+
+/* No floor, deliberately. A minimum cell and the promise never to draw past
+   the right edge cannot both hold: 57 week-columns at even 6px need 342px, and
+   a 375 viewport gives this chart 237. ECharts neither scrolls nor wraps a
+   calendar — it draws past the edge and the back half of the year is simply
+   gone. A 4px cell is small; a silently truncated year is wrong. */
 
 /** Week columns the span draws, counting the part-weeks at either end. */
 export function weekColumns(span: CalendarSpan, firstDayOfWeek = 1): number {
@@ -128,19 +142,39 @@ export function weekColumns(span: CalendarSpan, firstDayOfWeek = 1): number {
 }
 
 /**
- * The width of one day cell.
+ * The side of one day cell — SQUARE, and sized to the span.
  *
- * Narrower than `CELL` when the span is too long to fit -- ECharts neither
- * scrolls nor wraps a calendar, it draws past the right edge, so a fixed cell
- * silently lost the back half of the range on any panel under ~900px. Never
- * *wider* than `CELL`: left to fill the box, a one-month span turned its five
- * columns into 200px-wide bars that stopped reading as a calendar at all.
- * An unmeasured width (0) means the full cell.
+ * Two failures to avoid, in opposite directions. Too wide: left to fill the
+ * box, a one-month span turned its five columns into 200px-wide bars that
+ * stopped reading as a calendar at all. Too narrow: ECharts neither scrolls
+ * nor wraps a calendar, it draws past the right edge, so a fixed cell silently
+ * lost the back half of a thirteen-month range on any panel under ~900px.
+ *
+ * So the cell takes whatever the width allows, capped at the top only. A month
+ * comes out at `MAX_CELL` and reads as a wall calendar; a year on a phone comes
+ * out at 4px and reads as a strip. An unmeasured width (0, which is what jsdom
+ * reports) means the full cell.
  */
-export function cellWidthFor(columns: number, availableWidth: number): number {
-  if (availableWidth <= 0 || columns <= 0) return CELL;
-  return Math.min(CELL, availableWidth / columns);
+export function cellSizeFor(columns: number, availableWidth: number): number {
+  if (availableWidth <= 0 || columns <= 0) return MAX_CELL;
+  return Math.min(MAX_CELL, availableWidth / columns);
 }
+
+/**
+ * How tall the chart has to be for a grid of this cell size.
+ *
+ * Seven weekday rows, plus the month labels above and the magnitude scale
+ * below. Derived rather than fixed: a fixed 220px box was what capped the cell
+ * at 20px however much room the card had.
+ */
+export function calendarHeightFor(cell: number): number {
+  return CALENDAR_TOP + cell * 7 + CALENDAR_BOTTOM;
+}
+
+/** Room above the grid for the month labels. */
+const CALENDAR_TOP = 52;
+/** Room below it for the "Faible / Élevé" magnitude scale. */
+const CALENDAR_BOTTOM = 46;
 
 // Heats each day by how much was SPENT (outflow magnitude), a sequential
 // (one-hue) magnitude encoding -- not net balance, which would mix a
@@ -159,11 +193,11 @@ export function buildCalendarOption(
   const months = monthCount(span);
   const available = chartWidth - GRID_LEFT - GRID_RIGHT;
   const columns = weekColumns(span);
-  const cellWidth = cellWidthFor(columns, available);
+  const cell = cellSizeFor(columns, available);
   // A grid narrower than the panel sits in the middle of it; one hugging the
   // left edge of a wide empty cell reads as a layout mistake.
-  const centred = cellWidth * columns < available;
-  const step = monthLabelStep(months, cellWidth * columns);
+  const centred = cell * columns < available;
+  const step = monthLabelStep(months, cell * columns);
   const firstYear = Number(span.from.slice(0, 4));
   const firstMonth = Number(span.from.slice(5, 7));
 
@@ -193,13 +227,9 @@ export function buildCalendarOption(
     },
     calendar: {
       range: [span.from, span.to],
-      cellSize: [cellWidth, CELL],
+      cellSize: [cell, cell],
       left: centred ? "center" : GRID_LEFT,
-      // Clears Chart.tsx's absolutely positioned "Exporter" button (28px tall,
-      // pinned to the top-right of every chart): the month labels are drawn
-      // above the grid, and at 34 the last one of a full-width span rendered
-      // underneath it.
-      top: 52,
+      top: CALENDAR_TOP,
       splitLine: { lineStyle: { color: tokens.border } },
       itemStyle: { borderColor: tokens.surfaceStrong, borderWidth: 2, color: "transparent" },
       dayLabel: { color: tokens.muted, nameMap: DAY_NAMES_FR, firstDay: 1 },
@@ -231,7 +261,7 @@ export function buildCalendarOption(
     "Solde net": formatCents(point.net_cents),
   }));
 
-  return { option, exportRows };
+  return { option, exportRows, cell };
 }
 
 /**
@@ -280,7 +310,7 @@ export function SpendingCalendar({ points }: SpendingCalendarProps) {
     return <p className="yd-chart-empty">Aucune dépense enregistrée sur cette période.</p>;
   }
 
-  const { option, exportRows } = buildCalendarOption(
+  const { option, exportRows, cell } = buildCalendarOption(
     points,
     span,
     chartTokens(resolved),
@@ -297,7 +327,7 @@ export function SpendingCalendar({ points }: SpendingCalendarProps) {
     <div ref={measureRef}>
       <Chart
         option={option}
-        height={220}
+        height={calendarHeightFor(cell)}
         ariaLabel={`Calendrier des dépenses du ${frenchDay(first)} au ${frenchDay(last)}, un jour plus foncé signifie plus de dépenses.`}
         onEvents={onEvents}
         dataForExport={{

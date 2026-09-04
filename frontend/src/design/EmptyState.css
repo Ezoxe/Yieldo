@@ -5,15 +5,29 @@
    parts of the message, so the same diagnosis reads identically wherever it
    lands. */
 
+/* Compact and centred, not a wall of white with a sentence stranded in the
+   top-left of it. An empty section used to inherit the full height of whatever
+   cell it landed in and left the message adrift with the action below it; the
+   three parts now sit together as one block, in the middle of the room they
+   have, with the way out under them.
+
+   A diagnosis is still a sentence, and a sentence needs a measure: at 1280px
+   an unbounded line would run "Vos 197 opérations vont du..." clear across the
+   screen. */
 .yd-empty {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
-  gap: var(--yd-space-xs);
-  /* A diagnosis is a sentence, and a sentence needs a measure: at 1280px the
-     full-width dashboard cell would otherwise run "Vos 197 opérations vont
-     du..." across the whole screen on one line. */
-  max-width: 62ch;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: var(--yd-space-2xs);
+  /* Fills the cell so it is centred in it, but never adds height of its own:
+     an empty state is not a reason for a card to be tall. */
+  flex: 1;
+  min-height: 0;
+  padding: var(--yd-space-md) 0;
+  margin-inline: auto;
+  max-width: 46ch;
 }
 
 /* An empty card with nothing but two sentences on it reads as a card that
@@ -33,7 +47,7 @@
    levels, so the eye lands on the sentence that names the situation first. */
 .yd-empty__title {
   margin: 0;
-  font-size: 1.05rem;
+  font-size: 0.98rem;
   line-height: 1.45;
   font-weight: 600;
   letter-spacing: -0.005em;
@@ -42,8 +56,8 @@
 
 .yd-empty__detail {
   margin: 0;
-  font-size: 0.9rem;
-  line-height: 1.55;
+  font-size: 0.84rem;
+  line-height: 1.5;
   color: var(--yd-text-muted);
 }
 
@@ -51,18 +65,23 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
+  justify-content: center;
   gap: var(--yd-space-sm);
-  margin-top: var(--yd-space-2xs);
+  margin-top: var(--yd-space-xs);
 }
 
 /* The way out, whether it navigates (a link to the import) or changes the
    period in place (a button). Styled identically on purpose: which element it
    is depends on what it does, and the reader should not have to care. */
+/* The way out, and the loudest thing in the block. An empty state that ends
+   in a hairline-outlined link reads as an apology; this reads as the next
+   step. Filled at the accent's own low alpha rather than solid — it is an
+   invitation, not the primary action of the whole screen. */
 .yd-empty__action {
-  border: 1px solid var(--yd-border-control);
+  border: 1px solid color-mix(in srgb, var(--yd-accent) 40%, transparent);
   border-radius: var(--yd-radius-sm);
   padding: var(--yd-space-xs) var(--yd-space-md);
-  background: transparent;
+  background: color-mix(in srgb, var(--yd-accent) 12%, transparent);
   color: var(--yd-accent);
   font: inherit;
   font-weight: 600;
@@ -75,7 +94,7 @@
 
 .yd-empty__action:hover {
   border-color: var(--yd-accent);
-  background: color-mix(in srgb, var(--yd-accent) 10%, transparent);
+  background: color-mix(in srgb, var(--yd-accent) 20%, transparent);
 }
 
 .yd-empty__action:focus-visible {

@@ -113,6 +113,19 @@ export function buildWaterfallOption(
         name: "support",
         type: "bar",
         stack: "waterfall",
+        // The zero baseline, drawn once, on the invisible support series so it
+        // sits under everything. A cascade whose steps float between gridlines
+        // has no anchor: the reader cannot see which side of nothing a bar is
+        // on. Solid where the grid is dashed, and in the muted text colour
+        // rather than an accent — it is a reference, not a reading.
+        markLine: {
+          silent: true,
+          symbol: "none",
+          animation: false,
+          label: { show: false },
+          lineStyle: { color: tokens.muted, width: 1, type: "solid", opacity: 0.7 },
+          data: [{ yAxis: 0 }],
+        },
         // Inert on the first series of a stack (nothing below it to chain
         // onto) but declared here so the whole stack group states one
         // strategy -- see the visible series below for why it matters.

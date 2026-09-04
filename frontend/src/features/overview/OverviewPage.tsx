@@ -11,7 +11,7 @@ import { BentoGrid } from "../../design/bento/BentoGrid";
 import { PanelHead } from "../../design/bento/PanelHead";
 import { CountUp } from "../../design/CountUp";
 import { EmptyState, frenchDate, historySentence } from "../../design/EmptyState";
-import { BreakdownIcon, CalendarIcon, CashflowIcon, ChevronIcon, InflowIcon, OutflowIcon, OverviewIcon, PriceChangeIcon, RateIcon } from "../../design/icons";
+import { BreakdownIcon, CalendarIcon, CashflowIcon, ChevronIcon, InflowIcon, ListIcon, OutflowIcon, OverviewIcon, PriceChangeIcon, RateIcon } from "../../design/icons";
 import { PageHead } from "../../design/PageHead";
 import { useReducedMotion } from "../../design/motion/useReducedMotion";
 import { entryProps, staggerProps } from "../../design/motion/variants";
@@ -19,8 +19,18 @@ import "../../design/Skeleton.css";
 import { formatCents } from "../../design/theme";
 import { useTheme } from "../../app/ThemeProvider";
 import { ApiError, api } from "../../lib/api";
-import type { CalendarPoint, Category, CategoryBreakdown, Granularity, SeriesBucket, Summary } from "../../lib/types";
+import type {
+  CalendarPoint,
+  Category,
+  CategoryBreakdown,
+  Granularity,
+  SeriesBucket,
+  Summary,
+  Transaction,
+  TransactionPage,
+} from "../../lib/types";
 import { HeroTrend } from "./HeroTrend";
+import { RecentTransactions } from "./RecentTransactions";
 import { StatTile } from "./StatTile";
 import "./OverviewPage.css";
 import { PeriodSelector } from "../transactions/PeriodSelector";
@@ -39,6 +49,11 @@ function transactionsHrefFor(period: UsePeriodResult): string {
 }
 
 const GENERIC_ERROR = "Une erreur inattendue est survenue.";
+
+/** How many operations the dashboard's own list shows. Five is what fits
+ *  beside the calendar without the panel becoming a second transactions
+ *  screen — the link in its head is the way to the real one. */
+const RECENT_COUNT = 5;
 
 function messageFor(err: unknown): string {
   return err instanceof ApiError ? err.detail : GENERIC_ERROR;
@@ -112,7 +127,13 @@ const SPAN = {
   // half of the year off the right edge. Its natural aspect is ~7:1 -- a wide
   // short band is the shape it wants, and the shape it now gets. Short is also
   // what keeps it under the hero despite sharing its width.
-  calendar: { base: 1, md: 6, lg: 12 },
+  // Five of twelve, not the full width it used to take. A month's calendar is
+  // roughly 6 columns of 34px squares — 240px of drawing. Given 1130px it read
+  // as a handful of specks adrift in an empty card; given 440 it reads as a
+  // wall calendar, and the seven columns beside it carry the operations those
+  // squares stand for.
+  calendar: { base: 1, md: 6, lg: 5 },
+  recent: { base: 1, md: 6, lg: 7 },
   emptyState: { base: 1, md: 6, lg: 12 },
 } satisfies Record<string, BentoSpan>;
 
@@ -193,6 +214,11 @@ function DashboardSkeleton() {
       </BentoCell>
 
       <BentoCell span={SPAN.calendar} className="yd-panel">
+        <Skeleton variant="title" />
+        <Skeleton variant="chart-short" />
+      </BentoCell>
+
+      <BentoCell span={SPAN.recent} className="yd-panel">
         <Skeleton variant="title" />
         <Skeleton variant="chart-short" />
       </BentoCell>
@@ -302,6 +328,7 @@ export function OverviewPage() {
   const [series, setSeries] = useState<SeriesBucket[]>([]);
   const [categoryBreakdown, setCategoryBreakdown] = useState<CategoryBreakdown[]>([]);
   const [calendarPoints, setCalendarPoints] = useState<CalendarPoint[]>([]);
+  const [recent, setRecent] = useState<Transaction[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [errors, setErrors] = useState<LoadErrors>({});
   const [isLoading, setIsLoading] = useState(true);
@@ -314,7 +341,14 @@ export function OverviewPage() {
     async function load() {
       setIsLoading(true);
 
-      const [summaryResult, seriesResult, categoriesResult, calendarResult, referenceResult] =
+      const [
+        summaryResult,
+        seriesResult,
+        categoriesResult,
+        calendarResult,
+        referenceResult,
+        recentResult,
+      ] =
         await Promise.allSettled([
           api.get<Summary>("/analytics/summary", { date_from: period.from, date_to: period.to }),
           api.get<SeriesBucket[]>("/analytics/series", {
@@ -331,6 +365,11 @@ export function OverviewPage() {
             date_to: period.to,
           }),
           api.get<Category[]>("/categories"),
+          api.get<TransactionPage>("/transactions", {
+            date_from: period.from,
+            date_to: period.to,
+            limit: RECENT_COUNT,
+          }),
         ]);
 
       if (cancelled) return;
@@ -366,6 +405,11 @@ export function OverviewPage() {
         setCategories([]);
         nextErrors.reference = messageFor(referenceResult.reason);
       }
+
+      // A failed list is an empty list and nothing else: the five most recent
+      // operations are a convenience beside the figures, and a banner for them
+      // would put the dashboard in an error state over a sidebar panel.
+      setRecent(recentResult.status === "fulfilled" ? recentResult.value.items : []);
 
       setErrors(nextErrors);
       setIsLoading(false);
@@ -528,6 +572,21 @@ export function OverviewPage() {
         <BentoCell as={motion.div} span={SPAN.calendar} className="yd-panel" {...entryProps(reduced)}>
           <PanelHead icon={CalendarIcon}>Calendrier des dépenses</PanelHead>
           <SpendingCalendar points={calendarPoints} />
+        </BentoCell>
+
+        <BentoCell as={motion.div} span={SPAN.recent} className="yd-panel" {...entryProps(reduced)}>
+          <PanelHead
+            icon={ListIcon}
+            actions={
+              <Link to={transactionsHrefFor(period)} className="yd-overview__panel-link">
+                Toutes
+                <ChevronIcon />
+              </Link>
+            }
+          >
+            Dernières opérations
+          </PanelHead>
+          <RecentTransactions rows={recent} categories={categories} />
         </BentoCell>
       </BentoGrid>
     );

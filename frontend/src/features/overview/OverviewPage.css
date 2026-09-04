@@ -405,3 +405,124 @@
 
 /* The shimmer, its keyframes and both of its off-switches live in
    design/Skeleton.css -- see the note at the top of this section. */
+
+/* -- Dernières opérations -------------------------------------------------- */
+
+/* A grid, not a flex column: four tracks so the dates line up, the amounts
+   line up, and the label takes whatever is left. `minmax(0, 1fr)` on the label
+   is what stops a 76-character raw bank label setting the panel's minimum
+   width and pushing the dashboard sideways. */
+.yd-recent {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.yd-recent__row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: var(--yd-space-2xs) var(--yd-space-sm);
+  padding: var(--yd-space-xs) 0;
+}
+
+.yd-recent__row + .yd-recent__row {
+  border-top: 1px solid var(--yd-border);
+}
+
+.yd-recent__date {
+  font-family: var(--yd-font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.78rem;
+  white-space: nowrap;
+  color: var(--yd-text-muted);
+}
+
+.yd-recent__label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.88rem;
+  color: var(--yd-text);
+}
+
+/* The category as a pill in its own colour, not as a select. A row of native
+   dropdowns is what made the transactions table read as a form. */
+.yd-recent__category {
+  padding: 1px 9px;
+  border-radius: var(--yd-radius-pill);
+  border: 1px solid var(--yd-border-strong);
+  font-size: 0.72rem;
+  font-weight: 600;
+  white-space: nowrap;
+  color: var(--yd-text-muted);
+}
+
+.yd-recent__amount {
+  font-size: 0.86rem;
+  font-weight: 600;
+  white-space: nowrap;
+  text-align: right;
+  color: var(--yd-text);
+}
+
+/* Money in is the only side that takes a colour: an outflow is the ordinary
+   case and colouring every one of them green-and-red turns the list into a
+   traffic light. */
+.yd-recent__amount--in {
+  color: var(--yd-positive);
+}
+
+/* Below 640 the category pill and the amount move to their own row rather than
+   squeezing the label to four characters. */
+@media (max-width: 639px) {
+  .yd-recent__row {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .yd-recent__category {
+    grid-column: 1;
+    justify-self: start;
+  }
+
+  .yd-recent__amount {
+    grid-column: 2;
+  }
+}
+
+/* The way out of a dashboard panel, in its head. Same shape as the page head's
+   own link. */
+.yd-overview__panel-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--yd-accent);
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.yd-overview__panel-link .yd-icon {
+  font-size: 0.85em;
+  transition: transform var(--yd-motion-base) var(--yd-ease);
+}
+
+.yd-overview__panel-link:hover {
+  text-decoration: underline;
+}
+
+.yd-overview__panel-link:hover .yd-icon {
+  transform: translateX(2px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .yd-overview__panel-link .yd-icon {
+    transition: none;
+  }
+  .yd-overview__panel-link:hover .yd-icon {
+    transform: none;
+  }
+}

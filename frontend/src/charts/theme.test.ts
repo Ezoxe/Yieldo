@@ -38,9 +38,17 @@ describe("echarts theme", () => {
     expect(new Set(seriesColors("light")).size).toBe(seriesColors("light").length);
   });
 
-  it("draws gridlines as solid hairlines, never dashed (dataviz anti-pattern)", () => {
+  // The rule this used to pin was "never dashed", against a grid reading as a
+  // projection or a threshold. What actually causes that is WEIGHT: a heavy
+  // dash looks drawn on purpose. A 3-3 dash at the border colour and 1px reads
+  // as graph paper. The assertion moves to the property that carries the
+  // danger — the grid must stay a hairline in the faintest colour the theme
+  // has, whatever its dash pattern.
+  it("draws gridlines as the faintest hairline the theme has", () => {
     const theme = buildEchartsTheme("dark");
-    expect(theme.valueAxis.splitLine.lineStyle.type).toBe("solid");
+    expect(theme.valueAxis.splitLine.lineStyle.width).toBe(1);
+    expect(theme.valueAxis.splitLine.lineStyle.color).toBe(chartTokens("dark").border);
+    expect(theme.valueAxis.splitLine.lineStyle.type).toEqual([3, 3]);
   });
 
   it("uses the muted text token for axis labels in both themes", () => {

@@ -197,16 +197,22 @@
 
   /* A neutral off-white, deep enough that a white card is visibly raised off
      it. The cards are the figure; this is the ground, and the two have to
-     differ. */
-  --yd-bg: #f1f1f4;
+     differ — at #f1f1f4 the two sat 1.13:1 apart and the screen read as one
+     white sheet with hairlines drawn on it.
+
+     This is as deep as the ground can go: every text and status token is
+     measured against it at 4.5:1, and `--yd-positive` (the tightest of them)
+     comes out at 4.61:1 here. Darkening it further starts failing
+     `design/contrast.test.ts`, which is the right thing for it to do. */
+  --yd-bg: #eaebf0;
   --yd-surface: rgba(255, 255, 255, 0.72);
   --yd-surface-strong: #ffffff;
   --yd-surface-raised: rgba(255, 255, 255, 0.92);
 
   /* Ink-tinted rather than white-tinted: a white hairline on a white card is
      nothing at all. */
-  --yd-border: rgba(9, 9, 16, 0.08);
-  --yd-border-strong: rgba(9, 9, 16, 0.15);
+  --yd-border: rgba(9, 9, 16, 0.1);
+  --yd-border-strong: rgba(9, 9, 16, 0.18);
 
   /* Same job as the dark theme's, measured against the light theme's own
      surfaces: 4.33:1 over a white card, 3.84:1 over the deepest exposed
@@ -232,9 +238,13 @@
      pairing stated. */
   --yd-negative-text: #be123c;
 
-  --yd-shadow: 0 1px 2px rgba(9, 9, 16, 0.06), 0 8px 24px rgba(9, 9, 16, 0.08);
-  --yd-shadow-raised: 0 1px 2px rgba(9, 9, 16, 0.08), 0 16px 40px rgba(9, 9, 16, 0.12);
-  --yd-shadow-pop: 0 24px 60px rgba(9, 9, 16, 0.18);
+  /* Two shadows per level, and the near one is what does the work: a single
+     wide soft shadow on a near-white ground is invisible, and the card looks
+     drawn rather than placed. The 1px contact shadow gives it an edge, the
+     wide one gives it height. */
+  --yd-shadow: 0 1px 2px rgba(9, 9, 16, 0.08), 0 4px 10px rgba(9, 9, 16, 0.06);
+  --yd-shadow-raised: 0 2px 4px rgba(9, 9, 16, 0.1), 0 12px 28px rgba(9, 9, 16, 0.12);
+  --yd-shadow-pop: 0 8px 16px rgba(9, 9, 16, 0.1), 0 24px 60px rgba(9, 9, 16, 0.18);
 
   /* The light theme's cards are white already, so the veil darkens the bottom
      instead of lightening the top — same purpose, opposite direction. */
@@ -261,7 +271,7 @@
      effect. */
   --yd-scrim: rgba(24, 24, 29, 0.32);
 
-  --yd-bg-gradient: linear-gradient(155deg, #eeeef2 0%, #f3f3f6 46%, #e9e9ee 100%);
+  --yd-bg-gradient: linear-gradient(155deg, #e7e8ee 0%, #ecedf2 46%, #e3e4eb 100%);
   --yd-blob-a: rgba(79, 70, 229, 0.5);
   --yd-blob-b: rgba(13, 148, 136, 0.4);
   --yd-blob-c: rgba(4, 120, 87, 0.4);

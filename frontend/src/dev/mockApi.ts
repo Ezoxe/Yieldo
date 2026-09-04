@@ -610,6 +610,40 @@ const ROUTES: Record<string, (params: Params) => unknown> = {
     months_saved: 1,
   }),
   "/api/goals": goalsPayload,
+  "/api/engagement": () => ({
+    streak: {
+      current: 7,
+      longest: 9,
+      last_complete_month: "2026-08",
+      months: MONTHS.map((key, index) => ({
+        key,
+        covered: index > 1,
+        transaction_count: index > 1 ? 27 : 0,
+        imported: index > 0,
+      })),
+      broken_reason: null,
+    },
+    goals: goalsPayload().goals,
+    health: {
+      score: 32,
+      components: [
+        { key: "savings_rate", label: "Taux d'épargne", weight: 30, score: 12, measured_value: -0.075, unavailable_reason: null, delta_score: -4 },
+        { key: "runway", label: "Autonomie", weight: 25, score: 38, measured_value: 2.2, unavailable_reason: null, delta_score: 2 },
+        { key: "essentials", label: "Part des dépenses essentielles", weight: 25, score: 46, measured_value: 0.61, unavailable_reason: null, delta_score: 0 },
+        { key: "budget", label: "Respect des budgets", weight: 20, score: null, measured_value: null, unavailable_reason: "Moins de trois mois de budgets définis.", delta_score: null },
+      ],
+      unavailable_reason: null,
+      previous_taken_on: "2026-08-28",
+      score_delta: -3,
+      history: [
+        { taken_on: "2026-06-30", taken: 0, score: 41 },
+        { taken_on: "2026-07-31", score: 38 },
+        { taken_on: "2026-08-28", score: 35 },
+        { taken_on: TODAY, score: 32 },
+      ].map(({ taken_on, score }) => ({ taken_on, score })),
+    },
+    challenges: [],
+  }),
 };
 
 /**

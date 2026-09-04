@@ -743,3 +743,82 @@
 .yd-skeleton--suivi-card {
   height: 220px;
 }
+
+/* -- The health score's ring ----------------------------------------------- */
+
+/* The gauge, its reading in the middle, and the band word under it. See
+   features/engagement/ScoreGauge.tsx for why a bare numeral was not enough. */
+.yd-gauge {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--yd-space-2xs);
+  align-self: flex-start;
+}
+
+.yd-gauge__ring {
+  display: block;
+}
+
+/* The unfilled part of the arc: present, so the reader can see how much of the
+   scale is left, and quiet, so it never competes with the filled part. */
+.yd-gauge__track {
+  stroke: color-mix(in srgb, var(--yd-text) 12%, transparent);
+}
+
+/* The filled arc grows into place on mount, and animates between two scores
+   when the period changes. `stroke-dasharray` is the only property that can
+   carry it — a width or a transform would move the ring, not fill it. */
+.yd-gauge__fill {
+  transition: stroke-dasharray var(--yd-motion-slow) var(--yd-ease);
+}
+
+/* Centred in the ring's own opening. Absolute, so the numeral's size cannot
+   push the ring around. */
+.yd-gauge__reading {
+  position: absolute;
+  top: 46%;
+  left: 50%;
+  translate: -50% -50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  pointer-events: none;
+}
+
+.yd-gauge__score {
+  margin: 0;
+  font-size: 2.4rem;
+  line-height: 1;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  color: var(--yd-text);
+}
+
+.yd-gauge__scale {
+  margin: 0;
+  font-size: 0.7rem;
+  color: var(--yd-text-muted);
+}
+
+/* The word, in the band's own colour — and never the only carrier of it: the
+   word IS the reading, the colour only repeats it (WCAG 1.4.1). */
+.yd-gauge__band {
+  margin: 0;
+  font-size: 0.82rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .yd-gauge__fill {
+    transition: none;
+  }
+}
+
+:root[data-motion="off"] .yd-gauge__fill {
+  transition: none;
+}

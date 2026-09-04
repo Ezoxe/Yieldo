@@ -1,11 +1,21 @@
+/* A column, not a positioned canvas: the toolbar is a row ABOVE the plot now,
+   not a button floating over it.
+
+   It used to be `position: absolute; top: 0; right: 0`, which put an opaque
+   button on top of whatever the chart happened to draw in its own top-right
+   corner. Measured at 1440 on the dashboard: it clipped the cash-flow legend
+   to "Solde ne", and sat across the last bar of the waterfall. Every chart in
+   the app paid for one button's placement. */
 .yd-chart {
-  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--yd-space-2xs);
 }
 
 .yd-chart__toolbar {
-  position: absolute;
-  top: 0;
-  right: 0;
+  position: relative;
+  align-self: flex-end;
   z-index: 3;
 }
 

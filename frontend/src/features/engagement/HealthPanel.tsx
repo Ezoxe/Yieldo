@@ -3,6 +3,7 @@ import { frenchDate } from "../../design/EmptyState";
 import { formatRateBps } from "../../design/theme";
 import { plural } from "../../lib/plural";
 import type { Health, HealthComponent } from "../../lib/types";
+import { ScoreGauge } from "./ScoreGauge";
 
 /** U+00A0, the same non-breaking space `formatCents` and `formatRateBps` set
  *  before their unit. "0,0" and "mois" must not fall onto two lines. Written as
@@ -123,6 +124,8 @@ export function HealthScoreSummary({ health }: { health: Health }) {
     <div className="yd-health">
       <div className="yd-health__figure">
         {health.score === null ? (
+          // An empty ring and a ring at zero are two different claims, so an
+          // unmeasurable score is not drawn as a gauge at all.
           <p
             className="yd-health__score yd-health__score--absent"
             data-testid="yd-health-score"
@@ -130,12 +133,7 @@ export function HealthScoreSummary({ health }: { health: Health }) {
             Non calculable
           </p>
         ) : (
-          <>
-            <p className="yd-health__score" data-testid="yd-health-score">
-              {health.score}
-            </p>
-            <p className="yd-health__scale">sur 100</p>
-          </>
+          <ScoreGauge score={health.score} />
         )}
       </div>
 

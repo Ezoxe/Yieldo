@@ -1,9 +1,10 @@
 import type { EChartsOption } from "echarts";
+import { useTheme } from "../app/ThemeProvider";
 
 import { formatCents } from "../design/theme";
 import type { Category, CategoryBreakdown } from "../lib/types";
 import { Chart, type ChartExportRow } from "./Chart";
-import { CHART_LABEL_INK, CHART_LABEL_PAPER, seriesColors } from "./theme";
+import { CHART_LABEL_INK, CHART_LABEL_PAPER, chartTokens, neutralFill, seriesColors } from "./theme";
 
 export interface CategoryTreemapNode {
   id: string;
@@ -51,7 +52,11 @@ export function buildCategoryTreemapItems(
       groups.set("uncategorized", {
         id: "uncategorized",
         name: row.name,
-        color: row.color || fallbackColor(index, resolved),
+        // Never the payload's colour and never a slot from the identity ramp:
+        // on an untidied ledger this is routinely the biggest tile, and an
+        // identity hue makes "unknown" read as the household's largest
+        // spending category. See `neutralFill`.
+        color: neutralFill(resolved),
         leaves: [{ row, category: undefined }],
       });
       return;
@@ -174,10 +179,13 @@ interface CategoryTreemapProps {
 }
 
 export function CategoryTreemap({ items }: CategoryTreemapProps) {
+  const { resolved } = useTheme();
+
   if (items.length === 0) {
     return <p className="yd-chart-empty">Aucune dépense enregistrée sur cette période.</p>;
   }
 
+  const tokens = chartTokens(resolved);
   const total = items.reduce((sum, item) => sum + item.valueCents, 0) || 1;
 
   const option: EChartsOption = {
@@ -192,7 +200,26 @@ export function CategoryTreemap({ items }: CategoryTreemapProps) {
         type: "treemap",
         roam: false,
         nodeClick: "zoomToNode",
-        breadcrumb: { show: true },
+        // The tiles stop short of the bottom edge so the breadcrumb has room
+        // INSIDE the canvas. Left at its default it renders at the very bottom
+        // of the chart box, which put a dark pill half outside the card —
+        // visible at 1440 on the dashboard, on both themes.
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 28,
+        breadcrumb: {
+          show: true,
+          bottom: 0,
+          height: 22,
+          emptyItemWidth: 20,
+          itemStyle: {
+            color: tokens.surfaceStrong,
+            borderColor: tokens.border,
+            borderWidth: 1,
+            textStyle: { color: tokens.muted },
+          },
+        },
         itemStyle: { borderColor: "transparent", gapWidth: 2 },
         // Labels crowd out below ~4% of the total area -- let the legend,
         // tooltip and CSV export carry the rest instead of clipping text.

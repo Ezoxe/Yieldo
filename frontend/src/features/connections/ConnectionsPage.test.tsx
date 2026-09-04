@@ -267,7 +267,30 @@ describe("ConnectionsPage — the model", () => {
       endpoint_url: "http://localhost:11434/v1",
       model_name: "qwen2.5:14b",
       api_key: null,
+      // Prefilled from the stored settings and sent back unchanged: editing
+      // the model name must not quietly return a raised ceiling to default.
+      timeout_seconds: 120,
     });
+  });
+
+  it("sends an emptied timeout as null so the stored one survives too", async () => {
+    // Same contract as the key one field along. An empty box means "leave it
+    // alone", never "no ceiling" — and there is always a ceiling.
+    mockApi({ llm: LLM_LOCAL });
+    const user = userEvent.setup();
+    renderPage();
+
+    await user.clear(await screen.findByLabelText("Délai d'attente (secondes)"));
+    await user.click(screen.getByRole("button", { name: /Enregistrer le modèle/ }));
+
+    await waitFor(() => expect(putted).toHaveLength(1));
+    expect(putted[0].body).toMatchObject({ timeout_seconds: null });
+  });
+
+  it("prefills the timeout that will actually apply", async () => {
+    mockApi({ llm: LLM_LOCAL });
+    renderPage();
+    expect(await screen.findByLabelText("Délai d'attente (secondes)")).toHaveValue(120);
   });
 
   it("prefills the endpoint and model but never a key", async () => {

@@ -902,11 +902,17 @@ LLM_PREVIOUS = "035256084eae"
 
 def test_the_llm_settings_migration_matches_base_metadata_exactly(migration_db):
     """Same independent-source-of-truth comparison as the migrations above:
-    the hand-written DDL in `5458e8e862b1_*.py` must agree, column for column
-    and index for index, with what `Base.metadata.create_all` derives
-    straight from `models/llm_settings.py`."""
+    the hand-written DDL must agree, column for column and index for index,
+    with what `Base.metadata.create_all` derives straight from
+    `models/llm_settings.py`.
+
+    Upgraded to `head`, not to `LLM_REVISION`: this table is now built by two
+    migrations (`b7d3f0a91c48` adds `timeout_seconds`), and the claim worth
+    testing is that the FINISHED chain agrees with the model — stopping
+    halfway would only ever assert that a later column had not been added
+    yet, and would need editing for every future one."""
     command.upgrade(migration_db.config, LLM_PREVIOUS)
-    command.upgrade(migration_db.config, LLM_REVISION)
+    command.upgrade(migration_db.config, "head")
 
     conn = _connect(migration_db)
     migrated_columns = _table_columns(conn, "llm_settings")
@@ -1287,15 +1293,56 @@ def test_the_agent_keys_migration_matches_base_metadata_exactly(migration_db):
     assert migrated_indexes == reference_indexes
 
 
-def test_the_agent_keys_migration_is_the_single_head(migration_db):
+def test_the_agent_keys_migration_is_on_the_path(migration_db):
+    """It is no longer the head — `test_the_llm_timeout_migration_is_the_single_head`
+    owns that assertion now — but it must still be reachable from it."""
+    from alembic.script import ScriptDirectory
+
+    script = ScriptDirectory.from_config(migration_db.config)
+    revisions = {rev.revision for rev in script.walk_revisions()}
+    assert AGENT_REVISION in revisions
+
+
+LLM_TIMEOUT_REVISION = "b7d3f0a91c48"
+
+
+def test_the_llm_timeout_migration_is_the_single_head(migration_db):
     """`heads` and `head` must be the same single revision — two heads is a
     database Alembic cannot upgrade without a merge, and nothing else in this
-    suite would notice."""
+    suite would notice. This assertion moves to the newest migration each time
+    one is added."""
     from alembic.script import ScriptDirectory
 
     script = ScriptDirectory.from_config(migration_db.config)
     assert len(script.get_heads()) == 1
-    assert script.get_current_head() == AGENT_REVISION
+    assert script.get_current_head() == LLM_TIMEOUT_REVISION
+
+
+def test_the_llm_timeout_migration_leaves_an_existing_model_on_the_default(migration_db):
+    """No backfill, on purpose: NULL means "never chose" and must keep
+    following the application's default, while a stated number must survive a
+    change to that default. Writing today's value into every row would erase
+    the difference."""
+    command.upgrade(migration_db.config, AGENT_REVISION)
+    conn = _connect(migration_db)
+    conn.execute(
+        "INSERT INTO users (email, name, password_hash, role, is_active, created_at)"
+        " VALUES ('max@example.com', 'Max', 'x', 'admin', 1, '2026-01-01T00:00:00+00:00')"
+    )
+    conn.execute(
+        "INSERT INTO llm_settings (user_id, endpoint_url, model_name, created_at, updated_at)"
+        " VALUES (1, 'http://localhost:11434/v1', 'llama3',"
+        " '2026-01-01T00:00:00+00:00', '2026-01-01T00:00:00+00:00')"
+    )
+    conn.commit()
+    conn.close()
+
+    command.upgrade(migration_db.config, LLM_TIMEOUT_REVISION)
+
+    conn = _connect(migration_db)
+    stored = conn.execute("SELECT timeout_seconds FROM llm_settings").fetchall()
+    conn.close()
+    assert stored == [(None,)]
 
 
 def test_the_agent_keys_migration_adds_no_key_to_an_existing_household(migration_db):

@@ -37,6 +37,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app.api.chat import _build_context, _compute_answer
+from app.config import settings
 from app.db import get_db
 from app.llm.client import (
     LlmError,
@@ -63,14 +64,24 @@ def _fetch_settings(db: Session, user_id: int) -> LlmSettings | None:
     return db.query(LlmSettings).filter(LlmSettings.user_id == user_id).first()
 
 
+def _effective_timeout(row: LlmSettings | None) -> int:
+    """The ceiling that will actually apply: the household's own, or the
+    application's default when it never stated one."""
+    if row is None or row.timeout_seconds is None:
+        return settings.llm_timeout_seconds
+    return row.timeout_seconds
+
+
 def _settings_out(row: LlmSettings | None) -> LlmSettingsOut:
     if row is None:
         return LlmSettingsOut(
-            configured=False, endpoint_url=None, model_name=None, has_key=False
+            configured=False, endpoint_url=None, model_name=None, has_key=False,
+            timeout_seconds=_effective_timeout(None),
         )
     return LlmSettingsOut(
         configured=True, endpoint_url=row.endpoint_url, model_name=row.model_name,
         has_key=row.api_key_encrypted is not None,
+        timeout_seconds=_effective_timeout(row),
     )
 
 
@@ -92,6 +103,10 @@ def set_llm_settings(
         row = LlmSettings(
             user_id=user.id, endpoint_url=payload.endpoint_url,
             model_name=payload.model_name, api_key_encrypted=ciphertext,
+            # None on a first save means "I did not choose", which keeps
+            # following the application's default rather than freezing today's
+            # value into the row.
+            timeout_seconds=payload.timeout_seconds,
         )
         db.add(row)
     else:
@@ -103,6 +118,11 @@ def set_llm_settings(
         # by omission.
         if payload.api_key is not None:
             row.api_key_encrypted = ciphertext
+        # Same rule as the key above: omitted means untouched. A household
+        # that raised the ceiling to 120 and later corrects a typo in the
+        # model name must not silently fall back to the default.
+        if payload.timeout_seconds is not None:
+            row.timeout_seconds = payload.timeout_seconds
     db.commit()
     db.refresh(row)
     return _settings_out(row)
@@ -116,7 +136,10 @@ def delete_llm_settings(
     if row is not None:
         db.delete(row)
         db.commit()
-    return LlmSettingsOut(configured=False, endpoint_url=None, model_name=None, has_key=False)
+    # The one shape, built in one place: an "absent" response assembled by
+    # hand here drifted from `_settings_out(None)` the moment a field was
+    # added to it.
+    return _settings_out(None)
 
 
 def _comment(
@@ -133,7 +156,9 @@ def _comment(
     )
     prompt = build_commentary_prompt(query_description, answer_text, amount_cents)
     try:
-        commentary = request_commentary(settings, prompt)
+        commentary = request_commentary(
+            settings, prompt, timeout=_effective_timeout(settings_row)
+        )
     except LlmError as exc:
         return None, exc.message
     return commentary, None

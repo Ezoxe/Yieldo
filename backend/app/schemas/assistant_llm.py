@@ -10,6 +10,11 @@ REQUEST schema: it is never returned in a response body.
 
 from pydantic import BaseModel, Field
 
+#: Bounds on the model's answer time, in seconds. Below five nothing local
+#: replies; past ten minutes the household has stopped waiting.
+MIN_TIMEOUT_SECONDS = 5
+MAX_TIMEOUT_SECONDS = 600
+
 from app.schemas.chat import ChatAnswerOut
 
 
@@ -22,6 +27,16 @@ class LlmSettingsIn(BaseModel):
     # key is `DELETE /api/assistant/llm-settings`'s job, an explicit action
     # rather than a side effect of an empty form field.
     api_key: str | None = None
+    # Seconds. None (or omitted) leaves whatever is stored untouched — the
+    # same "omission changes nothing" contract `api_key` above keeps, so an
+    # edit to the URL alone does not silently reset a deliberate timeout.
+    #
+    # The bounds are refused, never clamped: a household that types 900 must
+    # be told 900 was not accepted rather than discovering later that 600 was
+    # stored. Five seconds is below anything that answers; ten minutes is past
+    # any commentary a household is willing to wait for.
+    timeout_seconds: int | None = Field(default=None, ge=MIN_TIMEOUT_SECONDS,
+                                        le=MAX_TIMEOUT_SECONDS)
 
 
 class LlmSettingsOut(BaseModel):
@@ -29,6 +44,10 @@ class LlmSettingsOut(BaseModel):
     endpoint_url: str | None
     model_name: str | None
     has_key: bool
+    #: The timeout that WILL be applied — the stored one, or the application's
+    #: default when nothing was stored. Never null: a screen showing the field
+    #: empty would suggest there is no ceiling, and there always is one.
+    timeout_seconds: int
 
 
 class AssistantLlmQueryIn(BaseModel):

@@ -18,6 +18,18 @@ class Settings(BaseSettings):
     # key pasted into a third-party agent and forgotten stops mattering, and long
     # enough that a working session is not interrupted by a rotation.
     agent_key_hours: int = 24
+    # How long the optional language model is given to answer before the
+    # commentary is abandoned and the deterministic figure stands alone. The
+    # DEFAULT for a household that never stated one; a slow local reasoner is
+    # configured per account in Réglages → Connexions rather than here, so one
+    # household's choice of model does not set every household's ceiling.
+    #
+    # Thirty seconds was the hardcoded value, and it was measured too low: a
+    # small local reasoning model (gemma-4-E2B-it-qat, llama.cpp on a LAN box)
+    # spent 1 149 characters thinking before 230 of answer and returned at
+    # 34,7 s — a working model that degraded to "a répondu trop tard" every
+    # single time, with no way to say so short of editing this file.
+    llm_timeout_seconds: int = 60
     registration_open: bool = True
     cors_origins: list[str] = ["http://localhost:5173"]
     version: str = "0.1.0"

@@ -10,6 +10,7 @@ from datetime import date
 
 import httpx
 
+from app.config import settings
 from app.models import Account, Transaction, User
 
 ENDPOINT_URL = "http://localhost:11434/v1"
@@ -91,6 +92,7 @@ def test_reading_settings_with_nothing_configured_says_so(client):
     body = client.get("/api/assistant/llm-settings", headers=headers).json()
     assert body == {
         "configured": False, "endpoint_url": None, "model_name": None, "has_key": False,
+        "timeout_seconds": settings.llm_timeout_seconds,
     }
 
 
@@ -308,3 +310,72 @@ def test_llm_settings_never_cross_users(client, monkeypatch, db):
     assert mine_body["commentary"] is None
     assert "Aucun modèle n'est configuré" in mine_body["degraded_reason"]
     assert mine_body["engine_answer"]["amount_cents"] == -12_000
+
+
+# --------------------------------------------------------------------------
+# The timeout is a setting, because a local reasoning model is slow.
+# --------------------------------------------------------------------------
+
+
+def test_a_model_without_a_stated_timeout_uses_the_configured_default(client):
+    """An operator who never touched the field gets the application's own
+    default, not a null the client would have to guess about."""
+    headers = _register(client)
+    body = client.put("/api/assistant/llm-settings", headers=headers, json={
+        "endpoint_url": "http://192.168.1.15:8080/v1", "model_name": "gemma"}).json()
+    assert body["timeout_seconds"] == settings.llm_timeout_seconds
+
+
+def test_a_stated_timeout_is_stored_and_read_back(client):
+    """The whole point: a household running a local reasoning model that
+    thinks for thirty-five seconds can say so, without editing a .env and
+    restarting the server."""
+    headers = _register(client)
+    saved = client.put("/api/assistant/llm-settings", headers=headers, json={
+        "endpoint_url": "http://192.168.1.15:8080/v1", "model_name": "gemma",
+        "timeout_seconds": 120}).json()
+    assert saved["timeout_seconds"] == 120
+    assert client.get("/api/assistant/llm-settings", headers=headers).json()[
+        "timeout_seconds"] == 120
+
+
+def test_the_timeout_survives_an_edit_that_does_not_mention_it(client):
+    """Same contract `api_key` already keeps: an omitted field is untouched,
+    never wiped by omission."""
+    headers = _register(client)
+    client.put("/api/assistant/llm-settings", headers=headers, json={
+        "endpoint_url": "http://192.168.1.15:8080/v1", "model_name": "gemma",
+        "timeout_seconds": 120})
+    edited = client.put("/api/assistant/llm-settings", headers=headers, json={
+        "endpoint_url": "http://192.168.1.15:8080/v1", "model_name": "gemma-2"}).json()
+    assert edited["timeout_seconds"] == 120
+
+
+def test_an_impossible_timeout_is_refused_rather_than_clamped(client):
+    """Silently clamping would tell an operator their number was accepted
+    when it was not — the fallback-value defect CLAUDE.md forbids."""
+    headers = _register(client)
+    for bad in (0, 4, 601):
+        response = client.put("/api/assistant/llm-settings", headers=headers, json={
+            "endpoint_url": "http://x/v1", "model_name": "m", "timeout_seconds": bad})
+        assert response.status_code == 422, bad
+
+
+def test_the_stored_timeout_is_the_one_the_call_is_given(client, db, monkeypatch):
+    """A setting nothing reads is decoration. This proves the number the
+    operator typed reaches `request_commentary`'s own `timeout` argument."""
+    headers = _register(client)
+    client.put("/api/assistant/llm-settings", headers=headers, json={
+        "endpoint_url": "http://192.168.1.15:8080/v1", "model_name": "gemma",
+        "timeout_seconds": 90})
+
+    seen: dict[str, float] = {}
+
+    def _capture(settings_input, prompt, *, timeout, transport=None):
+        seen["timeout"] = timeout
+        return "Commentaire."
+
+    monkeypatch.setattr("app.api.assistant_llm.request_commentary", _capture)
+    client.post("/api/assistant/llm", headers=headers,
+                json={"text": "Combien j'ai dépensé en mars 2026 ?"})
+    assert seen["timeout"] == 90

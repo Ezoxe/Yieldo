@@ -49,7 +49,13 @@ from enum import StrEnum
 
 import httpx
 
-DEFAULT_TIMEOUT_SECONDS = 30.0
+from app.config import settings
+
+# The one number, sourced from `config` rather than written twice: this
+# module's default and the one `api/assistant_llm.py` applies to a household
+# that stated none must never be two different values. A household with a slow
+# local reasoner overrides it per account in Réglages → Connexions.
+DEFAULT_TIMEOUT_SECONDS: float = float(settings.llm_timeout_seconds)
 
 
 class LlmFailureCause(StrEnum):

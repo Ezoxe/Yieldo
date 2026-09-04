@@ -1413,6 +1413,12 @@ export interface LlmSettings {
   endpoint_url: string | null;
   model_name: string | null;
   has_key: boolean;
+  /** Seconds the model is given to answer before the commentary is abandoned
+   *  and the figure stands alone. Never null on the way out: it is the ceiling
+   *  that WILL apply — the household's own, or the application's default when
+   *  none was stated. Sending `null` on the way in leaves the stored one
+   *  untouched, exactly like `api_key`. */
+  timeout_seconds: number;
 }
 
 /** A price actually resolved for a position, in the INSTRUMENT'S own currency.

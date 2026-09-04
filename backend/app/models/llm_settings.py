@@ -1,6 +1,6 @@
 from datetime import UTC, datetime
 
-from sqlalchemy import DateTime, ForeignKey, String, Text, UniqueConstraint
+from sqlalchemy import DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db import Base
@@ -42,6 +42,12 @@ class LlmSettings(Base):
     # provider that needs no key -- never plaintext, never logged, never
     # echoed in a response.
     api_key_encrypted: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Seconds this model is given to answer, or None to take
+    # `config.settings.llm_timeout_seconds`. Nullable rather than defaulted in
+    # the column, and the distinction is load-bearing: "I never chose" must
+    # keep following the application's default when that default moves, while
+    # "I chose 120 because my local reasoner is slow" must survive it.
+    timeout_seconds: Mapped[int | None] = mapped_column(Integer, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(UTC), nullable=False
     )

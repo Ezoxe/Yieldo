@@ -234,6 +234,7 @@ export function ConnectionsPage() {
   const [endpoint, setEndpoint] = useState("");
   const [model, setModel] = useState("");
   const [modelKey, setModelKey] = useState("");
+  const [timeout_, setTimeout_] = useState("");
   const [modelOutcome, setModelOutcome] = useState<Outcome | null>(null);
 
   useEffect(() => {
@@ -249,6 +250,7 @@ export function ConnectionsPage() {
         setLlm(loadedLlm);
         setEndpoint(loadedLlm.endpoint_url ?? "");
         setModel(loadedLlm.model_name ?? "");
+        setTimeout_(String(loadedLlm.timeout_seconds));
       } catch (err) {
         if (!cancelled) setError(messageFor(err));
       }
@@ -334,8 +336,14 @@ export function ConnectionsPage() {
         // An empty string would be a key of length zero, which is not what an
         // untouched box means.
         api_key: modelKey === "" ? null : modelKey,
+        // Same rule, one field along: an empty box means "leave it alone", not
+        // "no ceiling". The server refuses anything outside 5–600 s rather
+        // than clamping it, so a rejected number comes back as its own French
+        // message instead of being silently replaced.
+        timeout_seconds: timeout_.trim() === "" ? null : Number(timeout_),
       });
       setLlm(saved);
+      setTimeout_(String(saved.timeout_seconds));
       setModelKey("");
       setModelOutcome({
         ok: true,
@@ -494,6 +502,26 @@ export function ConnectionsPage() {
                   onChange={(event) => setModel(event.target.value)}
                 />
               </label>
+
+              <label className="yd-conn__field" htmlFor="yd-llm-timeout">
+                <span>Délai d'attente (secondes)</span>
+                <input
+                  id="yd-llm-timeout"
+                  type="number"
+                  inputMode="numeric"
+                  min={5}
+                  max={600}
+                  value={timeout_}
+                  autoComplete="off"
+                  onChange={(event) => setTimeout_(event.target.value)}
+                />
+              </label>
+              <p className="yd-conn__hint">
+                Entre 5 et 600. Un modèle local qui raisonne avant de répondre met souvent plus
+                de 30&nbsp;secondes&nbsp;: au-delà du délai, le chiffre s'affiche seul et
+                l'Assistant dit que le modèle a répondu trop tard. Il n'y a pas de seconde
+                tentative.
+              </p>
 
               <label className="yd-conn__field" htmlFor="yd-llm-key">
                 <span>{llm.has_key ? "Remplacer la clé (facultatif)" : "Clé (facultatif)"}</span>

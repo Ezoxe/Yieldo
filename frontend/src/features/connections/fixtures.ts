@@ -73,6 +73,9 @@ export const LLM_UNSET: LlmSettings = {
   endpoint_url: null,
   model_name: null,
   has_key: false,
+  // Le défaut de l'application : jamais null, parce qu'un plafond s'applique
+  // toujours, même quand personne n'en a choisi un.
+  timeout_seconds: 60,
 };
 
 export const LLM_LOCAL: LlmSettings = {
@@ -80,4 +83,7 @@ export const LLM_LOCAL: LlmSettings = {
   endpoint_url: "http://localhost:11434/v1",
   model_name: "llama3.1:8b",
   has_key: false,
+  // Relevé au-dessus du défaut : un modèle local qui raisonne avant de
+  // répondre dépasse régulièrement la minute.
+  timeout_seconds: 120,
 };

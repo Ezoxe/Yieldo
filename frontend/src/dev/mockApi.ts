@@ -11,6 +11,9 @@
  * and it is deliberately absent from the test setup.
  */
 
+import { CONNECTIONS as MARKET_CONNECTIONS, LLM_LOCAL } from "../features/connections/fixtures";
+import type { LlmSettings } from "../lib/types";
+
 const FLAG = "yd-apercu";
 
 export function shouldMockApi(): boolean {
@@ -611,6 +614,11 @@ const ROUTES: Record<string, (params: Params) => unknown> = {
   }),
   "/api/goals": goalsPayload,
   "/api/chat": () => [],
+  // Réglages → Connexions. Un modèle local configuré, avec un plafond relevé :
+  // c'est l'état intéressant à regarder, celui d'un foyer qui a un modèle qui
+  // raisonne et l'a dit.
+  "/api/connections": () => MARKET_CONNECTIONS,
+  "/api/assistant/llm-settings": () => MUTABLE_LLM,
   "/api/engagement": () => ({
     streak: {
       current: 7,
@@ -680,6 +688,11 @@ function jsonOk(body: unknown): Response {
     headers: { "Content-Type": "application/json" },
   });
 }
+
+// Les vraies formes, importées plutôt que réécrites : une CONNECTIONS
+// inventée ici a fait planter ProviderCard sur un `quota` null qui n'existe
+// dans aucune réponse du serveur.
+const MUTABLE_LLM: LlmSettings = { ...LLM_LOCAL, endpoint_url: "http://192.168.1.15:8080/v1", model_name: "gemma-4-E2B-it-qat" };
 
 const WRITES: Record<string, (body: Record<string, unknown>) => Response> = {
   "POST /api/chat": (body) => {
@@ -767,6 +780,21 @@ const WRITES: Record<string, (body: Record<string, unknown>) => Response> = {
         steps: about.steps,
       },
     });
+  },
+  "PUT /api/assistant/llm-settings": (body) => {
+    const seconds = body.timeout_seconds;
+    if (typeof seconds === "number" && (seconds < 5 || seconds > 600)) {
+      return new Response(
+        JSON.stringify({ detail: "Le délai doit être compris entre 5 et 600 secondes." }),
+        { status: 422, headers: { "Content-Type": "application/json" } },
+      );
+    }
+    if (typeof body.endpoint_url === "string") MUTABLE_LLM.endpoint_url = body.endpoint_url;
+    if (typeof body.model_name === "string") MUTABLE_LLM.model_name = body.model_name;
+    // null veut dire « laissé tel quel », jamais « remis au défaut ».
+    if (typeof seconds === "number") MUTABLE_LLM.timeout_seconds = seconds;
+    MUTABLE_LLM.configured = true;
+    return jsonOk(MUTABLE_LLM);
   },
   "POST /api/access-key/rotate": () => {
     agentKey = mintAgentKey();

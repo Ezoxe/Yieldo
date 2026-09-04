@@ -29,7 +29,14 @@ class Settings(BaseSettings):
     # spent 1 149 characters thinking before 230 of answer and returned at
     # 34,7 s — a working model that degraded to "a répondu trop tard" every
     # single time, with no way to say so short of editing this file.
-    llm_timeout_seconds: int = 60
+    #
+    # Two minutes, not the 60 that measurement alone would justify: 34,7 s and
+    # 43,9 s were two runs of the SAME question on an idle box, and a longer
+    # question on a busy one costs more than the 16 s of headroom 60 left. The
+    # cost of a ceiling set too high is a wait the household can see coming;
+    # the cost of one set too low is a working model that silently never
+    # contributes.
+    llm_timeout_seconds: int = 120
     registration_open: bool = True
     cors_origins: list[str] = ["http://localhost:5173"]
     version: str = "0.1.0"

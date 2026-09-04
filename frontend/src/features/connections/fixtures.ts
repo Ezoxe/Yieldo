@@ -75,7 +75,7 @@ export const LLM_UNSET: LlmSettings = {
   has_key: false,
   // Le défaut de l'application : jamais null, parce qu'un plafond s'applique
   // toujours, même quand personne n'en a choisi un.
-  timeout_seconds: 60,
+  timeout_seconds: 120,
 };
 
 export const LLM_LOCAL: LlmSettings = {

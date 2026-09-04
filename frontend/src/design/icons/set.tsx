@@ -590,12 +590,20 @@ export function LockIcon(props: IconProps) {
   );
 }
 
-/** Appearance: theme, density, motion. */
+/**
+ * Appearance: theme, density, motion.
+ *
+ * Half-shaded, and the shading is HATCHING rather than a fill. Every icon in
+ * this set is pure stroke — a filled shape inside one reads as a different
+ * family of drawing, and next to nineteen wireframe glyphs it looks like a
+ * rendering fault. The three strokes say "half dark" without a fill.
+ */
 export function AppearanceIcon(props: IconProps) {
   return (
     <Icon {...props}>
       <circle cx="12" cy="12" r="9" />
-      <path d="M12 3a9 9 0 0 0 0 18z" fill="currentColor" stroke="none" opacity="0.55" />
+      <path d="M12 3v18" />
+      <path d="M7.6 6.6 4.2 10M8.6 15.4 4 20M6.4 10.9 3.4 13.9" />
     </Icon>
   );
 }

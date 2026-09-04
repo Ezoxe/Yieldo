@@ -66,10 +66,13 @@ else; `AISpotlightProvider` sets `data-ai-active` on the matching node.
 
 ## Shared UI primitives
 
-- Icons: `frontend/src/design/icons/`. One grid (24x24, 1.6px stroke,
+- Icons: `frontend/src/design/icons/`. One grid (24x24, 1.75px stroke,
   `currentColor`, Lucide geometry), named after MEANING (`AlertsIcon`, not
-  `BellIcon`). Never an emoji, never a second drawing of the same concept, and
-  never the only label on a control.
+  `BellIcon`). **Stroke only — no `fill`, ever**: one filled shape among twenty
+  wireframe glyphs reads as a rendering fault. Never an emoji, never a second
+  drawing of the same concept, and never the only label on a control. The badge
+  around an icon is a flat tint and a hairline, never a gradient — the glyph is
+  the drawing, the container is a ground for it.
 - `PageHead` (`design/PageHead.tsx`) is the head of every screen; `PanelHead`
   (`design/bento/PanelHead.tsx`) is the head of every bento panel. Both pair a
   tinted mark with real text — the mark is always `aria-hidden`.

@@ -118,11 +118,25 @@ export function Sparkline({
           {/* A vertical fade, not a flat wash: the same shape the ECharts
               plots below the hero put under their own lines (`areaFade` in
               charts/theme.ts). A single opaque colour under a curve reads as a
-              filled block, which is a different chart. */}
+              filled block, which is a different chart.
+
+              BOTH stops are the same colour, and only the opacity moves. The
+              second used to be `transparent`, which is `rgba(0, 0, 0, 0)` —
+              SVG interpolates the RGB channels as well as the alpha, so the
+              fill travelled from indigo to BLACK on its way down and came out
+              a dull grey wash. Fading within one hue is the whole fix. */}
           <defs>
             <linearGradient id={fillId} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0" style={{ stopColor: "var(--yd-sparkline-fill, transparent)" }} />
-              <stop offset="1" style={{ stopColor: "transparent" }} />
+              <stop
+                offset="0"
+                style={{ stopColor: "var(--yd-sparkline-line)" }}
+                stopOpacity={0.22}
+              />
+              <stop
+                offset="1"
+                style={{ stopColor: "var(--yd-sparkline-line)" }}
+                stopOpacity={0}
+              />
             </linearGradient>
           </defs>
           <polygon points={area} fill={`url(#${fillId})`} />

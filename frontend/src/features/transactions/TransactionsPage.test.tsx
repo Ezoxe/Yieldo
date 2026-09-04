@@ -188,6 +188,19 @@ describe("TransactionsPage — the grid", () => {
       "Montant",
     ]);
   });
+
+  // A statement is read day by day. The headings are real table structure —
+  // `<th scope="rowgroup">` — so a screen reader announces them as heading the
+  // rows beneath rather than as another column.
+  it("cuts the rows into days, and says how many each holds", async () => {
+    setupFetch();
+    renderPage();
+    await screen.findByText("CARREFOUR MARKET CB 01/03");
+
+    const headings = screen.getAllByRole("rowheader").map((th) => th.textContent);
+    expect(headings.length).toBeGreaterThan(0);
+    expect(headings[0]).toMatch(/^\d{2} \w+ \d{4} · \d+ OPÉRATIONS?$/);
+  });
 });
 
 describe("TransactionsPage", () => {

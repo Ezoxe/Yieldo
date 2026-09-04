@@ -5,8 +5,11 @@ import "./icons.css";
 /**
  * The app's single icon primitive.
  *
- * One grid for every icon in Yieldo: 24x24, 1.6px stroke, round caps and
- * joins, no fill, `currentColor`. That is the Lucide geometry, so any icon
+ * One grid for every icon in Yieldo: 24x24, 1.75px stroke, round caps and
+ * joins, NO FILL, `currentColor`. The no-fill part is not a stylistic
+ * preference: one filled shape among twenty wireframe glyphs reads as a
+ * rendering fault, which is exactly what happened when `AppearanceIcon`
+ * shipped with a half-disc in it. That is the Lucide geometry, so any icon
  * later borrowed from that set drops in without being redrawn — and nothing is
  * ever fetched, which is the same promise the rest of the app makes.
  *
@@ -32,7 +35,7 @@ export function Icon({
       height={size ?? undefined}
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.6"
+      strokeWidth="1.75"
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden="true"

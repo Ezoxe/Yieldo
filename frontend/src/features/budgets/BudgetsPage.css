@@ -558,3 +558,115 @@
     transition: none;
   }
 }
+
+/* -- The ring and the list it explains ------------------------------------- */
+
+/* The total sits in the hole. Absolutely placed and `pointer-events: none`, so
+   the ring's own tooltip still reaches the slice under the cursor. */
+.yd-donut {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.yd-donut__centre {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  translate: -50% -50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  pointer-events: none;
+  text-align: center;
+}
+
+.yd-donut__total {
+  font-size: clamp(1.15rem, 1.9vw, 1.5rem);
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  color: var(--yd-text);
+}
+
+.yd-donut__caption {
+  font-size: 0.68rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--yd-text-muted);
+}
+
+/* Four tracks: the mark, the name, the amount, the share. Sized by content
+   except the name, so the figures line up down the column however long a
+   category is called. */
+.yd-split {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.yd-split__row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: var(--yd-space-sm);
+  padding: var(--yd-space-xs) 0;
+}
+
+.yd-split__row + .yd-split__row {
+  border-top: 1px solid var(--yd-border);
+}
+
+/* The category's own colour, as a soft square with a wireframe glyph in it —
+   the same shape as every other mark in the app, tinted from the user's data
+   rather than from the palette. */
+.yd-split__mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.9rem;
+  height: 1.9rem;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--yd-pill, var(--yd-accent)) 20%, transparent);
+  background: color-mix(in srgb, var(--yd-pill, var(--yd-accent)) 12%, transparent);
+  color: var(--yd-pill, var(--yd-accent));
+  font-size: 0.95rem;
+}
+
+.yd-split__name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.88rem;
+  font-weight: 500;
+  color: var(--yd-text);
+}
+
+.yd-split__amount {
+  font-size: 0.86rem;
+  font-weight: 600;
+  white-space: nowrap;
+  color: var(--yd-text);
+}
+
+/* The share of what was SPENT, not of what was budgeted: a household that
+   overspends everywhere would otherwise see shares summing past 100 %. */
+.yd-split__share {
+  min-width: 3.5rem;
+  padding: 1px 8px;
+  border-radius: var(--yd-radius-pill);
+  border: 1px solid var(--yd-border-strong);
+  background: color-mix(in srgb, var(--yd-text) 5%, transparent);
+  color: var(--yd-text-muted);
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-align: center;
+  white-space: nowrap;
+}

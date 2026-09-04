@@ -52,7 +52,7 @@ const DARK_TOKENS: ChartTokens = {
 const LIGHT_TOKENS: ChartTokens = {
   text: "#18181d",
   muted: "#55555f",
-  border: "rgba(9, 9, 16, 0.1)",
+  border: "rgba(9, 9, 16, 0.075)",
   positive: "#047857",
   negative: "#be123c",
   warning: "#92400e",

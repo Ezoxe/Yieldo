@@ -1,5 +1,33 @@
+import type { CSSProperties } from "react";
+
 import { formatCents } from "../../design/theme";
 import type { Category, Transaction } from "../../lib/types";
+
+/**
+ * The letter that stands for a merchant, from the raw bank label.
+ *
+ * Bank labels lead with the instrument, not the merchant: "CB CARREFOUR
+ * MARKET", "PRLV SEPA NETFLIX", "VIR INSTANTANE EMIS POUR: X". Taking the
+ * first letter of the whole string would give every row on a statement the
+ * same three initials. The known prefixes are skipped, and what is left is the
+ * first word a person would call the thing.
+ *
+ * A letter and never a logo: a logo would have to be fetched, and this app's
+ * promise is that no request leaves the machine.
+ */
+const LABEL_PREFIXES = [
+  "cb", "prlv", "vir", "sepa", "retrait", "paiement", "carte", "achat",
+  "prelevement", "virement", "instantane", "emis", "permanent", "perm", "europeen",
+];
+
+export function merchantInitial(label: string): string {
+  const words = label
+    .replace(/[^\p{L}\p{N}\s]/gu, " ")
+    .split(/\s+/)
+    .filter(Boolean);
+  const first = words.find((word) => !LABEL_PREFIXES.includes(word.toLowerCase()));
+  return (first ?? words[0] ?? "?").charAt(0).toUpperCase();
+}
 
 // Mirrors TRANSACTION_CATEGORY_SOURCES in backend/app/models/transaction.py.
 const SOURCE_HINTS: Record<string, string> = {
@@ -42,21 +70,34 @@ export function TransactionRow({ transaction, categories, onRecategorize }: Tran
         {new Date(transaction.date).toLocaleDateString("fr-FR")}
       </td>
       <td role="cell" className="yd-transactions__cell yd-transactions__cell--label">
-        {/* label_raw, never label_clean: the user must recognize the line
-            exactly as it reads on their own bank statement. */}
-        <span>{transaction.label_raw}</span>
+        <span className="yd-transactions__merchant">
+          {/* The merchant's initial, on a quiet disc. It is a landmark, not
+              information: the label beside it is what the row actually says,
+              and the disc only makes twenty rows scannable by shape. */}
+          <span className="yd-transactions__avatar" aria-hidden="true">
+            {merchantInitial(transaction.label_raw)}
+          </span>
+          {/* label_raw, never label_clean: the user must recognize the line
+              exactly as it reads on their own bank statement. */}
+          <span className="yd-transactions__label">{transaction.label_raw}</span>
+        </span>
       </td>
       <td role="cell" className="yd-transactions__cell yd-transactions__cell--category">
         <label className="sr-only" htmlFor={`category-${transaction.id}`}>
           Catégorie
         </label>
         <div className="yd-transactions__category">
-          <span
-            aria-hidden="true"
-            className="yd-transactions__dot"
-            style={{ background: category?.color ?? "var(--yd-text-muted)" }}
-          />
           <select
+            // The pill's colour is the category's own, so it travels as a
+            // custom property rather than as a class: the palette comes from
+            // the user's data and no stylesheet could know it. The colour dot
+            // that used to sit beside this control is gone — the pill IS the
+            // colour now, and the two together were the same fact twice.
+            style={
+              {
+                "--yd-pill": category?.color ?? "var(--yd-text-muted)",
+              } as CSSProperties
+            }
             id={`category-${transaction.id}`}
             aria-label="Catégorie"
             value={transaction.category_id ?? ""}

@@ -1,11 +1,10 @@
 import { motion } from "motion/react";
-import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
+import { type CSSProperties, type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router";
 
 import { BentoCell, type BentoSpan } from "../../design/bento/BentoCell";
 import { BentoGrid } from "../../design/bento/BentoGrid";
 import { PanelHead } from "../../design/bento/PanelHead";
-import { CountUp } from "../../design/CountUp";
 import { EmptyState, historySentence } from "../../design/EmptyState";
 import { useReducedMotion } from "../../design/motion/useReducedMotion";
 import { entryProps, staggerProps } from "../../design/motion/variants";
@@ -14,11 +13,147 @@ import { formatCents, parseCents } from "../../design/theme";
 import { ApiError, api } from "../../lib/api";
 import { plural } from "../../lib/plural";
 import type { BudgetReport } from "../../lib/types";
-import { BudgetsIcon, CalendarIcon, ChevronIcon, ListIcon, PlusIcon } from "../../design/icons";
+import {
+  AlertsIcon,
+  BreakdownIcon,
+  BudgetsIcon,
+  CalendarIcon,
+  ChevronIcon,
+  CoinsIcon,
+  ListIcon,
+  PlusIcon,
+  RecurrencesIcon,
+  SavingsIcon,
+  StreakIcon,
+  TransactionsIcon,
+  type IconComponent,
+} from "../../design/icons";
 import { Swap } from "../../design/motion/Swap";
+import { SpendingDonut, type DonutSlice } from "../../charts/SpendingDonut";
 import { PageHead } from "../../design/PageHead";
 import { BudgetBar } from "./BudgetBar";
 import "./BudgetsPage.css";
+
+/**
+ * The month's spending by category, heaviest first, and its total.
+ *
+ * Two lists on the wire — the categories that have a ceiling and the ones that
+ * do not — and one picture: they are the same month's outflow, and a ring that
+ * showed only half of it would misstate every share it drew. Sorted here once,
+ * so the ring and the list beside it cannot disagree about the order.
+ */
+export function spendingPicture(report: BudgetReport): {
+  slices: DonutSlice[];
+  totalCents: number;
+} {
+  const slices: DonutSlice[] = [
+    ...report.lines.map((line) => ({
+      categoryId: line.category_id,
+      name: line.name,
+      amountCents: Math.abs(line.spent_cents),
+      color: line.color,
+    })),
+    ...report.unbudgeted.map((entry) => ({
+      categoryId: entry.category_id,
+      name: entry.name,
+      amountCents: Math.abs(entry.spent_cents),
+      color: entry.color,
+    })),
+  ]
+    // A category that cost nothing this month is not a slice of anything.
+    .filter((slice) => slice.amountCents > 0)
+    .sort((a, b) => b.amountCents - a.amountCents);
+
+  return {
+    slices,
+    totalCents: -slices.reduce((sum, slice) => sum + slice.amountCents, 0),
+  };
+}
+
+/**
+ * A thematic mark for a category, from its name.
+ *
+ * The budgets payload carries a colour but no icon (`BudgetLine` and
+ * `UnbudgetedCategory` both), and this screen does not fetch `/categories` —
+ * so the glyph is chosen from the name, by the same keyword table the panel
+ * titles use. Anything unmatched keeps the wallet: a wrong-but-confident icon
+ * on a category nobody anticipated is worse than the generic one.
+ */
+const CATEGORY_ICONS: [RegExp, IconComponent][] = [
+  [/logement|loyer|habitation|maison/i, BudgetsIcon],
+  [/aliment|course|marché|supermarch/i, CoinsIcon],
+  [/transport|voiture|essence|train/i, TransactionsIcon],
+  [/abonnement|streaming|internet|télé/i, RecurrencesIcon],
+  [/restaurant|bar|café/i, CoinsIcon],
+  [/santé|pharmacie|médecin/i, AlertsIcon],
+  [/loisir|sport|culture|voyage/i, StreakIcon],
+  [/épargne|placement|investis/i, SavingsIcon],
+];
+
+export function categoryIcon(name: string): IconComponent {
+  return CATEGORY_ICONS.find(([pattern]) => pattern.test(name))?.[1] ?? BudgetsIcon;
+}
+
+/**
+ * The list the ring explains: one row per category, heaviest first, each with
+ * its share of the month.
+ *
+ * The share is of what was SPENT, not of what was budgeted: a household that
+ * overspends everywhere would otherwise see shares summing past 100 %, which
+ * is a different claim and a confusing one.
+ */
+function SpendingList({ slices, totalCents }: { slices: DonutSlice[]; totalCents: number }) {
+  const total = Math.abs(totalCents);
+  if (slices.length === 0) {
+    return (
+      <p className="yd-budgets__caption">Aucune dépense enregistrée sur ce mois.</p>
+    );
+  }
+
+  return (
+    <ul className="yd-split">
+      {slices.map((slice) => {
+        const share = total === 0 ? 0 : Math.round((slice.amountCents / total) * 100);
+        return (
+          <li key={slice.categoryId ?? "uncategorized"} className="yd-split__row">
+            <span
+              className="yd-split__mark"
+              aria-hidden="true"
+              style={{ "--yd-pill": slice.color ?? "var(--yd-text-muted)" } as CSSProperties}
+            >
+              {(() => {
+                const Glyph = categoryIcon(slice.name);
+                return <Glyph />;
+              })()}
+            </span>
+            <span className="yd-split__name">{slice.name}</span>
+            <span className="yd-split__amount yd-num">{formatCents(-slice.amountCents)}</span>
+            <span className="yd-split__share yd-num">{`${share} %`}</span>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+/**
+ * What the month amounts to, in one line under the panel's title.
+ *
+ * The two counts are the whole verdict — how many ceilings were passed and how
+ * many are about to be — and they used to sit in a summary panel of their own
+ * above the grid. Beside the list of categories they qualify, they are read
+ * with the thing they are about.
+ */
+export function verdictSentence(over: number, atRisk: number, budgetedCents: number): string {
+  const budget = `${formatCents(budgetedCents)} budgétés`;
+  if (over === 0 && atRisk === 0) return `${budget} · aucun dépassement`;
+  const parts: string[] = [];
+  if (over > 0) parts.push(`${over} ${plural(over, "budget dépassé", "budgets dépassés")}`);
+  if (atRisk > 0) {
+    parts.push(`${atRisk} ${plural(atRisk, "en passe de l'être", "en passe de l'être")}`);
+  }
+  return `${budget} · ${parts.join(", ")}`;
+}
 
 const GENERIC_ERROR = "Une erreur inattendue est survenue.";
 
@@ -64,7 +199,11 @@ export function shiftMonth(key: string, offset: number): string {
  * column is the way to add more of them.
  */
 const SPAN = {
-  summary: { base: 1, md: 6, lg: 12 },
+  // The ring and the list it explains, side by side from 1200px. A ring with
+  // nothing beside it is a shape; a list with no ring is a table. Together
+  // they answer "how much, and where" in one glance.
+  donut: { base: 1, md: 6, lg: 5 },
+  split: { base: 1, md: 6, lg: 7 },
   lines: { base: 1, md: 6, lg: 7 },
   unbudgeted: { base: 1, md: 6, lg: 5 },
   empty: { base: 1, md: 6, lg: 12 },
@@ -272,11 +411,18 @@ export function BudgetsPage() {
   const overCount = report?.lines.filter((line) => line.status === "over").length ?? 0;
   const atRiskCount = report?.lines.filter((line) => line.status === "at_risk").length ?? 0;
 
+  const spending = report === null ? { slices: [], totalCents: 0 } : spendingPicture(report);
+
   let body: ReactNode;
   if (isLoading) {
     body = (
       <BentoGrid role="status" aria-busy="true" aria-label="Chargement des budgets">
-        <BentoCell span={SPAN.summary} className="yd-panel">
+        <BentoCell span={SPAN.donut} className="yd-panel">
+          <div className="yd-skeleton yd-skeleton--budget-title" aria-hidden="true" />
+          <div className="yd-skeleton yd-skeleton--budget-totals" aria-hidden="true" />
+        </BentoCell>
+
+        <BentoCell span={SPAN.split} className="yd-panel">
           <div className="yd-skeleton yd-skeleton--budget-title" aria-hidden="true" />
           <div className="yd-skeleton yd-skeleton--budget-totals" aria-hidden="true" />
         </BentoCell>
@@ -325,52 +471,31 @@ export function BudgetsPage() {
   } else {
     body = (
       <BentoGrid as={motion.div} {...staggerProps(reduced)}>
-        <BentoCell as={motion.div} span={SPAN.summary} className="yd-panel" {...entryProps(reduced)}>
-          <PanelHead icon={CalendarIcon}>Ce mois-ci</PanelHead>
-          <div className="yd-budgets__totals">
-            <div className="yd-budgets__total">
-              <span className="yd-budgets__total-label">Budgété</span>
-              <CountUp
-                value={report.total_budget_cents}
-                format={(cents) => formatCents(cents)}
-                className="yd-budgets__total-value"
-              />
-            </div>
-            <div className="yd-budgets__total">
-              <span className="yd-budgets__total-label">Dépensé</span>
-              <CountUp
-                value={Math.abs(report.total_spent_cents)}
-                format={(cents) => formatCents(cents)}
-                className="yd-budgets__total-value"
-              />
-            </div>
-            <p className="yd-budgets__verdict">
-              {overCount === 0 && atRiskCount === 0
-                ? "Aucun budget dépassé."
-                : [
-                    overCount > 0
-                      ? `${overCount} ${plural(overCount, "budget dépassé", "budgets dépassés")}`
-                      : "",
-                    atRiskCount > 0
-                      ? `${atRiskCount} ${plural(atRiskCount, "budget en passe de l'être", "budgets en passe de l'être")}`
-                      : "",
-                  ]
-                    .filter(Boolean)
-                    .join(", ") + "."}
-            </p>
-            {!report.is_current_month ? (
-              // A finished month has no pace to project, and saying so is
-              // better than leaving the reader wondering why no projection
-              // appears on any line.
-              <p className="yd-budgets__note">
-                Mois terminé : les montants affichés sont définitifs, aucune projection n'est faite.
-              </p>
-            ) : (
-              <p className="yd-budgets__note">
-                {`Mois en cours, ${report.days_elapsed} ${plural(report.days_elapsed, "jour écoulé", "jours écoulés")} sur ${report.days_in_month}.`}
-              </p>
-            )}
-          </div>
+        <BentoCell
+          as={motion.div}
+          span={SPAN.donut}
+          className="yd-panel"
+          data-ai-target="budget-donut"
+          {...entryProps(reduced)}
+        >
+          <PanelHead icon={BreakdownIcon}>Répartition des dépenses</PanelHead>
+          <SpendingDonut slices={spending.slices} totalCents={spending.totalCents} />
+        </BentoCell>
+
+        <BentoCell
+          as={motion.div}
+          span={SPAN.split}
+          className="yd-panel"
+          data-ai-target="budget-split"
+          {...entryProps(reduced)}
+        >
+          <PanelHead
+            icon={CalendarIcon}
+            subtitle={verdictSentence(overCount, atRiskCount, report.total_budget_cents)}
+          >
+            Où va l'argent
+          </PanelHead>
+          <SpendingList slices={spending.slices} totalCents={spending.totalCents} />
         </BentoCell>
 
         <BentoCell as={motion.div} span={SPAN.lines}

@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, within, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -113,6 +113,17 @@ function renderPage(entry = "/budgets") {
  * field appears when that is pressed. Every assertion below still holds — they
  * just have to ask for the field the way a person does.
  */
+/**
+ * A category's name now appears twice on this screen — once in the "Où va
+ * l'argent" list beside the ring, once on its own budget bar. These queries
+ * mean the bar, so they say so.
+ */
+function inBudgetPanel() {
+  return within(
+    document.querySelector('[data-ai-target="panel-budgets"]') as HTMLElement,
+  );
+}
+
 async function openCeiling(name: string | RegExp) {
   await userEvent.click(await screen.findByRole("button", { name: new RegExp(`Fixer un seuil pour ${typeof name === "string" ? name : name.source}`) }));
   return screen.getByLabelText(new RegExp(`Budget mensuel pour ${typeof name === "string" ? name : name.source}`));
@@ -128,14 +139,14 @@ describe("BudgetsPage", () => {
   it("renders one bar per budgeted category", async () => {
     setupFetch();
     renderPage();
-    await screen.findByText("Courses");
+    await screen.findAllByText("Courses");
     expect(screen.getAllByRole("progressbar")).toHaveLength(2);
   });
 
   it("offers the categories that were spent on with no budget set", async () => {
     setupFetch();
     renderPage();
-    expect(await screen.findByText("Restaurants")).toBeInTheDocument();
+    expect((await screen.findAllByText("Restaurants")).length).toBeGreaterThan(0);
     expect(await openCeiling("Restaurants")).toBeInTheDocument();
   });
 
@@ -223,7 +234,7 @@ describe("BudgetsPage", () => {
       },
     });
     renderPage();
-    await screen.findByText("Courses");
+    await screen.findAllByText("Courses");
     const field = await openCeiling("Restaurants");
     await userEvent.clear(field);
     await userEvent.type(field, "150");
@@ -232,11 +243,11 @@ describe("BudgetsPage", () => {
     // The reload is held open here: with the skeleton branch taken, "Courses"
     // and every input would be gone from the document by now.
     await waitFor(() => expect(budgetMonthsAsked()).toHaveLength(2));
-    expect(screen.getByText("Courses")).toBeInTheDocument();
+    expect(inBudgetPanel().getByText("Courses")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Fixer un seuil pour Énergie/ })).toBeInTheDocument();
 
     release(jsonResponse(report));
-    await waitFor(() => expect(screen.getByText("Courses")).toBeInTheDocument());
+    await waitFor(() => expect(inBudgetPanel().getByText("Courses")).toBeInTheDocument());
   });
 
   // The other half of the same rule: a month change *is* a navigation, and the
@@ -254,7 +265,7 @@ describe("BudgetsPage", () => {
       },
     });
     renderPage();
-    await screen.findByText("Courses");
+    await screen.findAllByText("Courses");
     await userEvent.click(screen.getByRole("button", { name: /Mois précédent/ }));
 
     const loading = await screen.findByRole("status");
@@ -262,7 +273,7 @@ describe("BudgetsPage", () => {
     expect(screen.queryByText("Courses")).not.toBeInTheDocument();
 
     release(jsonResponse(report));
-    await screen.findByText("Courses");
+    await screen.findAllByText("Courses");
   });
 
   // `SPAN.unbudgeted` is `{ base: 1, md: 6 }`: the "Sans budget" cell is only
@@ -287,7 +298,7 @@ describe("BudgetsPage", () => {
   it("moves to the previous month without losing the rest of the screen", async () => {
     setupFetch();
     renderPage();
-    await screen.findByText("Courses");
+    await screen.findAllByText("Courses");
     await userEvent.click(screen.getByRole("button", { name: /Mois précédent/ }));
 
     await waitFor(() => expect(budgetMonthsAsked()).toContain("2025-12"));
@@ -302,7 +313,7 @@ describe("BudgetsPage", () => {
   it("steps back twice in a row without asking for the same month again", async () => {
     setupFetch();
     renderPage();
-    await screen.findByText("Courses");
+    await screen.findAllByText("Courses");
 
     const previous = screen.getByRole("button", { name: /Mois précédent/ });
     await userEvent.click(previous);
@@ -317,7 +328,7 @@ describe("BudgetsPage", () => {
     // No report has landed yet, so the header has only the URL to go on — and
     // it must still say which month is coming rather than showing nothing.
     expect(screen.getByText(/septembre 2025/i)).toBeInTheDocument();
-    await screen.findByText("Courses");
+    await screen.findAllByText("Courses");
   });
 
   it("surfaces a failed load in French instead of an empty screen", async () => {

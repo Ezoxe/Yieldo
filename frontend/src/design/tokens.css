@@ -219,8 +219,8 @@
 
   /* Ink-tinted rather than white-tinted: a white hairline on a white card is
      nothing at all. */
-  --yd-border: rgba(9, 9, 16, 0.1);
-  --yd-border-strong: rgba(9, 9, 16, 0.18);
+  --yd-border: rgba(9, 9, 16, 0.075);
+  --yd-border-strong: rgba(9, 9, 16, 0.15);
 
   /* Same job as the dark theme's, measured against the light theme's own
      surfaces: 4.33:1 over a white card, 3.84:1 over the deepest exposed

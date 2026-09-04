@@ -71,10 +71,6 @@
   pointer-events: none;
 }
 
-.yd-filterbar__field--search input {
-  padding-left: calc(var(--yd-space-sm) * 2 + 0.95rem);
-}
-
 .yd-filterbar__field input,
 .yd-filterbar__field select {
   background: var(--yd-surface);
@@ -84,6 +80,11 @@
   color: var(--yd-text);
   font: inherit;
   min-width: 0;
+}
+
+/* See above: this has to come after the generic rule, not before it. */
+.yd-filterbar__field--search input {
+  padding-left: calc(var(--yd-space-sm) * 2 + 0.95rem);
 }
 
 .yd-filterbar__toggle {
@@ -296,6 +297,40 @@
   min-width: 16ch;
 }
 
+/* The disc and the label, on one line. */
+.yd-transactions__merchant {
+  display: flex;
+  align-items: center;
+  gap: var(--yd-space-xs);
+  min-width: 0;
+}
+
+/* A landmark, not information: the label beside it says what the row is, and
+   the disc only gives twenty rows a shape to be scanned by. Neutral on
+   purpose — a coloured disc per merchant would be a second colour system
+   competing with the category pills. */
+.yd-transactions__avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 1px solid var(--yd-border);
+  background: color-mix(in srgb, var(--yd-text) 7%, transparent);
+  color: var(--yd-text-muted);
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.yd-transactions__label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .yd-transactions__cell--amount {
   text-align: right;
   white-space: nowrap;
@@ -307,39 +342,42 @@
   gap: var(--yd-space-2xs);
 }
 
-.yd-transactions__dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
+/* A soft pill in the category's own colour, that happens to be a select.
 
-/* A pill that happens to be a select, not a box that happens to hold a
-   category. Twenty of these down a screen used to read as a form: a filled
-   200px control on every row, whether or not anyone was going to touch it.
+   It stays a NATIVE `<select>`, and that is a decision rather than a shortcut.
+   A hand-rolled popover would have to reimplement type-ahead, keyboard
+   traversal, screen-reader announcement and the mobile wheel — on a table that
+   can hold hundreds of rows — and every one of those is already correct here.
+   What was wrong was never the element, it was its dress: a 200px filled box
+   with a chevron on every row, whether or not anyone was going to touch it.
 
-   What is NOT removed is the boundary. A control drawn with no visible edge
-   fails WCAG 1.4.11, and `design/controlBorders.test.ts` exists in this repo
-   because that is a defect it has already shipped once. So the weight comes
-   off everywhere else — no fill, pill radius, a smaller face, and a width that
-   fits the category name instead of a fixed 200px — and the edge stays. */
+   `appearance: none` takes the chevron off, `--yd-pill` (set per row from the
+   category's own colour) tints it, and the width fits the name. The boundary
+   stays visible, because a control without one fails WCAG 1.4.11 and this repo
+   has `design/controlBorders.test.ts` for exactly that reason. */
 .yd-transactions__select {
-  background: transparent;
-  border: 1px solid var(--yd-border-control);
+  appearance: none;
+  -webkit-appearance: none;
+  max-width: 180px;
+  padding: 2px 10px;
   border-radius: var(--yd-radius-pill);
-  padding: 1px var(--yd-space-2xs) 1px var(--yd-space-xs);
-  color: var(--yd-text);
+  border: 1px solid color-mix(in srgb, var(--yd-pill, var(--yd-text-muted)) 40%, transparent);
+  background: color-mix(in srgb, var(--yd-pill, var(--yd-text-muted)) 13%, transparent);
+  color: color-mix(in srgb, var(--yd-pill, var(--yd-text-muted)) 78%, var(--yd-text));
   font: inherit;
-  font-size: 0.78rem;
-  max-width: 200px;
+  font-size: 0.76rem;
+  font-weight: 600;
+  text-overflow: ellipsis;
   cursor: pointer;
-  transition: border-color var(--yd-motion-fast) var(--yd-ease);
+  transition:
+    border-color var(--yd-motion-fast) var(--yd-ease),
+    background-color var(--yd-motion-fast) var(--yd-ease);
 }
 
-/* The edge only gets louder when the row is actually being worked on. */
 .yd-transactions__row:hover .yd-transactions__select,
 .yd-transactions__select:hover {
-  border-color: var(--yd-accent);
+  border-color: color-mix(in srgb, var(--yd-pill, var(--yd-accent)) 70%, transparent);
+  background: color-mix(in srgb, var(--yd-pill, var(--yd-text-muted)) 22%, transparent);
 }
 
 .yd-transactions__select:focus-visible,
@@ -585,3 +623,29 @@
 }
 
 /* PeriodSelector.css carries its own reduced-motion rule for its tabs. */
+
+/* -- Grouped by day -------------------------------------------------------- */
+
+/* One heading per day, and the count beside it: a statement is read day by
+   day, and twenty undifferentiated rows hide where one day ends and the next
+   begins. `<th colspan>` inside the body, so the grouping is real table
+   structure rather than a styled row a screen reader would read as data. */
+.yd-transactions__daygroup th {
+  padding: var(--yd-space-md) var(--yd-space-md) var(--yd-space-2xs);
+  text-align: left;
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--yd-text-muted);
+  background: transparent;
+}
+
+.yd-transactions__daygroup--first th {
+  padding-top: var(--yd-space-2xs);
+}
+
+.yd-transactions__daycount {
+  font-weight: 500;
+  opacity: 0.75;
+}

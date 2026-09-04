@@ -1,5 +1,5 @@
 import { motion } from "motion/react";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { Fragment, type ReactNode, useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
 
 import { BentoCell, type BentoSpan } from "../../design/bento/BentoCell";
@@ -25,6 +25,35 @@ import { TransactionsIcon } from "../../design/icons";
 import { PageHead } from "../../design/PageHead";
 
 const PAGE_SIZE = 50;
+/**
+ * The rows, in the order they arrived, cut into days.
+ *
+ * The API already sorts by date descending; this only inserts the boundaries.
+ * It deliberately does NOT re-sort — a list that reordered itself around its
+ * own headings would disagree with the "N sur M" count under it, and the
+ * server's order is the one the paging is built on.
+ */
+export function groupByDay(rows: Transaction[]): { date: string; rows: Transaction[] }[] {
+  const days: { date: string; rows: Transaction[] }[] = [];
+  for (const row of rows) {
+    const last = days[days.length - 1];
+    if (last !== undefined && last.date === row.date) last.rows.push(row);
+    else days.push({ date: row.date, rows: [row] });
+  }
+  return days;
+}
+
+/** "09 JANVIER 2026 · 5 OPÉRATIONS" — the day, and how much of it there is. */
+export function dayHeading(iso: string, count: number): string {
+  const day = new Date(`${iso}T00:00:00Z`).toLocaleDateString("fr-FR", {
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+  return `${day} · ${count} ${plural(count, "opération", "opérations")}`.toUpperCase();
+}
+
 const GENERIC_ERROR = "Une erreur inattendue est survenue.";
 
 /**
@@ -494,13 +523,34 @@ export function TransactionsPage() {
                     </tr>
                   </thead>
                   <tbody className="yd-transactions__body" role="rowgroup">
-                    {items.map((transaction) => (
-                      <TransactionRow
-                        key={transaction.id}
-                        transaction={transaction}
-                        categories={categories}
-                        onRecategorize={(id, catId) => void handleRecategorize(id, catId)}
-                      />
+                    {groupByDay(items).map((day, index) => (
+                      <Fragment key={day.date}>
+                        <tr
+                          className={`yd-transactions__daygroup${index === 0 ? " yd-transactions__daygroup--first" : ""}`}
+                        >
+                          {/* Real table structure, not a styled data row: a
+                              `<th colspan>` is announced as the heading of the
+                              rows under it, which is what it is.
+
+                              `rowgroup`, not `colgroup`: this heads the ROWS
+                              that follow, not a column. With `colgroup` the
+                              browser gives it the `columnheader` role and it
+                              joins Date / Libellé / Catégorie / Montant in the
+                              table's own column list — caught by the test that
+                              pins those four names. */}
+                          <th scope="rowgroup" colSpan={4}>
+                            {dayHeading(day.date, day.rows.length)}
+                          </th>
+                        </tr>
+                        {day.rows.map((transaction) => (
+                          <TransactionRow
+                            key={transaction.id}
+                            transaction={transaction}
+                            categories={categories}
+                            onRecategorize={(id, catId) => void handleRecategorize(id, catId)}
+                          />
+                        ))}
+                      </Fragment>
                     ))}
                   </tbody>
                 </table>

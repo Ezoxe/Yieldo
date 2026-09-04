@@ -5,7 +5,7 @@ import { formatCents, formatCompactCents } from "../design/theme";
 import type { SavingsSimulation } from "../lib/types";
 import { Chart, type ChartExportRow } from "./Chart";
 import { ChartKey, type ChartKeyEntry } from "./ChartKey";
-import { type Resolved, chartTokens } from "./theme";
+import { LINE_SMOOTHING, chartTokens, type Resolved } from "./theme";
 
 /**
  * Where a savings plan goes, month by month, split into the three things that
@@ -90,6 +90,7 @@ export function buildSavingsOption(
     },
     series: bands.map((band) => ({
       type: "line" as const,
+      ...LINE_SMOOTHING,
       name: band.name,
       stack: "solde",
       stackStrategy: "all" as const,

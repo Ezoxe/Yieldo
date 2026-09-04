@@ -8,8 +8,11 @@ import { SpendingCalendar } from "../../charts/SpendingCalendar";
 import { WaterfallChart } from "../../charts/WaterfallChart";
 import { BentoCell, type BentoSpan } from "../../design/bento/BentoCell";
 import { BentoGrid } from "../../design/bento/BentoGrid";
+import { PanelHead } from "../../design/bento/PanelHead";
 import { CountUp } from "../../design/CountUp";
 import { EmptyState, frenchDate, historySentence } from "../../design/EmptyState";
+import { BreakdownIcon, CalendarIcon, CashflowIcon, ChevronIcon, InflowIcon, OutflowIcon, OverviewIcon, PriceChangeIcon, RateIcon } from "../../design/icons";
+import { PageHead } from "../../design/PageHead";
 import { useReducedMotion } from "../../design/motion/useReducedMotion";
 import { entryProps, staggerProps } from "../../design/motion/variants";
 import "../../design/Skeleton.css";
@@ -449,28 +452,65 @@ export function OverviewPage() {
           className="yd-panel"
           {...entryProps(reduced)}
         >
-          <h2 className="yd-panel__title">Flux de trésorerie</h2>
+          <PanelHead icon={CashflowIcon}>Flux de trésorerie</PanelHead>
           <CashflowChart buckets={series} granularity={granularity} />
         </BentoCell>
 
-        <BentoCell as={motion.div} span={SPAN.stat} {...entryProps(reduced)}>
-          <StatTile label="Entrées" valueCents={summary?.inflow_cents ?? null} />
+        <BentoCell
+          as={motion.div}
+          span={SPAN.stat}
+          className="yd-cell--stat yd-cell--stat-positive"
+          {...entryProps(reduced)}
+        >
+          <StatTile
+            label="Entrées"
+            valueCents={summary?.inflow_cents ?? null}
+            icon={InflowIcon}
+            iconTone="positive"
+            sparkline={series.map((bucket) => bucket.inflow_cents)}
+            hint="Tout ce qui est entré sur la période, virements internes compris. La courbe derrière le chiffre est le même total, bucket par bucket."
+          />
         </BentoCell>
 
-        <BentoCell as={motion.div} span={SPAN.stat} {...entryProps(reduced)}>
-          <StatTile label="Sorties" valueCents={summary?.outflow_cents ?? null} />
+        <BentoCell
+          as={motion.div}
+          span={SPAN.stat}
+          className="yd-cell--stat yd-cell--stat-negative"
+          {...entryProps(reduced)}
+        >
+          <StatTile
+            label="Sorties"
+            valueCents={summary?.outflow_cents ?? null}
+            icon={OutflowIcon}
+            iconTone="negative"
+            sparkline={series.map((bucket) => bucket.outflow_cents)}
+            hint="Tout ce qui est sorti sur la période, signe négatif compris. La courbe derrière le chiffre est le même total, bucket par bucket."
+          />
         </BentoCell>
 
-        <BentoCell as={motion.div} span={SPAN.stat} {...entryProps(reduced)}>
+        <BentoCell
+          as={motion.div}
+          span={SPAN.stat}
+          className="yd-cell--stat yd-cell--stat-info"
+          {...entryProps(reduced)}
+        >
           <StatTile
             label="Taux d'épargne"
             valueCents={summary?.savings_rate ?? null}
+            icon={RateIcon}
+            iconTone="info"
             format={formatPercent}
+            sparkline={series.map((bucket) =>
+              // A rate, not an amount: a month with no income has no rate at
+              // all, and 0 is the only value that does not claim one.
+              bucket.inflow_cents > 0 ? bucket.net_cents / bucket.inflow_cents : 0,
+            )}
+            hint="Ce qu'il reste des entrées une fois les sorties déduites, en part des entrées. Une période sans aucune entrée n'a pas de taux : le chiffre est alors indisponible, jamais zéro."
           />
         </BentoCell>
 
         <BentoCell as={motion.div} span={SPAN.treemap} className="yd-panel" {...entryProps(reduced)}>
-          <h2 className="yd-panel__title">Répartition des dépenses</h2>
+          <PanelHead icon={BreakdownIcon}>Répartition des dépenses</PanelHead>
           <CategoryTreemap items={treemapItems} />
         </BentoCell>
 
@@ -481,13 +521,13 @@ export function OverviewPage() {
             className="yd-panel"
             {...entryProps(reduced)}
           >
-            <h2 className="yd-panel__title">Revenus, dépenses et épargne</h2>
+            <PanelHead icon={PriceChangeIcon}>Revenus, dépenses et épargne</PanelHead>
             <WaterfallChart summary={summary} categories={categoryBreakdown} />
           </BentoCell>
         ) : null}
 
         <BentoCell as={motion.div} span={SPAN.calendar} className="yd-panel" {...entryProps(reduced)}>
-          <h2 className="yd-panel__title">Calendrier des dépenses</h2>
+          <PanelHead icon={CalendarIcon}>Calendrier des dépenses</PanelHead>
           <SpendingCalendar points={calendarPoints} />
         </BentoCell>
       </BentoGrid>
@@ -496,12 +536,19 @@ export function OverviewPage() {
 
   return (
     <section className="yd-overview">
-      <div className="yd-overview__header">
-        <h1>Vue d'ensemble</h1>
-        <Link to={transactionsHrefFor(period)} className="yd-overview__transactions-link">
-          Voir les transactions de cette période
-        </Link>
-      </div>
+      <PageHead
+        icon={OverviewIcon}
+        title="Vue d'ensemble"
+        className="yd-overview__header"
+        actions={
+          <Link to={transactionsHrefFor(period)} className="yd-overview__transactions-link">
+            Voir les transactions de cette période
+            <ChevronIcon />
+          </Link>
+        }
+      >
+        <p>Ce que la période dit de votre argent : ce qui entre, ce qui sort, et ce qu'il en reste.</p>
+      </PageHead>
 
       <PeriodSelector period={period} />
 

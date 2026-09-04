@@ -183,39 +183,48 @@ describe("AnalysisPage — inflation", () => {
     expect(await screen.findByLabelText("+20,0 %")).toBeInTheDocument();
   });
 
+  // The three sentences that say HOW the basket was measured — which two
+  // windows, how many categories entered it, what the reference index is
+  // doing — moved out from under the headline percentage and behind the mark
+  // in the panel's head. Nothing was dropped; it is one interaction away, and
+  // these tests take that interaction.
+  async function openBasketMethod() {
+    const user = userEvent.setup();
+    const trigger = await screen.findByRole("button", { name: "Comment ce panier est mesuré" });
+    await user.click(trigger);
+    return screen.getByRole("tooltip");
+  }
+
   it("names both windows being compared", async () => {
     setupFetch();
     renderPage();
-    const basket = await screen.findByTestId("yd-analysis-basket");
-    expect(basket).toHaveTextContent(/1er janvier 2026 – 30 juin 2026/);
-    expect(basket).toHaveTextContent(/1er janvier 2025 – 30 juin 2025/);
+    const method = await openBasketMethod();
+    expect(method).toHaveTextContent(/1er janvier 2026 – 30 juin 2026/);
+    expect(method).toHaveTextContent(/1er janvier 2025 – 30 juin 2025/);
   });
 
   it("says the basket holds only the categories that could be compared", async () => {
     setupFetch();
     renderPage();
-    expect(await screen.findByText(/1 catégorie entre dans ce panier/)).toBeInTheDocument();
-    expect(screen.getByText(/1 n'a pas pu être comparée/)).toBeInTheDocument();
+    const method = await openBasketMethod();
+    expect(method).toHaveTextContent(/1 catégorie entre dans ce panier/);
+    expect(method).toHaveTextContent(/1 n'a pas pu être comparée/);
   });
 
   it("shows the reference index beside the basket when one is configured", async () => {
     setupFetch({ index: () => jsonResponse([{ month: "2025-01", value_hundredths: 11842 }]) });
     renderPage();
-    expect(await screen.findByText(/\+1,9 %/)).toBeInTheDocument();
+    expect(await openBasketMethod()).toHaveTextContent(/\+1,9 %/);
   });
 
   // Requirement 6: no index is not an index of zero.
   it("says the index is not configured rather than showing a zero", async () => {
     setupFetch({ inflation: () => jsonResponse({ ...inflation, reference_ratio: null }) });
     renderPage();
-    const basket = await screen.findByTestId("yd-analysis-basket");
-    expect(
-      within(basket).getByText(/vous n'avez saisi aucun indice de référence/),
-    ).toBeInTheDocument();
+    const method = await openBasketMethod();
+    expect(method).toHaveTextContent(/vous n'avez saisi aucun indice de référence/);
     // No figure, of any value, stands in for the missing comparison.
-    expect(
-      within(basket).queryByText(/Indice de référence sur les mêmes périodes/),
-    ).not.toBeInTheDocument();
+    expect(method).not.toHaveTextContent(/Indice de référence sur les mêmes périodes/);
   });
 
   it("tells a stored index that misses a window apart from no index at all", async () => {
@@ -224,9 +233,15 @@ describe("AnalysisPage — inflation", () => {
       index: () => jsonResponse([{ month: "2025-01", value_hundredths: 11842 }]),
     });
     renderPage();
-    expect(
-      await screen.findByText(/ne couvre pas les deux périodes comparées/),
-    ).toBeInTheDocument();
+    expect(await openBasketMethod()).toHaveTextContent(/ne couvre pas les deux périodes comparées/);
+  });
+
+  it("still states the two costs the percentage is a ratio of, without asking", async () => {
+    setupFetch();
+    renderPage();
+    const basket = await screen.findByTestId("yd-analysis-basket");
+    expect(basket).toHaveTextContent(/Un an plus tôt/);
+    expect(basket).toHaveTextContent(/Période récente/);
   });
 
   it("keeps an incomparable category visible with its own month counts", async () => {

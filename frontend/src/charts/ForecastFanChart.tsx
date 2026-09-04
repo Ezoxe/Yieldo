@@ -4,7 +4,7 @@ import { useTheme } from "../app/ThemeProvider";
 import { formatCents, formatCompactCents } from "../design/theme";
 import type { ForecastMonth } from "../lib/types";
 import { Chart, type ChartExportRow } from "./Chart";
-import { type ChartTokens, chartTokens } from "./theme";
+import { LINE_SMOOTHING, chartTokens, type ChartTokens } from "./theme";
 
 /** "2026-09" → "sept. 2026". */
 export function monthAxisLabel(key: string): string {
@@ -123,6 +123,7 @@ export function buildForecastOption(
         // Invisible floor of the band. Carries P10 so the stack starts there.
         name: "P10",
         type: "line",
+        ...LINE_SMOOTHING,
         stack: "confidence",
         // Inert on the first series of a stack (nothing below it to chain
         // onto) but declared here so the whole stack group states one
@@ -137,6 +138,7 @@ export function buildForecastOption(
       {
         name: "Intervalle P10–P90",
         type: "line",
+        ...LINE_SMOOTHING,
         stack: "confidence",
         // Load-bearing. ECharts' default is `stackStrategy: "samesign"`, which
         // only chains a stacked value onto the one below it when both share a
@@ -166,6 +168,7 @@ export function buildForecastOption(
       {
         name: "Solde projeté (médiane)",
         type: "line",
+        ...LINE_SMOOTHING,
         symbol: "circle",
         symbolSize: 6,
         lineStyle: { width: 2, type: "dashed", color: tokens.accentStrong },

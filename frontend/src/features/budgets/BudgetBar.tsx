@@ -1,3 +1,5 @@
+import { AlertsIcon, AnomalyIcon, CheckIcon, type IconComponent } from "../../design/icons";
+import { InfoTip } from "../../design/InfoTip";
 import { formatCents } from "../../design/theme";
 import type { BudgetLine } from "../../lib/types";
 
@@ -27,6 +29,15 @@ const STATUS_NOTE: Record<BudgetLine["status"], string> = {
   over: "Budget dépassé",
 };
 
+/* The mark beside the status. It repeats what the words already say — status
+   is never carried by colour or by a glyph alone (WCAG 1.4.1) — and only makes
+   the three states separable at a glance down a list of twelve categories. */
+const STATUS_ICON: Record<BudgetLine["status"], IconComponent> = {
+  ok: CheckIcon,
+  at_risk: AnomalyIcon,
+  over: AlertsIcon,
+};
+
 interface BudgetBarProps {
   line: BudgetLine;
 }
@@ -34,6 +45,8 @@ interface BudgetBarProps {
 export function BudgetBar({ line }: BudgetBarProps) {
   const spent = Math.abs(line.spent_cents);
   const percent = consumedPercent(line.consumed_ratio);
+  const StatusIcon = STATUS_ICON[line.status];
+  const over = line.remaining_cents < 0;
 
   return (
     <div className={`yd-budget yd-budget--${line.status}`}>
@@ -66,14 +79,27 @@ export function BudgetBar({ line }: BudgetBarProps) {
         <div className="yd-budget__fill" style={{ width: fillPercent(line.consumed_ratio) }} />
       </div>
 
+      {/* One row, three parts: the state as a badge, the one figure that
+          follows from it, and the method behind the fold. This used to be a
+          three-line sentence per category — twelve of them down a screen, and
+          the figures were the hardest thing on it to find. */}
       <p className="yd-budget__note">
-        <span className="yd-budget__status">{STATUS_NOTE[line.status]}</span>
-        {line.remaining_cents >= 0
-          ? ` — Il reste ${formatCents(line.remaining_cents)}`
-          : ` — Dépassé de ${formatCents(Math.abs(line.remaining_cents))}`}
-        {line.projected_cents !== null
-          ? ` — À ce rythme, ${formatCents(Math.abs(line.projected_cents))} sur le mois`
-          : ""}
+        <span className="yd-budget__status">
+          <StatusIcon />
+          {over
+            ? `Dépassé de ${formatCents(Math.abs(line.remaining_cents))}`
+            : STATUS_NOTE[line.status]}
+        </span>
+        <span className="yd-budget__remaining">
+          {over
+            ? STATUS_NOTE[line.status]
+            : `Il reste ${formatCents(line.remaining_cents)}`}
+        </span>
+        {line.projected_cents !== null ? (
+          <InfoTip label={`Projection du budget ${line.name}`}>
+            {`À ce rythme, ${formatCents(Math.abs(line.projected_cents))} sur le mois — la dépense du mois entier si les jours restants ressemblent aux jours écoulés.`}
+          </InfoTip>
+        ) : null}
       </p>
     </div>
   );

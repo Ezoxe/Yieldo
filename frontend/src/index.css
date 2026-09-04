@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "./design/tokens.css";
+@import "./design/controls.css";
 
 @theme {
   --color-accent: var(--yd-accent);

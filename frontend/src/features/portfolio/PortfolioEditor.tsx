@@ -10,6 +10,7 @@ import { assetClassLabel } from "./HoldingsPanel";
 import { LotForm } from "./LotForm";
 import { PositionForm } from "./PositionForm";
 import { sumQuantities } from "./quantity";
+import { ArchiveIcon, EditIcon, PlusIcon, TrashIcon } from "../../design/icons";
 
 const GENERIC_ERROR = "Une erreur inattendue est survenue.";
 
@@ -186,6 +187,7 @@ export function PortfolioEditor({
             onClick={() => setEditing({ kind: "lot", positionId: lot.position_id, symbol, lot })}
           >
             <span className="sr-only">{`Modifier le lot du ${frenchDate(lot.acquired_on)}`}</span>
+            <EditIcon />
             <span aria-hidden="true">Modifier</span>
           </button>
           <button
@@ -203,6 +205,7 @@ export function PortfolioEditor({
             }
           >
             <span className="sr-only">{`Supprimer le lot du ${frenchDate(lot.acquired_on)}`}</span>
+            <TrashIcon />
             <span aria-hidden="true">Supprimer</span>
           </button>
         </span>
@@ -336,6 +339,7 @@ export function PortfolioEditor({
               onClick={() => setEditing({ kind: "account", account })}
             >
               <span className="sr-only">{`Modifier ${account.name}`}</span>
+              <EditIcon />
               <span aria-hidden="true">Modifier</span>
             </button>
             <button
@@ -357,6 +361,7 @@ export function PortfolioEditor({
               }
             >
               <span className="sr-only">{`Archiver ${account.name}`}</span>
+              <ArchiveIcon />
               <span aria-hidden="true">Archiver</span>
             </button>
           </div>
@@ -473,6 +478,7 @@ export function PortfolioEditor({
           className="yd-editor__add"
           onClick={() => setEditing({ kind: "account" })}
         >
+          <PlusIcon />
           Ajouter un compte d'investissement
         </button>
       )}

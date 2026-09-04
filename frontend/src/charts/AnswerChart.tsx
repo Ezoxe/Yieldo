@@ -5,7 +5,7 @@ import { formatCents, formatCompactCents } from "../design/theme";
 import type { ChatChart } from "../lib/types";
 import { Chart, type ChartExportRow } from "./Chart";
 import { ChartKey, type ChartKeyEntry } from "./ChartKey";
-import { type Resolved, chartTokens } from "./theme";
+import { LINE_SMOOTHING, chartTokens, type Resolved } from "./theme";
 
 /**
  * The chart a chat answer deserves — and nothing when it deserves none.
@@ -86,6 +86,7 @@ export function buildAnswerOption(chart: ChatChart, theme: Resolved): EChartsOpt
           }
         : {
             type: "line" as const,
+            ...LINE_SMOOTHING,
             name: chart.title,
             data: values,
             showSymbol: false,

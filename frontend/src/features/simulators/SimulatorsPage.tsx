@@ -4,6 +4,9 @@ import { Link, useSearchParams } from "react-router";
 
 import { BentoCell, type BentoSpan } from "../../design/bento/BentoCell";
 import { BentoGrid } from "../../design/bento/BentoGrid";
+import { PanelHead } from "../../design/bento/PanelHead";
+import { ListIcon, SimulatorsIcon } from "../../design/icons";
+import { PageHead } from "../../design/PageHead";
 import { useReducedMotion } from "../../design/motion/useReducedMotion";
 import { entryProps, staggerProps } from "../../design/motion/variants";
 import { CreditSimulator } from "./CreditSimulator";
@@ -82,8 +85,8 @@ export function SimulatorsPage() {
 
   return (
     <section className="yd-sims">
-      <div className="yd-sims__header">
-        <h1>Simulateurs</h1>
+      <PageHead icon={SimulatorsIcon} title="Simulateurs" className="yd-sims__header">
+
         <p className="yd-sims__lead" data-testid="yd-sim-lead">
           {"Ces simulateurs répondent à « et si ? », à partir des chiffres que vous tapez. Pour « puis-je ? », à partir des rythmes mesurés dans vos relevés, c'est l'écran "}
           <Link className="yd-sims__link" to="/faisabilite">
@@ -91,7 +94,7 @@ export function SimulatorsPage() {
           </Link>
           {" qui répond. Les deux se ressemblent et ne disent pas la même chose : ici rien n'est mesuré, tout est supposé."}
         </p>
-      </div>
+      </PageHead>
 
       <div className="yd-sims__tabs" role="tablist" aria-label="Simulateurs">
         {TABS.map((tab) => {
@@ -128,9 +131,9 @@ export function SimulatorsPage() {
           aria-labelledby={tabId(active)}
           {...entryProps(reduced)}
         >
-          <h2 className="yd-panel__title">
+          <PanelHead icon={ListIcon}>
             {TABS.find((tab) => tab.key === active)?.title}
-          </h2>
+          </PanelHead>
           {active === "credit" ? (
             <CreditSimulator />
           ) : active === "epargne" ? (

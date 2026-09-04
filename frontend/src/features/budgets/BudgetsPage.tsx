@@ -1,9 +1,10 @@
 import { motion } from "motion/react";
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router";
 
 import { BentoCell, type BentoSpan } from "../../design/bento/BentoCell";
 import { BentoGrid } from "../../design/bento/BentoGrid";
+import { PanelHead } from "../../design/bento/PanelHead";
 import { CountUp } from "../../design/CountUp";
 import { EmptyState, historySentence } from "../../design/EmptyState";
 import { useReducedMotion } from "../../design/motion/useReducedMotion";
@@ -13,6 +14,9 @@ import { formatCents, parseCents } from "../../design/theme";
 import { ApiError, api } from "../../lib/api";
 import { plural } from "../../lib/plural";
 import type { BudgetReport } from "../../lib/types";
+import { BudgetsIcon, CalendarIcon, ChevronIcon, ListIcon } from "../../design/icons";
+import { Swap } from "../../design/motion/Swap";
+import { PageHead } from "../../design/PageHead";
 import { BudgetBar } from "./BudgetBar";
 import "./BudgetsPage.css";
 
@@ -23,38 +27,23 @@ function messageFor(err: unknown): string {
 }
 
 /**
- * The two month-navigation chevrons. Inline SVG, never a glyph: MASTER.md
- * forbids emoji-as-icon, and U+25C0 / U+25B6 pick up emoji presentation on some
- * platforms. Same grid as features/landing/icons.tsx -- 24x24, 1.6px stroke,
- * round caps, `currentColor` -- so the whole app draws icons one way.
+ * The month arrows. One glyph, mirrored — `design/icons` owns the drawing, and
+ * a second copy of it here is how two chevrons in one application end up on two
+ * different grids. Rotated in CSS rather than redrawn (see `--yd-flip`).
  */
-function ChevronIcon({ direction }: { direction: "left" | "right" }) {
+function MonthArrow({ direction }: { direction: "left" | "right" }) {
   return (
-    <svg
-      viewBox="0 0 24 24"
-      width="18"
-      height="18"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.6"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-      focusable="false"
-    >
-      <path d={direction === "left" ? "M15 6l-6 6 6 6" : "M9 6l6 6-6 6"} />
-    </svg>
+    <span className={`yd-budgets__arrow yd-budgets__arrow--${direction}`}>
+      <ChevronIcon />
+    </span>
   );
 }
 
 /** "2026-01" → "janvier 2026". The month key is the API's, the words are ours. */
 export function monthLabel(key: string): string {
   const [year, month] = key.split("-").map(Number);
-  return new Date(Date.UTC(year, month - 1, 1)).toLocaleDateString("fr-FR", {
-    month: "long",
-    year: "numeric",
-    timeZone: "UTC",
-  });
+  const date = new Date(Date.UTC(year, month - 1, 1));
+  return date.toLocaleDateString("fr-FR", { month: "long", year: "numeric", timeZone: "UTC" });
 }
 
 /** The month `offset` months away from `key`, in the same "AAAA-MM" shape. */
@@ -213,7 +202,17 @@ export function BudgetsPage() {
     };
   }, [askedMonth, reloadToken]);
 
-  const goToMonth = useCallback((key: string) => setParams({ mois: key }), [setParams]);
+  // Which way the last month change went, so the content slides in from the
+  // side the reader came from. A ref, not state: it is read during the render
+  // that follows the change and must never cause one of its own.
+  const direction = useRef<1 | -1>(1);
+  const goToMonth = useCallback(
+    (key: string) => {
+      direction.current = key > (askedMonth ?? "") ? 1 : -1;
+      setParams({ mois: key });
+    },
+    [askedMonth, setParams],
+  );
 
   // The URL first, the loaded report only as a fallback. `report` lags a click
   // behind -- it is not cleared while the next month is in flight -- so reading
@@ -280,7 +279,7 @@ export function BudgetsPage() {
     body = (
       <BentoGrid as={motion.div} {...staggerProps(reduced)}>
         <BentoCell as={motion.div} span={SPAN.summary} className="yd-panel" {...entryProps(reduced)}>
-          <h2 className="yd-panel__title">Ce mois-ci</h2>
+          <PanelHead icon={CalendarIcon}>Ce mois-ci</PanelHead>
           <div className="yd-budgets__totals">
             <div className="yd-budgets__total">
               <span className="yd-budgets__total-label">Budgété</span>
@@ -328,7 +327,7 @@ export function BudgetsPage() {
         </BentoCell>
 
         <BentoCell as={motion.div} span={SPAN.lines} className="yd-panel" {...entryProps(reduced)}>
-          <h2 className="yd-panel__title">Budgets par catégorie</h2>
+          <PanelHead icon={BudgetsIcon}>Budgets par catégorie</PanelHead>
           {report.lines.length === 0 ? (
             // Named, not placed: `SPAN.unbudgeted` is `{ base: 1, md: 6 }`, so
             // "Sans budget" is only to the right of this panel from 1200px up.
@@ -351,7 +350,7 @@ export function BudgetsPage() {
           className="yd-panel"
           {...entryProps(reduced)}
         >
-          <h2 className="yd-panel__title">Sans budget</h2>
+          <PanelHead icon={ListIcon}>Sans budget</PanelHead>
           {report.unbudgeted.length === 0 ? (
             <p className="yd-budgets__none">
               Chaque catégorie sur laquelle vous avez dépensé a un budget.
@@ -376,16 +375,19 @@ export function BudgetsPage() {
 
   return (
     <section className="yd-budgets">
-      <div className="yd-budgets__header">
-        <h1>Budgets</h1>
-        <div className="yd-budgets__month-nav">
+      <PageHead
+        icon={BudgetsIcon}
+        title="Budgets"
+        className="yd-budgets__header"
+        actions={
+          <div className="yd-budgets__month-nav">
           <button
             type="button"
             onClick={() => goToMonth(shiftMonth(current, -1))}
             disabled={!current}
           >
             <span className="sr-only">Mois précédent</span>
-            <ChevronIcon direction="left" />
+            <MonthArrow direction="left" />
           </button>
           <span className="yd-budgets__month" aria-live="polite">
             {current ? monthLabel(current) : ""}
@@ -396,10 +398,16 @@ export function BudgetsPage() {
             disabled={!current}
           >
             <span className="sr-only">Mois suivant</span>
-            <ChevronIcon direction="right" />
+            <MonthArrow direction="right" />
           </button>
-        </div>
-      </div>
+          </div>
+        }
+      >
+        <p className="yd-budgets__lead">
+          Ce que chaque catégorie a consommé de son enveloppe ce mois-ci, et ce qu'il en
+          reste.
+        </p>
+      </PageHead>
 
       {error !== null ? (
         <p role="alert" className="yd-budgets__alert">
@@ -407,7 +415,12 @@ export function BudgetsPage() {
         </p>
       ) : null}
 
-      {body}
+      {/* The month is what this whole screen shows, so a change of month is a
+          change of content, not a repaint: it leaves towards the month the
+          reader came from and the new one arrives from the other side. */}
+      <Swap swapKey={current || "chargement"} direction={direction.current}>
+        {body}
+      </Swap>
     </section>
   );
 }

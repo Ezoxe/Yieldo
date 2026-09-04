@@ -2,6 +2,8 @@ import { frenchDate } from "../../design/EmptyState";
 import { formatCents } from "../../design/theme";
 import { plural } from "../../lib/plural";
 import type { Feasibility, Verdict } from "../../lib/types";
+import { FeasibilityIcon } from "../../design/icons";
+import { PanelHead } from "../../design/bento/PanelHead";
 
 /**
  * `capacity.MIN_MONTHS_FOR_RATE`, named here only so one French sentence can
@@ -131,7 +133,7 @@ export function VerdictPanel({ report }: VerdictPanelProps) {
     return (
       <div className="yd-verdict yd-verdict--unmeasured" data-testid="yd-verdict">
         <div className="yd-verdict__head">
-          <h2 className="yd-panel__title">Verdict</h2>
+          <PanelHead icon={FeasibilityIcon}>Verdict</PanelHead>
         </div>
         {/* The engine's own sentence, verbatim: it names WHICH cause applies. */}
         <p className="yd-verdict__refusal">{report.capacity_unavailable_reason}</p>
@@ -157,7 +159,7 @@ export function VerdictPanel({ report }: VerdictPanelProps) {
     return (
       <div className="yd-verdict yd-verdict--unmeasured" data-testid="yd-verdict">
         <div className="yd-verdict__head">
-          <h2 className="yd-panel__title">Verdict</h2>
+          <PanelHead icon={FeasibilityIcon}>Verdict</PanelHead>
         </div>
         <p className="yd-verdict__refusal">
           Votre capacité d'épargne a bien été mesurée, mais le serveur n'a pas renvoyé de verdict
@@ -170,7 +172,7 @@ export function VerdictPanel({ report }: VerdictPanelProps) {
   return (
     <div className={`yd-verdict yd-verdict--${verdict}`} data-testid="yd-verdict">
       <div className="yd-verdict__head">
-        <h2 className="yd-panel__title">Verdict</h2>
+        <PanelHead icon={FeasibilityIcon}>Verdict</PanelHead>
         <p className="yd-verdict__label">{VERDICT_LABEL[verdict]}</p>
       </div>
 

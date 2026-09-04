@@ -1,17 +1,9 @@
 .yd-overview {
-  max-width: 1280px;
   display: flex;
   flex-direction: column;
   gap: var(--yd-space-lg);
 }
 
-.yd-overview__header {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--yd-space-sm);
-}
 
 .yd-overview h1 {
   margin: 0;
@@ -20,15 +12,42 @@
   color: var(--yd-text);
 }
 
+/* The chevron travels with the label rather than wrapping under it, and moves
+   a little further out under the pointer — the direction the link goes. */
 .yd-overview__transactions-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   color: var(--yd-accent);
   font-weight: 600;
   font-size: 0.85rem;
   text-decoration: none;
 }
 
+.yd-overview__transactions-link .yd-icon {
+  font-size: 0.9em;
+  transition: transform var(--yd-motion-base) var(--yd-ease);
+}
+
 .yd-overview__transactions-link:hover {
   text-decoration: underline;
+}
+
+.yd-overview__transactions-link:hover .yd-icon {
+  transform: translateX(3px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .yd-overview__transactions-link .yd-icon {
+    transition: none;
+  }
+  .yd-overview__transactions-link:hover .yd-icon {
+    transform: none;
+  }
+}
+
+:root[data-motion="off"] .yd-overview__transactions-link:hover .yd-icon {
+  transform: none;
 }
 
 .yd-overview__alert {

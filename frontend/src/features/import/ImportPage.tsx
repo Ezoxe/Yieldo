@@ -3,6 +3,7 @@ import { useEffect, useState, type FormEvent } from "react";
 
 import { BentoCell, type BentoSpan } from "../../design/bento/BentoCell";
 import { BentoGrid } from "../../design/bento/BentoGrid";
+import { PanelHead } from "../../design/bento/PanelHead";
 import { entryProps, staggerProps } from "../../design/motion/variants";
 import { useReducedMotion } from "../../design/motion/useReducedMotion";
 import { ApiError, api } from "../../lib/api";
@@ -16,6 +17,8 @@ import "./ImportPage.css";
 import { ImportSummary } from "./ImportSummary";
 import { PreviewTable } from "./PreviewTable";
 import { useImportWizard, type UseImportWizardResult, type WizardStep } from "./useImportWizard";
+import { BudgetsIcon, ImportIcon, ListIcon } from "../../design/icons";
+import { PageHead } from "../../design/PageHead";
 
 const STEPS: { key: WizardStep; label: string }[] = [
   { key: "file", label: "Fichier" },
@@ -362,7 +365,7 @@ function FileStep({ wizard, accounts, onCreateAccount, reduced }: FileStepProps)
           className="yd-panel"
           {...entryProps(reduced)}
         >
-          <h2 className="yd-panel__title">Votre premier compte</h2>
+          <PanelHead icon={BudgetsIcon}>Votre premier compte</PanelHead>
           <p className="yd-import__hint">
             Vous n'avez pas encore de compte bancaire dans Yieldo. Créez-en un pour commencer à
             importer vos relevés.
@@ -376,7 +379,7 @@ function FileStep({ wizard, accounts, onCreateAccount, reduced }: FileStepProps)
   return (
     <BentoGrid as={motion.div} {...staggerProps(reduced)}>
       <BentoCell as={motion.div} span={SPAN.account} className="yd-panel" {...entryProps(reduced)}>
-        <h2 className="yd-panel__title">Compte de destination</h2>
+        <PanelHead icon={BudgetsIcon}>Compte de destination</PanelHead>
 
         <div className="yd-import__account-row">
           <label className="yd-import__account">
@@ -416,7 +419,7 @@ function FileStep({ wizard, accounts, onCreateAccount, reduced }: FileStepProps)
       </BentoCell>
 
       <BentoCell as={motion.div} span={SPAN.drop} className="yd-panel" {...entryProps(reduced)}>
-        <h2 className="yd-panel__title">Relevé à importer</h2>
+        <PanelHead icon={ImportIcon}>Relevé à importer</PanelHead>
 
         <DropZone
           onFileSelected={actions.selectFile}
@@ -521,7 +524,7 @@ function PreviewStep({
     <>
       <BentoGrid as={motion.div} {...staggerProps(reduced)}>
         <BentoCell as={motion.div} span={SPAN.summary} className="yd-panel" {...entryProps(reduced)}>
-          <h2 className="yd-panel__title">Ce que contient le fichier</h2>
+          <PanelHead icon={ListIcon}>Ce que contient le fichier</PanelHead>
           <ImportSummary
             summary={preview.summary}
             batch={null}
@@ -657,7 +660,12 @@ export function ImportPage() {
 
   return (
     <section className="yd-import">
-      <h1>Import de relevé</h1>
+      <PageHead icon={ImportIcon} title="Import de relevé">
+        <p>
+          Déposez le fichier exporté depuis votre banque. Rien n'est importé avant que vous
+          ayez vu et confirmé la correspondance des colonnes.
+        </p>
+      </PageHead>
 
       <ol className="yd-import__breadcrumb" aria-label="Étapes de l'import">
         {STEPS.map((item, index) => (

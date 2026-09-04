@@ -1,5 +1,4 @@
 .yd-transactions {
-  max-width: 1280px;
   display: flex;
   flex-direction: column;
   gap: var(--yd-space-lg);
@@ -54,8 +53,26 @@
   color: var(--yd-text-muted);
 }
 
+/* The search field carries its mark inside the input's own border: the field
+   is a column of label + input, so the mark is positioned over the input
+   rather than added as a third row, and the input is padded out of its way. */
 .yd-filterbar__field--search {
   flex: 1 1 220px;
+  position: relative;
+}
+
+.yd-filterbar__field--search .yd-icon {
+  position: absolute;
+  left: var(--yd-space-sm);
+  top: 50%;
+  translate: 0 -50%;
+  font-size: 0.95rem;
+  color: var(--yd-text-muted);
+  pointer-events: none;
+}
+
+.yd-filterbar__field--search input {
+  padding-left: calc(var(--yd-space-sm) * 2 + 0.95rem);
 }
 
 .yd-filterbar__field input,

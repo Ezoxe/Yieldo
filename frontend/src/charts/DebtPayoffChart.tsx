@@ -6,7 +6,7 @@ import { formatCents, formatCompactCents } from "../design/theme";
 import type { BalancePoint } from "../lib/types";
 import { Chart, type ChartExportRow } from "./Chart";
 import "./DebtPayoffChart.css";
-import { type Resolved, chartTokens, seriesColors } from "./theme";
+import { LINE_SMOOTHING, chartTokens, seriesColors, type Resolved } from "./theme";
 
 /** "2026-09-30" → "sept. 2026". */
 function monthLabel(iso: string): string {
@@ -92,6 +92,7 @@ export function buildPayoffOption(
     },
     series: ids.map((id, index) => ({
       type: "line" as const,
+      ...LINE_SMOOTHING,
       name: debtName(names, id),
       stack: "solde",
       stackStrategy: "all" as const,

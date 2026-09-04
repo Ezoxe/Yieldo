@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 
+import { SearchIcon } from "../../design/icons";
 import type { Account, Category } from "../../lib/types";
 import { CategoryPicker } from "./CategoryPicker";
 import { PeriodSelector } from "./PeriodSelector";
@@ -60,6 +61,10 @@ export function FilterBar({
       <div className="yd-filterbar__row">
         <label className="yd-filterbar__field yd-filterbar__field--search">
           <span className="sr-only">Rechercher</span>
+          {/* Inside the field's border, so the pair reads as one control. The
+              accessible name is still the label above it — the mark is
+              decoration and carries nothing the label does not. */}
+          <SearchIcon />
           <input
             type="search"
             placeholder="Rechercher un libellé…"

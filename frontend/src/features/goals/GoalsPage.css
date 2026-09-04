@@ -1,15 +1,9 @@
 .yd-goals {
-  max-width: 1280px;
   display: flex;
   flex-direction: column;
   gap: var(--yd-space-lg);
 }
 
-.yd-goals__header {
-  display: flex;
-  flex-direction: column;
-  gap: var(--yd-space-2xs);
-}
 
 .yd-goals h1 {
   margin: 0;
@@ -299,13 +293,20 @@
 
 /* One goal ---------------------------------------------------------------- */
 
+/* A column, not a single-track grid: the cell around it is now stretched to
+   its row, and a flex column is what lets the actions below take `margin-top:
+   auto` and settle on the card's bottom edge. `min-width: 0` on the children
+   does the job `minmax(0, 1fr)` used to — a long unbroken figure must not set
+   the card's minimum width. */
 .yd-goal {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
+  display: flex;
+  flex-direction: column;
   gap: var(--yd-space-sm);
-  /* Content-height, so a card carrying a date does not grow to match a
-     neighbour carrying a paragraph. */
-  align-content: start;
+  height: 100%;
+}
+
+.yd-goal > * {
+  min-width: 0;
 }
 
 .yd-goal__head {
@@ -488,11 +489,17 @@
 
 /* Row actions ------------------------------------------------------------- */
 
+/* Pinned to the bottom of the card. The cards in a row are all as tall as the
+   tallest of them, so without this the two buttons sit wherever that card's
+   own prose happened to end and the row of controls reads as ragged — the
+   alignment problem moved one level in rather than being fixed. */
 .yd-goal__actions {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: var(--yd-space-xs);
+  margin-top: auto;
+  padding-top: var(--yd-space-xs);
 }
 
 .yd-goal__confirm {

@@ -1,0 +1,69 @@
+/* The head every screen wears. One row: the screen's mark, its title and lead,
+   and whatever control belongs to the screen as a whole.
+
+   The mark is what makes the screens tell each other apart at a glance — an
+   application of twenty screens that all open with the same black-on-dark
+   heading reads as one screen the reader keeps failing to leave. */
+.yd-page-head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--yd-space-md);
+}
+
+/* Bigger than a panel's badge — this one names the whole screen, and it has an
+   `h1` beside it rather than an `h2`. */
+.yd-page-head__mark {
+  width: 2.6rem;
+  height: 2.6rem;
+  border-radius: 13px;
+  font-size: 1.35rem;
+  /* Optically centred on the title's cap height rather than on its line box. */
+  margin-top: 1px;
+}
+
+.yd-page-head__text {
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-2xs);
+  min-width: 0;
+  flex: 1;
+}
+
+.yd-page-head__text h1 {
+  margin: 0;
+  font-size: clamp(1.4rem, 2.2vw, 1.8rem);
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  color: var(--yd-text);
+}
+
+/* Every screen's lead paragraph, whatever its own class is called. Capped: the
+   content column now runs to 1680px, and a 240-character line of 0.9rem prose
+   is unreadable however wide the display is. */
+.yd-page-head__text > p {
+  margin: 0;
+  max-width: 92ch;
+  font-size: 0.9rem;
+  line-height: 1.55;
+  color: var(--yd-text-muted);
+}
+
+.yd-page-head__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--yd-space-xs);
+  flex-shrink: 0;
+}
+
+/* Below 640px the mark and the title still share a row — dropping the mark to
+   its own line would leave it stranded — but a screen-level control moves
+   under the text rather than squeezing the title into four characters. */
+@media (max-width: 639px) {
+  .yd-page-head {
+    flex-wrap: wrap;
+  }
+
+  .yd-page-head__actions {
+    width: 100%;
+  }
+}

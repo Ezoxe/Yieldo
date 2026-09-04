@@ -4,7 +4,10 @@ import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from "rea
 import { DebtPayoffChart } from "../../charts/DebtPayoffChart";
 import { BentoCell, type BentoSpan } from "../../design/bento/BentoCell";
 import { BentoGrid } from "../../design/bento/BentoGrid";
+import { PanelHead } from "../../design/bento/PanelHead";
 import { EmptyState, frenchDate } from "../../design/EmptyState";
+import { ArchiveIcon, DebtsIcon, EditIcon, PlusIcon } from "../../design/icons";
+import { PageHead } from "../../design/PageHead";
 import { useReducedMotion } from "../../design/motion/useReducedMotion";
 import { entryProps, staggerProps } from "../../design/motion/variants";
 import "../../design/Skeleton.css";
@@ -328,7 +331,7 @@ export function DebtsPage() {
     body = (
       <BentoGrid as={motion.div} {...staggerProps(reduced)}>
         <BentoCell as={motion.div} span={SPAN.debts} className="yd-panel" {...entryProps(reduced)}>
-          <h2 className="yd-panel__title">Vos dettes</h2>
+          <PanelHead icon={DebtsIcon}>Vos dettes</PanelHead>
 
           {debts === null ? null : debts.length === 0 && editing === null ? (
             <EmptyState
@@ -340,6 +343,7 @@ export function DebtsPage() {
                 className="yd-empty__action"
                 onClick={() => setEditing("new")}
               >
+                <PlusIcon />
                 Ajouter une dette
               </button>
             </EmptyState>
@@ -400,6 +404,7 @@ export function DebtsPage() {
                             onClick={() => setEditing(debt)}
                           >
                             <span className="sr-only">{`Modifier ${debt.name}`}</span>
+                            <EditIcon />
                             <span aria-hidden="true">Modifier</span>
                           </button>
                           <button
@@ -408,6 +413,7 @@ export function DebtsPage() {
                             onClick={() => setPendingArchive(debt.id)}
                           >
                             <span className="sr-only">{`Archiver ${debt.name}`}</span>
+                            <ArchiveIcon />
                             <span aria-hidden="true">Archiver</span>
                           </button>
                         </div>
@@ -429,6 +435,7 @@ export function DebtsPage() {
                   className="yd-debts__add"
                   onClick={() => setEditing("new")}
                 >
+                  <PlusIcon />
                   Ajouter une dette
                 </button>
               ) : null}
@@ -455,7 +462,7 @@ export function DebtsPage() {
           aria-busy={recomputing || undefined}
           {...entryProps(reduced)}
         >
-          <h2 className="yd-panel__title">Deux façons de rembourser</h2>
+          <PanelHead icon={DebtsIcon}>Deux façons de rembourser</PanelHead>
 
           {comparison === null ? null : noDebts ? (
             <p className="yd-debts__none">
@@ -538,7 +545,7 @@ export function DebtsPage() {
             the opposite of what an empty state is for. */}
         {shown === null || noDebts ? null : (
         <BentoCell as={motion.div} span={SPAN.chart} className="yd-panel" {...entryProps(reduced)}>
-          <h2 className="yd-panel__title">Capital restant dû, mois après mois</h2>
+          <PanelHead icon={DebtsIcon}>Capital restant dû, mois après mois</PanelHead>
           {shown.months === null || shown.points.length === 0 ? (
             <p className="yd-debts__note">
               Aucune courbe à tracer : aucun échéancier n'a pu être établi. La raison est donnée
@@ -577,13 +584,13 @@ export function DebtsPage() {
 
   return (
     <section className="yd-debts">
-      <div className="yd-debts__header">
-        <h1>Dettes</h1>
+      <PageHead icon={DebtsIcon} title="Dettes" className="yd-debts__header">
+
         <p className="yd-debts__lead">
           Ce que vous devez, dans quel ordre le rembourser, et ce que le choix de l'ordre coûte ou
           rapporte.
         </p>
-      </div>
+      </PageHead>
 
       {errorEntries.map((entry) => (
         <p role="alert" className="yd-debts__alert" key={entry.field}>

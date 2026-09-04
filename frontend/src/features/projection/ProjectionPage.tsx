@@ -4,6 +4,9 @@ import { Link, useSearchParams } from "react-router";
 
 import { BentoCell, type BentoSpan } from "../../design/bento/BentoCell";
 import { BentoGrid } from "../../design/bento/BentoGrid";
+import { PanelHead } from "../../design/bento/PanelHead";
+import { DebtsIcon, ListIcon, ProjectionIcon } from "../../design/icons";
+import { PageHead } from "../../design/PageHead";
 import { useReducedMotion } from "../../design/motion/useReducedMotion";
 import { entryProps, staggerProps } from "../../design/motion/variants";
 import "../../design/Skeleton.css";
@@ -151,7 +154,7 @@ export function ProjectionPage() {
           className="yd-panel"
           {...entryProps(reduced)}
         >
-          <h2 className="yd-panel__title">Hypothèses de ce calcul</h2>
+          <PanelHead icon={ListIcon}>Hypothèses de ce calcul</PanelHead>
           <AssumptionsPanel
             assumptions={assumptions}
             // Edited against what actually RAN, not against what the URL says:
@@ -171,7 +174,7 @@ export function ProjectionPage() {
           className="yd-panel yd-projection__cell--fit"
           {...entryProps(reduced)}
         >
-          <h2 className="yd-panel__title">Point de départ mesuré</h2>
+          <PanelHead icon={ListIcon}>Point de départ mesuré</PanelHead>
           <dl className="yd-projection__start">
             <div className="yd-fact">
               <dt className="yd-fact__label">Capital valorisé</dt>
@@ -233,7 +236,7 @@ export function ProjectionPage() {
         </BentoCell>
 
         <BentoCell as={motion.div} span={SPAN.full} className="yd-panel" {...entryProps(reduced)}>
-          <h2 className="yd-panel__title">Trajectoires simulées du capital</h2>
+          <PanelHead icon={DebtsIcon}>Trajectoires simulées du capital</PanelHead>
           {data.monte_carlo === null ? (
             <p className="yd-projection__refusal" data-testid="yd-mc-refusal">
               {data.monte_carlo_unavailable_reason}
@@ -252,7 +255,7 @@ export function ProjectionPage() {
           className="yd-panel yd-projection__cell--fit"
           {...entryProps(reduced)}
         >
-          <h2 className="yd-panel__title">Indépendance financière</h2>
+          <PanelHead icon={ListIcon}>Indépendance financière</PanelHead>
           {data.fire === null ? (
             <p className="yd-projection__refusal" data-testid="yd-fire-refusal">
               {data.fire_unavailable_reason}
@@ -268,7 +271,7 @@ export function ProjectionPage() {
           className="yd-panel yd-projection__cell--fit"
           {...entryProps(reduced)}
         >
-          <h2 className="yd-panel__title">Fiscalité d'une cession aujourd'hui</h2>
+          <PanelHead icon={ListIcon}>Fiscalité d'une cession aujourd'hui</PanelHead>
           {data.tax === null ? (
             <p className="yd-projection__refusal" data-testid="yd-tax-refusal">
               {data.tax_unavailable_reason}
@@ -279,7 +282,7 @@ export function ProjectionPage() {
         </BentoCell>
 
         <BentoCell as={motion.div} span={SPAN.full} className="yd-panel" {...entryProps(reduced)}>
-          <h2 className="yd-panel__title">Tests de résistance</h2>
+          <PanelHead icon={ListIcon}>Tests de résistance</PanelHead>
           <StressPanel stress={data.stress} refusal={data.stress_unavailable_reason} />
         </BentoCell>
       </BentoGrid>
@@ -288,8 +291,8 @@ export function ProjectionPage() {
 
   return (
     <section className="yd-projection">
-      <div className="yd-projection__header">
-        <h1>Projection</h1>
+      <PageHead icon={ProjectionIcon} title="Projection" className="yd-projection__header">
+
         <p className="yd-projection__lead">
           Ce que vos positions et vos relevés permettent de calculer sur le long terme&nbsp;: des
           trajectoires simulées plutôt qu'un chiffre unique, un délai vers l'indépendance
@@ -297,7 +300,7 @@ export function ProjectionPage() {
           appliqués à ce que vous détenez. Chaque hypothèse est affichée à côté du chiffre
           qu'elle a produit — <strong>Yieldo calcule, il ne prédit pas</strong>.
         </p>
-      </div>
+      </PageHead>
 
       {error !== null ? (
         <p role="alert" className="yd-projection__alert">

@@ -1,0 +1,117 @@
+/* The mark, and the panel it opens. See InfoTip.tsx for why a methodology note
+   lives behind one at all. */
+
+.yd-infotip {
+  position: relative;
+  display: inline-flex;
+  /* The panel is `absolute` inside this, and must escape whatever line box the
+     mark sits in without dragging the layout with it. */
+  vertical-align: middle;
+}
+
+.yd-infotip__trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  /* 24px, the smallest target this app allows for a control that sits inside a
+     line of text. */
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--yd-radius-pill);
+  background: transparent;
+  color: var(--yd-text-muted);
+  cursor: help;
+  transition:
+    color var(--yd-motion-fast) var(--yd-ease),
+    background-color var(--yd-motion-fast) var(--yd-ease);
+}
+
+.yd-infotip__trigger .yd-icon {
+  font-size: 0.95rem;
+}
+
+.yd-infotip__trigger:hover,
+.yd-infotip__trigger[aria-expanded="true"] {
+  color: var(--yd-text);
+  background: var(--yd-surface-raised);
+}
+
+.yd-infotip__trigger:focus-visible {
+  outline: 2px solid var(--yd-accent);
+  outline-offset: 1px;
+}
+
+/* Floats above the card, so it takes the raised surface and the pop shadow —
+   the two things that say "this is over the page, not part of it". */
+.yd-infotip__panel {
+  position: absolute;
+  z-index: 50;
+  top: calc(100% + 6px);
+  /* Centred under the mark by default. `--yd-tip-shift` is what the
+     right-anchored variant below overrides — the alignment travels as a
+     custom property so the entry animation (which also writes `translate`)
+     cannot fight it. */
+  left: var(--yd-tip-left, 50%);
+  right: var(--yd-tip-right, auto);
+  translate: var(--yd-tip-shift, -50%) 0;
+  width: max-content;
+  max-width: min(320px, 70vw);
+  padding: var(--yd-space-sm) var(--yd-space-md);
+  border-radius: var(--yd-radius-sm);
+  border: 1px solid var(--yd-border-strong);
+  background: var(--yd-surface-raised);
+  backdrop-filter: blur(var(--yd-glass-blur)) saturate(var(--yd-glass-saturate));
+  -webkit-backdrop-filter: blur(var(--yd-glass-blur)) saturate(var(--yd-glass-saturate));
+  box-shadow: var(--yd-shadow-pop);
+  color: var(--yd-text);
+  font-size: 0.82rem;
+  font-weight: 400;
+  line-height: 1.55;
+  text-align: left;
+  /* Never intercepts the pointer: the panel opens on hovering the MARK, and a
+     panel that could be hovered itself would flicker as the pointer crossed
+     the gap between the two. */
+  pointer-events: none;
+  animation: yd-infotip-in var(--yd-motion-fast) var(--yd-ease);
+}
+
+/* Opacity and a margin, never `translate`: the panel's own `translate` carries
+   its horizontal alignment, and a keyframe writing that property would drop the
+   alignment for the length of the animation. */
+@keyframes yd-infotip-in {
+  from {
+    opacity: 0;
+    margin-top: -4px;
+  }
+  to {
+    opacity: 1;
+    margin-top: 0;
+  }
+}
+
+/* A mark that sits at the far right of a panel head or a page head has no room
+   to its right: centred, its panel runs off the card and off the screen.
+   Measured at 1000px on /analyse — half the sentence was outside the viewport.
+   These are the only two places in the app where a tip is pinned to an edge,
+   so the rule names them rather than guessing at runtime. */
+.yd-panel__actions .yd-infotip__panel,
+.yd-page-head__actions .yd-infotip__panel {
+  --yd-tip-left: auto;
+  --yd-tip-right: 0;
+  --yd-tip-shift: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .yd-infotip__panel {
+    animation: none;
+  }
+  .yd-infotip__trigger {
+    transition: none;
+  }
+}
+
+:root[data-motion="off"] .yd-infotip__panel {
+  animation: none;
+}

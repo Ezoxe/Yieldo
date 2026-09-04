@@ -3,6 +3,9 @@ import { useEffect, useState } from "react";
 
 import { BentoCell, type BentoSpan } from "../../design/bento/BentoCell";
 import { BentoGrid } from "../../design/bento/BentoGrid";
+import { PanelHead } from "../../design/bento/PanelHead";
+import { AlertsIcon, CoinsIcon, InfoIcon, ListIcon } from "../../design/icons";
+import { PageHead } from "../../design/PageHead";
 import { useReducedMotion } from "../../design/motion/useReducedMotion";
 import { entryProps, staggerProps } from "../../design/motion/variants";
 import { centsToInput, formatCents, parseCents } from "../../design/theme";
@@ -232,15 +235,15 @@ export function AlertsPage() {
 
   return (
     <section className="yd-alerts">
-      <div className="yd-alerts__header">
-        <h1>Alertes</h1>
+      <PageHead icon={AlertsIcon} title="Alertes" className="yd-alerts__header">
+
         <p className="yd-alerts__lead">
           Cinq conditions mesurées sur vos propres relevés. Chacune dit{" "}
           <strong>ce qui a été mesuré, sur quelle période, et ce qui la lèverait</strong> — et
           quand elle n'a rien pu mesurer, elle le dit aussi plutôt que de se taire.{" "}
           <strong>Aucune alerte n'est levée sur des données qui n'ont pas été mesurées.</strong>
         </p>
-      </div>
+      </PageHead>
 
       {error !== null ? (
         <p role="alert" className="yd-alerts__alert" data-testid="yd-alerts-error">
@@ -260,7 +263,7 @@ export function AlertsPage() {
             className="yd-panel"
             {...entryProps(reduced)}
           >
-            <h2 className="yd-panel__title">Ce que vos relevés couvrent</h2>
+            <PanelHead icon={InfoIcon}>Ce que vos relevés couvrent</PanelHead>
             <p className="yd-alerts__coverage" data-testid="yd-alerts-coverage">
               {coverage?.first_on === null || coverage === undefined
                 ? "Aucun relevé importé : il n'y a rien à surveiller, et rien ne sera inventé pour le faire croire."
@@ -297,7 +300,7 @@ export function AlertsPage() {
             className="yd-panel"
             {...entryProps(reduced)}
           >
-            <h2 className="yd-panel__title">
+            <PanelHead icon={ListIcon}>
               {report.alerts.length === 0
                 ? "Aucune alerte en cours"
                 : `${report.alerts.length} ${plural(
@@ -305,7 +308,7 @@ export function AlertsPage() {
                     "alerte en cours",
                     "alertes en cours",
                   )}`}
-            </h2>
+            </PanelHead>
             {report.alerts.length === 0 ? (
               <p className="yd-alerts__empty" data-testid="yd-alerts-empty">
                 Rien ne s'est déclenché. Ce n'est pas la même chose que «&nbsp;tout va
@@ -327,7 +330,7 @@ export function AlertsPage() {
             className="yd-panel"
             {...entryProps(reduced)}
           >
-            <h2 className="yd-panel__title">Seuil de solde projeté</h2>
+            <PanelHead icon={CoinsIcon}>Seuil de solde projeté</PanelHead>
             <p className="yd-alerts__note">
               Le seul réglage de cet écran. Yieldo projette votre solde sur douze mois et vous
               prévient si le <strong>pire dixième</strong> de cette projection passe sous le seuil
@@ -395,7 +398,7 @@ export function AlertsPage() {
             className="yd-panel"
             {...entryProps(reduced)}
           >
-            <h2 className="yd-panel__title">Les cinq conditions, une par une</h2>
+            <PanelHead icon={AlertsIcon}>Les cinq conditions, une par une</PanelHead>
             <p className="yd-alerts__note">
               Chacune est dans exactement un de quatre états&nbsp;: elle s'est déclenchée&nbsp;;
               elle a été mesurée et n'a rien trouvé&nbsp;; elle a été mesurée mais a{" "}

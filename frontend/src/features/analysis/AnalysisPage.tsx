@@ -3,8 +3,12 @@ import { useCallback, useEffect, useState, type ReactNode } from "react";
 
 import { BentoCell, type BentoSpan } from "../../design/bento/BentoCell";
 import { BentoGrid } from "../../design/bento/BentoGrid";
+import { PanelHead } from "../../design/bento/PanelHead";
 import { CountUp } from "../../design/CountUp";
 import { frenchDate } from "../../design/EmptyState";
+import { AnalysisIcon, ChevronIcon, CoinsIcon, ListIcon, PriceChangeIcon, TrendUpIcon } from "../../design/icons";
+import { InfoTip } from "../../design/InfoTip";
+import { PageHead } from "../../design/PageHead";
 import { useReducedMotion } from "../../design/motion/useReducedMotion";
 import { entryProps, staggerProps } from "../../design/motion/variants";
 import "../../design/Skeleton.css";
@@ -419,7 +423,28 @@ export function AnalysisPage() {
           data-testid="yd-analysis-basket"
           {...entryProps(reduced)}
         >
-          <h2 className="yd-panel__title">Votre panier</h2>
+          <PanelHead
+            icon={CoinsIcon}
+            actions={
+              inflation !== null && inflationRefusal === null ? (
+                // The three sentences that say HOW the figure was arrived at —
+                // which two windows, how many categories entered the basket,
+                // what the reference index is doing. They used to sit as four
+                // paragraphs under the percentage, which is how a screen ends
+                // up being read as prose with a number in it. Nothing is
+                // dropped: they are one hover away, in full.
+                <InfoTip label="Comment ce panier est mesuré">
+                  <span className="yd-analysis__method">
+                    <span>{windowSentence(inflation)}</span>
+                    <span>{basketScopeSentence(comparableLines.length, incomparableLines.length)}</span>
+                    <span>{referenceSentence(inflation, indexPoints, Boolean(errors.index))}</span>
+                  </span>
+                </InfoTip>
+              ) : null
+            }
+          >
+            Votre panier
+          </PanelHead>
           {inflationRefusal !== null ? (
             // Not an error state: the engine answered. Same warning treatment
             // as the refusal below, and no figure of any kind beside it.
@@ -439,15 +464,20 @@ export function AnalysisPage() {
                 format={formatRatio}
                 className="yd-analysis__ratio"
               />
-              <p className="yd-analysis__note yd-analysis__note--strong">
-                {`Coût mensuel médian : ${formatCents(inflation.basket_previous_cost_cents)} un an plus tôt, ${formatCents(inflation.basket_current_cost_cents)} sur la période récente.`}
-              </p>
-              <p className="yd-analysis__note">{windowSentence(inflation)}</p>
-              <p className="yd-analysis__note">
-                {basketScopeSentence(comparableLines.length, incomparableLines.length)}
-              </p>
-              <p className="yd-analysis__note">
-                {referenceSentence(inflation, indexPoints, Boolean(errors.index))}
+              {/* The two costs the percentage is the ratio of, as two
+                  figures with an arrow between them rather than as a
+                  sentence. Same numbers, one line instead of three. */}
+              <p className="yd-analysis__basket-costs">
+                <span>
+                  <span className="yd-analysis__basket-when">Un an plus tôt</span>
+                  <span className="yd-num">{formatCents(inflation.basket_previous_cost_cents)}</span>
+                </span>
+                <ChevronIcon />
+                <span>
+                  <span className="yd-analysis__basket-when">Période récente</span>
+                  <span className="yd-num">{formatCents(inflation.basket_current_cost_cents)}</span>
+                </span>
+                <span className="yd-analysis__basket-unit">par mois, coût médian</span>
               </p>
             </>
           ) : (
@@ -472,7 +502,7 @@ export function AnalysisPage() {
         </BentoCell>
 
         <BentoCell as={motion.div} span={SPAN.lines} className="yd-panel" {...entryProps(reduced)}>
-          <h2 className="yd-panel__title">Où l'argent part davantage qu'avant</h2>
+          <PanelHead icon={TrendUpIcon}>Où l'argent part davantage qu'avant</PanelHead>
           {inflationRefusal !== null ? (
             // The refusal itself is stated once, in the basket cell. Repeating
             // it here would make one answer look like two, so this cell says
@@ -578,7 +608,7 @@ export function AnalysisPage() {
           className="yd-panel"
           {...entryProps(reduced)}
         >
-          <h2 className="yd-panel__title">{ANOMALY_LIST_LABEL}</h2>
+          <PanelHead icon={ListIcon}>{ANOMALY_LIST_LABEL}</PanelHead>
           {anomalies === null ? (
             <p className="yd-analysis__note">Ce panneau n'a pas pu être chargé.</p>
           ) : (
@@ -672,7 +702,7 @@ export function AnalysisPage() {
           className="yd-panel"
           {...entryProps(reduced)}
         >
-          <h2 className="yd-panel__title">Indice de référence</h2>
+          <PanelHead icon={PriceChangeIcon}>Indice de référence</PanelHead>
           <PriceIndexForm points={indexPoints} onSaved={reload} />
         </BentoCell>
       </BentoGrid>
@@ -681,13 +711,13 @@ export function AnalysisPage() {
 
   return (
     <section className="yd-analysis">
-      <div className="yd-analysis__header">
-        <h1>Analyse</h1>
+      <PageHead icon={AnalysisIcon} title="Analyse" className="yd-analysis__header">
+
         <p className="yd-analysis__lead">
           Ce qui a changé : le prix de votre propre panier d'une année sur l'autre, et les
           montants qui sortent de l'ordinaire pour leur catégorie.
         </p>
-      </div>
+      </PageHead>
 
       <PeriodSelector period={period} />
 

@@ -1,31 +1,51 @@
-/* No padding and no surface of its own: the bento cell around it owns both. */
+/* The KPI tile. No padding and no surface of its own: the bento cell around it
+   owns both. It does own its own stacking context, because the sparkline is
+   painted behind the figure and bled to the cell's edges. */
 .yd-stat-tile {
+  position: relative;
+  isolation: isolate;
   display: flex;
   flex-direction: column;
-  /* The bento's minimum row height is taller than a label plus a figure, so
-     without this the pair hangs off the top of the cell with a void beneath. */
-  justify-content: center;
-  gap: var(--yd-space-2xs);
+  /* The head sits at the top, the figure and its badge at the bottom: on a
+     cell taller than its contents the pair reads as anchored rather than as
+     floating in the middle of a void. */
+  justify-content: space-between;
+  gap: var(--yd-space-sm);
   min-width: 0;
   height: 100%;
 }
 
-.yd-stat-tile__label {
-  color: var(--yd-text-muted);
-  font-size: 0.78rem;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
+/* The mark, the label, and the methodology note, on one row. */
+.yd-stat-tile__head {
+  display: flex;
+  align-items: center;
+  gap: var(--yd-space-xs);
+  min-width: 0;
 }
 
+.yd-stat-tile__label {
+  color: var(--yd-text-muted);
+  font-size: 0.75rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* The figure the card exists for: display size, mono, tabular (inherited from
+   `.yd-num`, which CountUp supplies). Tabular is not a preference here — the
+   value is animated by CountUp, and proportional digits change width as they
+   tick, which makes the whole figure shiver horizontally for the length of the
+   count. */
 .yd-stat-tile__value {
   display: block;
   color: var(--yd-text);
-  font-size: clamp(1.35rem, 2vw, 1.7rem);
+  font-size: clamp(1.5rem, 2.4vw, 2rem);
   font-weight: 600;
-  /* Tabular, inherited from .yd-num, and NOT overridden back to
-     proportional-nums as it once was: this value is animated by CountUp, and
-     proportional digits change width as they tick, which makes the whole
-     figure shiver horizontally for the length of the count. */
+  line-height: 1.1;
+  letter-spacing: -0.02em;
 }
 
 .yd-stat-tile__unavailable {
@@ -35,25 +55,72 @@
   font-style: italic;
 }
 
+/* A pill, tinted by direction, with an arrow that says which way without
+   relying on the tint (WCAG 1.4.1). Sits on its own line under the figure, so
+   a long amount and a long delta never collide. */
 .yd-stat-tile__delta {
-  font-size: 0.85rem;
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  gap: 4px;
+  padding: 2px 8px 2px 6px;
+  border-radius: var(--yd-radius-pill);
+  border: 1px solid transparent;
+  font-family: var(--yd-font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.78rem;
   font-weight: 600;
+  line-height: 1.5;
+}
+
+.yd-stat-tile__delta .yd-icon {
+  font-size: 0.85rem;
 }
 
 .yd-stat-tile__delta--good {
   color: var(--yd-positive);
+  border-color: color-mix(in srgb, var(--yd-positive) 26%, transparent);
+  background: color-mix(in srgb, var(--yd-positive) 12%, transparent);
 }
 
 .yd-stat-tile__delta--bad {
   color: var(--yd-negative);
+  border-color: color-mix(in srgb, var(--yd-negative) 26%, transparent);
+  background: color-mix(in srgb, var(--yd-negative) 12%, transparent);
 }
 
+/* The trend, behind the figure and bled to the cell's edges.
+   Negative insets of exactly the cell's own padding, so the band reaches the
+   card's border on three sides; `.yd-cell--stat` (Bento.css) is what clips it
+   back to the rounded corners. `z-index: -1` under the tile's own isolation
+   keeps it behind the text without escaping into the page. */
 .yd-stat-tile__sparkline {
-  width: 100%;
-  height: 24px;
-  margin-top: var(--yd-space-2xs);
-  /* The first and last points sit exactly on the box edges, so the end marker
-     is half outside it; the UA default (hidden) would slice it down the
-     middle. */
-  overflow: visible;
+  position: absolute;
+  z-index: -1;
+  left: calc(var(--yd-space-lg) * -1);
+  right: calc(var(--yd-space-lg) * -1);
+  bottom: calc(var(--yd-space-lg) * -1);
+  height: 46%;
+  min-height: 42px;
+  pointer-events: none;
+  --yd-sparkline-line: color-mix(in srgb, var(--yd-accent) 55%, transparent);
+  --yd-sparkline-fill: color-mix(in srgb, var(--yd-accent) 12%, transparent);
+}
+
+/* The band's tint follows the figure it stands under, set on the CELL so the
+   tile itself stays ignorant of which of the three it is. Accent is the
+   fallback declared above. */
+.yd-cell--stat-positive .yd-stat-tile__sparkline {
+  --yd-sparkline-line: color-mix(in srgb, var(--yd-positive) 55%, transparent);
+  --yd-sparkline-fill: color-mix(in srgb, var(--yd-positive) 12%, transparent);
+}
+
+.yd-cell--stat-negative .yd-stat-tile__sparkline {
+  --yd-sparkline-line: color-mix(in srgb, var(--yd-negative) 55%, transparent);
+  --yd-sparkline-fill: color-mix(in srgb, var(--yd-negative) 12%, transparent);
+}
+
+.yd-cell--stat-info .yd-stat-tile__sparkline {
+  --yd-sparkline-line: color-mix(in srgb, var(--yd-info) 55%, transparent);
+  --yd-sparkline-fill: color-mix(in srgb, var(--yd-info) 12%, transparent);
 }

@@ -1,15 +1,9 @@
 .yd-recurrences {
-  max-width: 1280px;
   display: flex;
   flex-direction: column;
   gap: var(--yd-space-lg);
 }
 
-.yd-recurrences__header {
-  display: flex;
-  flex-direction: column;
-  gap: var(--yd-space-2xs);
-}
 
 .yd-recurrences h1 {
   margin: 0;

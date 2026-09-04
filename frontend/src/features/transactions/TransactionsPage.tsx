@@ -21,6 +21,8 @@ import { FilterBar } from "./FilterBar";
 import { TransactionRow } from "./TransactionRow";
 import "./TransactionsPage.css";
 import { usePeriod } from "./usePeriod";
+import { TransactionsIcon } from "../../design/icons";
+import { PageHead } from "../../design/PageHead";
 
 const PAGE_SIZE = 50;
 const GENERIC_ERROR = "Une erreur inattendue est survenue.";
@@ -360,7 +362,12 @@ export function TransactionsPage() {
 
   return (
     <section className="yd-transactions">
-      <h1>Transactions</h1>
+      <PageHead icon={TransactionsIcon} title="Transactions">
+        <p>
+          Chaque opération importée, sur la période de votre choix. Corrigez une catégorie
+          et Yieldo la retient pour les suivantes.
+        </p>
+      </PageHead>
 
       {referenceError ? (
         <p role="alert" className="yd-transactions__alert">

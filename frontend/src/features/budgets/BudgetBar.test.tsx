@@ -1,4 +1,5 @@
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 
 import type { BudgetLine } from "../../lib/types";
@@ -97,14 +98,24 @@ describe("BudgetBar", () => {
     expect(screen.getByText(/Dépassé de 45,00/)).toBeInTheDocument();
   });
 
-  it("states the projection when the month is on pace to overrun", () => {
+  // The projection moved behind a mark rather than being printed under every
+  // row: twelve categories each carrying a three-line sentence is what buried
+  // the figures the screen exists to show. It is still one interaction away,
+  // and still exact.
+  it("states the projection once the reader asks for it", async () => {
+    const user = userEvent.setup();
     render(<BudgetBar line={{ ...line, spent_cents: -20000, remaining_cents: 10000, consumed_ratio: 0.67, projected_cents: -41333, status: "at_risk" }} />);
-    expect(screen.getByText(/À ce rythme/)).toBeInTheDocument();
-    expect(screen.getByText(/413,33/)).toBeInTheDocument();
+
+    expect(screen.queryByText(/À ce rythme/)).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /Projection du budget Courses/ }));
+
+    expect(screen.getByRole("tooltip")).toHaveTextContent(/À ce rythme/);
+    expect(screen.getByRole("tooltip")).toHaveTextContent(/413,33/);
   });
 
-  it("says nothing about a pace it does not have", () => {
+  it("offers no projection mark when there is no pace to project", () => {
     render(<BudgetBar line={line} />);
-    expect(screen.queryByText(/À ce rythme/)).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Projection/ })).not.toBeInTheDocument();
   });
 });

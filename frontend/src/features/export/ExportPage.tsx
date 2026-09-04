@@ -3,6 +3,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { BentoCell, type BentoSpan } from "../../design/bento/BentoCell";
 import { BentoGrid } from "../../design/bento/BentoGrid";
+import { PanelHead } from "../../design/bento/PanelHead";
+import { ExportIcon, FilterIcon, ListIcon, SearchIcon } from "../../design/icons";
+import { PageHead } from "../../design/PageHead";
 import { useReducedMotion } from "../../design/motion/useReducedMotion";
 import { entryProps, staggerProps } from "../../design/motion/variants";
 import "../../design/Skeleton.css";
@@ -280,8 +283,8 @@ export function ExportPage() {
 
   return (
     <section className="yd-export">
-      <div className="yd-export__header">
-        <h1>Export de contexte</h1>
+      <PageHead icon={ExportIcon} title="Export de contexte" className="yd-export__header">
+
         <p className="yd-export__lead">
           Composez un document Markdown à partir de vos propres données et donnez-le à l'IA de
           votre choix. Vous choisissez la période, les comptes, les catégories, la finesse et les
@@ -289,7 +292,7 @@ export function ExportPage() {
           document le dit en tête. Le volume est mesuré en continu, et Yieldo prévient quand il
           dépasse la fenêtre du modèle visé.
         </p>
-      </div>
+      </PageHead>
 
       {error !== null ? (
         <p role="alert" className="yd-export__alert" data-testid="yd-export-error">
@@ -299,7 +302,7 @@ export function ExportPage() {
 
       <BentoGrid as={motion.div} {...staggerProps(reduced)}>
         <BentoCell as={motion.div} span={SPAN.scope} className="yd-panel" {...entryProps(reduced)}>
-          <h2 className="yd-panel__title">Périmètre</h2>
+          <PanelHead icon={FilterIcon}>Périmètre</PanelHead>
           {options === null ? (
             <div role="status" aria-busy="true" aria-label="Chargement du périmètre">
               <div className="yd-skeleton yd-skeleton--patrimoine-card" aria-hidden="true" />
@@ -444,7 +447,7 @@ export function ExportPage() {
           className="yd-panel yd-export__cell--stretch"
           {...entryProps(reduced)}
         >
-          <h2 className="yd-panel__title">Gabarits</h2>
+          <PanelHead icon={ListIcon}>Gabarits</PanelHead>
           <p className="yd-export__note">
             Chacun précoche son propre périmètre et porte la question à poser au modèle.
           </p>
@@ -485,7 +488,7 @@ export function ExportPage() {
         </BentoCell>
 
         <BentoCell as={motion.div} span={SPAN.full} className="yd-panel" {...entryProps(reduced)}>
-          <h2 className="yd-panel__title">Volume et transmission</h2>
+          <PanelHead icon={ExportIcon}>Volume et transmission</PanelHead>
 
           {refusal !== null ? (
             <p className="yd-export__refusal" data-testid="yd-export-refusal">
@@ -581,7 +584,7 @@ export function ExportPage() {
             className="yd-panel"
             {...entryProps(reduced)}
           >
-            <h2 className="yd-panel__title">Aperçu du document</h2>
+            <PanelHead icon={SearchIcon}>Aperçu du document</PanelHead>
             <p className="yd-export__note">
               Exactement ce qui sera copié ou téléchargé — rien n'est ajouté au moment de l'envoi.
             </p>

@@ -5,6 +5,7 @@ import { ApiError, api } from "../../lib/api";
 import type { AllocationTarget, AllocationTargetIn } from "../../lib/types";
 import { ASSET_CLASS_LABEL, assetClassLabel } from "./HoldingsPanel";
 import { FormActions } from "./formField";
+import { PlusIcon } from "../../design/icons";
 
 const GENERIC_ERROR = "Une erreur inattendue est survenue.";
 
@@ -215,6 +216,7 @@ export function TargetsForm({ targets, onSaved, onCancel }: TargetsFormProps) {
 
       <div className="yd-targets-form__foot">
         <button type="button" className="yd-targets-form__add" onClick={addRow}>
+          <PlusIcon />
           Ajouter une classe
         </button>
         <p

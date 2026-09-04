@@ -16,6 +16,18 @@
   max-width: 62ch;
 }
 
+/* An empty card with nothing but two sentences on it reads as a card that
+   failed; a mark over them says the screen is answering, not breaking. Muted
+   on purpose — an accent-tinted badge would make an absence look like a
+   result. */
+.yd-empty__mark {
+  width: 2.4rem;
+  height: 2.4rem;
+  border-radius: 12px;
+  font-size: 1.2rem;
+  margin-bottom: var(--yd-space-2xs);
+}
+
 /* The title carries the text colour and the detail the muted one: what is
    empty is the headline, why it is empty is the explanation under it. Two
    levels, so the eye lands on the sentence that names the situation first. */

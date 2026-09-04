@@ -3,6 +3,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { ApiError, api } from "../../lib/api";
 import { plural } from "../../lib/plural";
 import type { ImportBatch } from "../../lib/types";
+import { ImportIcon } from "../../design/icons";
+import { PanelHead } from "../../design/bento/PanelHead";
 
 const GENERIC_ERROR = "Une erreur inattendue est survenue.";
 
@@ -141,7 +143,7 @@ export function ImportHistory() {
 
   return (
     <section className="yd-import-history">
-      <h2 className="yd-panel__title">Imports précédents</h2>
+      <PanelHead icon={ImportIcon}>Imports précédents</PanelHead>
 
       {error ? (
         <p role="alert" className="yd-import__alert">

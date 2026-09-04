@@ -4,6 +4,7 @@ import { formatCents } from "../../design/theme";
 import { ApiError, api } from "../../lib/api";
 import type { FeasibilityRequest, Scenario } from "../../lib/types";
 import { VERDICT_LABEL } from "./VerdictPanel";
+import { TrashIcon } from "../../design/icons";
 
 const GENERIC_ERROR = "Une erreur inattendue est survenue.";
 
@@ -225,6 +226,7 @@ export function ScenarioBar({ scenarios, current, onChanged, onReopen }: Scenari
                         onClick={() => setPendingDelete(scenario.id)}
                       >
                         <span className="sr-only">{`Supprimer ${scenario.name}`}</span>
+                        <TrashIcon />
                         <span aria-hidden="true">Supprimer</span>
                       </button>
                     )}

@@ -5,8 +5,11 @@ import { Link } from "react-router";
 import { ForecastFanChart } from "../../charts/ForecastFanChart";
 import { BentoCell, type BentoSpan } from "../../design/bento/BentoCell";
 import { BentoGrid } from "../../design/bento/BentoGrid";
+import { PanelHead } from "../../design/bento/PanelHead";
 import { CountUp } from "../../design/CountUp";
 import { frenchDate } from "../../design/EmptyState";
+import { CashflowIcon, ClockIcon, CoinsIcon, ProjectionIcon } from "../../design/icons";
+import { PageHead } from "../../design/PageHead";
 import { useReducedMotion } from "../../design/motion/useReducedMotion";
 import { entryProps, staggerProps } from "../../design/motion/variants";
 import "../../design/Skeleton.css";
@@ -268,7 +271,7 @@ export function CashflowPage() {
           className="yd-panel yd-cashflow__balance-cell"
           {...entryProps(reduced)}
         >
-          <h2 className="yd-panel__title">Solde disponible</h2>
+          <PanelHead icon={CoinsIcon}>Solde disponible</PanelHead>
           {balanceCents !== null ? (
             <>
               <CountUp
@@ -304,7 +307,7 @@ export function CashflowPage() {
         </BentoCell>
 
         <BentoCell as={motion.div} span={SPAN.runway} className="yd-panel" {...entryProps(reduced)}>
-          <h2 className="yd-panel__title">Combien de temps sans revenu</h2>
+          <PanelHead icon={ClockIcon}>Combien de temps sans revenu</PanelHead>
           {runway === null ? null : (
             <>
               <p className="yd-cashflow__caption">
@@ -362,7 +365,7 @@ export function CashflowPage() {
           className="yd-panel"
           {...entryProps(reduced)}
         >
-          <h2 className="yd-panel__title">Prévision sur douze mois</h2>
+          <PanelHead icon={ProjectionIcon}>Prévision sur douze mois</PanelHead>
           {forecast === null ? null : forecast.insufficient_reason !== null ? (
             <>
               {/* Requirement 6: a refusal is a deliberate answer. The backend's
@@ -431,12 +434,12 @@ export function CashflowPage() {
 
   return (
     <section className="yd-cashflow">
-      <div className="yd-cashflow__header">
-        <h1>Trésorerie</h1>
+      <PageHead icon={CashflowIcon} title="Trésorerie" className="yd-cashflow__header">
+
         <p className="yd-cashflow__lead">
           Combien de temps l'argent disponible tient, et où le solde pourrait aller.
         </p>
-      </div>
+      </PageHead>
 
       {errorEntries.map((entry) => (
         <p role="alert" className="yd-cashflow__alert" key={entry.field}>

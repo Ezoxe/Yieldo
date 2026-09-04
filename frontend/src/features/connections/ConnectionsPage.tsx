@@ -3,6 +3,9 @@ import { useEffect, useMemo, useState } from "react";
 
 import { BentoCell, type BentoSpan } from "../../design/bento/BentoCell";
 import { BentoGrid } from "../../design/bento/BentoGrid";
+import { PanelHead } from "../../design/bento/PanelHead";
+import { AssistantIcon, ConnectionsIcon } from "../../design/icons";
+import { PageHead } from "../../design/PageHead";
 import { useReducedMotion } from "../../design/motion/useReducedMotion";
 import { entryProps, staggerProps } from "../../design/motion/variants";
 import "../../design/Skeleton.css";
@@ -369,8 +372,8 @@ export function ConnectionsPage() {
 
   return (
     <section className="yd-connections">
-      <div className="yd-connections__header">
-        <h1>Réglages → Connexions</h1>
+      <PageHead icon={ConnectionsIcon} title="Réglages → Connexions" className="yd-connections__header">
+
         <p className="yd-connections__lead">
           Les clés de données de marché et le modèle de langage se saisissent ici, et nulle part
           ailleurs. <strong>Tout est facultatif</strong>&nbsp;: sans aucune clé, Yieldo importe,
@@ -383,7 +386,7 @@ export function ConnectionsPage() {
           vous dire qu'une clé existe&nbsp;; il ne peut pas vous dire laquelle, et n'affiche donc
           aucune valeur masquée qui laisserait croire le contraire.
         </p>
-      </div>
+      </PageHead>
 
       {error !== null ? (
         <p role="alert" className="yd-connections__alert" data-testid="yd-connections-error">
@@ -398,7 +401,7 @@ export function ConnectionsPage() {
           className="yd-panel"
           {...entryProps(reduced)}
         >
-          <h2 className="yd-panel__title">Données de marché</h2>
+          <PanelHead icon={ConnectionsIcon}>Données de marché</PanelHead>
           {connections === null ? (
             <div role="status" aria-busy="true" aria-label="Chargement des connexions">
               <div className="yd-skeleton yd-skeleton--patrimoine-card" aria-hidden="true" />
@@ -431,7 +434,7 @@ export function ConnectionsPage() {
         </BentoCell>
 
         <BentoCell as={motion.div} span={SPAN.model} className="yd-panel" {...entryProps(reduced)}>
-          <h2 className="yd-panel__title">Modèle de langage (facultatif)</h2>
+          <PanelHead icon={AssistantIcon}>Modèle de langage (facultatif)</PanelHead>
 
           {/* The contract that makes this feature safe to switch on, said on
               the screen that switches it on — not only in a docstring. */}
@@ -544,7 +547,7 @@ export function ConnectionsPage() {
         </BentoCell>
 
         <BentoCell as={motion.div} span={SPAN.full} className="yd-panel" {...entryProps(reduced)}>
-          <h2 className="yd-panel__title">Ce qui se passe quand vous enregistrez une clé</h2>
+          <PanelHead icon={ConnectionsIcon}>Ce qui se passe quand vous enregistrez une clé</PanelHead>
           <ol className="yd-connections__steps">
             <li>
               Yieldo fait <strong>un appel réel</strong> au fournisseur avec la clé que vous venez

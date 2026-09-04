@@ -4,7 +4,10 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { AnswerChart } from "../../charts/AnswerChart";
 import { BentoCell, type BentoSpan } from "../../design/bento/BentoCell";
 import { BentoGrid } from "../../design/bento/BentoGrid";
+import { PanelHead } from "../../design/bento/PanelHead";
 import { EmptyState } from "../../design/EmptyState";
+import { AssistantIcon } from "../../design/icons";
+import { PageHead } from "../../design/PageHead";
 import { useReducedMotion } from "../../design/motion/useReducedMotion";
 import { entryProps, staggerProps } from "../../design/motion/variants";
 import "../../design/Skeleton.css";
@@ -221,8 +224,8 @@ export function AssistantPage() {
 
   return (
     <section className="yd-assistant">
-      <div className="yd-assistant__header">
-        <h1>Assistant</h1>
+      <PageHead icon={AssistantIcon} title="Assistant" className="yd-assistant__header">
+
         <p className="yd-assistant__lead">
           Posez une question en français sur vos propres relevés. Chaque réponse est calculée par
           les moteurs de Yieldo et affiche <strong>la requête exécutée, en clair</strong>, pour que
@@ -230,7 +233,7 @@ export function AssistantPage() {
           ici&nbsp;: quand une question n'est pas comprise, Yieldo le dit et propose les
           formulations qu'il sait traiter, plutôt que d'inventer une réponse plausible.
         </p>
-      </div>
+      </PageHead>
 
       {error !== null ? (
         <p role="alert" className="yd-assistant__alert" data-testid="yd-assistant-error">
@@ -270,7 +273,7 @@ export function AssistantPage() {
 
         <BentoCell as={motion.div} span={SPAN.full} className="yd-panel" {...entryProps(reduced)}>
           <div className="yd-assistant__conversation-head">
-            <h2 className="yd-panel__title">Conversation</h2>
+            <PanelHead icon={AssistantIcon}>Conversation</PanelHead>
             {messages.length > 0 ? (
               <button
                 type="button"

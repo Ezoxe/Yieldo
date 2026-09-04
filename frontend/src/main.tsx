@@ -47,26 +47,48 @@ applyMotionAttribute(readStoredMotionDisabled());
 
 const queryClient = new QueryClient();
 
-// The access token lives in memory only (never localStorage), so it is gone
-// on every reload. Kicking this off here, before the router mounts, trades
-// the HttpOnly refresh cookie (which does survive a reload) for a fresh
-// token — RequireAuth shows a loading state until this settles, so it never
-// races the router into bouncing an already-authenticated user to /connexion.
-void useSession.getState().hydrate();
-
 const container = document.getElementById("root");
 if (!container) {
   throw new Error("L'élément racine #root est introuvable dans index.html.");
 }
 
-createRoot(container).render(
-  <StrictMode>
-    <QueryClientProvider client={queryClient}>
-      <ThemeProvider>
-        <DensityProvider>
-          <RouterProvider router={router} />
-        </DensityProvider>
-      </ThemeProvider>
-    </QueryClientProvider>
-  </StrictMode>,
-);
+/**
+ * Everything that has to happen in order, once.
+ *
+ * The development-only viewing harness (`?apercu=1`, see dev/mockApi.ts) has to
+ * be installed BEFORE `hydrate()` fires its first request, which is why the
+ * boot sequence is a function rather than a run of top-level statements.
+ *
+ * The import is dynamic and sits inside `import.meta.env.DEV` on purpose: a
+ * static import would put the harness's fabricated ledger in the production
+ * bundle — verified, it did — where a file of invented transactions has no
+ * business being. Dead-code elimination drops this whole branch, and the chunk
+ * with it, from a production build.
+ */
+async function boot(): Promise<void> {
+  if (import.meta.env.DEV) {
+    const { installMockApi, shouldMockApi } = await import("./dev/mockApi");
+    if (shouldMockApi()) installMockApi();
+  }
+
+  // The access token lives in memory only (never localStorage), so it is gone
+  // on every reload. Kicking this off here, before the router mounts, trades
+  // the HttpOnly refresh cookie (which does survive a reload) for a fresh
+  // token — RequireAuth shows a loading state until this settles, so it never
+  // races the router into bouncing an already-authenticated user to /connexion.
+  void useSession.getState().hydrate();
+
+  createRoot(container as HTMLElement).render(
+    <StrictMode>
+      <QueryClientProvider client={queryClient}>
+        <ThemeProvider>
+          <DensityProvider>
+            <RouterProvider router={router} />
+          </DensityProvider>
+        </ThemeProvider>
+      </QueryClientProvider>
+    </StrictMode>,
+  );
+}
+
+void boot();

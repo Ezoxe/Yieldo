@@ -4,7 +4,7 @@ import { useTheme } from "../app/ThemeProvider";
 import { formatCents, formatCompactCents } from "../design/theme";
 import type { Granularity, SeriesBucket } from "../lib/types";
 import { Chart, type ChartExportRow } from "./Chart";
-import { type ChartTokens, chartTokens } from "./theme";
+import { areaFade, type ChartTokens, chartTokens, LINE_SMOOTHING, zoomSlider } from "./theme";
 
 interface CashflowChartProps {
   buckets: SeriesBucket[];
@@ -86,10 +86,7 @@ export function buildCashflowOption(
     grid: { left: 8, right: 8, top: 40, bottom: 64, containLabel: true },
     xAxis: { type: "category", data: labels },
     yAxis: { type: "value", axisLabel: { formatter: (value: number) => formatCompactCents(value) } },
-    dataZoom: [
-      { type: "inside" },
-      { type: "slider", height: 18, borderColor: tokens.border, fillerColor: `${tokens.accent}33` },
-    ],
+    dataZoom: [{ type: "inside" }, zoomSlider(tokens)],
     tooltip: {
       trigger: "axis",
       valueFormatter: undefined,
@@ -113,8 +110,11 @@ export function buildCashflowOption(
         type: "bar",
         stack: "flow",
         data: buckets.map((bucket) => bucket.inflow_cents),
-        itemStyle: { color: tokens.positive },
-        barMaxWidth: 24,
+        // Rounded on the outer end only: the two series are stacked across the
+        // zero baseline, so rounding all four corners would leave a notch
+        // where they meet.
+        itemStyle: { color: tokens.positive, borderRadius: [3, 3, 0, 0] },
+        barMaxWidth: 22,
       },
       {
         name: "Sorties",
@@ -123,17 +123,23 @@ export function buildCashflowOption(
         // Kept negative on purpose -- it is what makes the bar extend below
         // the zero baseline instead of a second, misleading positive block.
         data: buckets.map((bucket) => bucket.outflow_cents),
-        itemStyle: { color: tokens.info },
-        barMaxWidth: 24,
+        itemStyle: { color: tokens.negative, borderRadius: [0, 0, 3, 3] },
+        barMaxWidth: 22,
       },
       {
         name: "Solde net",
         type: "line",
         data: buckets.map((bucket) => bucket.net_cents),
-        lineStyle: { width: 2, color: tokens.accentStrong },
-        itemStyle: { color: tokens.accentStrong },
+        ...LINE_SMOOTHING,
+        lineStyle: { width: 2, color: tokens.accent },
+        itemStyle: { color: tokens.accent },
+        areaStyle: areaFade(tokens.accent),
+        // The dots are drawn on hover only. A marker on every one of thirty
+        // daily buckets is a dotted line, not a series of readings; the axis
+        // pointer and the tooltip are what identify a point.
         symbol: "circle",
-        symbolSize: 8,
+        symbolSize: 7,
+        showSymbol: false,
         z: 3,
       },
     ],

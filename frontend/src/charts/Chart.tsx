@@ -2,6 +2,7 @@ import * as echarts from "echarts";
 import { useEffect, useRef, useState } from "react";
 
 import { useTheme } from "../app/ThemeProvider";
+import { DownloadIcon } from "../design/icons";
 import { useReducedMotion } from "../design/motion/useReducedMotion";
 import "./Chart.css";
 import { buildEchartsTheme, chartTokens } from "./theme";
@@ -142,6 +143,7 @@ export function Chart({ option, height = 320, ariaLabel, onEvents, dataForExport
           aria-haspopup="menu"
           onClick={() => setMenuOpen((open) => !open)}
         >
+          <DownloadIcon />
           Exporter
         </button>
         {menuOpen ? (

@@ -1,0 +1,25 @@
+/* One rule for every control that carries a mark beside its label.
+   Twenty-odd buttons and links across the app now render `<Icon /> Label`, and
+   each of them would otherwise need its own `display: inline-flex` — which is
+   how half of them end up with the icon on a line of its own.
+
+   Scoped to a DIRECT icon child of a button or a link on purpose: it says
+   "this control has a mark in it", and cannot reach a button that merely
+   contains an icon several levels down inside its own layout. */
+/* The whole selector sits inside `:where()`, so it carries ZERO specificity:
+   any component rule — `.yd-shell__menu-toggle { display: none }` among them —
+   still wins outright. Written as `:has(...):where(...)` it would have taken
+   the specificity of a class and started overriding them. */
+:where(button:has(> .yd-icon), a:has(> .yd-icon)) {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* A control whose label is `sr-only` plus an `aria-hidden` word (the row
+   actions on the debts, goals and portfolio screens) keeps its label visible
+   beside the mark rather than being reduced to the mark alone: an icon-only
+   button is unreadable to anyone who does not already know the app. */
+:where(button, a) > .yd-icon {
+  font-size: 1.05em;
+}

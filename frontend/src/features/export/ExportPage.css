@@ -26,19 +26,7 @@
   min-width: 0;
 }
 
-.yd-export__header {
-  display: flex;
-  flex-direction: column;
-  gap: var(--yd-space-xs);
-}
 
-.yd-export__header h1 {
-  margin: 0;
-  font-size: clamp(1.5rem, 1.2rem + 1.4vw, 2rem);
-  font-weight: 600;
-  letter-spacing: -0.02em;
-  color: var(--yd-text);
-}
 
 .yd-export__lead {
   margin: 0;

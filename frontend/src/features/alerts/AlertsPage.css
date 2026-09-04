@@ -30,19 +30,7 @@
   min-width: 0;
 }
 
-.yd-alerts__header {
-  display: flex;
-  flex-direction: column;
-  gap: var(--yd-space-xs);
-}
 
-.yd-alerts__header h1 {
-  margin: 0;
-  font-size: clamp(1.5rem, 1.2rem + 1.4vw, 2rem);
-  font-weight: 600;
-  letter-spacing: -0.02em;
-  color: var(--yd-text);
-}
 
 .yd-alerts__lead {
   margin: 0;

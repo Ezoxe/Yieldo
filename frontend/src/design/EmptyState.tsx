@@ -1,5 +1,8 @@
 import type { ReactNode } from "react";
 
+import { IconBadge } from "./icons/IconBadge";
+import type { IconComponent } from "./icons/Icon";
+import { SearchIcon } from "./icons/set";
 import type { History } from "../lib/types";
 import "./EmptyState.css";
 
@@ -47,6 +50,9 @@ interface EmptyStateProps {
   detail?: string | null;
   /** The way out: a link, a button, or nothing when there is genuinely none. */
   children?: ReactNode;
+  /** The mark over the message. Defaults to the search glyph — the usual case
+   *  is "we looked here and found nothing", not "something is broken". */
+  icon?: IconComponent;
 }
 
 /**
@@ -56,9 +62,10 @@ interface EmptyStateProps {
  * filters. Purely presentational — each screen owns its own French copy,
  * because only the screen knows which case it is in.
  */
-export function EmptyState({ title, detail, children }: EmptyStateProps) {
+export function EmptyState({ title, detail, children, icon = SearchIcon }: EmptyStateProps) {
   return (
     <div className="yd-empty">
+      <IconBadge icon={icon} tone="muted" className="yd-empty__mark" />
       <p className="yd-empty__title">{title}</p>
       {detail ? <p className="yd-empty__detail">{detail}</p> : null}
       {children ? <div className="yd-empty__actions">{children}</div> : null}

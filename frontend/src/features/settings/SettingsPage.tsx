@@ -6,6 +6,8 @@ import { useMotionPreference } from "../../design/motion/motionPreference";
 import type { DensityPreference, ThemePreference } from "../../design/theme";
 import { useSession } from "../auth/session";
 import "./SettingsPage.css";
+import { SettingsIcon } from "../../design/icons";
+import { PageHead } from "../../design/PageHead";
 
 const THEME_OPTIONS: { value: ThemePreference; label: string }[] = [
   { value: "system", label: "Système" },
@@ -41,8 +43,9 @@ export function SettingsPage() {
 
   return (
     <section className="yd-settings">
-      <h1>Réglages</h1>
-      <p className="yd-settings__intro">Connecté en tant que {userName}.</p>
+      <PageHead icon={SettingsIcon} title="Réglages">
+        <p className="yd-settings__intro">Connecté en tant que {userName}.</p>
+      </PageHead>
 
       <div className="yd-settings__field">
         <label htmlFor="settings-theme">Thème</label>

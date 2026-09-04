@@ -4,7 +4,10 @@ import { Link } from "react-router";
 
 import { BentoCell, type BentoSpan } from "../../design/bento/BentoCell";
 import { BentoGrid } from "../../design/bento/BentoGrid";
+import { PanelHead } from "../../design/bento/PanelHead";
 import { EmptyState, frenchDate, historySentence } from "../../design/EmptyState";
+import { ArchiveIcon, EditIcon, GoalsIcon, PlusIcon, SavingsIcon } from "../../design/icons";
+import { PageHead } from "../../design/PageHead";
 import { useReducedMotion } from "../../design/motion/useReducedMotion";
 import { entryProps, staggerProps } from "../../design/motion/variants";
 import "../../design/Skeleton.css";
@@ -504,6 +507,7 @@ export function GoalsPage() {
                 stays a button rather than a sentence. */}
             <button type="button" className="yd-goal__action" onClick={() => setEditing(goal)}>
               <span className="sr-only">{`Modifier ${goal.name}`}</span>
+              <EditIcon />
               <span aria-hidden="true">Modifier</span>
             </button>
             <button
@@ -512,6 +516,7 @@ export function GoalsPage() {
               onClick={() => setPendingArchive(goal.goal_id)}
             >
               <span className="sr-only">{`Archiver ${goal.name}`}</span>
+              <ArchiveIcon />
               <span aria-hidden="true">Archiver</span>
             </button>
           </div>
@@ -549,7 +554,7 @@ export function GoalsPage() {
           className="yd-panel"
           {...entryProps(reduced)}
         >
-          <h2 className="yd-panel__title">Capacité d'épargne mesurée</h2>
+          <PanelHead icon={SavingsIcon}>Capacité d'épargne mesurée</PanelHead>
           {renderCapacity()}
         </BentoCell>
 
@@ -569,6 +574,7 @@ export function GoalsPage() {
                 className="yd-empty__action"
                 onClick={() => setEditing("new")}
               >
+                <PlusIcon />
                 Ajouter un objectif
               </button>
             </EmptyState>
@@ -605,6 +611,7 @@ export function GoalsPage() {
               />
             ) : (
               <button type="button" className="yd-goals__add" onClick={() => setEditing("new")}>
+                <PlusIcon />
                 Ajouter un objectif
               </button>
             )}
@@ -616,13 +623,13 @@ export function GoalsPage() {
 
   return (
     <section className="yd-goals">
-      <div className="yd-goals__header">
-        <h1>Objectifs</h1>
+      <PageHead icon={GoalsIcon} title="Objectifs" className="yd-goals__header">
+
         <p className="yd-goals__lead">
           Ce que vous mettez de côté, pour quoi, et ce que votre rythme d'épargne mesuré permet
           réellement d'atteindre — ou ne permet pas.
         </p>
-      </div>
+      </PageHead>
 
       {error !== null ? (
         <p role="alert" className="yd-goals__alert">

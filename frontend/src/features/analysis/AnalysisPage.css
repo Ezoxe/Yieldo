@@ -1,15 +1,9 @@
 .yd-analysis {
-  max-width: 1280px;
   display: flex;
   flex-direction: column;
   gap: var(--yd-space-lg);
 }
 
-.yd-analysis__header {
-  display: flex;
-  flex-direction: column;
-  gap: var(--yd-space-2xs);
-}
 
 .yd-analysis h1 {
   margin: 0;
@@ -55,17 +49,62 @@
   color: var(--yd-text);
 }
 
-/* Every cell on this screen sizes to its content rather than stretching to its
-   row. Which of a pair is taller changes with the data AND with whether the
-   reader has opened a disclosure: at 1440 on the operator's own ledger the
-   basket cell held five sentences and a card and a half of blank surface under
-   them, and collapsing "17 catégories non comparables" moved the same blank
-   half-card to the cell beside it. Either way it reads as something having
-   failed to load. Sized to content, what shows under a short cell is the
-   page's own ground. Below 1200px every cell spans the full row and this is
-   inert. Applies to the skeletons too, so nothing resizes when data lands. */
-.yd-analysis .yd-bento__cell {
-  align-self: start;
+/* Nothing overrides the grid's alignment here any more. Cells used to size to
+   their own content (`align-self: start`) so that a short panel would not show
+   blank surface under its last sentence — but two panels side by side then
+   ended on two different lines, and the screen read as a pile of loose cards.
+   Bento.css stretches every cell to its row instead, and the panels below fill
+   the height they are given: a card with room in it, aligned with its
+   neighbour, rather than a card that stops halfway. */
+
+/* The two costs the headline ratio is taken between, side by side with the
+   direction of travel between them. Replaces three sentences under the
+   figure. */
+.yd-analysis__basket-costs {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: var(--yd-space-2xs) var(--yd-space-sm);
+  margin: 0;
+}
+
+.yd-analysis__basket-costs > span {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.yd-analysis__basket-costs .yd-num {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--yd-text);
+}
+
+.yd-analysis__basket-costs > .yd-icon {
+  color: var(--yd-text-muted);
+  margin-bottom: 3px;
+}
+
+.yd-analysis__basket-when {
+  font-size: 0.7rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--yd-text-muted);
+}
+
+.yd-analysis__basket-unit {
+  align-self: flex-end;
+  font-size: 0.78rem;
+  color: var(--yd-text-muted);
+  margin-bottom: 2px;
+}
+
+/* The three method sentences inside the panel head's tip, one per line. */
+.yd-analysis__method {
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-xs);
 }
 
 /* Prose ------------------------------------------------------------------ */

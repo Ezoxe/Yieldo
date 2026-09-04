@@ -37,28 +37,28 @@ export interface ChartTokens {
 }
 
 const DARK_TOKENS: ChartTokens = {
-  text: "#eef6f8",
-  muted: "#93a9b8",
-  border: "rgba(126, 226, 214, 0.18)",
-  positive: "#4fd6a8",
-  negative: "#e5606b",
-  warning: "#f4a261",
-  info: "#3b82f6",
-  accent: "#7ee2d6",
-  accentStrong: "#4dc9ba",
-  surfaceStrong: "#0f1c28",
+  text: "#f4f4f6",
+  muted: "#a1a1ad",
+  border: "rgba(255, 255, 255, 0.06)",
+  positive: "#34d399",
+  negative: "#fb7185",
+  warning: "#fbbf24",
+  info: "#60a5fa",
+  accent: "#8f8cf8",
+  accentStrong: "#a9a7fb",
+  surfaceStrong: "#17171d",
 };
 
 const LIGHT_TOKENS: ChartTokens = {
-  text: "#0d2029",
-  muted: "#435d6c",
-  border: "rgba(15, 60, 74, 0.14)",
-  positive: "#0e7150",
-  negative: "#b3232d",
-  warning: "#8a4d08",
+  text: "#18181d",
+  muted: "#55555f",
+  border: "rgba(9, 9, 16, 0.08)",
+  positive: "#047857",
+  negative: "#be123c",
+  warning: "#92400e",
   info: "#1d4ed8",
-  accent: "#0b6d63",
-  accentStrong: "#085951",
+  accent: "#4f46e5",
+  accentStrong: "#3f37c9",
   surfaceStrong: "#ffffff",
 };
 
@@ -76,37 +76,43 @@ export const CHART_LABEL_PAPER = "#ffffff";
 
 // -- Categorical palette ----------------------------------------------------
 //
-// tokens.css has no categorical ramp (it only names six semantic colors), so
-// the eight identity hues a treemap/waterfall fallback needs are the
-// dataviz skill's documented, pre-validated default palette (see the
-// skill's references/palette.md) rather than an invented set. Validated with
-// the skill's validator against this app's own card surfaces
-// (--yd-surface-strong: #ffffff light / #0f1c28 dark):
-//   light -- all 6 checks PASS (contrast WARN on 3 slots, mitigated by the
-//     legend + direct labels + CSV export every chart already ships)
-//   dark  -- all 6 checks PASS outright
-// Order is the CVD-safety mechanism (see color-formula.md) -- never reorder
-// or cycle past index 7; fold a 9th series into "Other" instead.
+// tokens.css names five semantic colours and no categorical ramp, so the eight
+// identity hues a treemap or a waterfall needs live here.
+//
+// One family per theme, at one lightness step: the 400s on the dark card, the
+// 500s on the white one. That is what makes a chart read as part of the same
+// object as the card around it — the previous ramp mixed a fully saturated
+// #008300 green with a pastel magenta and every chart looked like a different
+// application.
+//
+// The 500s and not the 600s in light mode, because `--yd-chart-label-ink` has
+// to clear 4.5:1 on every fill it can be painted over: at 600 the darkest of
+// them falls to 3.3:1 and no single ink clears the set. Measured worst case as
+// written: indigo-500 #6366f1 at 4.62:1.
+//
+// Order is the CVD-safety mechanism (see the dataviz colour formula): adjacent
+// slots never share a hue family. Never reorder or cycle past index 7 — fold a
+// ninth series into "Other" instead.
 const LIGHT_CATEGORICAL = [
-  "#2a78d6", // blue
-  "#eb6834", // orange
-  "#1baf7a", // aqua
-  "#eda100", // yellow
-  "#e87ba4", // magenta
-  "#008300", // green
-  "#4a3aa7", // violet
-  "#e34948", // red
+  "#6366f1", // indigo
+  "#14b8a6", // teal
+  "#f43f5e", // rose
+  "#f59e0b", // amber
+  "#8b5cf6", // violet
+  "#10b981", // emerald
+  "#3b82f6", // blue
+  "#ec4899", // pink
 ];
 
 const DARK_CATEGORICAL = [
-  "#3987e5",
-  "#d95926",
-  "#199e70",
-  "#c98500",
-  "#d55181",
-  "#008300",
-  "#9085e9",
-  "#e66767",
+  "#818cf8", // indigo
+  "#2dd4bf", // teal
+  "#fb7185", // rose
+  "#fbbf24", // amber
+  "#a78bfa", // violet
+  "#34d399", // emerald
+  "#60a5fa", // blue
+  "#f472b6", // pink
 ];
 
 export function seriesColors(resolved: Resolved): string[] {
@@ -215,5 +221,80 @@ export function buildEchartsTheme(resolved: Resolved): EChartsThemeShape {
       axisPointer: { lineStyle: { color: tones.muted, type: "dashed" } },
     },
     legend: { textStyle: { color: tones.muted }, icon: "roundRect" },
+  };
+}
+
+// -- Shared series and control styling ---------------------------------------
+
+/**
+ * The curvature every line series in this app is drawn with.
+ *
+ * `smoothMonotone: "x"` is not decoration — a plain `smooth: 0.35` spline
+ * overshoots between two close points and can draw a balance dipping below a
+ * value it never reached. Monotone interpolation cannot invent a local
+ * minimum that is not in the data, which is the only kind of smoothing a
+ * financial series may take.
+ */
+export const LINE_SMOOTHING = { smooth: 0.35, smoothMonotone: "x" as const };
+
+/**
+ * A vertical fade of `color`, from a wash at the line down to nothing at the
+ * axis. What turns a hairline into a mass without hiding the gridlines under
+ * it — the fill never exceeds 22% alpha.
+ */
+export function areaFade(color: string): {
+  color: {
+    type: "linear";
+    x: number;
+    y: number;
+    x2: number;
+    y2: number;
+    colorStops: Array<{ offset: number; color: string }>;
+  };
+} {
+  return {
+    color: {
+      type: "linear",
+      x: 0,
+      y: 0,
+      x2: 0,
+      y2: 1,
+      colorStops: [
+        { offset: 0, color: `${color}38` },
+        { offset: 1, color: `${color}00` },
+      ],
+    },
+  };
+}
+
+/**
+ * The time-range control under a chart.
+ *
+ * ECharts' default slider is a grey box with two square handles and a
+ * miniature copy of the series inside it — it reads as a native scrollbar
+ * someone left on the page. This restyles it to the app's own surfaces:
+ * a hairline groove, an accent-tinted selection, and two pill handles.
+ */
+export function zoomSlider(tones: ChartTokens) {
+  return {
+    type: "slider" as const,
+    height: 20,
+    bottom: 8,
+    borderColor: "transparent",
+    backgroundColor: "transparent",
+    fillerColor: `${tones.accent}1f`,
+    // The miniature series inside the groove is noise at 20px tall: the shape
+    // is already on the chart above it, in full.
+    showDataShadow: false,
+    showDetail: false,
+    handleIcon:
+      "path://M4,0 L8,0 A4,4 0 0 1 12,4 L12,26 A4,4 0 0 1 8,30 L4,30 A4,4 0 0 1 0,26 L0,4 A4,4 0 0 1 4,0 Z",
+    handleSize: "115%",
+    handleStyle: { color: tones.surfaceStrong, borderColor: tones.muted, borderWidth: 1 },
+    moveHandleSize: 4,
+    moveHandleStyle: { color: `${tones.accent}66` },
+    dataBackground: { lineStyle: { opacity: 0 }, areaStyle: { opacity: 0 } },
+    selectedDataBackground: { lineStyle: { opacity: 0 }, areaStyle: { opacity: 0 } },
+    brushSelect: false,
   };
 }

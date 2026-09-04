@@ -1,17 +1,9 @@
 .yd-budgets {
-  max-width: 1280px;
   display: flex;
   flex-direction: column;
   gap: var(--yd-space-lg);
 }
 
-.yd-budgets__header {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--yd-space-sm);
-}
 
 .yd-budgets h1 {
   margin: 0;
@@ -26,6 +18,17 @@
   display: flex;
   align-items: center;
   gap: var(--yd-space-sm);
+}
+
+/* One chevron, mirrored for the previous month. `scale`, not a second path:
+   the drawing lives in design/icons and is never duplicated. */
+.yd-budgets__arrow {
+  display: inline-flex;
+  font-size: 1.1rem;
+}
+
+.yd-budgets__arrow--left {
+  scale: -1 1;
 }
 
 .yd-budgets__month-nav button {
@@ -210,51 +213,121 @@
 }
 
 .yd-budget__essential {
-  font-size: 0.72rem;
-  padding: 0 var(--yd-space-2xs);
-  border-radius: var(--yd-radius-sm);
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 1px 7px;
+  border-radius: var(--yd-radius-pill);
   border: 1px solid var(--yd-border-strong);
   color: var(--yd-text-muted);
 }
 
+/* Thin, and no border: a 10px track with a hairline around it read as an
+   empty pill, and twelve of them down a screen read as a form. 6px of a
+   recessed groove reads as a measurement. */
 .yd-budget__track {
   width: 100%;
-  height: 10px;
-  border-radius: 999px;
-  background: var(--yd-surface);
-  border: 1px solid var(--yd-border);
+  height: 6px;
+  border-radius: var(--yd-radius-pill);
+  background: color-mix(in srgb, var(--yd-text) 9%, transparent);
   overflow: hidden;
 }
 
 .yd-budget__fill {
   height: 100%;
   border-radius: inherit;
-  background: var(--yd-positive);
+  /* A gradient along the bar, not a flat fill: the darker end anchors it at
+     the left and the brighter end marks where the spending has got to. */
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--yd-positive) 55%, transparent),
+    var(--yd-positive)
+  );
   /* `width`, not `transform: scaleX()`: this fill sits inside a cell rendered
      as a motion.* element, which carries an inline `transform: none` once its
      entry animation settles and would kill a transform-based bar outright. */
-  transition: width var(--yd-motion-slow) var(--yd-ease);
+  transition:
+    width var(--yd-motion-slow) var(--yd-ease),
+    box-shadow var(--yd-motion-base) var(--yd-ease);
 }
 
+/* The glow is the one piece of ornament on this screen, and it is earned: it
+   appears only once a category is within reach of its ceiling, and it grows
+   when the ceiling is passed. Nothing depends on seeing it — the badge below
+   states the same thing in words. */
 .yd-budget--at_risk .yd-budget__fill {
-  background: var(--yd-warning);
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--yd-warning) 55%, transparent),
+    var(--yd-warning)
+  );
+  box-shadow: 0 0 10px color-mix(in srgb, var(--yd-warning) 45%, transparent);
 }
 
 .yd-budget--over .yd-budget__fill {
-  background: var(--yd-negative);
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--yd-negative) 55%, transparent),
+    var(--yd-negative)
+  );
+  box-shadow: 0 0 14px color-mix(in srgb, var(--yd-negative) 55%, transparent);
 }
 
+/* The row under the track: a badge, one figure, and the methodology mark. */
 .yd-budget__note {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--yd-space-2xs) var(--yd-space-xs);
   margin: 0;
-  font-size: 0.86rem;
+  font-size: 0.82rem;
   color: var(--yd-text-muted);
 }
 
-/* Status is never carried by colour alone: `.yd-budget__status` states it in
-   words, and the bar's colour only reinforces it (WCAG 1.4.1). */
+/* The figure that follows from the status. Mono and tabular so twelve rows
+   line up down the column. */
+.yd-budget__remaining {
+  font-family: var(--yd-font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.8rem;
+}
+
+/* Status is never carried by colour alone: the badge states it in words, and
+   the bar's colour and the glow only reinforce it (WCAG 1.4.1). A pill rather
+   than a run of bold text — a status is a state, and a state reads as a chip.
+   The tint is 12% of the status colour, which keeps the label above 4.5:1 on
+   both themes' card surfaces. */
 .yd-budget__status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 9px 2px 7px;
+  border-radius: var(--yd-radius-pill);
+  border: 1px solid transparent;
+  font-size: 0.78rem;
   font-weight: 600;
-  color: var(--yd-text);
+  white-space: nowrap;
+}
+
+/* The mark takes the status colour; the words beside it stay at full text
+   contrast, so nothing depends on the tint being seen. */
+.yd-budget--ok .yd-budget__status {
+  color: var(--yd-positive);
+  border-color: color-mix(in srgb, var(--yd-positive) 26%, transparent);
+  background: color-mix(in srgb, var(--yd-positive) 12%, transparent);
+}
+
+.yd-budget--at_risk .yd-budget__status {
+  color: var(--yd-warning);
+  border-color: color-mix(in srgb, var(--yd-warning) 26%, transparent);
+  background: color-mix(in srgb, var(--yd-warning) 12%, transparent);
+}
+
+.yd-budget--over .yd-budget__status {
+  color: var(--yd-negative);
+  border-color: color-mix(in srgb, var(--yd-negative) 26%, transparent);
+  background: color-mix(in srgb, var(--yd-negative) 12%, transparent);
 }
 
 /* Sans budget ------------------------------------------------------------ */

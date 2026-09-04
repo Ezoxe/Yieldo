@@ -1,8 +1,34 @@
 import { AnimatePresence, motion } from "motion/react";
-import { Fragment, useEffect, useState } from "react";
-import { NavLink, Outlet } from "react-router";
+import { Fragment, useEffect, useId, useState } from "react";
+import { NavLink, Outlet, useLocation } from "react-router";
 
 import { AtmosphericBackground } from "../design/atmosphere/AtmosphericBackground";
+import {
+  AlertsIcon,
+  AnalysisIcon,
+  AssistantIcon,
+  BudgetsIcon,
+  CashflowIcon,
+  CategoriesIcon,
+  ConnectionsIcon,
+  DebtsIcon,
+  ExportIcon,
+  FeasibilityIcon,
+  GoalsIcon,
+  ImportIcon,
+  MenuIcon,
+  OverviewIcon,
+  PortfolioIcon,
+  ProjectionIcon,
+  RecurrencesIcon,
+  SettingsIcon,
+  SimulatorsIcon,
+  StreakIcon,
+  ThemeIcon,
+  TransactionsIcon,
+  YieldoMark,
+  type IconComponent,
+} from "../design/icons";
 import { slideOver } from "../design/motion/variants";
 import { useReducedMotion } from "../design/motion/useReducedMotion";
 import { type ThemePreference } from "../design/theme";
@@ -12,30 +38,72 @@ import { useTheme } from "./ThemeProvider";
 interface NavItem {
   to: string;
   label: string;
+  icon: IconComponent;
   end?: boolean;
 }
 
-const NAV_ITEMS: NavItem[] = [
-  { to: "/", label: "Vue d'ensemble", end: true },
-  { to: "/transactions", label: "Transactions" },
-  { to: "/budgets", label: "Budgets" },
-  { to: "/recurrences", label: "Récurrences" },
-  { to: "/tresorerie", label: "Trésorerie" },
-  { to: "/analyse", label: "Analyse" },
-  { to: "/dettes", label: "Dettes" },
-  { to: "/objectifs", label: "Objectifs" },
-  { to: "/suivi", label: "Suivi" },
-  { to: "/alertes", label: "Alertes" },
-  { to: "/patrimoine", label: "Patrimoine" },
-  { to: "/projection", label: "Projection" },
-  { to: "/faisabilite", label: "Faisabilité" },
-  { to: "/simulateurs", label: "Simulateurs" },
-  { to: "/assistant", label: "Assistant" },
-  { to: "/export", label: "Export IA" },
-  { to: "/categories", label: "Catégories" },
-  { to: "/import", label: "Import" },
-  { to: "/reglages", label: "Réglages", end: true },
-  { to: "/reglages/connexions", label: "Connexions" },
+/**
+ * The sidebar, in groups.
+ *
+ * Twenty flat entries is a wall nobody reads top to bottom; the same twenty
+ * under five headings is a map. The GROUPS are the only thing added — the
+ * order of the entries themselves is unchanged, and `AppShell.test.tsx` pins
+ * that order as a list, because an entry silently dropped in a refactor is a
+ * screen the operator can no longer reach.
+ *
+ * A section heading is a `<p>`, never a link: the nav's own accessible list is
+ * exactly the twenty destinations.
+ */
+interface NavSection {
+  /** null for the first group — a heading over a single entry is noise. */
+  title: string | null;
+  items: NavItem[];
+}
+
+const NAV_SECTIONS: NavSection[] = [
+  {
+    title: null,
+    items: [{ to: "/", label: "Vue d'ensemble", icon: OverviewIcon, end: true }],
+  },
+  {
+    title: "Au quotidien",
+    items: [
+      { to: "/transactions", label: "Transactions", icon: TransactionsIcon },
+      { to: "/budgets", label: "Budgets", icon: BudgetsIcon },
+      { to: "/recurrences", label: "Récurrences", icon: RecurrencesIcon },
+      { to: "/tresorerie", label: "Trésorerie", icon: CashflowIcon },
+      { to: "/analyse", label: "Analyse", icon: AnalysisIcon },
+    ],
+  },
+  {
+    title: "Objectifs",
+    items: [
+      { to: "/dettes", label: "Dettes", icon: DebtsIcon },
+      { to: "/objectifs", label: "Objectifs", icon: GoalsIcon },
+      { to: "/suivi", label: "Suivi", icon: StreakIcon },
+      { to: "/alertes", label: "Alertes", icon: AlertsIcon },
+    ],
+  },
+  {
+    title: "Horizon",
+    items: [
+      { to: "/patrimoine", label: "Patrimoine", icon: PortfolioIcon },
+      { to: "/projection", label: "Projection", icon: ProjectionIcon },
+      { to: "/faisabilite", label: "Faisabilité", icon: FeasibilityIcon },
+      { to: "/simulateurs", label: "Simulateurs", icon: SimulatorsIcon },
+    ],
+  },
+  {
+    title: "Outils",
+    items: [
+      { to: "/assistant", label: "Assistant", icon: AssistantIcon },
+      { to: "/export", label: "Export IA", icon: ExportIcon },
+      { to: "/categories", label: "Catégories", icon: CategoriesIcon },
+      { to: "/import", label: "Import", icon: ImportIcon },
+      { to: "/reglages", label: "Réglages", icon: SettingsIcon, end: true },
+      { to: "/reglages/connexions", label: "Connexions", icon: ConnectionsIcon },
+    ],
+  },
 ];
 
 const THEME_OPTIONS: { value: ThemePreference; label: string }[] = [
@@ -48,20 +116,60 @@ interface SidebarNavProps {
   id?: string;
   className: string;
   onNavigate?: () => void;
+  /**
+   * Unique per rendered nav. The static sidebar and the mobile drawer are both
+   * mounted at once (the first is only hidden by a media query), and a shared
+   * `layoutId` would make Motion animate the indicator BETWEEN the two navs.
+   */
+  indicatorId: string;
+  /** No sliding indicator when motion is reduced — the pill is painted by CSS
+   *  either way, so the active entry is never left unmarked. */
+  animated: boolean;
 }
 
-function SidebarNav({ id, className, onNavigate }: SidebarNavProps) {
+function SidebarNav({ id, className, onNavigate, indicatorId, animated }: SidebarNavProps) {
   return (
     <nav id={id} className={className} aria-label="Navigation principale">
-      <ul>
-        {NAV_ITEMS.map((item) => (
-          <li key={item.to}>
-            <NavLink to={item.to} end={item.end} onClick={onNavigate}>
-              {item.label}
-            </NavLink>
-          </li>
-        ))}
-      </ul>
+      <div className="yd-shell__brand">
+        <YieldoMark />
+        <span>Yieldo</span>
+      </div>
+
+      {NAV_SECTIONS.map((section, index) => (
+        <div className="yd-shell__nav-section" key={section.title ?? `section-${index}`}>
+          {section.title ? (
+            <p className="yd-shell__nav-heading" aria-hidden="true">
+              {section.title}
+            </p>
+          ) : null}
+          <ul>
+            {section.items.map((item) => (
+              <li key={item.to}>
+                <NavLink to={item.to} end={item.end} onClick={onNavigate}>
+                  {({ isActive }) => (
+                    <>
+                      {/* The travelling indicator: one element, moved by Motion
+                          from the entry that was active to the one that is. */}
+                      {isActive && animated ? (
+                        <motion.span
+                          className="yd-shell__nav-indicator"
+                          layoutId={indicatorId}
+                          transition={{ type: "spring", stiffness: 520, damping: 42 }}
+                          aria-hidden="true"
+                        />
+                      ) : null}
+                      <item.icon />
+                      {/* The link's whole accessible name, and its whole text
+                          content — the icon beside it is `aria-hidden`. */}
+                      {item.label}
+                    </>
+                  )}
+                </NavLink>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))}
     </nav>
   );
 }
@@ -74,6 +182,8 @@ export function AppShell({ userName }: AppShellProps) {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const { preference, setPreference } = useTheme();
   const reducedMotion = useReducedMotion();
+  const location = useLocation();
+  const navId = useId();
 
   const closeDrawer = () => setDrawerOpen(false);
 
@@ -101,10 +211,15 @@ export function AppShell({ userName }: AppShellProps) {
         aria-controls="yd-sidebar-drawer"
         onClick={() => setDrawerOpen((open) => !open)}
       >
+        <MenuIcon />
         Menu
       </button>
 
-      <SidebarNav className="yd-shell__sidebar yd-shell__sidebar--static" />
+      <SidebarNav
+        className="yd-shell__sidebar yd-shell__sidebar--static"
+        indicatorId={`${navId}-static`}
+        animated={!reducedMotion}
+      />
 
       <AnimatePresence>
         {drawerOpen ? (
@@ -121,6 +236,8 @@ export function AppShell({ userName }: AppShellProps) {
                   id="yd-sidebar-drawer"
                   className="yd-shell__sidebar yd-shell__sidebar--drawer"
                   onNavigate={closeDrawer}
+                  indicatorId={`${navId}-drawer`}
+                  animated={false}
                 />
               </div>
             </Fragment>
@@ -145,6 +262,8 @@ export function AppShell({ userName }: AppShellProps) {
                   id="yd-sidebar-drawer"
                   className="yd-shell__sidebar yd-shell__sidebar--drawer"
                   onNavigate={closeDrawer}
+                  indicatorId={`${navId}-drawer`}
+                  animated
                 />
               </motion.div>
             </Fragment>
@@ -158,6 +277,7 @@ export function AppShell({ userName }: AppShellProps) {
           <span className="yd-shell__user">{userName}</span>
           <label className="yd-shell__theme-select">
             <span className="sr-only">Thème</span>
+            <ThemeIcon />
             <select
               value={preference}
               onChange={(event) => setPreference(event.target.value as ThemePreference)}
@@ -171,7 +291,24 @@ export function AppShell({ userName }: AppShellProps) {
           </label>
         </header>
         <main className="yd-shell__main">
-          <Outlet />
+          {/* The screen arrives rather than appearing: a short rise and fade,
+              keyed on the path so it replays on every route change. No exit
+              animation and no AnimatePresence — waiting for the old screen to
+              leave before showing the new one would add latency to every
+              navigation for the sake of a symmetry nobody asked for. */}
+          {reducedMotion ? (
+            <Outlet />
+          ) : (
+            <motion.div
+              key={location.pathname}
+              className="yd-shell__route"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.32, ease: [0.16, 1, 0.3, 1] }}
+            >
+              <Outlet />
+            </motion.div>
+          )}
         </main>
       </div>
     </div>

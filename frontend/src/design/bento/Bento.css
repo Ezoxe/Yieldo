@@ -7,6 +7,13 @@
   grid-template-columns: repeat(1, 1fr);
   gap: var(--yd-space-md);
   grid-auto-rows: minmax(120px, auto);
+  /* Every cell in a row is as tall as the tallest of them. This is the whole
+     of the alignment fix: cells used to size to their own content, so two
+     panels side by side ended on two different lines and the grid read as a
+     pile rather than a grid. A short cell now fills its row and lets its own
+     content sit at the top (see `.yd-panel`), which is a card with room in it
+     — not a card that failed to load. */
+  align-items: stretch;
 }
 
 .yd-bento__cell {
@@ -15,17 +22,102 @@
   /* Without this a long unbroken figure sets the track's minimum width and
      pushes the whole grid past the viewport. */
   min-width: 0;
+  /* A cell is a column: whatever it holds gets the whole height the row gave
+     it, so a panel's body can push its footer to the bottom edge and two
+     neighbouring cards line up on both edges rather than only the top one. */
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
   position: relative;
   border-radius: var(--yd-radius);
   border: 1px solid var(--yd-border);
   /* Opaque: a cell holds data, and figures must not be read through a blur.
-     backdrop-filter is reserved for floating surfaces (drawer, modals). */
-  background: var(--yd-surface-strong);
+     backdrop-filter is reserved for floating surfaces (drawer, modals).
+     Two layers, not one: the flat fill, and a few percent of light falling on
+     the top 40% of it. On a near-black ground a single flat grey reads as a
+     rectangle someone drew; the gradient is what makes it read as a surface
+     catching light. */
+  background-color: var(--yd-surface-strong);
+  background-image: var(--yd-surface-veil);
   box-shadow: var(--yd-shadow);
   padding: var(--yd-space-lg);
   transition:
-    border-color var(--yd-motion-fast) var(--yd-ease),
+    border-color var(--yd-motion-base) var(--yd-ease),
+    box-shadow var(--yd-motion-base) var(--yd-ease),
     translate var(--yd-motion-fast) var(--yd-ease);
+}
+
+/* The lit edge. One hairline of light along the top and left of the card, the
+   way a raised pane catches the light — this is what stops a card reading as a
+   flat rectangle drawn on the page. Drawn as an inset ring rather than a
+   border so it costs no layout, and masked to the top-left arc so it reads as
+   a highlight and not as a second border. */
+/* Guarded: the ring is a full-bleed gradient that the mask cuts a hole in, so
+   a browser that cannot composite the mask would paint the gradient flat over
+   the card's own contents. Without the compositing, no ring at all — the card
+   keeps its border and its shadow, which is a plain card, not a broken one. */
+@supports ((mask-composite: exclude) or (-webkit-mask-composite: xor)) {
+  .yd-bento__cell::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    padding: 1px;
+    background: var(--yd-frame-sheen);
+    -webkit-mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    opacity: 0.9;
+  }
+}
+
+/* The accent thread. A short gradient rule tucked under the top-left corner,
+   the one piece of the frame that carries the app's own colour — it is what
+   makes a Yieldo card recognisable as one. It brightens and runs further along
+   the edge under the pointer, which is the card acknowledging the reader
+   without pretending to be a button. */
+.yd-bento__cell::after {
+  content: "";
+  position: absolute;
+  top: -1px;
+  left: var(--yd-space-lg);
+  height: 1px;
+  width: var(--yd-frame-thread-width, 64px);
+  border-radius: 1px;
+  pointer-events: none;
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--yd-accent) 85%, transparent),
+    transparent
+  );
+  opacity: var(--yd-frame-thread-opacity, 0.55);
+  transition:
+    width var(--yd-motion-slow) var(--yd-ease),
+    opacity var(--yd-motion-base) var(--yd-ease);
+}
+
+.yd-bento__cell:hover {
+  border-color: var(--yd-border-strong);
+  box-shadow: var(--yd-shadow-raised);
+}
+
+.yd-bento__cell:hover::after {
+  --yd-frame-thread-width: 140px;
+  --yd-frame-thread-opacity: 1;
+}
+
+/* A cell whose content bleeds to its own edges — the KPI tile, whose sparkline
+   is inset by exactly the cell's padding on three sides. Only these cells clip:
+   `overflow: hidden` on every cell would cut off the chart panels' export menu,
+   which deliberately hangs outside its card. */
+.yd-cell--stat {
+  overflow: hidden;
 }
 
 /* The standard body of a cell: a title stacked over whatever the cell shows.
@@ -37,6 +129,32 @@
   display: flex;
   flex-direction: column;
   gap: var(--yd-space-sm);
+  /* Fills the height the row gave the cell — without this the panel is as tall
+     as its own content and a chart inside it cannot grow to meet its
+     neighbour's baseline. */
+  flex: 1;
+  min-height: 0;
+}
+
+/* The head row: mark, heading, and the panel's own controls, on one line with
+   a hairline under it. The rule is what tells the reader where the title ends
+   and the figures begin, on a screen where both are the same size. */
+.yd-panel__head {
+  display: flex;
+  align-items: center;
+  gap: var(--yd-space-sm);
+  padding-bottom: var(--yd-space-sm);
+  border-bottom: 1px solid var(--yd-border);
+}
+
+.yd-panel__heading {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  /* Takes the slack, so `.yd-panel__actions` is pinned to the far edge of
+     every panel head in the app and the controls line up down the page. */
+  flex: 1;
 }
 
 .yd-panel__title {
@@ -49,6 +167,20 @@
   font-weight: 600;
   letter-spacing: -0.005em;
   color: var(--yd-text);
+}
+
+.yd-panel__subtitle {
+  margin: 0;
+  font-size: 0.78rem;
+  line-height: 1.4;
+  color: var(--yd-text-muted);
+}
+
+.yd-panel__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--yd-space-xs);
+  flex-shrink: 0;
 }
 
 /* Interactive cells are expected to be rendered as a natively focusable
@@ -67,14 +199,17 @@
    rendered as a `motion.*` element (which is how every screen renders them)
    carries an inline `transform: none` that Motion writes when the entry
    animation settles, and an inline declaration beats this rule. Verified in a
-   browser — with `transform` here the hover did nothing at all. */
+   browser — with `transform` here the hover did nothing at all.
+
+   Only the INTERACTIVE variant lifts. A card that rises under the pointer is
+   promising it can be pressed; a plain data panel gets the brighter edge and
+   the deeper shadow above and nothing more. */
 .yd-bento__cell--interactive:hover {
   translate: 0 -2px;
   /* `--yd-accent`, same reasoning as GlassCard's interactive hover: a cell
      that is a control gets the app's one hover colour, not a hairline whose
      1.2:1 → 1.5:1 step is invisible. The resting edge stays `--yd-border`
-     because a bento cell is a card first — its interactive variant is used by
-     the design-system page only, and nothing else in the app renders one. */
+     because a bento cell is a card first. */
   border-color: var(--yd-accent);
 }
 
@@ -105,7 +240,8 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .yd-bento__cell {
+  .yd-bento__cell,
+  .yd-bento__cell::after {
     transition: none;
   }
 
@@ -119,4 +255,8 @@
    still perform — instantly, which is worse than slowly. */
 :root[data-motion="off"] .yd-bento__cell--interactive:hover {
   translate: none;
+}
+
+:root[data-motion="off"] .yd-bento__cell:hover::after {
+  --yd-frame-thread-width: 64px;
 }

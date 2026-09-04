@@ -1,15 +1,9 @@
 .yd-cashflow {
-  max-width: 1280px;
   display: flex;
   flex-direction: column;
   gap: var(--yd-space-lg);
 }
 
-.yd-cashflow__header {
-  display: flex;
-  flex-direction: column;
-  gap: var(--yd-space-2xs);
-}
 
 .yd-cashflow h1 {
   margin: 0;
@@ -46,13 +40,12 @@
 
 /* Balance ---------------------------------------------------------------- */
 
-/* From 1200px this cell sits beside the runway cell, which is roughly twice as
-   tall: stretched to the row it left ~230px of blank card under the last
-   sentence, which reads as something having failed to load. Sized to its
-   content instead, so what shows under it is the page's own ground. Below
-   1200px both cells span the full row and this is inert. */
-.yd-cashflow__balance-cell {
-  align-self: start;
+/* This cell sits beside the runway cell, which is roughly twice as tall. It
+   used to size to its own content so as not to show blank card under its last
+   sentence; the price was that the two cards ended on two different lines.
+   They are aligned now, and the panel inside fills the height it is given. */
+.yd-cashflow__balance-cell .yd-panel {
+  justify-content: flex-start;
 }
 
 .yd-cashflow__balance {

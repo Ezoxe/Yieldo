@@ -5,7 +5,7 @@ import { formatCents, formatCompactCents } from "../design/theme";
 import type { MonteCarloProjection } from "../lib/types";
 import { Chart, type ChartExportRow } from "./Chart";
 import { ChartKey, type ChartKeyEntry } from "./ChartKey";
-import { type ChartTokens, chartTokens } from "./theme";
+import { LINE_SMOOTHING, chartTokens, type ChartTokens } from "./theme";
 
 /** "2046-09-30" → "sept. 2046". */
 export function monthLabel(iso: string): string {
@@ -145,6 +145,7 @@ export function buildProjectionFanOption(
         // Invisible floor of the band. Carries P10 so the stack starts there.
         name: "floor",
         type: "line",
+        ...LINE_SMOOTHING,
         stack: "fan",
         // Inert on the first series of a stack (nothing below it to chain
         // onto) but declared so the whole stack group states one strategy.
@@ -158,6 +159,7 @@ export function buildProjectionFanOption(
       {
         name: "band",
         type: "line",
+        ...LINE_SMOOTHING,
         stack: "fan",
         // Load-bearing -- see the doc comment's point 1.
         stackStrategy: "all",
@@ -171,6 +173,7 @@ export function buildProjectionFanOption(
       {
         name: "median",
         type: "line",
+        ...LINE_SMOOTHING,
         symbol: "none",
         lineStyle: { width: 2, type: "dashed", color: tokens.accentStrong },
         itemStyle: { color: tokens.accentStrong },

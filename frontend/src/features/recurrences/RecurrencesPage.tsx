@@ -4,8 +4,11 @@ import { Link } from "react-router";
 
 import { BentoCell, type BentoSpan } from "../../design/bento/BentoCell";
 import { BentoGrid } from "../../design/bento/BentoGrid";
+import { PanelHead } from "../../design/bento/PanelHead";
 import { CountUp } from "../../design/CountUp";
 import { EmptyState, frenchDate } from "../../design/EmptyState";
+import { ListIcon, RecurrencesIcon } from "../../design/icons";
+import { PageHead } from "../../design/PageHead";
 import { useReducedMotion } from "../../design/motion/useReducedMotion";
 import { entryProps, staggerProps } from "../../design/motion/variants";
 import "../../design/Skeleton.css";
@@ -227,7 +230,7 @@ export function RecurrencesPage() {
     body = (
       <BentoGrid as={motion.div} {...staggerProps(reduced)}>
         <BentoCell as={motion.div} span={SPAN.cost} className="yd-panel" {...entryProps(reduced)}>
-          <h2 className="yd-panel__title">Coût des abonnements</h2>
+          <PanelHead icon={ListIcon}>Coût des abonnements</PanelHead>
 
           {/* A total of zero is a claim, and it is never the claim this screen
               means: an empty sum says either "nothing has been watched long
@@ -272,7 +275,7 @@ export function RecurrencesPage() {
         </BentoCell>
 
         <BentoCell as={motion.div} span={SPAN.alerts} className="yd-panel" {...entryProps(reduced)}>
-          <h2 className="yd-panel__title">À surveiller</h2>
+          <PanelHead icon={ListIcon}>À surveiller</PanelHead>
           <ul className="yd-recurrences__alerts">
             <li>
               {report.missing_count === 0
@@ -325,7 +328,7 @@ export function RecurrencesPage() {
             className="yd-panel"
             {...entryProps(reduced)}
           >
-            <h2 className="yd-panel__title">Comptés dans le coût annuel</h2>
+            <PanelHead icon={ListIcon}>Comptés dans le coût annuel</PanelHead>
             <p className="yd-recurrences__caption">
               Du plus cher au moins cher, sur douze mois.
             </p>
@@ -348,7 +351,7 @@ export function RecurrencesPage() {
             className="yd-panel"
             {...entryProps(reduced)}
           >
-            <h2 className="yd-panel__title">Détectés, mais hors du total</h2>
+            <PanelHead icon={ListIcon}>Détectés, mais hors du total</PanelHead>
             {/* Three exclusions land in this one list and they are not the same
                 claim, so the section names all three and each row says which
                 one applies to it. */}
@@ -391,12 +394,12 @@ export function RecurrencesPage() {
 
   return (
     <section className="yd-recurrences">
-      <div className="yd-recurrences__header">
-        <h1>Récurrences</h1>
+      <PageHead icon={RecurrencesIcon} title="Récurrences" className="yd-recurrences__header">
+
         <p className="yd-recurrences__lead">
           Abonnements et prélèvements repérés dans tout votre historique.
         </p>
-      </div>
+      </PageHead>
 
       {error !== null ? (
         <p role="alert" className="yd-recurrences__alert">

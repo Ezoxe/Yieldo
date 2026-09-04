@@ -16,12 +16,12 @@ import {
 describe("echarts theme", () => {
   it("uses readable text on a dark background", () => {
     const theme = buildEchartsTheme("dark");
-    expect(theme.textStyle.color).toBe("#eef6f8");
+    expect(theme.textStyle.color).toBe("#f4f4f6");
     expect(theme.backgroundColor).toBe("transparent");
   });
 
   it("swaps to dark text on a light background", () => {
-    expect(buildEchartsTheme("light").textStyle.color).toBe("#0d2029");
+    expect(buildEchartsTheme("light").textStyle.color).toBe("#18181d");
   });
 
   it("uses tabular monospace for value axes so figures align", () => {
@@ -44,17 +44,17 @@ describe("echarts theme", () => {
   });
 
   it("uses the muted text token for axis labels in both themes", () => {
-    expect(buildEchartsTheme("dark").categoryAxis.axisLabel.color).toBe("#93a9b8");
-    expect(buildEchartsTheme("light").categoryAxis.axisLabel.color).toBe("#435d6c");
+    expect(buildEchartsTheme("dark").categoryAxis.axisLabel.color).toBe("#a1a1ad");
+    expect(buildEchartsTheme("light").categoryAxis.axisLabel.color).toBe("#55555f");
   });
 });
 
 describe("chartTokens", () => {
   it("exposes the semantic tokens charts need", () => {
     const dark = chartTokens("dark");
-    expect(dark.positive).toBe("#4fd6a8");
-    expect(dark.info).toBe("#3b82f6");
-    expect(dark.surfaceStrong).toBe("#0f1c28");
+    expect(dark.positive).toBe("#34d399");
+    expect(dark.info).toBe("#60a5fa");
+    expect(dark.surfaceStrong).toBe("#17171d");
   });
 });
 

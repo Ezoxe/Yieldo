@@ -11,24 +11,45 @@
    puts it under the shell's own opaque background where nothing can see it.
    The menu toggle, the drawer and its scrim already carry z-indexes of their
    own (30/40/35) and are above the layer already. */
-.yd-shell__sidebar--static,
 .yd-shell__body {
   position: relative;
   z-index: 1;
 }
 
+/* The sidebar stays put while the page scrolls under it.
+   `sticky`, not `fixed`: a fixed sidebar is out of flow, so the content beside
+   it would need a hard-coded `margin-left` of exactly the sidebar's width —
+   two numbers that have to be kept equal by hand for ever. Sticky keeps the
+   flex row doing the layout and only pins the painting. `align-self:
+   flex-start` is what makes it possible at all: a flex item stretched to its
+   container's height has nowhere to stick to. */
+.yd-shell__sidebar--static {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  align-self: flex-start;
+  height: 100vh;
+  /* Long nav, short screen: the nav scrolls inside the pinned column rather
+     than pushing the page taller. */
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
 .yd-shell__menu-toggle {
   display: none;
+  align-items: center;
+  gap: 8px;
   position: fixed;
   top: 12px;
   left: 12px;
   z-index: 30;
-  border: 1px solid var(--yd-border);
+  border: 1px solid var(--yd-border-control);
   border-radius: var(--yd-radius-sm);
   background: var(--yd-surface-strong);
   color: var(--yd-text);
   padding: 8px 12px;
   font: inherit;
+  cursor: pointer;
 }
 
 /* Chrome, not data. The plan reserves backdrop-filter for floating surfaces and
@@ -40,14 +61,54 @@
 .yd-shell__sidebar {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  width: 232px;
+  gap: var(--yd-space-md);
+  width: 244px;
   flex-shrink: 0;
-  padding: 24px 14px;
+  padding: 20px 14px 28px;
+  overflow-y: auto;
   background: var(--yd-surface);
   backdrop-filter: blur(var(--yd-glass-blur)) saturate(var(--yd-glass-saturate));
   -webkit-backdrop-filter: blur(var(--yd-glass-blur)) saturate(var(--yd-glass-saturate));
   border-right: 1px solid var(--yd-border);
+}
+
+/* The wordmark. A sidebar with no mark at the top of it reads as a list of
+   links that happens to be on the left of something; this is what says which
+   application the reader is in. */
+.yd-shell__brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 10px 2px;
+  font-size: 1.05rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--yd-text);
+}
+
+.yd-shell__brand .yd-mark {
+  width: 1.5em;
+  height: 1.5em;
+  color: var(--yd-accent);
+}
+
+.yd-shell__nav-section {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* `aria-hidden` in the markup: the twenty destinations are the nav's list, and
+   a screen reader announcing five headings between them would make the list
+   longer, not clearer. Purely a visual grouping. */
+.yd-shell__nav-heading {
+  margin: 0;
+  padding: 4px 10px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--yd-text-muted);
 }
 
 .yd-shell__sidebar ul {
@@ -60,12 +121,30 @@
 }
 
 .yd-shell__sidebar a {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  /* The travelling indicator below is an `absolute` child at z-index -1, which
+     needs a stacking context of its own here or it would paint under the
+     sidebar itself rather than under the label. */
+  position: relative;
+  isolation: isolate;
   border-radius: var(--yd-radius-sm);
-  padding: 10px 12px;
+  padding: 9px 10px;
+  font-size: 0.9rem;
   color: var(--yd-text-muted);
   text-decoration: none;
-  transition: background-color var(--yd-motion-fast) var(--yd-ease), color var(--yd-motion-fast) var(--yd-ease);
+  transition:
+    background-color var(--yd-motion-fast) var(--yd-ease),
+    color var(--yd-motion-fast) var(--yd-ease);
+}
+
+.yd-shell__sidebar a .yd-icon {
+  font-size: 1.05rem;
+  opacity: 0.85;
+  transition:
+    transform var(--yd-motion-base) var(--yd-ease),
+    opacity var(--yd-motion-fast) var(--yd-ease);
 }
 
 /* --yd-surface-raised, not --yd-surface: the sidebar itself is now painted with
@@ -75,10 +154,39 @@
   color: var(--yd-text);
 }
 
+.yd-shell__sidebar a:hover .yd-icon {
+  opacity: 1;
+  /* Two pixels along the direction of travel: the entry acknowledges the
+     pointer without moving the label under it. */
+  transform: translateX(2px);
+}
+
+.yd-shell__sidebar a:focus-visible {
+  outline: 2px solid var(--yd-accent);
+  outline-offset: 2px;
+}
+
 .yd-shell__sidebar a[aria-current="page"] {
   background: var(--yd-surface-raised);
   color: var(--yd-accent);
   font-weight: 600;
+}
+
+.yd-shell__sidebar a[aria-current="page"] .yd-icon {
+  opacity: 1;
+}
+
+/* The pill Motion moves from the entry that was active to the one that is —
+   see `layoutId` in AppShell.tsx. It repeats the `aria-current` background
+   above so the two states are the same colour whether or not it is present;
+   with motion off, the CSS pill alone marks the active entry. */
+.yd-shell__nav-indicator {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: var(--yd-radius-sm);
+  background: var(--yd-surface-raised);
+  border-left: 2px solid var(--yd-accent);
 }
 
 .yd-shell__drawer-wrap {
@@ -115,11 +223,16 @@
   align-items: center;
   justify-content: flex-end;
   gap: 16px;
-  padding: 14px 24px;
+  padding: 14px clamp(16px, 2.2vw, 32px);
   background: var(--yd-surface);
   backdrop-filter: blur(var(--yd-glass-blur)) saturate(var(--yd-glass-saturate));
   -webkit-backdrop-filter: blur(var(--yd-glass-blur)) saturate(var(--yd-glass-saturate));
   border-bottom: 1px solid var(--yd-border);
+  /* Sticks, so the theme control and the reader's own name stay reachable on a
+     screen four viewports tall. */
+  position: sticky;
+  top: 0;
+  z-index: 20;
 }
 
 .yd-shell__user {
@@ -127,18 +240,54 @@
   font-size: 0.9rem;
 }
 
-.yd-shell__theme-select select {
-  background: var(--yd-surface);
-  color: var(--yd-text);
+/* The icon sits INSIDE the control's border, beside the select, so the pair
+   reads as one object rather than as a decoration next to a dropdown. */
+.yd-shell__theme-select {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 8px 5px 10px;
   border: 1px solid var(--yd-border-control);
   border-radius: var(--yd-radius-sm);
-  padding: 6px 10px;
-  font: inherit;
+  color: var(--yd-text-muted);
+  transition: border-color var(--yd-motion-fast) var(--yd-ease);
 }
 
+.yd-shell__theme-select:hover {
+  border-color: var(--yd-accent);
+}
+
+.yd-shell__theme-select select {
+  background: transparent;
+  color: var(--yd-text);
+  border: 0;
+  padding: 0;
+  font: inherit;
+  cursor: pointer;
+}
+
+.yd-shell__theme-select select:focus-visible {
+  outline: 2px solid var(--yd-accent);
+  outline-offset: 3px;
+}
+
+/* The one place the application's content width is decided. Eleven screens
+   used to carry their own `max-width: 1280px`, which left a third of a 1920
+   display empty and could only be widened eleven times over. */
 .yd-shell__main {
   flex: 1;
-  padding: 24px;
+  width: 100%;
+  max-width: var(--yd-page-max);
+  margin-inline: auto;
+  padding: clamp(16px, 2.2vw, 32px);
+  min-width: 0;
+}
+
+/* The per-route wrapper Motion animates. Deliberately NOT `display: contents`
+   — an element with no box takes no transform, and the entry animation would
+   silently do nothing. A plain block adds no spacing of its own; the screen
+   inside it still owns the page's layout. */
+.yd-shell__route {
   min-width: 0;
 }
 
@@ -151,7 +300,30 @@
     display: none;
   }
 
-  .yd-shell__main {
-    padding: 24px 16px 16px;
+  .yd-shell__header {
+    /* Clears the fixed menu toggle in the top-left corner. */
+    padding-left: 92px;
   }
+
+  .yd-shell__main {
+    padding: 20px 16px 16px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .yd-shell__sidebar a,
+  .yd-shell__sidebar a .yd-icon,
+  .yd-shell__theme-select {
+    transition: none;
+  }
+
+  .yd-shell__sidebar a:hover .yd-icon {
+    transform: none;
+  }
+}
+
+/* The in-app Animations switch — the zeroed duration tokens leave the movement
+   itself in place, which would then happen instantly. */
+:root[data-motion="off"] .yd-shell__sidebar a:hover .yd-icon {
+  transform: none;
 }

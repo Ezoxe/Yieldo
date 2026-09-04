@@ -45,11 +45,53 @@ touching code.
   seen and confirmed the mapping on screen, and any change to it invalidates
   the preview until the analysis is re-run. Never auto-commit a suggestion.
 
-## Design tokens (Abysse)
+## Shared UI primitives
 
-Accent `#7ee2d6`, positive `#4fd6a8`, info `#3b82f6`, warning `#f4a261`,
-negative `#e5606b`. Light and dark themes both required; every status/text
-colour pairing must hold WCAG AA (4.5:1) in both.
+- Icons: `frontend/src/design/icons/`. One grid (24x24, 1.6px stroke,
+  `currentColor`, Lucide geometry), named after MEANING (`AlertsIcon`, not
+  `BellIcon`). Never an emoji, never a second drawing of the same concept, and
+  never the only label on a control.
+- `PageHead` (`design/PageHead.tsx`) is the head of every screen; `PanelHead`
+  (`design/bento/PanelHead.tsx`) is the head of every bento panel. Both pair a
+  tinted mark with real text — the mark is always `aria-hidden`.
+- Content width is decided once, on `.yd-shell__main` from `--yd-page-max`. A
+  screen must not declare its own `max-width`.
+- Bento cells stretch to their row (`align-items: stretch`). A short panel
+  shows room, not a ragged edge; pin a card's footer with `margin-top: auto`
+  rather than reintroducing `align-self: start`.
+
+## Looking at the screens
+
+`frontend/src/dev/mockApi.ts` is a development-only fetch stub. Run the front
+end and open any screen with `?apercu=1` to browse the whole application against
+a canned French ledger — no backend, no database, no account. It is dropped from
+production builds (dynamic import behind `import.meta.env.DEV`), and it is not a
+test double: nothing asserts on it.
+
+`.claude/launch.json` declares the two dev servers (`yieldo-backend`,
+`yieldo-frontend`).
+
+**Judge UI work in a browser before calling it done.** Phase 1's interface was
+reviewed twenty-four times on the diff alone and rejected on sight.
+
+## Design tokens
+
+Neutral near-black ground (`#07070a`), surfaces raised off it in layers
+(`--yd-surface`, `--yd-surface-strong`, `--yd-surface-raised`), hairlines in
+white at 6-12% alpha, and functional accents: indigo `--yd-accent`
+(interactive, strategy), emerald `--yd-positive` (gains), rose
+`--yd-negative` (spending, alerts), amber `--yd-warning` (a ceiling in reach),
+blue `--yd-info` (a standing condition). The light theme carries the same five
+hues at their 600/700 steps.
+
+Light and dark are both required, and every status/text pairing must hold WCAG
+AA (4.5:1) against its own theme's ground — `design/contrast.test.ts` measures
+it from `tokens.css` on disk, and `charts/theme.ts` must mirror any colour
+change or `charts/theme.test.ts` fails.
+
+Never write a hex in a component. Money and figures take `.yd-num`
+(`tabular-nums`); a status is a pill badge, not a sentence; a methodology note
+goes behind an `InfoTip`, not under the figure.
 
 ## Testing
 

@@ -3,6 +3,9 @@ import { useCallback, useEffect, useState, type ReactNode } from "react";
 
 import { BentoCell, type BentoSpan } from "../../design/bento/BentoCell";
 import { BentoGrid } from "../../design/bento/BentoGrid";
+import { PanelHead } from "../../design/bento/PanelHead";
+import { CheckIcon, GoalsIcon, RateIcon, StreakIcon } from "../../design/icons";
+import { PageHead } from "../../design/PageHead";
 import { useReducedMotion } from "../../design/motion/useReducedMotion";
 import { entryProps, staggerProps } from "../../design/motion/variants";
 import "../../design/Skeleton.css";
@@ -121,12 +124,12 @@ export function SuiviPage() {
     body = (
       <BentoGrid as={motion.div} {...staggerProps(reduced)}>
         <BentoCell as={motion.div} span={SPAN.full} className="yd-panel" {...entryProps(reduced)}>
-          <h2 className="yd-panel__title">Régularité du suivi</h2>
+          <PanelHead icon={StreakIcon}>Régularité du suivi</PanelHead>
           <StreakPanel streak={engagement.streak} />
         </BentoCell>
 
         <BentoCell as={motion.div} span={SPAN.score} className="yd-panel" {...entryProps(reduced)}>
-          <h2 className="yd-panel__title">Santé financière</h2>
+          <PanelHead icon={CheckIcon}>Santé financière</PanelHead>
           <HealthScoreSummary health={engagement.health} />
         </BentoCell>
 
@@ -136,7 +139,7 @@ export function SuiviPage() {
           className="yd-panel"
           {...entryProps(reduced)}
         >
-          <h2 className="yd-panel__title">Ce que le score mesure</h2>
+          <PanelHead icon={RateIcon}>Ce que le score mesure</PanelHead>
           <HealthComponentList
             components={engagement.health.components}
             previousTakenOn={engagement.health.previous_taken_on}
@@ -144,17 +147,17 @@ export function SuiviPage() {
         </BentoCell>
 
         <BentoCell as={motion.div} span={SPAN.full} className="yd-panel" {...entryProps(reduced)}>
-          <h2 className="yd-panel__title">Évolution du score</h2>
+          <PanelHead icon={RateIcon}>Évolution du score</PanelHead>
           <HealthHistoryPanel health={engagement.health} />
         </BentoCell>
 
         <BentoCell as={motion.div} span={SPAN.half} className="yd-panel" {...entryProps(reduced)}>
-          <h2 className="yd-panel__title">Jalons d'objectifs</h2>
+          <PanelHead icon={GoalsIcon}>Jalons d'objectifs</PanelHead>
           <MilestonesPanel goals={engagement.goals} />
         </BentoCell>
 
         <BentoCell as={motion.div} span={SPAN.half} className="yd-panel" {...entryProps(reduced)}>
-          <h2 className="yd-panel__title">Défis mesurés sur vos relevés</h2>
+          <PanelHead icon={StreakIcon}>Défis mesurés sur vos relevés</PanelHead>
           {decisionError !== null ? (
             <p role="alert" className="yd-suivi__alert">
               {decisionError}
@@ -173,14 +176,14 @@ export function SuiviPage() {
 
   return (
     <section className="yd-suivi">
-      <div className="yd-suivi__header">
-        <h1>Suivi</h1>
+      <PageHead icon={StreakIcon} title="Suivi" className="yd-suivi__header">
+
         <p className="yd-suivi__lead">
           Ce que vos relevés disent de votre régularité, de votre santé financière et des marges
           qu'ils laissent apparaître. Chaque chiffre ici est une mesure prise sur vos propres
           opérations — jamais un badge, jamais un niveau.
         </p>
-      </div>
+      </PageHead>
 
       {error !== null ? (
         <p role="alert" className="yd-suivi__alert">

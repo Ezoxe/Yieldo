@@ -1,28 +1,51 @@
-/* Abysse — deep navy, teal accent. Both themes carry the same token names so
-   every component stays theme-agnostic. */
+/* Yieldo's design tokens.
+ *
+ * The palette is "dark mode craft": a neutral, near-black ground with a faint
+ * slate cast, surfaces raised off it in translucent layers rather than in
+ * lighter greys, hairline borders drawn in white at 6-12% alpha, and accents
+ * that are functional rather than decorative — emerald reads "gains", rose
+ * reads "spending", amber reads "close to the ceiling", indigo reads
+ * "interactive, strategy, projection".
+ *
+ * It replaces the teal-on-navy "Abysse" palette, whose ground was one flat
+ * dark teal from edge to edge: the cards had nothing to be raised off, and the
+ * one accent had to mean six different things.
+ *
+ * Both themes carry the same token names so every component stays
+ * theme-agnostic. `design/contrast.test.ts` measures every status and text
+ * token against its theme's own ground at 4.5:1, and `--yd-border-control`
+ * against the two grounds a control can land on at 3:1; those tests are the
+ * contract, not a formality — read them before editing a colour here.
+ */
 :root {
-  --yd-radius: 16px;
+  --yd-radius: 18px;
   --yd-radius-sm: 10px;
+  /* Pills and badges: fully round, so a status badge never reads as a small
+     card. */
+  --yd-radius-pill: 999px;
   --yd-glass-blur: 18px;
   --yd-glass-saturate: 155%;
+
+  /* The width the application's content is allowed to grow to. Replaces the
+     `max-width: 1280px` that eleven screens each declared for themselves —
+     which left a third of a 1920 display empty and could only be changed
+     eleven times. Applied once, on `.yd-shell__main`. */
+  --yd-page-max: 1680px;
 
   /* The two colours a label painted ON a categorical fill may take -- treemap
      tiles today. Theme-agnostic on purpose: the ground under such a label is
      the tile, not the page, so the light and dark themes have nothing to
      disagree about. Their JS twins are CHART_LABEL_INK / CHART_LABEL_PAPER in
-     charts/theme.ts, pinned to these by charts/theme.test.ts. The ink is not
-     `--yd-text`: #2a78d6 in the light categorical ramp clears 4.5:1 against
-     neither white (4.42:1) nor #0d2029 (3.79:1), and only a near-black ink
-     takes every fill in both ramps over the line -- worst case 4.68:1. */
+     charts/theme.ts, pinned to these by charts/theme.test.ts.
+
+     The ink is not `--yd-text`: it has to clear 4.5:1 on all sixteen fills of
+     the two categorical ramps, and only a near-black does. Measured on the
+     current ramps (400-level dark, 500-level light), the worst case is
+     indigo-500 #6366f1 at 4.62:1. That constraint is why the light ramp sits
+     at 500 rather than at 600 — at 600 the darkest fills fall to 3.3:1 against
+     this ink and no single ink clears the set. */
   --yd-chart-label-ink: #010305;
   --yd-chart-label-paper: #ffffff;
-
-  --yd-accent: #7ee2d6;
-  --yd-accent-strong: #4dc9ba;
-  --yd-positive: #4fd6a8;
-  --yd-negative: #e5606b;
-  --yd-warning: #f4a261;
-  --yd-info: #3b82f6;
 
   /* Both families are self-hosted, vendored as woff2 by @fontsource-variable
      and imported in main.tsx — nothing is ever fetched from a CDN, because
@@ -43,15 +66,14 @@
      overridden per theme. Sizes are clamped so the blobs never collapse to
      nothing on a 375px screen. A blob's visible strength is the product of
      three things: this size, the tint alpha inside the radial gradient, and
-     the element opacity in AtmosphericBackground.css. The element opacity is
-     capped at 0.08–0.12 by the plan, so size and tint carry the weight. */
+     the element opacity in AtmosphericBackground.css. */
   --yd-blob-a-size: max(54vw, 460px);
   --yd-blob-b-size: max(44vw, 380px);
   --yd-blob-c-size: max(36vw, 300px);
 
   /* Overlay behind the mobile drawer. A token, not an inline rgba, so a theme can
      tune it — a 40% black scrim is too heavy over the light theme. */
-  --yd-scrim: rgba(4, 14, 22, 0.52);
+  --yd-scrim: rgba(4, 4, 8, 0.62);
 
   /* Density axis — spacing only, never colour. "comfortable" is the default;
      :root[data-density="compact"] below tightens every step. */
@@ -75,110 +97,174 @@
 :root,
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --yd-bg: #060d15;
-  --yd-surface: rgba(24, 58, 79, 0.38);
-  --yd-surface-strong: #0f1c28;
-  --yd-surface-raised: rgba(30, 70, 94, 0.5);
-  --yd-border: rgba(126, 226, 214, 0.18);
-  --yd-border-strong: rgba(126, 226, 214, 0.34);
+
+  /* Ground. Near-black with a trace of slate — never pure #000, which kills
+     every shadow drawn on it. */
+  --yd-bg: #07070a;
+
+  /* The three surface layers, in order of elevation.
+     - `--yd-surface`      chrome that must let the atmosphere through
+                           (sidebar, header). Translucent + backdrop-filter.
+     - `--yd-surface-strong` the opaque data card. Figures are never read
+                           through a blur.
+     - `--yd-surface-raised` what floats ABOVE a card: the drawer, a popover,
+                           a tooltip, the active nav pill. */
+  --yd-surface: rgba(24, 24, 30, 0.66);
+  --yd-surface-strong: #17171d;
+  --yd-surface-raised: rgba(44, 44, 54, 0.72);
+
+  /* Hairlines, drawn in white rather than in the accent: an accent-tinted
+     border makes every container look selected. 6% is the resting edge, 12%
+     the edge under the pointer or around something raised. */
+  --yd-border: rgba(255, 255, 255, 0.06);
+  --yd-border-strong: rgba(255, 255, 255, 0.12);
+
   /* The visible boundary of a CONTROL -- an input, a select, a textarea, the
      switch track, and every button drawn with `background: transparent`, where
      the border is the whole of the control's outline. WCAG 1.4.11 asks 3:1 of
-     the "visual information required to identify user interface components":
-     a select whose fill is `--yd-surface` differs from the surface behind it
-     by 1.12:1, and a transparent-backed button differs from it by nothing at
-     all. Measured on the rendered header at 1440, `--yd-border` came out at
-     1.55:1 dark / 1.30:1 light against the control's own fill -- a hairline,
-     not a boundary. Solid rather than translucent so the ratio does not drift
-     with whatever surface the control lands on: 5.04:1 over the opaque card
-     surface, 4.28:1 over the composited header fill, 3.49:1 over the lightest
-     card surface, all clear.
-
-     Card, panel, banner and popup edges keep `--yd-border` /
-     `--yd-border-strong`: a container is not a user interface component and
+     "the visual information required to identify user interface components",
+     and a 6% white hairline is nowhere near it. Solid rather than translucent
+     so the ratio cannot drift with whatever surface the control lands on:
+     3.93:1 over the opaque card, 3.48:1 over the raised surface composited on
+     the ground. Card, panel and popup edges keep `--yd-border` /
+     `--yd-border-strong` — a container is not a user interface component and
      1.4.11 does not reach it. `design/controlBorders.test.ts` holds the line
-     between the two by scanning every stylesheet, and
-     `design/contrast.test.ts` pins this value at 3:1. */
-  --yd-border-control: #63929d;
-  --yd-text: #eef6f8;
-  --yd-text-muted: #93a9b8;
-  /* Text sitting ON a negative-tinted panel, never anywhere else.
-     `--yd-negative` clears 4.5:1 against `--yd-bg`, which is all
-     `contrast.test.ts` can see -- but an alert paints its own panel from the
-     same colour at 14-16%, which LIGHTENS the ground under the text. Measured
-     on the rendered login alert at 1440: #e5606b on the composited #333446 is
-     3.61:1, below AA for the 0.9rem message it carries, and the same panel
-     recipe is repeated on eleven other screens. This value is 5.16:1 on that
-     panel and 6.20:1 on a bare card, so it is safe on both. The light theme
-     needs no twin: measured the same way it already reads 4.92:1. */
-  --yd-negative-text: #f08c94;
-  --yd-shadow: 0 10px 34px rgba(0, 0, 0, 0.45);
-  --yd-sheen: linear-gradient(160deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0) 44%);
-  /* Atmospheric base. Never pure black: #050c14 is the darkest value allowed,
-     so the ambient blobs still have something to sit on. */
-  --yd-bg-gradient: linear-gradient(155deg, #0a1622 0%, #060f18 48%, #050c14 100%);
-  --yd-blob-a: rgba(126, 226, 214, 0.95);
-  --yd-blob-b: rgba(59, 130, 246, 0.8);
-  --yd-blob-c: rgba(79, 214, 168, 0.85);
+     between the two by scanning every stylesheet; `design/contrast.test.ts`
+     pins this value at 3:1. */
+  --yd-border-control: #757583;
+
+  --yd-text: #f4f4f6;
+  --yd-text-muted: #a1a1ad;
+
+  /* Text sitting ON a negative-tinted panel, never anywhere else. An alert
+     paints its own panel from `--yd-negative` at 14-16%, which LIGHTENS the
+     ground under the text; this value is chosen to clear AA on that composite
+     as well as on a bare card. */
+  --yd-negative-text: #fda4af;
+
+  /* Accents. Each one has a job, and only that job.
+       accent   indigo — interactive, brand, focus, projection
+       positive emerald — gains, money in, a balance in the black
+       negative rose   — spending, an overrun, something wrong
+       warning  amber  — a ceiling being approached, a measurement to qualify
+       info     blue   — a standing condition, a statement of method */
+  --yd-accent: #8f8cf8;
+  --yd-accent-strong: #a9a7fb;
+  --yd-positive: #34d399;
+  --yd-negative: #fb7185;
+  --yd-warning: #fbbf24;
+  --yd-info: #60a5fa;
+
+  /* Elevation, in three steps. A card takes `--yd-shadow`; it takes
+     `--yd-shadow-raised` under the pointer; a popover or a drawer takes
+     `--yd-shadow-pop`. Each carries a hairline top highlight in the same
+     declaration, which is what makes a surface read as raised rather than as
+     a lighter rectangle. */
+  --yd-shadow: 0 1px 2px rgba(0, 0, 0, 0.6), 0 8px 24px rgba(0, 0, 0, 0.45);
+  --yd-shadow-raised: 0 1px 2px rgba(0, 0, 0, 0.6), 0 16px 40px rgba(0, 0, 0, 0.55);
+  --yd-shadow-pop: 0 24px 60px rgba(0, 0, 0, 0.7);
+
+  /* The micro-gradient a card wears over its flat fill: a few percent of light
+     at the top edge, gone by 40%. Two of these stacked (this and the frame
+     ring below) are the whole of the "multi-layer surface" effect. */
+  --yd-surface-veil: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.045),
+    rgba(255, 255, 255, 0) 42%
+  );
+
+  --yd-sheen: linear-gradient(160deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0) 44%);
+
+  /* The hairline of light along a card's top-left edge — see `.yd-bento__cell`
+     in design/bento/Bento.css, which paints it as a masked inset ring. */
+  --yd-frame-sheen: linear-gradient(
+    150deg,
+    rgba(255, 255, 255, 0.16),
+    rgba(255, 255, 255, 0.03) 32%,
+    rgba(255, 255, 255, 0) 62%
+  );
+
+  /* Atmospheric base. Nearly flat on purpose now: the depth comes from the
+     surfaces, not from the ground. */
+  --yd-bg-gradient: linear-gradient(155deg, #0b0b11 0%, #08080c 48%, #060608 100%);
+  --yd-blob-a: rgba(129, 140, 248, 0.85);
+  --yd-blob-b: rgba(45, 212, 191, 0.6);
+  --yd-blob-c: rgba(52, 211, 153, 0.6);
 }
 
 :root[data-theme="light"] {
   color-scheme: light;
-  /* Deeper than the #f2f7f9 the phase-1.5 brief started from. At that value the
-     white cards had nothing to sit on: measured across the whole screen the
-     ground spanned L 0.856-0.902 while a --yd-surface-strong card sat at 1.0,
-     so the page read as one white form and the halos only ever darkened it.
-     This is the ground the cards are raised off, and it backs the gradient
-     during load. */
-  --yd-bg: #e9f1f3;
-  --yd-surface: rgba(255, 255, 255, 0.66);
+
+  /* A neutral off-white, deep enough that a white card is visibly raised off
+     it. The cards are the figure; this is the ground, and the two have to
+     differ. */
+  --yd-bg: #f1f1f4;
+  --yd-surface: rgba(255, 255, 255, 0.72);
   --yd-surface-strong: #ffffff;
-  --yd-surface-raised: rgba(255, 255, 255, 0.86);
-  --yd-border: rgba(15, 60, 74, 0.14);
-  --yd-border-strong: rgba(15, 60, 74, 0.26);
+  --yd-surface-raised: rgba(255, 255, 255, 0.92);
+
+  /* Ink-tinted rather than white-tinted: a white hairline on a white card is
+     nothing at all. */
+  --yd-border: rgba(9, 9, 16, 0.08);
+  --yd-border-strong: rgba(9, 9, 16, 0.15);
+
   /* Same job as the dark theme's, measured against the light theme's own
-     surfaces: 3.96:1 over a white card, 3.46:1 over the deepest exposed
+     surfaces: 4.33:1 over a white card, 3.84:1 over the deepest exposed
      ground. See the dark block for why this token exists. */
-  --yd-border-control: #6f838d;
-  --yd-text: #0d2029;
-  /* Darkened twice, both times to survive the ground rather than to look right
-     in isolation. #557184 cleared a flat --yd-bg by only 4.76:1, and the halo
-     plus a card's drop shadow took it to 4.47:1 on screen; #4a6577 fixed that,
-     then deepening the ground took the worst pixel back to 4.46:1. This value
-     clears the darkest ground measured anywhere on any captured screen — the
-     16px gutter at 375 where two cards' drop shadows stack over a halo, L
-     0.6479 — at 4.62:1, so no exposed pixel of the light theme is below AA for
-     muted text, whether or not text could actually land on it. */
-  --yd-text-muted: #435d6c;
-  /* Darkened until each clears 4.5:1 against --yd-bg. The dark theme's teals and
-     ambers look right on light backgrounds but sit near 3.5:1, which is not
-     readable for the figures this app exists to show. --yd-info needs its own
-     value here too: the :root default is tuned for a dark background. */
-  --yd-accent: #0b6d63;
-  --yd-accent-strong: #085951;
-  --yd-positive: #0e7150;
-  --yd-negative: #b3232d;
-  /* Same role as the dark theme's, but the light theme's tint DARKENS nothing
-     -- a 14-16% wash of this red over white leaves #efdadb, on which
-     `--yd-negative` itself measures 4.92:1. Declared equal to it rather than
-     omitted, so a reader of either block sees the pairing stated. */
-  --yd-negative-text: #b3232d;
-  --yd-warning: #8a4d08;
+  --yd-border-control: #78788a;
+
+  --yd-text: #18181d;
+  --yd-text-muted: #55555f;
+
+  /* The dark theme's accents read as pastels on a near-white ground and sit
+     near 2:1. These are the same five hues taken down to their 600/700 steps,
+     each verified at 4.5:1 or better against `--yd-bg`. */
+  --yd-accent: #4f46e5;
+  --yd-accent-strong: #3f37c9;
+  --yd-positive: #047857;
+  --yd-negative: #be123c;
+  --yd-warning: #92400e;
   --yd-info: #1d4ed8;
-  --yd-shadow: 0 10px 30px rgba(13, 45, 60, 0.12);
+
+  /* Same role as the dark theme's, but a wash of this rose over white leaves a
+     pale pink on which `--yd-negative` itself already clears AA. Declared
+     equal to it rather than omitted, so a reader of either block sees the
+     pairing stated. */
+  --yd-negative-text: #be123c;
+
+  --yd-shadow: 0 1px 2px rgba(9, 9, 16, 0.06), 0 8px 24px rgba(9, 9, 16, 0.08);
+  --yd-shadow-raised: 0 1px 2px rgba(9, 9, 16, 0.08), 0 16px 40px rgba(9, 9, 16, 0.12);
+  --yd-shadow-pop: 0 24px 60px rgba(9, 9, 16, 0.18);
+
+  /* The light theme's cards are white already, so the veil darkens the bottom
+     instead of lightening the top — same purpose, opposite direction. */
+  --yd-surface-veil: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0),
+    rgba(9, 9, 16, 0.015) 100%
+  );
+
   --yd-sheen: linear-gradient(160deg, rgba(255, 255, 255, 0.8), rgba(255, 255, 255, 0) 46%);
-  /* The dark-theme scrim's 52% near-black reads as a heavy smear over the light
-     theme's near-white surfaces — lighter opacity keeps the same dimming effect. */
-  --yd-scrim: rgba(13, 32, 41, 0.32);
-  /* Same atmosphere, inverted: a pale wash instead of a deep one. The blob
-     tints are the light theme's own darkened teals, since the dark theme's
-     bright teals vanish against a near-white ground — and they are raised now
-     that the ground is deep enough to show them. Figure and ground: the cards
-     are the figure, this is the ground, and the two have to differ. */
-  --yd-bg-gradient: linear-gradient(155deg, #e3eef1 0%, #ecf3f5 46%, #dde9ee 100%);
-  --yd-blob-a: rgba(11, 109, 99, 0.78);
-  --yd-blob-b: rgba(29, 78, 216, 0.55);
-  --yd-blob-c: rgba(14, 113, 80, 0.58);
+
+  /* A white highlight on a white card is nothing at all. The light theme's
+     cards are raised off a deeper ground, so their edge is read from the
+     shading under it: the dark theme's gradient inverted. */
+  --yd-frame-sheen: linear-gradient(
+    150deg,
+    rgba(9, 9, 16, 0.13),
+    rgba(9, 9, 16, 0.05) 34%,
+    rgba(9, 9, 16, 0) 64%
+  );
+
+  /* The dark-theme scrim's near-black reads as a heavy smear over the light
+     theme's near-white surfaces — lighter opacity keeps the same dimming
+     effect. */
+  --yd-scrim: rgba(24, 24, 29, 0.32);
+
+  --yd-bg-gradient: linear-gradient(155deg, #eeeef2 0%, #f3f3f6 46%, #e9e9ee 100%);
+  --yd-blob-a: rgba(79, 70, 229, 0.5);
+  --yd-blob-b: rgba(13, 148, 136, 0.4);
+  --yd-blob-c: rgba(4, 120, 87, 0.4);
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -15,6 +15,9 @@
    the same defect B5 fixed on inputs and selects, on the one control every
    chart carries. */
 .yd-chart__export-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   border: 1px solid var(--yd-border-control);
   border-radius: var(--yd-radius-sm);
   background: var(--yd-surface);

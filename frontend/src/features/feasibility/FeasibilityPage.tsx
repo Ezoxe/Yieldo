@@ -4,7 +4,10 @@ import { Link } from "react-router";
 
 import { BentoCell, type BentoSpan } from "../../design/bento/BentoCell";
 import { BentoGrid } from "../../design/bento/BentoGrid";
+import { PanelHead } from "../../design/bento/PanelHead";
 import { EmptyState, historySentence } from "../../design/EmptyState";
+import { CoinsIcon, FeasibilityIcon, InfoIcon, ListIcon, SimulatorsIcon, TrendUpIcon } from "../../design/icons";
+import { PageHead } from "../../design/PageHead";
 import { useReducedMotion } from "../../design/motion/useReducedMotion";
 import { entryProps, staggerProps } from "../../design/motion/variants";
 import "../../design/Skeleton.css";
@@ -285,12 +288,12 @@ export function FeasibilityPage() {
     body = (
       <BentoGrid as={motion.div} {...staggerProps(reduced)}>
         <BentoCell as={motion.div} span={SPAN.full} className="yd-panel" {...entryProps(reduced)}>
-          <h2 className="yd-panel__title">Ce que vos relevés mesurent</h2>
+          <PanelHead icon={InfoIcon}>Ce que vos relevés mesurent</PanelHead>
           {renderContext(context)}
         </BentoCell>
 
         <BentoCell as={motion.div} span={SPAN.form} className="yd-panel" {...entryProps(reduced)}>
-          <h2 className="yd-panel__title">Votre achat</h2>
+          <PanelHead icon={FeasibilityIcon}>Votre achat</PanelHead>
           <PurchaseForm
             key={reopened?.key ?? "new"}
             context={context}
@@ -313,7 +316,7 @@ export function FeasibilityPage() {
             <p className="yd-feas__busy">Calcul en cours…</p>
           ) : reportRefusal !== null ? (
             <>
-              <h2 className="yd-panel__title">Verdict</h2>
+              <PanelHead icon={FeasibilityIcon}>Verdict</PanelHead>
               {/* A refusal from the engine, verbatim and in the panel's own
                   voice. Not an alert: nothing failed. */}
               <p className="yd-feas__refusal">{reportRefusal}</p>
@@ -340,7 +343,7 @@ export function FeasibilityPage() {
                 className="yd-panel"
                 {...entryProps(reduced)}
               >
-                <h2 className="yd-panel__title">Ce qu'il faudrait changer</h2>
+                <PanelHead icon={TrendUpIcon}>Ce qu'il faudrait changer</PanelHead>
                 <LeverList levers={report.levers} />
               </BentoCell>
             ) : null}
@@ -351,7 +354,7 @@ export function FeasibilityPage() {
               className="yd-panel"
               {...entryProps(reduced)}
             >
-              <h2 className="yd-panel__title">Comptant, crédit ou LOA</h2>
+              <PanelHead icon={SimulatorsIcon}>Comptant, crédit ou LOA</PanelHead>
               <FinancingPanel
                 financing={report.financing}
                 loanRateBps={report.assumptions.loan_rate_bps}
@@ -366,7 +369,7 @@ export function FeasibilityPage() {
               className="yd-panel"
               {...entryProps(reduced)}
             >
-              <h2 className="yd-panel__title">Ce que la possession coûte</h2>
+              <PanelHead icon={CoinsIcon}>Ce que la possession coûte</PanelHead>
               <OwnershipPanel
                 ownership={report.ownership}
                 opportunityCostCents={report.opportunity_cost_cents}
@@ -380,7 +383,7 @@ export function FeasibilityPage() {
               className="yd-panel"
               {...entryProps(reduced)}
             >
-              <h2 className="yd-panel__title">Ce que cet achat change</h2>
+              <PanelHead icon={TrendUpIcon}>Ce que cet achat change</PanelHead>
               <ImpactPanel
                 impact={report.impact}
                 targetCents={report.target_cents}
@@ -391,7 +394,7 @@ export function FeasibilityPage() {
         ) : null}
 
         <BentoCell as={motion.div} span={SPAN.full} className="yd-panel" {...entryProps(reduced)}>
-          <h2 className="yd-panel__title">Scénarios enregistrés</h2>
+          <PanelHead icon={ListIcon}>Scénarios enregistrés</PanelHead>
           {scenarioError !== null ? (
             <p role="alert" className="yd-feas__alert">
               {`Scénarios indisponibles : ${scenarioError}`}
@@ -414,12 +417,12 @@ export function FeasibilityPage() {
 
   return (
     <section className="yd-feas">
-      <div className="yd-feas__header">
-        <h1>Faisabilité d'achat</h1>
+      <PageHead icon={FeasibilityIcon} title="Faisabilité d'achat" className="yd-feas__header">
+
         <p className="yd-feas__lead">
           Puis-je m'offrir ce bien, et sinon que faut-il changer ?
         </p>
-      </div>
+      </PageHead>
 
       {contextError !== null ? (
         <p role="alert" className="yd-feas__alert">

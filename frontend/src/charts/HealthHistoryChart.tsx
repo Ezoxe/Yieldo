@@ -5,7 +5,7 @@ import { frenchDate } from "../design/EmptyState";
 import type { HealthSnapshot } from "../lib/types";
 import { Chart, type ChartExportRow } from "./Chart";
 import { ChartKey, type ChartKeyEntry } from "./ChartKey";
-import { type Resolved, chartTokens } from "./theme";
+import { LINE_SMOOTHING, chartTokens, type Resolved } from "./theme";
 
 /**
  * A trend needs two points. Below that there is a reading, not a history, and
@@ -77,6 +77,7 @@ export function buildHealthHistoryOption(
     series: [
       {
         type: "line",
+        ...LINE_SMOOTHING,
         name: "Score de santé financière",
         // One mark per stored reading — see MIN_HISTORY_POINTS.
         showSymbol: true,

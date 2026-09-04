@@ -1,15 +1,9 @@
 .yd-debts {
-  max-width: 1280px;
   display: flex;
   flex-direction: column;
   gap: var(--yd-space-lg);
 }
 
-.yd-debts__header {
-  display: flex;
-  flex-direction: column;
-  gap: var(--yd-space-2xs);
-}
 
 .yd-debts h1 {
   margin: 0;

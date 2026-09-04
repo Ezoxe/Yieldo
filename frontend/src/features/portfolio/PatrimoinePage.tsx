@@ -3,7 +3,10 @@ import { useEffect, useState, type ReactNode } from "react";
 
 import { BentoCell, type BentoSpan } from "../../design/bento/BentoCell";
 import { BentoGrid } from "../../design/bento/BentoGrid";
+import { PanelHead } from "../../design/bento/PanelHead";
 import { EmptyState } from "../../design/EmptyState";
+import { BreakdownIcon, ConnectionsIcon, PlusIcon, PortfolioIcon } from "../../design/icons";
+import { PageHead } from "../../design/PageHead";
 import { useReducedMotion } from "../../design/motion/useReducedMotion";
 import { entryProps, staggerProps } from "../../design/motion/variants";
 import "../../design/Skeleton.css";
@@ -168,7 +171,7 @@ export function PatrimoinePage() {
     // half-width cell at 768.
     const editorCell = (
       <BentoCell as={motion.div} span={SPAN.full} className="yd-panel" {...entryProps(reduced)}>
-        <h2 className="yd-panel__title">Déclarer ce que vous détenez</h2>
+        <PanelHead icon={PlusIcon}>Déclarer ce que vous détenez</PanelHead>
         <PortfolioEditor
           accounts={accounts}
           archivedAccounts={archivedAccounts}
@@ -186,7 +189,7 @@ export function PatrimoinePage() {
         className={`yd-panel${declaredNothing ? " yd-patrimoine__cell--fit" : ""}`}
         {...entryProps(reduced)}
       >
-        <h2 className="yd-panel__title">Données de marché</h2>
+        <PanelHead icon={ConnectionsIcon}>Données de marché</PanelHead>
         {connections.length === 0 ? (
           <p className="yd-patrimoine__alert" role="alert">
             L'état des connexions n'a pas pu être lu. Vos positions ci-dessous restent exactes —
@@ -215,7 +218,7 @@ export function PatrimoinePage() {
               className="yd-panel yd-patrimoine__cell--fit"
               {...entryProps(reduced)}
             >
-              <h2 className="yd-panel__title">Vos positions</h2>
+              <PanelHead icon={PortfolioIcon}>Vos positions</PanelHead>
               <EmptyState
                 title="Aucune position déclarée."
                 detail="Yieldo ne valorise que ce que vous lui déclarez : il ne se connecte à aucun courtier et ne découvre rien tout seul. Une position se déclare en trois temps, et chacun répond à une question différente."
@@ -250,7 +253,7 @@ export function PatrimoinePage() {
               className="yd-panel"
               {...entryProps(reduced)}
             >
-              <h2 className="yd-panel__title">Valeur du portefeuille</h2>
+              <PanelHead icon={PortfolioIcon}>Valeur du portefeuille</PanelHead>
               <TotalPanel total={total} reportingCurrency={valuation.reporting_currency} />
             </BentoCell>
 
@@ -262,7 +265,7 @@ export function PatrimoinePage() {
               className="yd-panel"
               {...entryProps(reduced)}
             >
-              <h2 className="yd-panel__title">Vos positions</h2>
+              <PanelHead icon={PortfolioIcon}>Vos positions</PanelHead>
               <HoldingsPanel
                 positions={valuation.positions}
                 reportingCurrency={valuation.reporting_currency}
@@ -276,7 +279,7 @@ export function PatrimoinePage() {
               className="yd-panel"
               {...entryProps(reduced)}
             >
-              <h2 className="yd-panel__title">Répartition par classe d'actifs</h2>
+              <PanelHead icon={BreakdownIcon}>Répartition par classe d'actifs</PanelHead>
               <WeightsPanel
                 groups={valuation.weight_by_asset_class}
                 dimension="asset_class"
@@ -290,7 +293,7 @@ export function PatrimoinePage() {
               className="yd-panel"
               {...entryProps(reduced)}
             >
-              <h2 className="yd-panel__title">Répartition par devise</h2>
+              <PanelHead icon={BreakdownIcon}>Répartition par devise</PanelHead>
               <WeightsPanel
                 groups={valuation.weight_by_currency}
                 dimension="currency"
@@ -303,7 +306,7 @@ export function PatrimoinePage() {
         )}
 
         <BentoCell as={motion.div} span={SPAN.full} className="yd-panel" {...entryProps(reduced)}>
-          <h2 className="yd-panel__title">Allocation cible et écart</h2>
+          <PanelHead icon={BreakdownIcon}>Allocation cible et écart</PanelHead>
           <AllocationPanel allocation={allocation} onSaved={reload} />
         </BentoCell>
       </BentoGrid>
@@ -312,14 +315,14 @@ export function PatrimoinePage() {
 
   return (
     <section className="yd-patrimoine">
-      <div className="yd-patrimoine__header">
-        <h1>Patrimoine</h1>
+      <PageHead icon={PortfolioIcon} title="Patrimoine" className="yd-patrimoine__header">
+
         <p className="yd-patrimoine__lead">
           Ce que vous détenez, ce que Yieldo a pu valoriser, et ce qu'il n'a pas pu — nommément.
           Un prix manquant n'est jamais remplacé par un zéro ni par le prix payé, et un prix daté
           est affiché avec son âge plutôt que présenté comme frais.
         </p>
-      </div>
+      </PageHead>
 
       {error !== null ? (
         <p role="alert" className="yd-patrimoine__alert">

@@ -1,0 +1,81 @@
+/* The icon primitive's own box, plus the tinted badge a panel title wears.
+   Sizes only — every colour comes from `currentColor` or a token, so an icon
+   is always the colour of the text it belongs to. */
+
+.yd-icon {
+  /* 1em, so an icon set beside a word is exactly as tall as that word and the
+     pair never drifts apart when a heading changes size. */
+  width: 1em;
+  height: 1em;
+  flex: 0 0 auto;
+  /* The optical centre of a 24-grid glyph sits slightly below the text
+     baseline; without this an icon rides high beside its label. */
+  vertical-align: -0.125em;
+}
+
+/* The rounded square an icon sits in at the head of a panel, a stat or a row.
+   It is what makes a card legible at a glance across a dashboard: the reader
+   finds the panel by its mark before reading its title. */
+.yd-icon-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--yd-icon-tint, var(--yd-accent)) 26%, transparent);
+  background: color-mix(in srgb, var(--yd-icon-tint, var(--yd-accent)) 12%, transparent);
+  color: var(--yd-icon-tint, var(--yd-accent));
+  font-size: 1.05rem;
+  transition:
+    border-color var(--yd-motion-fast) var(--yd-ease),
+    background-color var(--yd-motion-fast) var(--yd-ease),
+    scale var(--yd-motion-base) var(--yd-ease);
+}
+
+/* A cell lifting under the pointer brings its badge up with it — a small
+   confirmation that the whole card is one object, not a heading and a box. */
+.yd-bento__cell:hover .yd-icon-badge,
+.yd-glass:hover .yd-icon-badge {
+  scale: 1.06;
+  background: color-mix(in srgb, var(--yd-icon-tint, var(--yd-accent)) 20%, transparent);
+  border-color: color-mix(in srgb, var(--yd-icon-tint, var(--yd-accent)) 44%, transparent);
+}
+
+/* Smaller variant, for a list row rather than a panel head. */
+.yd-icon-badge--sm {
+  width: 1.65rem;
+  height: 1.65rem;
+  border-radius: 8px;
+  font-size: 0.9rem;
+}
+
+/* The tints a badge may take. Named after the semantic role, never after the
+   colour, so a theme swap moves all of them at once. */
+.yd-icon-badge--accent { --yd-icon-tint: var(--yd-accent); }
+.yd-icon-badge--positive { --yd-icon-tint: var(--yd-positive); }
+.yd-icon-badge--negative { --yd-icon-tint: var(--yd-negative); }
+.yd-icon-badge--warning { --yd-icon-tint: var(--yd-warning); }
+.yd-icon-badge--info { --yd-icon-tint: var(--yd-info); }
+.yd-icon-badge--muted {
+  --yd-icon-tint: var(--yd-text-muted);
+  color: var(--yd-text-muted);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .yd-icon-badge {
+    transition: none;
+  }
+  .yd-bento__cell:hover .yd-icon-badge,
+  .yd-glass:hover .yd-icon-badge {
+    scale: none;
+  }
+}
+
+/* The in-app Animations switch — the zeroed duration tokens still leave the
+   scale change, which would then snap. */
+:root[data-motion="off"] .yd-bento__cell:hover .yd-icon-badge,
+:root[data-motion="off"] .yd-glass:hover .yd-icon-badge {
+  scale: none;
+}

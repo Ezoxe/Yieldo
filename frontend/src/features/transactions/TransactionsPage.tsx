@@ -185,6 +185,10 @@ export function TransactionsPage() {
   // whether it belongs in it at all depends on the period and every filter
   // currently applied. Refetching is the only answer that cannot lie.
   const [adding, setAdding] = useState(false);
+  // The row being corrected. It is kept after the drawer closes so the closing
+  // animation does not play against a form that has already emptied itself;
+  // `adding` and this are what tell the two modes apart.
+  const [editing, setEditing] = useState<Transaction | null>(null);
   const [reloadToken, setReloadToken] = useState(0);
 
   const [items, setItems] = useState<Transaction[]>([]);
@@ -421,11 +425,15 @@ export function TransactionsPage() {
       </PageHead>
 
       <TransactionForm
-        open={adding}
-        onClose={() => setAdding(false)}
+        open={adding || editing !== null}
+        onClose={() => {
+          setAdding(false);
+          setEditing(null);
+        }}
         accounts={accounts}
         categories={categories}
-        onCreated={() => setReloadToken((token) => token + 1)}
+        transaction={editing}
+        onSaved={() => setReloadToken((token) => token + 1)}
       />
 
       {referenceError ? (
@@ -550,6 +558,9 @@ export function TransactionsPage() {
                       <th scope="col" role="columnheader">
                         Montant
                       </th>
+                      <th scope="col" role="columnheader">
+                        Modifier
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="yd-transactions__body" role="rowgroup">
@@ -568,7 +579,7 @@ export function TransactionsPage() {
                               joins Date / Libellé / Catégorie / Montant in the
                               table's own column list — caught by the test that
                               pins those four names. */}
-                          <th scope="rowgroup" colSpan={4}>
+                          <th scope="rowgroup" colSpan={5}>
                             {dayHeading(day.date, day.rows.length)}
                           </th>
                         </tr>
@@ -578,6 +589,7 @@ export function TransactionsPage() {
                             transaction={transaction}
                             categories={categories}
                             onRecategorize={(id, catId) => void handleRecategorize(id, catId)}
+                            onEdit={setEditing}
                           />
                         ))}
                       </Fragment>

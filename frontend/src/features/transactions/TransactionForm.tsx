@@ -1,7 +1,7 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 
 import { Drawer } from "../../design/Drawer";
-import { PlusIcon } from "../../design/icons";
+import { EditIcon, PlusIcon } from "../../design/icons";
 import { ApiError, api } from "../../lib/api";
 import type { Account, Category, Transaction } from "../../lib/types";
 import { CategoryPicker } from "./CategoryPicker";
@@ -26,6 +26,26 @@ export function parseAmountToCents(input: string): number | null {
   return cents > 0 ? cents : null;
 }
 
+/** The other direction: stored cents, back into the field a person types in.
+ *  Unsigned, because the sign lives on the direction control -- reading a
+ *  stored -1250 back as "-12,50" would put a minus sign in a field that
+ *  refuses one. */
+export function centsToAmountInput(cents: number): string {
+  const absolute = Math.abs(cents);
+  return `${Math.trunc(absolute / 100)},${String(absolute % 100).padStart(2, "0")}`;
+}
+
+/** A date the reader has finished writing, as opposed to one they are halfway
+ *  through. `<input type="date">` reports a value for every keystroke that
+ *  leaves the field parseable, so the first digit of the year is the perfectly
+ *  valid year 2 -- and saving that writes a transaction dated 0002 without a
+ *  word. The same guard PeriodSelector applies to the custom range, here on
+ *  the way out instead of on the way in: the field stays as forgiving to type
+ *  in as it was, and only the save is held back. */
+export function isCompleteDate(value: string): boolean {
+  return /^\d{4}-\d{2}-\d{2}$/.test(value) && Number(value.slice(0, 4)) >= 1000;
+}
+
 /** Today, in the ISO form the date input and the API both speak. */
 export function todayIso(today: Date = new Date()): string {
   const local = new Date(today.getTime() - today.getTimezoneOffset() * 60_000);
@@ -39,8 +59,11 @@ interface TransactionFormProps {
   onClose: () => void;
   accounts: Account[];
   categories: Category[];
-  /** Called with the created row once the ledger has accepted it. */
-  onCreated: (created: Transaction) => void;
+  /** Called with the row once the ledger has accepted it -- created or
+   *  corrected, since the caller reloads the same way either way. */
+  onSaved: (saved: Transaction) => void;
+  /** The row being corrected, or null to write a new one. */
+  transaction?: Transaction | null;
   today?: Date;
 }
 
@@ -66,16 +89,24 @@ export function TransactionForm({
   onClose,
   accounts,
   categories,
-  onCreated,
+  onSaved,
+  transaction = null,
   today = new Date(),
 }: TransactionFormProps) {
-  const [date, setDate] = useState(todayIso(today));
-  const [direction, setDirection] = useState<Direction>("expense");
-  const [amount, setAmount] = useState("");
-  const [label, setLabel] = useState("");
-  const [accountId, setAccountId] = useState<number | null>(accounts[0]?.id ?? null);
-  const [categoryId, setCategoryId] = useState<number | null>(null);
-  const [notes, setNotes] = useState("");
+  const editing = transaction !== null;
+  const [date, setDate] = useState(transaction?.date ?? todayIso(today));
+  const [direction, setDirection] = useState<Direction>(
+    transaction !== null && transaction.amount_cents > 0 ? "income" : "expense",
+  );
+  const [amount, setAmount] = useState(
+    transaction === null ? "" : centsToAmountInput(transaction.amount_cents),
+  );
+  const [label, setLabel] = useState(transaction?.label_raw ?? "");
+  const [accountId, setAccountId] = useState<number | null>(
+    transaction?.account_id ?? accounts[0]?.id ?? null,
+  );
+  const [categoryId, setCategoryId] = useState<number | null>(transaction?.category_id ?? null);
+  const [notes, setNotes] = useState(transaction?.notes ?? "");
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -83,14 +114,21 @@ export function TransactionForm({
   const effectiveAccountId = accountId ?? accounts[0]?.id ?? null;
 
   function reset() {
-    setDate(todayIso(today));
-    setDirection("expense");
-    setAmount("");
-    setLabel("");
-    setCategoryId(null);
-    setNotes("");
+    setDate(transaction?.date ?? todayIso(today));
+    setDirection(transaction !== null && transaction.amount_cents > 0 ? "income" : "expense");
+    setAmount(transaction === null ? "" : centsToAmountInput(transaction.amount_cents));
+    setLabel(transaction?.label_raw ?? "");
+    setAccountId(transaction?.account_id ?? accounts[0]?.id ?? null);
+    setCategoryId(transaction?.category_id ?? null);
+    setNotes(transaction?.notes ?? "");
     setError(null);
   }
+
+  // The drawer is mounted once and pointed at a different row each time it
+  // opens, so the fields are refilled on open rather than on mount: a state
+  // initialiser runs only for the first row this component ever saw.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(reset, [open, transaction?.id]);
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
@@ -108,18 +146,37 @@ export function TransactionForm({
       setError("Le libellé est obligatoire.");
       return;
     }
+    if (!isCompleteDate(date)) {
+      setError("La date est incomplète : indiquez le jour, le mois et l'année sur quatre chiffres.");
+      return;
+    }
+
+    const common = {
+      account_id: effectiveAccountId,
+      date,
+      amount_cents: direction === "expense" ? -cents : cents,
+      label_raw: label.trim(),
+      notes: notes.trim() === "" ? null : notes.trim(),
+    };
 
     setSaving(true);
     try {
-      const created = await api.post<Transaction>("/transactions", {
-        account_id: effectiveAccountId,
-        date,
-        amount_cents: direction === "expense" ? -cents : cents,
-        label_raw: label.trim(),
-        category_id: categoryId,
-        notes: notes.trim() === "" ? null : notes.trim(),
-      });
-      onCreated(created);
+      let saved: Transaction;
+      if (transaction !== null) {
+        // The category is sent ONLY when the reader moved it. The backend reads
+        // any category_id as a correction: it learns a rule from it and
+        // backfills every similar row. Fixing a date must not reclassify a
+        // household's ledger as a side effect.
+        const patch: Record<string, unknown> = { ...common };
+        if (categoryId !== transaction.category_id) patch.category_id = categoryId;
+        saved = await api.patch<Transaction>(`/transactions/${transaction.id}`, patch);
+      } else {
+        saved = await api.post<Transaction>("/transactions", {
+          ...common,
+          category_id: categoryId,
+        });
+      }
+      onSaved(saved);
       reset();
       onClose();
     } catch (err) {
@@ -133,9 +190,13 @@ export function TransactionForm({
     <Drawer
       open={open}
       onClose={onClose}
-      title="Ajouter une opération"
-      icon={PlusIcon}
-      subtitle="Un achat en espèces, une avance, un remboursement — tout ce qu'aucun relevé ne portera."
+      title={editing ? "Modifier une opération" : "Ajouter une opération"}
+      icon={editing ? EditIcon : PlusIcon}
+      subtitle={
+        editing
+          ? "Une date, un montant, un libellé : corrigez la ligne telle qu'elle aurait dû être écrite."
+          : "Un achat en espèces, une avance, un remboursement — tout ce qu'aucun relevé ne portera."
+      }
     >
       <form className="yd-txform" onSubmit={handleSubmit}>
         <div className="yd-txform__field">
@@ -232,7 +293,8 @@ export function TransactionForm({
             onChange={setCategoryId}
             categories={categories}
             label="Catégorie"
-            placeholder="Détecter automatiquement"
+            placeholder={editing ? "Aucune catégorie" : "Détecter automatiquement"}
+            resetLabel={editing ? "Aucune catégorie" : "Détecter automatiquement"}
           />
         </div>
 
@@ -247,8 +309,9 @@ export function TransactionForm({
         </div>
 
         <p className="yd-txform__note">
-          Sans catégorie choisie, vos propres règles de catégorisation sont appliquées au libellé,
-          comme lors d'un import.
+          {editing
+            ? "La ligne est corrigée telle quelle. La catégorie n'est renvoyée que si vous la changez : Yieldo n'apprend une règle que d'une correction voulue."
+            : "Sans catégorie choisie, vos propres règles de catégorisation sont appliquées au libellé, comme lors d'un import."}
         </p>
 
         {error !== null ? (

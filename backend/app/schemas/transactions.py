@@ -1,3 +1,4 @@
+import datetime
 from datetime import date
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -76,12 +77,51 @@ class TransactionPage(BaseModel):
 
 
 class TransactionPatch(BaseModel):
+    """A correction to a row that already exists.
+
+    Every field is optional and omitting one means "leave it alone" -- including
+    the four that make the row the row it is (`account_id`, `date`,
+    `amount_cents`, `label_raw`). They are editable because a ledger line can be
+    wrong in ways no recategorisation reaches: a date typed a month off, a debit
+    entered as a credit, a label that says nothing three weeks later.
+
+    `value_date` is the one nullable column here, so an explicit null clears it;
+    the others are NOT NULL and refuse one.
+    """
+
+    account_id: int | None = None
+    # `datetime.date` spelled out, not the bare `date` the rest of this module
+    # uses: a field literally named `date` with a default binds that name in the
+    # class body before its own annotation is evaluated, so `date | None` would
+    # read `None | None` and fail at import.
+    date: datetime.date | None = None
+    value_date: datetime.date | None = None
+    amount_cents: int | None = None
+    label_raw: str | None = Field(default=None, min_length=1, max_length=500)
     category_id: int | None = None
     notes: str | None = Field(default=None, max_length=2000)
     is_transfer: bool | None = None
     tags: list[str] | None = None
 
-    _no_null = not_nullable("is_transfer", "tags")
+    _no_null = not_nullable("account_id", "date", "amount_cents", "label_raw",
+                            "is_transfer", "tags")
+
+    # The same two rules `TransactionIn` states, for the same reasons: a blank
+    # label names nothing, and a zero-amount movement is a typing slip.
+    @field_validator("label_raw")
+    @classmethod
+    def _label_is_not_blank(cls, value: str) -> str:
+        stripped = value.strip()
+        if not stripped:
+            raise ValueError("Le libellé est obligatoire")
+        return stripped
+
+    @field_validator("amount_cents")
+    @classmethod
+    def _amount_is_not_zero(cls, value: int) -> int:
+        if value == 0:
+            raise ValueError("Le montant ne peut pas être nul")
+        return value
 
 
 class TransactionPatchOut(TransactionOut):

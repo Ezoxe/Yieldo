@@ -33,7 +33,20 @@ def _owned_category(db: Session, user: User, category_id: int) -> Category:
     return category
 
 
-def _free_fingerprint(db: Session, user_id: int, base: str) -> str:
+def _owned_account(db: Session, user: User, account_id: int) -> Account:
+    account = (
+        db.query(Account)
+        .filter(Account.id == account_id, Account.user_id == user.id)
+        .first()
+    )
+    if account is None:
+        raise HTTPException(status_code=404, detail="Compte introuvable")
+    return account
+
+
+def _free_fingerprint(
+    db: Session, user_id: int, base: str, exclude_id: int | None = None
+) -> str:
     """A fingerprint no row of this user already holds.
 
     Two identical purchases on the same day are two purchases -- the same
@@ -44,12 +57,16 @@ def _free_fingerprint(db: Session, user_id: int, base: str) -> str:
     ':', so a suffixed value can never collide with one computed later from a
     statement row.
     """
-    taken = {
-        row[0]
-        for row in db.query(Transaction.dedup_hash)
-        .filter(Transaction.user_id == user_id, Transaction.dedup_hash.startswith(base))
-        .all()
-    }
+    query = db.query(Transaction.dedup_hash).filter(
+        Transaction.user_id == user_id, Transaction.dedup_hash.startswith(base)
+    )
+    # `exclude_id` is what makes this reusable for an edit: a row being
+    # re-fingerprinted is not a duplicate of itself, and without this a PATCH
+    # that changed nothing about the row's identity would still push its
+    # fingerprint to ":1", then ":2", once per save.
+    if exclude_id is not None:
+        query = query.filter(Transaction.id != exclude_id)
+    taken = {row[0] for row in query.all()}
     if base not in taken:
         return base
     suffix = 1
@@ -142,13 +159,7 @@ def create_transaction(
     "NETFLIX.COM" lands in the same place as the imported one. Only when no
     rule matches does the line stay uncategorised.
     """
-    account = (
-        db.query(Account)
-        .filter(Account.id == payload.account_id, Account.user_id == user.id)
-        .first()
-    )
-    if account is None:
-        raise HTTPException(status_code=404, detail="Compte introuvable")
+    account = _owned_account(db, user, payload.account_id)
 
     label_clean = normalize_label(payload.label_raw)
 
@@ -213,9 +224,43 @@ def patch_transaction(
         transaction.category_id = None
         transaction.category_source = "uncategorized"
 
+    # The row's own identity -- who it belongs to, when it happened, how much,
+    # and what it says. Editable because a ledger line can be wrong in ways no
+    # recategorisation reaches, and editable on an imported row too: the fix
+    # belongs where the reader saw the mistake, not behind a re-import.
+    if "account_id" in changes:
+        transaction.account_id = _owned_account(db, user, changes["account_id"]).id
+    for field in ("date", "value_date", "amount_cents"):
+        if field in changes:
+            setattr(transaction, field, changes[field])
+    if "label_raw" in changes:
+        transaction.label_raw = changes["label_raw"]
+        # Derived, never sent: search filters on label_clean, and leaving it
+        # behind would keep matching a label the row no longer carries.
+        transaction.label_clean = normalize_label(changes["label_raw"])
+
     for field in ("notes", "is_transfer", "tags"):
         if field in changes:
             setattr(transaction, field, changes[field])
+
+    # The fingerprint is computed from exactly those four fields, so once any
+    # of them moves the stored hash describes a transaction that no longer
+    # exists -- and a later import of the same statement line would no longer
+    # recognise it as already present.
+    if any(field in changes for field in ("account_id", "date", "amount_cents", "label_raw")):
+        transaction.dedup_hash = _free_fingerprint(
+            db,
+            user.id,
+            compute_dedup_hash(
+                user.id,
+                transaction.account_id,
+                transaction.date,
+                transaction.amount_cents,
+                transaction.label_raw,
+            ),
+            exclude_id=transaction.id,
+        )
+
     db.commit()
     db.refresh(transaction)
 

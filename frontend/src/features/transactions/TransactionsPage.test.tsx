@@ -186,6 +186,7 @@ describe("TransactionsPage — the grid", () => {
       "Libellé",
       "Catégorie",
       "Montant",
+      "Modifier",
     ]);
   });
 

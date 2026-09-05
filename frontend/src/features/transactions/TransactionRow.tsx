@@ -1,5 +1,6 @@
 import type { CSSProperties } from "react";
 
+import { EditIcon } from "../../design/icons";
 import { formatCents } from "../../design/theme";
 import type { Category, Transaction } from "../../lib/types";
 
@@ -52,9 +53,16 @@ interface TransactionRowProps {
   transaction: Transaction;
   categories: Category[];
   onRecategorize: (transactionId: number, categoryId: number | null) => void;
+  /** Opens the row in the same drawer that writes a new one. */
+  onEdit: (transaction: Transaction) => void;
 }
 
-export function TransactionRow({ transaction, categories, onRecategorize }: TransactionRowProps) {
+export function TransactionRow({
+  transaction,
+  categories,
+  onRecategorize,
+  onEdit,
+}: TransactionRowProps) {
   const category = categories.find((candidate) => candidate.id === transaction.category_id);
   const isCredit = transaction.amount_cents > 0;
   const parents = categories.filter((candidate) => candidate.parent_id === null);
@@ -137,6 +145,22 @@ export function TransactionRow({ transaction, categories, onRecategorize }: Tran
         <span className={`yd-num ${isCredit ? "yd-amount--positive" : "yd-amount--negative"}`}>
           {formatCents(transaction.amount_cents)}
         </span>
+      </td>
+      <td role="cell" className="yd-transactions__cell yd-transactions__cell--action">
+        {/* The label rides along in the accessible name -- as an aria-label,
+            never as a second copy of the text in the document -- so twenty
+            buttons on screen are twenty different buttons to a screen reader,
+            and so the visible word can be dropped at phone width without
+            leaving an icon as the only thing naming the control. */}
+        <button
+          type="button"
+          className="yd-transactions__edit"
+          aria-label={`Modifier ${transaction.label_raw}`}
+          onClick={() => onEdit(transaction)}
+        >
+          <EditIcon aria-hidden="true" />
+          <span className="yd-transactions__edit-text">Modifier</span>
+        </button>
       </td>
     </tr>
   );

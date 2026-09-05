@@ -672,7 +672,7 @@ export function OverviewPage() {
         onClose={() => setAdding(false)}
         accounts={accounts}
         categories={categories}
-        onCreated={() => setReloadToken((token) => token + 1)}
+        onSaved={() => setReloadToken((token) => token + 1)}
       />
 
       <PeriodSelector period={period} />

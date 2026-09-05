@@ -336,6 +336,61 @@
   white-space: nowrap;
 }
 
+.yd-transactions__cell--action {
+  text-align: right;
+  white-space: nowrap;
+  width: 1%;
+}
+
+/* Quiet until the row is under the pointer or holding focus: twenty outlined
+   buttons down a list read as twenty things to do, when the list's job is to
+   be read. The control keeps its full hit area and its accessible name at all
+   times -- only the border and the label's ink change. */
+.yd-transactions__edit {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--yd-space-2xs);
+  min-height: 30px;
+  padding: 0 var(--yd-space-xs);
+  border: 1px solid transparent;
+  border-radius: var(--yd-radius-sm);
+  background: transparent;
+  color: var(--yd-text-muted);
+  font: inherit;
+  font-size: 0.78rem;
+  cursor: pointer;
+  transition:
+    border-color var(--yd-motion-fast) var(--yd-ease),
+    color var(--yd-motion-fast) var(--yd-ease);
+}
+
+.yd-transactions__edit svg {
+  width: 15px;
+  height: 15px;
+}
+
+.yd-transactions__row:hover .yd-transactions__edit,
+.yd-transactions__row:focus-within .yd-transactions__edit {
+  border-color: var(--yd-border-control);
+  color: var(--yd-text);
+}
+
+.yd-transactions__edit:hover {
+  border-color: var(--yd-accent);
+  color: var(--yd-text);
+}
+
+.yd-transactions__edit:focus-visible {
+  outline: 2px solid var(--yd-accent);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .yd-transactions__edit {
+    transition: none;
+  }
+}
+
 .yd-transactions__category {
   display: flex;
   align-items: center;
@@ -491,8 +546,8 @@
     display: grid;
     grid-template-columns: 4.3rem minmax(0, 1fr) 4.9rem;
     grid-template-areas:
-      "date label amount"
-      ".   category category";
+      "date label   amount"
+      ".    category action";
     align-items: baseline;
     column-gap: var(--yd-space-xs);
     padding: var(--yd-space-2xs) var(--yd-space-xs);
@@ -561,6 +616,27 @@
   .yd-transactions__cell--amount {
     grid-area: amount;
     font-size: 0.75rem;
+  }
+
+  /* The button keeps line two's last track, beside the category picker. Its
+     word is dropped -- the accessible name still carries "Modifier" and the
+     row's own label, so nothing is announced by its icon alone. */
+  .yd-transactions__head th:nth-child(5),
+  .yd-transactions__cell--action {
+    grid-area: action;
+    width: auto;
+    font-size: 0.7rem;
+  }
+
+  .yd-transactions__edit-text {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
   }
 
   /* The picker takes the whole of line two -- ~240px, which holds the longest

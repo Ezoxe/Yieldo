@@ -19,9 +19,12 @@ interface CategoryPickerProps {
   categories: Category[];
   placeholder?: string;
   label?: string;
+  /** What the first option in the list says. It is the same option everywhere
+   *  -- "no category id" -- but not the same offer: on a filter it widens the
+   *  list, on a new row it hands the label to the household's own rules, and
+   *  on a row that already exists it takes the category away. */
+  resetLabel?: string;
 }
-
-const RESET_OPTION: CategoryOption = { id: null, label: "Toutes les catégories", depth: 0 };
 
 // A searchable combobox grouped by parent category: the two-level tree the
 // backend hands over flat (parent_id-linked) is rebuilt here, same as every
@@ -32,6 +35,7 @@ export function CategoryPicker({
   categories,
   placeholder = "Toutes les catégories",
   label = "Catégorie",
+  resetLabel = "Toutes les catégories",
 }: CategoryPickerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
@@ -70,8 +74,11 @@ export function CategoryPicker({
   }, [groups, normalizedQuery]);
 
   const flatOptions: CategoryOption[] = useMemo(
-    () => [RESET_OPTION, ...visibleGroups.flatMap((group) => group.options)],
-    [visibleGroups],
+    () => [
+      { id: null, label: resetLabel, depth: 0 },
+      ...visibleGroups.flatMap((group) => group.options),
+    ],
+    [visibleGroups, resetLabel],
   );
 
   useEffect(() => {

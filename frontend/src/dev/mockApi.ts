@@ -1117,6 +1117,51 @@ export function installMockApi(): void {
       return jsonOk(PLAN_LINES[index]);
     }
 
+    // A correction to one ledger row -- a category, or the line itself. Keyed
+    // by an id in the path like the plan's routes above, so it is matched here.
+    const transactionRow = /^\/api\/transactions\/(\d+)$/.exec(url.pathname);
+    if (transactionRow !== null && (method === "PATCH" || method === "DELETE")) {
+      const id = Number(transactionRow[1]);
+      const index = ROWS.findIndex((row) => Number(row.id) === id);
+      if (index === -1) {
+        return new Response(JSON.stringify({ detail: "Transaction introuvable" }), {
+          status: 404, headers: { "Content-Type": "application/json" },
+        });
+      }
+      if (method === "DELETE") {
+        ROWS.splice(index, 1);
+        return new Response(null, { status: 204 });
+      }
+      const patch = (init?.body ? JSON.parse(String(init.body)) : {}) as Record<string, unknown>;
+      const row = ROWS[index];
+      if (typeof patch.date === "string") row.date = patch.date;
+      if (typeof patch.amount_cents === "number") row.amount_cents = patch.amount_cents;
+      if (typeof patch.label_raw === "string") row.label = patch.label_raw;
+      if ("notes" in patch) row.notes = patch.notes as string | null;
+      if ("category_id" in patch) row.category_id = (patch.category_id as number | null) ?? 0;
+      ROWS.sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : b.id - a.id));
+      return jsonOk({
+        id: row.id,
+        account_id: 1,
+        date: row.date,
+        value_date: null,
+        amount_cents: row.amount_cents,
+        label_raw: row.label,
+        label_clean: String(row.label).toLowerCase(),
+        category_id: row.category_id === 0 ? null : row.category_id,
+        category_source: row.category_id === 0 ? "uncategorized" : "manual",
+        is_transfer: false,
+        is_recurring: false,
+        notes: row.notes ?? null,
+        tags: [],
+        manual: row.manual === true,
+        // The harness never learns a rule: a preview that announced a backfill
+        // it did not perform would be a lie about the real backend's behaviour.
+        learned_rule_id: null,
+        backfilled: 0,
+      });
+    }
+
     const write = WRITES[`${method} ${url.pathname}`];
     if (write) {
       // Une question à l'assistant parcourt tout le relevé côté serveur ; le

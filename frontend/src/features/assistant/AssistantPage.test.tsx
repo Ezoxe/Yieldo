@@ -64,19 +64,14 @@ async function ask(text: string) {
   await user.click(screen.getByRole("button", { name: /^Demander$/ }));
 }
 
+// `matchMedia` is deliberately NOT redefined here. `src/test-setup.ts` already
+// installs a plain-function shim for the whole environment, and a local
+// `vi.fn()` on top of it is what the race documented there is made of: the
+// `vi.restoreAllMocks()` below resets that mock to a no-op returning
+// `undefined`, and a passive effect from the same test still flushing after
+// the reset then calls `.addEventListener` on nothing.
 beforeEach(() => {
   vi.stubGlobal("ResizeObserver", undefined);
-  Object.defineProperty(window, "matchMedia", {
-    writable: true,
-    value: vi.fn().mockImplementation((query: string) => ({
-      matches: false,
-      media: query,
-      addEventListener: vi.fn(),
-      removeEventListener: vi.fn(),
-      addListener: vi.fn(),
-      removeListener: vi.fn(),
-    })),
-  });
 });
 
 afterEach(() => {

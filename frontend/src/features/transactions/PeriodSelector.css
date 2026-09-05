@@ -4,6 +4,45 @@
   gap: var(--yd-space-sm);
 }
 
+/* The three named months sit above the presets rather than among them: they
+   are the answer to "which month", the tabs are the answer to "how wide a
+   window". Pills, not tabs, so the two rows never read as one wrapped list. */
+.yd-period-selector__months {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--yd-space-2xs);
+}
+
+.yd-period-selector__month {
+  border: 1px solid var(--yd-border-control);
+  background: var(--yd-surface);
+  color: var(--yd-text-muted);
+  font: inherit;
+  font-size: 0.8rem;
+  padding: var(--yd-space-2xs) var(--yd-space-md);
+  border-radius: 999px;
+  cursor: pointer;
+  transition:
+    color var(--yd-motion-fast) var(--yd-ease),
+    background var(--yd-motion-fast) var(--yd-ease),
+    border-color var(--yd-motion-fast) var(--yd-ease);
+}
+
+.yd-period-selector__month:hover {
+  color: var(--yd-text);
+}
+
+/* A tint and a hairline, not a solid fill: `--yd-accent-strong` is the one
+   accent value verified against its own theme's ground in both themes, and a
+   15% wash of the accent under it moves that measurement by almost nothing. A
+   solid indigo pill would need a sixth text token to stay legible. */
+.yd-period-selector__month[aria-selected="true"] {
+  color: var(--yd-accent-strong);
+  background: color-mix(in srgb, var(--yd-accent) 15%, transparent);
+  border-color: color-mix(in srgb, var(--yd-accent) 45%, transparent);
+  font-weight: 600;
+}
+
 .yd-period-selector__tabs {
   display: flex;
   flex-wrap: wrap;
@@ -71,10 +110,16 @@
   min-width: 0;
 }
 
-/* Six tabs at 32px of horizontal padding each need three lines on a phone.
-   Tighter padding and a slightly smaller label bring them back to two, which
-   is 40px of a 812px screen returned to the data. */
+/* Five tabs at 32px of horizontal padding each still wrap to three lines on a
+   phone. Tighter padding and a slightly smaller label bring them back to two,
+   which is 40px of a 812px screen returned to the data. */
 @media (max-width: 599px) {
+  .yd-period-selector__month {
+    flex: 1 1 0;
+    min-width: 0;
+    padding: var(--yd-space-2xs) var(--yd-space-xs);
+  }
+
   .yd-period-selector__tab {
     padding: var(--yd-space-xs) var(--yd-space-xs);
     font-size: 0.8rem;
@@ -95,7 +140,8 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .yd-period-selector__tab {
+  .yd-period-selector__tab,
+  .yd-period-selector__month {
     transition: none;
   }
 }

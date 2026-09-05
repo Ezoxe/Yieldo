@@ -20,9 +20,11 @@ const categories = [
 function makePeriod(overrides: Partial<UsePeriodResult> = {}): UsePeriodResult {
   return {
     preset: "month",
+    monthOffset: 0,
     from: "2026-08-01",
     to: "2026-08-31",
     setPreset: vi.fn(),
+    setMonth: vi.fn(),
     setRange: vi.fn(),
     ...overrides,
   };
@@ -49,7 +51,7 @@ describe("FilterBar", () => {
   it("marks the active period preset", () => {
     render(<FilterBar {...baseProps({ period: makePeriod({ preset: "quarter" }) })} />);
     expect(screen.getByRole("tab", { name: "Trimestre" })).toHaveAttribute("aria-selected", "true");
-    expect(screen.getByRole("tab", { name: "Mois" })).toHaveAttribute("aria-selected", "false");
+    expect(screen.getByRole("tab", { name: "Tout" })).toHaveAttribute("aria-selected", "false");
   });
 
   it("switches the preset when a tab is clicked", async () => {

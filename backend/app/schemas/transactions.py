@@ -1,6 +1,6 @@
 from datetime import date
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.schemas.history import HistoryOut
 from app.schemas.patching import not_nullable
@@ -22,6 +22,45 @@ class TransactionOut(BaseModel):
     is_recurring: bool
     notes: str | None
     tags: list[str]
+    # Read off `Transaction.manual`, which is itself derived from the absence
+    # of an import batch -- see that property for why it is not a column.
+    manual: bool
+
+
+class TransactionIn(BaseModel):
+    """An operation the household types in itself.
+
+    `amount_cents` is signed and may not be zero: the sign is the direction
+    (negative is money leaving), and a zero-amount movement is a typing slip,
+    not a transaction. `category_id` omitted is not the same as no category --
+    see `api/transactions.create_transaction`, which runs the household's own
+    rules over the label exactly as an import would.
+    """
+
+    account_id: int
+    date: date
+    value_date: date | None = None
+    amount_cents: int = Field(description="Signed, in cents. Negative is money out.")
+    label_raw: str = Field(min_length=1, max_length=500)
+    category_id: int | None = None
+    is_transfer: bool = False
+    notes: str | None = Field(default=None, max_length=2000)
+    tags: list[str] = Field(default_factory=list)
+
+    @field_validator("label_raw")
+    @classmethod
+    def _label_is_not_blank(cls, value: str) -> str:
+        stripped = value.strip()
+        if not stripped:
+            raise ValueError("Le libellé est obligatoire")
+        return stripped
+
+    @field_validator("amount_cents")
+    @classmethod
+    def _amount_is_not_zero(cls, value: int) -> int:
+        if value == 0:
+            raise ValueError("Le montant ne peut pas être nul")
+        return value
 
 
 class TransactionPage(BaseModel):

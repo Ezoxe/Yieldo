@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ThemeProvider } from "../../app/ThemeProvider";
 import { formatCents } from "../../design/theme";
 import { coveredRangeLabel, cumulativeNetCents, OverviewPage } from "./OverviewPage";
+import { monthChipLabel } from "../transactions/PeriodSelector";
 
 // getByText compares against the DOM's *normalized* text content but does not
 // normalize the string it is given, and formatCents uses narrow/no-break
@@ -319,13 +320,22 @@ describe("OverviewPage", () => {
     await waitFor(() => expect(screen.getAllByRole("img").length).toBeGreaterThanOrEqual(3));
   });
 
-  it("renders the shared period selector, defaulting to the current month", async () => {
+  // The month in progress has no statement in it yet -- a household imports
+  // the month that is over. Opening on the current one shows an empty
+  // dashboard and calls it a result.
+  it("renders the shared period selector, defaulting to the previous month", async () => {
     setupFetch();
     renderPage();
 
     await screen.findByText("Entrées");
     expect(screen.getByRole("tablist", { name: "Période" })).toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: "Mois" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("tablist", { name: "Mois" })).toBeInTheDocument();
+
+    const today = new Date();
+    expect(screen.getByRole("tab", { name: monthChipLabel(today, -1) }))
+      .toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("tab", { name: monthChipLabel(today, 0) }))
+      .toHaveAttribute("aria-selected", "false");
   });
 
   it("re-fetches every panel against the new date range when the period preset changes", async () => {

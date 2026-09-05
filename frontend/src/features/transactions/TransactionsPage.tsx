@@ -21,8 +21,9 @@ import { FilterBar } from "./FilterBar";
 import { TransactionRow } from "./TransactionRow";
 import "./TransactionsPage.css";
 import { usePeriod } from "./usePeriod";
-import { TransactionsIcon } from "../../design/icons";
+import { PlusIcon, TransactionsIcon } from "../../design/icons";
 import { PageHead } from "../../design/PageHead";
+import { TransactionForm } from "./TransactionForm";
 
 const PAGE_SIZE = 50;
 /**
@@ -179,6 +180,13 @@ export function TransactionsPage() {
   // would leave the text sitting in a field that no longer filters anything.
   const [filterResetKey, setFilterResetKey] = useState(0);
 
+  // Opening the hand-entry drawer, and the token that makes a saved row show
+  // up: the created transaction is not spliced into the list by hand, because
+  // whether it belongs in it at all depends on the period and every filter
+  // currently applied. Refetching is the only answer that cannot lie.
+  const [adding, setAdding] = useState(false);
+  const [reloadToken, setReloadToken] = useState(0);
+
   const [items, setItems] = useState<Transaction[]>([]);
   const [total, setTotal] = useState(0);
   // What the period holds with the other filters dropped, and the span of the
@@ -254,7 +262,7 @@ export function TransactionsPage() {
     return () => {
       cancelled = true;
     };
-  }, [period.from, period.to, accountId, categoryId, uncategorizedOnly, search]);
+  }, [period.from, period.to, accountId, categoryId, uncategorizedOnly, search, reloadToken]);
 
   async function loadMore() {
     setIsLoadingMore(true);
@@ -391,12 +399,34 @@ export function TransactionsPage() {
 
   return (
     <section className="yd-transactions">
-      <PageHead icon={TransactionsIcon} title="Transactions">
+      <PageHead
+        icon={TransactionsIcon}
+        title="Transactions"
+        actions={
+          <button
+            type="button"
+            className="yd-transactions__add"
+            onClick={() => setAdding(true)}
+            disabled={accounts.length === 0}
+          >
+            <PlusIcon />
+            Ajouter une opération
+          </button>
+        }
+      >
         <p>
-          Chaque opération importée, sur la période de votre choix. Corrigez une catégorie
-          et Yieldo la retient pour les suivantes.
+          Chaque opération importée ou saisie à la main, sur la période de votre choix.
+          Corrigez une catégorie et Yieldo la retient pour les suivantes.
         </p>
       </PageHead>
+
+      <TransactionForm
+        open={adding}
+        onClose={() => setAdding(false)}
+        accounts={accounts}
+        categories={categories}
+        onCreated={() => setReloadToken((token) => token + 1)}
+      />
 
       {referenceError ? (
         <p role="alert" className="yd-transactions__alert">

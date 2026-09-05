@@ -5,11 +5,13 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.api.history import user_history
+from app.categorization.engine import classify, compile_rules
 from app.categorization.learning import apply_learned_rule, learn_from_correction
 from app.db import get_db
-from app.importers.dedup import normalize_label
-from app.models import Category, Transaction, User
+from app.importers.dedup import compute_dedup_hash, normalize_label
+from app.models import Account, Category, CategoryRule, Transaction, User
 from app.schemas.transactions import (
+    TransactionIn,
     TransactionOut,
     TransactionPage,
     TransactionPatch,
@@ -18,6 +20,42 @@ from app.schemas.transactions import (
 from app.security.deps import get_current_user
 
 router = APIRouter(prefix="/transactions", tags=["transactions"])
+
+
+def _owned_category(db: Session, user: User, category_id: int) -> Category:
+    category = (
+        db.query(Category)
+        .filter(Category.id == category_id, Category.user_id == user.id)
+        .first()
+    )
+    if category is None:
+        raise HTTPException(status_code=404, detail="Catégorie introuvable")
+    return category
+
+
+def _free_fingerprint(db: Session, user_id: int, base: str) -> str:
+    """A fingerprint no row of this user already holds.
+
+    Two identical purchases on the same day are two purchases -- the same
+    coffee bought twice in an afternoon, two identical bus tickets -- and the
+    unique `(user_id, dedup_hash)` constraint would reject the second. The
+    ":n" suffix convention is `importers/service.py`'s, reused rather than
+    reinvented: a real fingerprint is a bare sha256 digest and never contains
+    ':', so a suffixed value can never collide with one computed later from a
+    statement row.
+    """
+    taken = {
+        row[0]
+        for row in db.query(Transaction.dedup_hash)
+        .filter(Transaction.user_id == user_id, Transaction.dedup_hash.startswith(base))
+        .all()
+    }
+    if base not in taken:
+        return base
+    suffix = 1
+    while f"{base}:{suffix}" in taken:
+        suffix += 1
+    return f"{base}:{suffix}"
 
 
 def _owned_transaction(db: Session, user: User, transaction_id: int) -> Transaction:
@@ -84,6 +122,71 @@ def list_transactions(
     )
 
 
+@router.post("", response_model=TransactionOut, status_code=status.HTTP_201_CREATED)
+def create_transaction(
+    payload: TransactionIn,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> Transaction:
+    """One operation typed in by hand: cash, a purchase made before the
+    statement arrives, a reimbursement between two people.
+
+    The row is identical to an imported one in every respect but its origin --
+    same table, same categorisation, same dedup fingerprint -- except that it
+    carries no `import_batch_id`, which is exactly what `Transaction.manual`
+    reports. Nothing here is a second kind of transaction: the ledger has one
+    kind, with two ways in.
+
+    A category left out is NOT a category refused. The household's own rules
+    are run over the label, exactly as the importer runs them, so a hand-typed
+    "NETFLIX.COM" lands in the same place as the imported one. Only when no
+    rule matches does the line stay uncategorised.
+    """
+    account = (
+        db.query(Account)
+        .filter(Account.id == payload.account_id, Account.user_id == user.id)
+        .first()
+    )
+    if account is None:
+        raise HTTPException(status_code=404, detail="Compte introuvable")
+
+    label_clean = normalize_label(payload.label_raw)
+
+    if payload.category_id is not None:
+        category_id = _owned_category(db, user, payload.category_id).id
+        source = "manual"
+    else:
+        rules = db.query(CategoryRule).filter(CategoryRule.user_id == user.id).all()
+        match = classify(label_clean, payload.amount_cents, compile_rules(rules))
+        category_id = None if match is None else match.category_id
+        source = "uncategorized" if match is None else match.source
+
+    fingerprint = _free_fingerprint(db, user.id, compute_dedup_hash(
+        user.id, account.id, payload.date, payload.amount_cents, payload.label_raw,
+    ))
+
+    transaction = Transaction(
+        user_id=user.id,
+        account_id=account.id,
+        date=payload.date,
+        value_date=payload.value_date,
+        amount_cents=payload.amount_cents,
+        label_raw=payload.label_raw,
+        label_clean=label_clean,
+        category_id=category_id,
+        category_source=source,
+        is_transfer=payload.is_transfer,
+        import_batch_id=None,
+        dedup_hash=fingerprint,
+        notes=payload.notes,
+        tags=payload.tags,
+    )
+    db.add(transaction)
+    db.commit()
+    db.refresh(transaction)
+    return transaction
+
+
 @router.patch("/{transaction_id}", response_model=TransactionPatchOut)
 def patch_transaction(
     transaction_id: int,
@@ -102,14 +205,7 @@ def patch_transaction(
     clearing_category = category_id_provided and changes["category_id"] is None
 
     if recategorizing:
-        category = (
-            db.query(Category)
-            .filter(Category.id == changes["category_id"], Category.user_id == user.id)
-            .first()
-        )
-        if category is None:
-            raise HTTPException(status_code=404, detail="Catégorie introuvable")
-        transaction.category_id = category.id
+        transaction.category_id = _owned_category(db, user, changes["category_id"]).id
         transaction.category_source = "manual"
     elif clearing_category:
         # An explicit null clears the category outright. There is no category left

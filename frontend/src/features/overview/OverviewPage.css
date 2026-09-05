@@ -526,3 +526,40 @@
     transform: none;
   }
 }
+
+/* The dashboard's own hand-entry button, beside the link to the full list.
+   Same hairline shape as the transactions screen's, so the two read as one
+   control that followed the reader across screens. */
+.yd-overview__add {
+  min-height: 36px;
+  padding: 0 var(--yd-space-md);
+  border: 1px solid var(--yd-border-control);
+  border-radius: var(--yd-radius-sm);
+  background: transparent;
+  color: var(--yd-text);
+  font: inherit;
+  font-size: 0.84rem;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: border-color var(--yd-motion-fast) var(--yd-ease);
+}
+
+.yd-overview__add:hover:not(:disabled) {
+  border-color: var(--yd-accent);
+}
+
+.yd-overview__add:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.yd-overview__add:focus-visible {
+  outline: 2px solid var(--yd-accent);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .yd-overview__add {
+    transition: none;
+  }
+}

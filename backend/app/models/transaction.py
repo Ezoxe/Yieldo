@@ -40,9 +40,23 @@ class Transaction(Base):
     recurrence_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     import_batch_id: Mapped[int | None] = mapped_column(
         ForeignKey("import_batches.id", ondelete="SET NULL"), index=True, nullable=True)
-    dedup_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    # 64 for the sha256 digest, plus room for the ":n" suffix a deliberately
+    # kept duplicate carries (importers/service.py, api/transactions.py).
+    dedup_hash: Mapped[str] = mapped_column(String(80), nullable=False)
     notes: Mapped[str | None] = mapped_column(String(2000), nullable=True)
     tags: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
 
     account = relationship("Account", back_populates="transactions")
     category = relationship("Category")
+
+    @property
+    def manual(self) -> bool:
+        """Typed in by hand rather than read off a statement.
+
+        Derived, never stored: a hand-typed line is exactly a line no import
+        batch produced, and a second column claiming the same thing could
+        drift out of step with the first. `category_source == "manual"` is a
+        different fact entirely -- it says who chose the CATEGORY, and an
+        imported line whose category the user corrected carries it too.
+        """
+        return self.import_batch_id is None

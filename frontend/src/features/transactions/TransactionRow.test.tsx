@@ -30,7 +30,7 @@ const transaction = {
   id: 10, account_id: 1, date: "2025-03-01", value_date: null, amount_cents: -4732,
   label_raw: "CARREFOUR MARKET CB 01/03", label_clean: "carrefour market",
   category_id: 2, category_source: "builtin", is_transfer: false,
-  is_recurring: false, notes: null, tags: [],
+  is_recurring: false, notes: null, tags: [], manual: false,
 };
 
 describe("TransactionRow", () => {

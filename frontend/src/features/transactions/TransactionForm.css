@@ -1,0 +1,147 @@
+/* The hand-entry form, inside the shared Drawer.
+
+   One column, always. The drawer's panel is `min(440px, 100%)` wide, and a
+   viewport-width media query pairing the fields up two by two fires on a
+   1280px screen where the panel is still 440 -- which is how the category
+   combobox ended up clipped mid-word. The form is only ever rendered in
+   that panel, so the panel's width is the only width worth designing to. */
+.yd-txform {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--yd-space-md);
+}
+
+.yd-txform__field {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--yd-space-2xs);
+  min-width: 0;
+}
+
+.yd-txform__field > label,
+.yd-txform__caption,
+.yd-txform__direction legend {
+  font-size: 0.84rem;
+  color: var(--yd-text-muted);
+}
+
+.yd-txform__field input,
+.yd-txform__field select {
+  width: 100%;
+  min-height: 36px;
+  padding: 0 var(--yd-space-xs);
+  border: 1px solid var(--yd-border-control);
+  border-radius: var(--yd-radius-sm);
+  background: var(--yd-surface-strong);
+  color: var(--yd-text);
+  font: inherit;
+  font-size: 0.9rem;
+}
+
+.yd-txform__field input:focus-visible,
+.yd-txform__field select:focus-visible {
+  outline: 2px solid var(--yd-accent);
+  outline-offset: 1px;
+}
+
+.yd-txform__field input[aria-invalid="true"] {
+  border-color: var(--yd-negative);
+}
+
+/* Two radios, not a signed amount field: a missing minus sign is the one
+   typing slip that silently turns a purchase into income. */
+.yd-txform__direction {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+
+.yd-txform__direction legend {
+  padding: 0 0 var(--yd-space-2xs);
+}
+
+.yd-txform__direction-options {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--yd-space-md);
+  min-height: 36px;
+}
+
+.yd-txform__direction label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--yd-space-2xs);
+  font-size: 0.9rem;
+  color: var(--yd-text);
+  cursor: pointer;
+}
+
+.yd-txform__direction input {
+  accent-color: var(--yd-accent);
+}
+
+.yd-txform__note {
+  margin: 0;
+  font-size: 0.8rem;
+  line-height: 1.45;
+  color: var(--yd-text-muted);
+}
+
+.yd-txform__error {
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  color: var(--yd-negative-text);
+}
+
+.yd-txform__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--yd-space-xs);
+}
+
+.yd-txform__save,
+.yd-txform__cancel {
+  min-height: 36px;
+  padding: 0 var(--yd-space-md);
+  border-radius: var(--yd-radius-sm);
+  border: 1px solid var(--yd-border-control);
+  background: transparent;
+  color: var(--yd-text);
+  font: inherit;
+  font-size: 0.86rem;
+  cursor: pointer;
+  transition: border-color var(--yd-motion-fast) var(--yd-ease);
+}
+
+.yd-txform__save {
+  border-color: var(--yd-accent);
+  color: var(--yd-accent);
+  font-weight: 600;
+}
+
+.yd-txform__save:hover:not(:disabled),
+.yd-txform__cancel:hover:not(:disabled) {
+  border-color: var(--yd-accent);
+}
+
+.yd-txform__save:disabled,
+.yd-txform__cancel:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.yd-txform__save:focus-visible,
+.yd-txform__cancel:focus-visible {
+  outline: 2px solid var(--yd-accent);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .yd-txform__save,
+  .yd-txform__cancel {
+    transition: none;
+  }
+}

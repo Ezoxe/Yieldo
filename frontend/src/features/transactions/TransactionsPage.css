@@ -649,3 +649,40 @@
   font-weight: 500;
   opacity: 0.75;
 }
+
+/* The screen-level action, in PageHead's own action slot. Same shape as the
+   add buttons on the goals and debts screens -- a hairline outline that takes
+   the accent on hover, never a filled block competing with the figures. */
+.yd-transactions__add {
+  min-height: 36px;
+  padding: 0 var(--yd-space-md);
+  border: 1px solid var(--yd-border-control);
+  border-radius: var(--yd-radius-sm);
+  background: transparent;
+  color: var(--yd-text);
+  font: inherit;
+  font-size: 0.84rem;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: border-color var(--yd-motion-fast) var(--yd-ease);
+}
+
+.yd-transactions__add:hover:not(:disabled) {
+  border-color: var(--yd-accent);
+}
+
+.yd-transactions__add:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.yd-transactions__add:focus-visible {
+  outline: 2px solid var(--yd-accent);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .yd-transactions__add {
+    transition: none;
+  }
+}

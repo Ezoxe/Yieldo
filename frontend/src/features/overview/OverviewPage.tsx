@@ -11,7 +11,7 @@ import { BentoGrid } from "../../design/bento/BentoGrid";
 import { PanelHead } from "../../design/bento/PanelHead";
 import { CountUp } from "../../design/CountUp";
 import { EmptyState, frenchDate, historySentence } from "../../design/EmptyState";
-import { BreakdownIcon, CalendarIcon, CashflowIcon, ChevronIcon, InflowIcon, ListIcon, OutflowIcon, OverviewIcon, PriceChangeIcon, RateIcon } from "../../design/icons";
+import { BreakdownIcon, CalendarIcon, CashflowIcon, ChevronIcon, InflowIcon, ListIcon, OutflowIcon, OverviewIcon, PlusIcon, PriceChangeIcon, RateIcon } from "../../design/icons";
 import { PageHead } from "../../design/PageHead";
 import { useReducedMotion } from "../../design/motion/useReducedMotion";
 import { entryProps, staggerProps } from "../../design/motion/variants";
@@ -20,6 +20,7 @@ import { formatCents } from "../../design/theme";
 import { useTheme } from "../../app/ThemeProvider";
 import { ApiError, api } from "../../lib/api";
 import type {
+  Account,
   CalendarPoint,
   Category,
   CategoryBreakdown,
@@ -34,9 +35,10 @@ import { RecentTransactions } from "./RecentTransactions";
 import { StatTile } from "./StatTile";
 import "./OverviewPage.css";
 import { PeriodSelector } from "../transactions/PeriodSelector";
+import { TransactionForm } from "../transactions/TransactionForm";
 import { usePeriod, type UsePeriodResult } from "../transactions/usePeriod";
 
-// Both screens read/write the same ?periode=&du=&au= query parameters
+// Both screens read/write the same ?periode=&mois=&du=&au= query parameters
 // through usePeriod(), but each route still carries its own independent URL
 // -- landing on /transactions fresh does not inherit whatever period was
 // selected on the dashboard. What *is* shared: the parsing/formatting logic
@@ -44,7 +46,12 @@ import { usePeriod, type UsePeriodResult } from "../transactions/usePeriod";
 // dashboard's current period across explicitly so following it never resets
 // the reader back to the transactions view's own default.
 function transactionsHrefFor(period: UsePeriodResult): string {
-  const params = new URLSearchParams({ periode: period.preset, du: period.from, au: period.to });
+  const params = new URLSearchParams({
+    periode: period.preset,
+    mois: String(period.monthOffset),
+    du: period.from,
+    au: period.to,
+  });
   return `/transactions?${params.toString()}`;
 }
 
@@ -321,7 +328,12 @@ function NetHero({
 }
 
 export function OverviewPage() {
-  const period = usePeriod();
+  // Opens on the month that is over, not the one in progress: a household
+  // imports last month's statement, so today's calendar month is usually an
+  // empty ledger, and an empty dashboard reads as a result rather than as a
+  // month nobody has filled in yet. The URL still wins -- following a link
+  // that names a month lands on that month.
+  const period = usePeriod("month", -1);
   const { resolved } = useTheme();
   const reduced = useReducedMotion();
 
@@ -331,8 +343,16 @@ export function OverviewPage() {
   const [calendarPoints, setCalendarPoints] = useState<CalendarPoint[]>([]);
   const [recent, setRecent] = useState<Transaction[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [accounts, setAccounts] = useState<Account[]>([]);
   const [errors, setErrors] = useState<LoadErrors>({});
   const [isLoading, setIsLoading] = useState(true);
+
+  // The hand-entry drawer, and what makes a saved row appear: every panel on
+  // this screen is a figure computed over the period, so the answer to "a
+  // transaction was added" is to ask for all of them again, not to patch five
+  // caches by hand.
+  const [adding, setAdding] = useState(false);
+  const [reloadToken, setReloadToken] = useState(0);
 
   const granularity = granularityForRange(period.from, period.to);
 
@@ -348,6 +368,7 @@ export function OverviewPage() {
         categoriesResult,
         calendarResult,
         referenceResult,
+        accountsResult,
         recentResult,
       ] =
         await Promise.allSettled([
@@ -366,6 +387,7 @@ export function OverviewPage() {
             date_to: period.to,
           }),
           api.get<Category[]>("/categories"),
+          api.get<Account[]>("/accounts"),
           api.get<TransactionPage>("/transactions", {
             date_from: period.from,
             date_to: period.to,
@@ -407,6 +429,10 @@ export function OverviewPage() {
         nextErrors.reference = messageFor(referenceResult.reason);
       }
 
+      // A failed account list is an empty one, which disables the hand-entry
+      // button and nothing else. It is not worth a banner over the figures.
+      setAccounts(accountsResult.status === "fulfilled" ? accountsResult.value : []);
+
       // A failed list is an empty list and nothing else: the five most recent
       // operations are a convenience beside the figures, and a banner for them
       // would put the dashboard in an error state over a sidebar panel.
@@ -420,7 +446,7 @@ export function OverviewPage() {
     return () => {
       cancelled = true;
     };
-  }, [period.from, period.to, granularity]);
+  }, [period.from, period.to, granularity, reloadToken]);
 
   const errorMessages = Object.values(errors).filter((message): message is string => Boolean(message));
 
@@ -621,14 +647,33 @@ export function OverviewPage() {
         title="Vue d'ensemble"
         className="yd-overview__header"
         actions={
-          <Link to={transactionsHrefFor(period)} className="yd-overview__transactions-link">
-            Voir les transactions de cette période
-            <ChevronIcon />
-          </Link>
+          <>
+            <button
+              type="button"
+              className="yd-overview__add"
+              onClick={() => setAdding(true)}
+              disabled={accounts.length === 0}
+            >
+              <PlusIcon />
+              Ajouter une opération
+            </button>
+            <Link to={transactionsHrefFor(period)} className="yd-overview__transactions-link">
+              Voir les transactions de cette période
+              <ChevronIcon />
+            </Link>
+          </>
         }
       >
         <p>Ce que la période dit de votre argent : ce qui entre, ce qui sort, et ce qu'il en reste.</p>
       </PageHead>
+
+      <TransactionForm
+        open={adding}
+        onClose={() => setAdding(false)}
+        accounts={accounts}
+        categories={categories}
+        onCreated={() => setReloadToken((token) => token + 1)}
+      />
 
       <PeriodSelector period={period} />
 

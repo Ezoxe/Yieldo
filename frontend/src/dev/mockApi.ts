@@ -62,6 +62,9 @@ interface Row {
   amount_cents: number;
   label: string;
   category_id: number;
+  // Only a hand-typed line carries these; imported rows leave them unset.
+  notes?: string | null;
+  manual?: boolean;
 }
 
 const LABELS: Record<number, string[]> = {
@@ -281,8 +284,9 @@ function transactionsFor(params: Params) {
       category_source: row.id % 5 === 0 ? "user" : "rule",
       is_transfer: false,
       is_recurring: row.category_id === 4 || row.category_id === 1,
-      notes: null,
+      notes: row.notes ?? null,
       tags: [],
+      manual: row.manual === true,
     })),
     total: rows.length,
     limit,
@@ -836,6 +840,43 @@ const WRITES: Record<string, (body: Record<string, unknown>) => Response> = {
     if (typeof seconds === "number") MUTABLE_LLM.timeout_seconds = seconds;
     MUTABLE_LLM.configured = true;
     return jsonOk(MUTABLE_LLM);
+  },
+  // A hand-typed operation joins ROWS for the rest of the tab, exactly where
+  // its date puts it, so every screen recomputes around it the way the real
+  // backend would.
+  "POST /api/transactions": (body) => {
+    const payload = body as {
+      account_id: number; date: string; amount_cents: number;
+      label_raw: string; category_id: number | null; notes: string | null;
+    };
+    const id = Math.max(...ROWS.map((row) => row.id)) + 1;
+    const created = {
+      id,
+      date: payload.date,
+      amount_cents: payload.amount_cents,
+      label: payload.label_raw,
+      category_id: payload.category_id ?? 0,
+      notes: payload.notes,
+      manual: true,
+    };
+    ROWS.push(created);
+    ROWS.sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : b.id - a.id));
+    return jsonOk({
+      id,
+      account_id: payload.account_id,
+      date: payload.date,
+      value_date: null,
+      amount_cents: payload.amount_cents,
+      label_raw: payload.label_raw,
+      label_clean: payload.label_raw.toLowerCase(),
+      category_id: payload.category_id,
+      category_source: payload.category_id === null ? "uncategorized" : "manual",
+      is_transfer: false,
+      is_recurring: false,
+      notes: payload.notes,
+      tags: [],
+      manual: true,
+    });
   },
   "POST /api/access-key/rotate": () => {
     agentKey = mintAgentKey();

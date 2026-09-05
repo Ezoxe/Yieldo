@@ -61,6 +61,9 @@ export interface Transaction {
   is_recurring: boolean;
   notes: string | null;
   tags: string[];
+  // Typed in by hand rather than read off a statement. Derived server-side
+  // from the absence of an import batch, never stored twice.
+  manual: boolean;
 }
 
 // The span of the user's whole ledger, whatever period is being asked about.

@@ -1,0 +1,290 @@
+.yd-proposals {
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-lg);
+}
+
+.yd-proposals__alert {
+  margin: 0;
+  padding: var(--yd-space-sm) var(--yd-space-md);
+  border: 1px solid color-mix(in srgb, var(--yd-negative) 40%, transparent);
+  border-radius: var(--yd-radius-sm);
+  background: color-mix(in srgb, var(--yd-negative) 12%, transparent);
+  color: var(--yd-negative-text);
+  font-size: 0.86rem;
+  line-height: 1.5;
+}
+
+/* Asking ------------------------------------------------------------------ */
+
+.yd-proposals__ask {
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-xs);
+}
+
+.yd-proposals__ask > label {
+  font-size: 0.84rem;
+  color: var(--yd-text-muted);
+}
+
+.yd-proposals__ask textarea {
+  width: 100%;
+  padding: var(--yd-space-sm);
+  border: 1px solid var(--yd-border-control);
+  border-radius: var(--yd-radius-sm);
+  background: var(--yd-surface-strong);
+  color: var(--yd-text);
+  font: inherit;
+  font-size: 0.92rem;
+  line-height: 1.5;
+  resize: vertical;
+}
+
+.yd-proposals__ask textarea:focus-visible {
+  outline: 2px solid var(--yd-accent);
+  outline-offset: 1px;
+}
+
+.yd-proposals__note,
+.yd-proposals__waiting {
+  margin: 0;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: var(--yd-text-muted);
+}
+
+.yd-proposals__error {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--yd-negative-text);
+}
+
+.yd-proposals__ask-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--yd-space-md);
+  flex-wrap: wrap;
+}
+
+.yd-proposals__send {
+  min-height: 38px;
+  padding: 0 var(--yd-space-lg);
+  border: 1px solid var(--yd-accent);
+  border-radius: var(--yd-radius-sm);
+  background: transparent;
+  color: var(--yd-accent);
+  font: inherit;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.yd-proposals__send:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.yd-proposals__send:focus-visible {
+  outline: 2px solid var(--yd-accent);
+  outline-offset: 2px;
+}
+
+.yd-proposals__running {
+  font-size: 0.82rem;
+  color: var(--yd-text-muted);
+}
+
+/* The last run ------------------------------------------------------------ */
+
+.yd-proposals__question {
+  margin: 0 0 var(--yd-space-xs);
+  font-size: 0.88rem;
+  color: var(--yd-text-muted);
+  font-style: italic;
+}
+
+.yd-proposals__answer {
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.6;
+  color: var(--yd-text);
+  white-space: pre-wrap;
+}
+
+.yd-proposals__notice {
+  margin: var(--yd-space-sm) 0 0;
+  padding: var(--yd-space-sm) var(--yd-space-md);
+  border: 1px solid color-mix(in srgb, var(--yd-warning) 40%, transparent);
+  border-radius: var(--yd-radius-sm);
+  background: color-mix(in srgb, var(--yd-warning) 10%, transparent);
+  font-size: 0.84rem;
+  line-height: 1.5;
+  color: var(--yd-text);
+}
+
+/* The queue --------------------------------------------------------------- */
+
+.yd-proposals__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-md);
+}
+
+.yd-proposals__card {
+  padding: var(--yd-space-md);
+  border: 1px solid var(--yd-border);
+  border-radius: var(--yd-radius-md);
+  background: var(--yd-surface);
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-xs);
+}
+
+.yd-proposals__card--decided {
+  opacity: 0.75;
+}
+
+.yd-proposals__card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--yd-space-sm);
+  flex-wrap: wrap;
+}
+
+.yd-proposals__kind {
+  font-size: 0.74rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--yd-text-muted);
+}
+
+/* A status is a pill badge, never a sentence. */
+.yd-proposals__state {
+  padding: 2px var(--yd-space-sm);
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--yd-info) 45%, transparent);
+  background: color-mix(in srgb, var(--yd-info) 12%, transparent);
+  color: var(--yd-info);
+  font-size: 0.74rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.yd-proposals__state--applied {
+  border-color: color-mix(in srgb, var(--yd-positive) 45%, transparent);
+  background: color-mix(in srgb, var(--yd-positive) 12%, transparent);
+  color: var(--yd-positive);
+}
+
+.yd-proposals__state--refused {
+  border-color: color-mix(in srgb, var(--yd-negative) 45%, transparent);
+  background: color-mix(in srgb, var(--yd-negative) 12%, transparent);
+  color: var(--yd-negative-text);
+}
+
+.yd-proposals__summary {
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: var(--yd-text);
+}
+
+.yd-proposals__evidence,
+.yd-proposals__applied {
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  color: var(--yd-text-muted);
+}
+
+.yd-proposals__evidence span {
+  color: var(--yd-text);
+}
+
+/* A proposal with no engine figure behind it is named as such rather than
+   quietly presented like the others. */
+.yd-proposals__evidence--missing {
+  padding: var(--yd-space-2xs) var(--yd-space-sm);
+  border-left: 2px solid var(--yd-warning);
+  color: var(--yd-warning);
+}
+
+.yd-proposals__payload > summary {
+  font-size: 0.8rem;
+  color: var(--yd-text-muted);
+  cursor: pointer;
+}
+
+.yd-proposals__payload pre {
+  margin: var(--yd-space-xs) 0 0;
+  padding: var(--yd-space-sm);
+  border-radius: var(--yd-radius-sm);
+  background: var(--yd-surface-strong);
+  font-family: var(--yd-font-mono);
+  font-size: 0.78rem;
+  line-height: 1.5;
+  color: var(--yd-text);
+  overflow-x: auto;
+}
+
+.yd-proposals__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--yd-space-xs);
+  margin-top: var(--yd-space-2xs);
+}
+
+.yd-proposals__apply,
+.yd-proposals__refuse,
+.yd-proposals__forget {
+  min-height: 34px;
+  padding: 0 var(--yd-space-md);
+  border: 1px solid var(--yd-border-control);
+  border-radius: var(--yd-radius-sm);
+  background: transparent;
+  color: var(--yd-text);
+  font: inherit;
+  font-size: 0.84rem;
+  cursor: pointer;
+}
+
+.yd-proposals__apply {
+  border-color: var(--yd-positive);
+  color: var(--yd-positive);
+  font-weight: 600;
+}
+
+.yd-proposals__refuse:hover:not(:disabled) {
+  border-color: var(--yd-negative);
+  color: var(--yd-negative-text);
+}
+
+.yd-proposals__apply:disabled,
+.yd-proposals__refuse:disabled,
+.yd-proposals__forget:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.yd-proposals__apply:focus-visible,
+.yd-proposals__refuse:focus-visible,
+.yd-proposals__forget:focus-visible {
+  outline: 2px solid var(--yd-accent);
+  outline-offset: 2px;
+}
+
+.yd-proposals__history {
+  margin-top: var(--yd-space-lg);
+}
+
+.yd-proposals__history > summary {
+  font-size: 0.84rem;
+  color: var(--yd-text-muted);
+  cursor: pointer;
+  margin-bottom: var(--yd-space-sm);
+}

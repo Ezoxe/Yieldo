@@ -21,6 +21,7 @@ import {
   OverviewIcon,
   PlanIcon,
   PortfolioIcon,
+  ProposalsIcon,
   ProjectionIcon,
   RecurrencesIcon,
   SettingsIcon,
@@ -31,6 +32,7 @@ import {
   type IconComponent,
 } from "../design/icons";
 import { AssistantDrawer } from "../features/assistant/AssistantDrawer";
+import { useProposalCount } from "../features/agent/useProposalCount";
 import { LedgerModeControl } from "../features/plan/LedgerModeControl";
 import { useLedgerMode } from "../features/plan/useLedgerMode";
 import { slideOver } from "../design/motion/variants";
@@ -100,6 +102,7 @@ const NAV_SECTIONS: NavSection[] = [
     title: "Outils",
     items: [
       { to: "/assistant", label: "Assistant", icon: AssistantIcon },
+      { to: "/propositions", label: "Propositions", icon: ProposalsIcon },
       { to: "/export", label: "Export IA", icon: ExportIcon },
       { to: "/categories", label: "Catégories", icon: CategoriesIcon },
       { to: "/import", label: "Import", icon: ImportIcon },
@@ -122,9 +125,18 @@ interface SidebarNavProps {
   /** No sliding indicator when motion is reduced — the pill is painted by CSS
    *  either way, so the active entry is never left unmarked. */
   animated: boolean;
+  /**
+   * A count to show beside an entry, keyed by its route. Only ever rendered
+   * when it is above zero: a badge reading "0" is a decoration claiming to be
+   * information. The number joins the link's accessible name rather than being
+   * hidden from it — "Propositions, 3 en attente" is the whole point of it.
+   */
+  badges?: Record<string, number>;
 }
 
-function SidebarNav({ id, className, onNavigate, indicatorId, animated }: SidebarNavProps) {
+function SidebarNav({
+  id, className, onNavigate, indicatorId, animated, badges,
+}: SidebarNavProps) {
   return (
     <nav id={id} className={className} aria-label="Navigation principale">
       <div className="yd-shell__brand">
@@ -159,6 +171,11 @@ function SidebarNav({ id, className, onNavigate, indicatorId, animated }: Sideba
                       {/* The link's whole accessible name, and its whole text
                           content — the icon beside it is `aria-hidden`. */}
                       {item.label}
+                      {(badges?.[item.to] ?? 0) > 0 ? (
+                        <span className="yd-shell__nav-badge">
+                          {badges?.[item.to]} en attente
+                        </span>
+                      ) : null}
                     </>
                   )}
                 </NavLink>
@@ -190,9 +207,20 @@ export function AppShell({ userName }: AppShellProps) {
   useEffect(() => {
     void hydrateLedgerMode();
   }, [hydrateLedgerMode]);
+
   const reducedMotion = useReducedMotion();
   const location = useLocation();
   const navId = useId();
+
+  // How many changes the AI is waiting on a decision for. Refetched on every
+  // navigation rather than polled: a proposal appears when the household asks
+  // for an analysis, which is an action they took on a screen this shell just
+  // rendered — there is nothing to poll for in between.
+  const pendingProposals = useProposalCount((state) => state.pending);
+  const refreshProposals = useProposalCount((state) => state.refresh);
+  useEffect(() => {
+    void refreshProposals();
+  }, [refreshProposals, location.pathname]);
 
   const closeDrawer = () => setDrawerOpen(false);
 
@@ -229,6 +257,7 @@ export function AppShell({ userName }: AppShellProps) {
         className="yd-shell__sidebar yd-shell__sidebar--static"
         indicatorId={`${navId}-static`}
         animated={!reducedMotion}
+        badges={{ "/propositions": pendingProposals }}
       />
 
       <AnimatePresence>
@@ -248,6 +277,7 @@ export function AppShell({ userName }: AppShellProps) {
                   onNavigate={closeDrawer}
                   indicatorId={`${navId}-drawer`}
                   animated={false}
+                  badges={{ "/propositions": pendingProposals }}
                 />
               </div>
             </Fragment>
@@ -274,6 +304,7 @@ export function AppShell({ userName }: AppShellProps) {
                   onNavigate={closeDrawer}
                   indicatorId={`${navId}-drawer`}
                   animated
+                  badges={{ "/propositions": pendingProposals }}
                 />
               </motion.div>
             </Fragment>

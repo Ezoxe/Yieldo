@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 
 from app.api import accounts as account_routes
+from app.api import agent as agent_routes
 from app.api import agent_keys as agent_key_routes
 from app.api import alerts as alert_routes
 from app.api import analysis as analysis_routes
@@ -24,9 +25,9 @@ from app.api import export as export_routes
 from app.api import feasibility as feasibility_routes
 from app.api import goals as goal_routes
 from app.api import imports as import_routes
+from app.api import plan as plan_routes
 from app.api import portfolio as portfolio_routes
 from app.api import projection as projection_routes
-from app.api import plan as plan_routes
 from app.api import recurrences as recurrence_routes
 from app.api import reports as report_routes
 from app.api import simulators as simulator_routes
@@ -80,6 +81,7 @@ api.include_router(analytics_routes.router)
 api.include_router(budget_routes.router)
 api.include_router(recurrence_routes.router)
 api.include_router(plan_routes.router)
+api.include_router(agent_routes.router)
 api.include_router(cashflow_routes.router)
 api.include_router(debt_routes.router)
 api.include_router(goal_routes.router)

@@ -106,6 +106,10 @@ describe("AppShell", () => {
       "Faisabilité",
       "Simulateurs",
       "Assistant",
+      // The queue the agent writes into. Its own entry, because a proposal
+      // waiting on a decision must be visible from every screen — the badge
+      // beside this label is what makes that true.
+      "Propositions",
       "Export IA",
       "Catégories",
       "Import",

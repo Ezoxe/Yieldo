@@ -1439,16 +1439,14 @@ def test_deleting_a_user_takes_their_agent_key_with_them(migration_db):
 PLAN_REVISION = "f1c30a94b7d2"
 
 
-def test_the_plan_migration_is_the_single_head(migration_db):
-    """`heads` and `head` must be the same single revision — two heads is a
-    database Alembic cannot upgrade without a merge, and nothing else in this
-    suite would notice. This assertion moves to the newest migration each time
-    one is added."""
+def test_the_plan_migration_is_on_the_path(migration_db):
+    """It is no longer the head — `test_the_agent_migration_is_the_single_head`
+    owns that assertion now — but it must still be reachable from it."""
     from alembic.script import ScriptDirectory
 
     script = ScriptDirectory.from_config(migration_db.config)
-    assert len(script.get_heads()) == 1
-    assert script.get_current_head() == PLAN_REVISION
+    revisions = {rev.revision for rev in script.walk_revisions()}
+    assert PLAN_REVISION in revisions
 
 
 @pytest.mark.parametrize("table", ["plan_lines", "plan_settings"])
@@ -1534,3 +1532,100 @@ def test_the_plan_migration_is_reversible(migration_db):
     assert "plan_lines" not in tables
     assert "plan_settings" not in tables
     assert "transactions" in tables
+
+
+AGENT_LOOP_REVISION = "a93be2c05f18"
+
+
+def test_the_agent_migration_is_the_single_head(migration_db):
+    """`heads` and `head` must be the same single revision — two heads is a
+    database Alembic cannot upgrade without a merge, and nothing else in this
+    suite would notice. This assertion moves to the newest migration each time
+    one is added."""
+    from alembic.script import ScriptDirectory
+
+    script = ScriptDirectory.from_config(migration_db.config)
+    assert len(script.get_heads()) == 1
+    assert script.get_current_head() == AGENT_LOOP_REVISION
+
+
+@pytest.mark.parametrize("table", ["agent_runs", "agent_steps", "agent_proposals"])
+def test_the_agent_migration_matches_base_metadata_exactly(migration_db, table):
+    """The hand-written DDL and `models/agent_run.py` / `models/agent_proposal.py`
+    must agree on every column, its nullability and its DDL-level default."""
+    command.upgrade(migration_db.config, AGENT_LOOP_REVISION)
+    conn = _connect(migration_db)
+    migrated_columns = {
+        (row[1], row[3], row[4]) for row in conn.execute(f"PRAGMA table_info({table})")
+    }
+    migrated_indexes = {row[1] for row in conn.execute(f"PRAGMA index_list({table})")}
+    conn.close()
+
+    reference_columns, reference_indexes = _reference_schema(table)
+    assert migrated_columns == reference_columns
+    assert migrated_indexes == reference_indexes
+
+
+def test_losing_a_run_does_not_delete_the_decision_a_household_made(migration_db):
+    """`agent_proposals.run_id` is SET NULL, unlike every other foreign key
+    here: the run is the audit trail behind a proposal, and losing the trail
+    must not silently erase a decision. `agent_steps.run_id` IS cascade — a
+    step without its run is not evidence of anything."""
+    command.upgrade(migration_db.config, AGENT_LOOP_REVISION)
+    conn = _connect(migration_db)
+    conn.execute("PRAGMA foreign_keys=ON")
+    conn.execute(
+        "INSERT INTO users (email, name, password_hash, role, is_active, created_at)"
+        " VALUES ('max@example.com', 'Max', 'x', 'admin', 1, '2026-01-01T00:00:00+00:00')"
+    )
+    conn.execute(
+        "INSERT INTO agent_runs (user_id, question, state, steps_used, created_at)"
+        " VALUES (1, 'Question', 'answered', 3, '2026-01-01T00:00:00+00:00')"
+    )
+    conn.execute(
+        "INSERT INTO agent_steps (run_id, position, kind, name, summary, payload, created_at)"
+        " VALUES (1, 0, 'answer', '', 'Réponse', '{}', '2026-01-01T00:00:00+00:00')"
+    )
+    conn.execute(
+        "INSERT INTO agent_proposals (user_id, run_id, kind, summary, evidence, payload,"
+        " before, state, affected, created_at)"
+        " VALUES (1, 1, 'alert_note', 'Constat', 'Chiffre', '{}', '{}', 'applied', 0,"
+        " '2026-01-01T00:00:00+00:00')"
+    )
+    conn.commit()
+
+    conn.execute("DELETE FROM agent_runs WHERE id = 1")
+    conn.commit()
+
+    assert conn.execute("SELECT COUNT(*) FROM agent_steps").fetchone()[0] == 0
+    rows = conn.execute("SELECT run_id, state FROM agent_proposals").fetchall()
+    assert rows == [(None, "applied")]
+    conn.close()
+
+
+def test_deleting_a_user_takes_their_runs_and_proposals_with_them(migration_db):
+    command.upgrade(migration_db.config, AGENT_LOOP_REVISION)
+    conn = _connect(migration_db)
+    conn.execute("PRAGMA foreign_keys=ON")
+    conn.execute(
+        "INSERT INTO users (email, name, password_hash, role, is_active, created_at)"
+        " VALUES ('max@example.com', 'Max', 'x', 'admin', 1, '2026-01-01T00:00:00+00:00')"
+    )
+    conn.execute(
+        "INSERT INTO agent_runs (user_id, question, state, steps_used, created_at)"
+        " VALUES (1, 'Question', 'answered', 1, '2026-01-01T00:00:00+00:00')"
+    )
+    conn.execute(
+        "INSERT INTO agent_proposals (user_id, run_id, kind, summary, evidence, payload,"
+        " before, state, affected, created_at)"
+        " VALUES (1, 1, 'alert_note', 'Constat', 'Chiffre', '{}', '{}', 'pending', 0,"
+        " '2026-01-01T00:00:00+00:00')"
+    )
+    conn.commit()
+
+    conn.execute("DELETE FROM users WHERE id = 1")
+    conn.commit()
+
+    assert conn.execute("SELECT COUNT(*) FROM agent_runs").fetchone()[0] == 0
+    assert conn.execute("SELECT COUNT(*) FROM agent_proposals").fetchone()[0] == 0
+    conn.close()

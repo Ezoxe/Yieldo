@@ -1,0 +1,80 @@
+/* The observed trace. A sibling of the assistant's declared one, and styled
+   apart from it on purpose: this is a log of what a model chose to do, not a
+   statement of what an engine is known to run. */
+.yd-trace {
+  margin-top: var(--yd-space-md);
+  border-top: 1px solid var(--yd-border);
+  padding-top: var(--yd-space-sm);
+}
+
+.yd-trace > summary {
+  font-size: 0.82rem;
+  color: var(--yd-text-muted);
+  cursor: pointer;
+}
+
+.yd-trace > summary:focus-visible {
+  outline: 2px solid var(--yd-accent);
+  outline-offset: 2px;
+}
+
+.yd-trace__list {
+  list-style: none;
+  margin: var(--yd-space-sm) 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-xs);
+}
+
+.yd-trace__step {
+  display: grid;
+  grid-template-columns: auto auto 1fr;
+  align-items: baseline;
+  gap: var(--yd-space-xs);
+  padding-left: var(--yd-space-sm);
+  border-left: 2px solid var(--yd-border);
+}
+
+.yd-trace__step--tool_call {
+  border-left-color: color-mix(in srgb, var(--yd-accent) 60%, transparent);
+}
+
+.yd-trace__step--answer {
+  border-left-color: color-mix(in srgb, var(--yd-positive) 60%, transparent);
+}
+
+.yd-trace__step--failure {
+  border-left-color: color-mix(in srgb, var(--yd-negative) 60%, transparent);
+}
+
+.yd-trace__kind {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--yd-text-muted);
+  white-space: nowrap;
+}
+
+.yd-trace__tool {
+  font-family: var(--yd-font-mono, monospace);
+  font-size: 0.74rem;
+  color: var(--yd-accent);
+  white-space: nowrap;
+}
+
+.yd-trace__summary {
+  margin: 0;
+  grid-column: 1 / -1;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  color: var(--yd-text);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+@media (min-width: 720px) {
+  .yd-trace__summary {
+    grid-column: auto;
+  }
+}

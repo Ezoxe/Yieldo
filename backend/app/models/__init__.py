@@ -1,5 +1,7 @@
 from app.models.account import ACCOUNT_KINDS, Account
 from app.models.agent_key import AgentKey
+from app.models.agent_proposal import PROPOSAL_KINDS, PROPOSAL_STATES, AgentProposal
+from app.models.agent_run import AGENT_RUN_STATES, AGENT_STEP_KINDS, AgentRun, AgentStep
 from app.models.alert_settings import AlertSettings
 from app.models.allocation_target import AllocationTarget
 from app.models.api_key import MARKET_PROVIDERS, ApiKey
@@ -31,11 +33,14 @@ from app.models.transaction import TRANSACTION_CATEGORY_SOURCES, Transaction
 from app.models.user import User
 
 __all__ = [
-    "ACCOUNT_KINDS", "CATEGORY_KINDS", "CHALLENGE_STATES", "DEBT_KINDS",
+    "ACCOUNT_KINDS", "AGENT_RUN_STATES", "AGENT_STEP_KINDS",
+    "CATEGORY_KINDS", "CHALLENGE_STATES", "DEBT_KINDS",
     "INSTRUMENT_ASSET_CLASSES", "INVESTMENT_ACCOUNT_KINDS", "MARKET_PROVIDERS",
-    "PLAN_KINDS", "PLAN_ORIGINS", "PLAN_PERIODICITIES", "RULE_ORIGINS",
+    "PLAN_KINDS", "PLAN_ORIGINS", "PLAN_PERIODICITIES",
+    "PROPOSAL_KINDS", "PROPOSAL_STATES", "RULE_ORIGINS",
     "RULE_PRIORITIES", "SCENARIO_KINDS", "TRANSACTION_CATEGORY_SOURCES",
-    "Account", "AgentKey", "AlertSettings", "AllocationTarget", "ApiKey", "Category", "CategoryRule",
+    "Account", "AgentKey", "AgentProposal", "AgentRun", "AgentStep", "AlertSettings",
+    "AllocationTarget", "ApiKey", "Category", "CategoryRule",
     "Challenge",
     "ChatMessage", "ColumnProfile", "Debt",
     "Goal", "HealthSnapshot", "ImportBatch", "Instrument", "InvestmentAccount", "LlmSettings",

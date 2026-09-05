@@ -2162,3 +2162,63 @@ export interface PlanFromRecurrences {
    *  not double the plan. */
   skipped: number;
 }
+
+// --- L'agent et sa file de propositions -----------------------------------
+
+/** How a run ended. `answered` is the model concluding inside its budget;
+ *  `exhausted` is it running out of steps or of time; `failed` is the endpoint
+ *  itself. Three states rather than one "error", because each names a
+ *  different remedy. */
+export type AgentRunState = "running" | "answered" | "exhausted" | "failed";
+
+export type AgentStepKind = "thought" | "tool_call" | "tool_result" | "answer" | "failure";
+
+export interface AgentStep {
+  position: number;
+  kind: AgentStepKind;
+  /** The tool's name for a call or a result, empty otherwise. */
+  name: string;
+  summary: string;
+}
+
+export type ProposalKind =
+  | "recategorize"
+  | "category_rule"
+  | "plan_line"
+  | "alert_note"
+  | "category_budget"
+  | "goal"
+  | "debt_strategy";
+
+export type ProposalState = "pending" | "applied" | "refused";
+
+export interface Proposal {
+  id: number;
+  run_id: number | null;
+  kind: ProposalKind;
+  summary: string;
+  /** The engine-computed figure the model was looking at. Empty means the
+   *  model proposed something with nothing behind it, and the screen says so. */
+  evidence: string;
+  payload: Record<string, unknown>;
+  before: Record<string, unknown>;
+  state: ProposalState;
+  decision_note: string | null;
+  applied_summary: string | null;
+  affected: number;
+  created_at: string;
+  decided_at: string | null;
+}
+
+export interface AgentRun {
+  id: number;
+  question: string;
+  state: AgentRunState;
+  answer: string | null;
+  notice: string | null;
+  steps_used: number;
+  created_at: string;
+  finished_at: string | null;
+  steps: AgentStep[];
+  proposals: Proposal[];
+}

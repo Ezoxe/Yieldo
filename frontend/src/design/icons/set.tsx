@@ -336,6 +336,21 @@ export function AnomalyIcon(props: IconProps) {
 }
 
 /** A statement of fact the reader has to take in before the figures. */
+/** The queue of changes awaiting a decision: a sheet with a tick and a cross
+ *  beside it — two ways out, neither of them taken yet. Distinct from
+ *  `CheckIcon`, which is an outcome, and from `AlertsIcon`, which is a
+ *  condition nobody has to answer. */
+export function ProposalsIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M5 3h9l5 5v6" />
+      <path d="M14 3v5h5" />
+      <path d="M5 3v18h6" />
+      <path d="M14.5 18.5l1.8 1.8 3.7-3.9" />
+    </Icon>
+  );
+}
+
 export function InfoIcon(props: IconProps) {
   return (
     <Icon {...props}>

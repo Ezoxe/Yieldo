@@ -332,3 +332,20 @@
 :root[data-motion="off"] .yd-shell__sidebar a:hover .yd-icon {
   transform: none;
 }
+
+/* A count beside a nav entry. Rendered only above zero — a badge reading "0"
+   is a decoration claiming to be information — and the number is part of the
+   link's own text, so a screen reader hears "Propositions, 3 en attente"
+   rather than a link whose meaning is carried by a coloured circle. */
+.yd-shell__nav-badge {
+  margin-left: auto;
+  padding: 1px var(--yd-space-xs);
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--yd-accent) 45%, transparent);
+  background: color-mix(in srgb, var(--yd-accent) 16%, transparent);
+  color: var(--yd-accent-strong);
+  font-size: 0.68rem;
+  font-weight: 600;
+  line-height: 1.5;
+  white-space: nowrap;
+}

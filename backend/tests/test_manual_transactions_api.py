@@ -100,7 +100,8 @@ def test_an_explicit_category_is_recorded_as_manual(client, imported):
 def test_an_omitted_category_falls_through_the_users_own_rules(client, imported):
     headers, account_id = imported
     body = client.post("/api/transactions", headers=headers,
-                       json=_payload(account_id, label_raw="NETFLIX.COM", amount_cents=-1399)).json()
+                       json=_payload(account_id, label_raw="NETFLIX.COM",
+                                     amount_cents=-1399)).json()
 
     assert body["category_id"] is not None
     assert body["category_source"] in {"builtin", "rule", "learned"}

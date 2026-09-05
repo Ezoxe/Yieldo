@@ -83,7 +83,8 @@ def test_a_yearly_line_falls_once():
 
 def test_a_weekly_line_steps_seven_days_from_its_start():
     produced = occurrences(
-        [line(periodicity="weekly", start_on=date(2026, 3, 2))], date(2026, 3, 1), date(2026, 3, 31),
+        [line(periodicity="weekly", start_on=date(2026, 3, 2))],
+        date(2026, 3, 1), date(2026, 3, 31),
     )
     assert days(produced) == ["2026-03-02", "2026-03-09", "2026-03-16", "2026-03-23", "2026-03-30"]
 

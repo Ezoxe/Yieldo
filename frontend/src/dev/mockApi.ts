@@ -633,6 +633,11 @@ const ROUTES: Record<string, (params: Params) => unknown> = {
     { id: 1, name: "Compte courant", kind: "checking", currency: "EUR", opening_balance_cents: 412_000, opened_on: "2025-09-01", include_in_net_worth: true, archived: false },
     { id: 2, name: "Livret A", kind: "savings", currency: "EUR", opening_balance_cents: 1_240_000, opened_on: "2023-01-01", include_in_net_worth: true, archived: false },
   ],
+  "/api/agent/proposals": (params) => {
+    const wanted = params.get("state");
+    return wanted === null ? PROPOSALS : PROPOSALS.filter((row) => row.state === wanted);
+  },
+  "/api/agent/runs": () => AGENT_RUNS,
   "/api/plan": () => PLAN_LINES,
   "/api/plan/mode": () => LEDGER,
   "/api/plan/preview": planPreviewFor,
@@ -720,6 +725,58 @@ const PLAN_LINES: Record<string, unknown>[] = [
     account_id: null, periodicity: "monthly", day_of_month: 1,
     start_on: "2025-10-01", end_on: null, match_label: null, active: true,
     origin: "recurrence", notes: null,
+  },
+];
+
+/** One pending proposal and one already decided, so the queue, the badge and
+ *  the history all have something to show. Nothing here has been applied to
+ *  the canned ledger — which is exactly the point the screen makes. */
+const PROPOSALS: Record<string, unknown>[] = [
+  {
+    id: 1, run_id: 1, kind: "category_budget",
+    summary: "Poser un budget de 450,00 € par mois sur Alimentation",
+    evidence: "Moyenne réelle des six derniers mois : 438,20 €",
+    payload: { category_id: 2, monthly_budget_cents: 45000 },
+    before: {}, state: "pending", decision_note: null, applied_summary: null,
+    affected: 0, created_at: "2026-09-05T09:12:00Z", decided_at: null,
+  },
+  {
+    id: 2, run_id: 1, kind: "category_rule",
+    summary: "Créer la règle « SNCF » → Transports",
+    evidence: "7 opérations non catégorisées portent ce libellé",
+    payload: { pattern: "SNCF", category_id: 3 },
+    before: {}, state: "refused", decision_note: "Je préfère les classer à la main",
+    applied_summary: null, affected: 0,
+    created_at: "2026-09-04T18:40:00Z", decided_at: "2026-09-04T18:45:00Z",
+  },
+];
+
+const AGENT_RUNS: Record<string, unknown>[] = [
+  {
+    id: 1,
+    question: "Regarde mes dépenses d'alimentation et propose un budget.",
+    state: "answered",
+    answer:
+      "Sur les six derniers mois vos courses tiennent entre 402 € et 471 €, avec une moyenne " +
+      "de 438,20 €. Je propose un plafond mensuel de 450 €, qui laisse de la marge sans être " +
+      "hors d'atteinte. La proposition attend votre validation.",
+    notice: null,
+    steps_used: 5,
+    created_at: "2026-09-05T09:11:00Z",
+    finished_at: "2026-09-05T09:12:00Z",
+    steps: [
+      { position: 0, kind: "tool_call", name: "lire_categories",
+        summary: "Appel de l'outil « lire_categories »" },
+      { position: 1, kind: "tool_result", name: "lire_categories",
+        summary: "1: Logement; 2: Alimentation; 3: Transports; 4: Abonnements" },
+      { position: 2, kind: "tool_call", name: "lire_synthese",
+        summary: "Appel de l'outil « lire_synthese »" },
+      { position: 3, kind: "tool_result", name: "lire_synthese",
+        summary: "Du 2026-03-01 au 2026-08-31 (mode de lecture : real). Sorties 2 629,20 €." },
+      { position: 4, kind: "answer", name: "",
+        summary: "Proposition déposée, en attente de validation." },
+    ],
+    proposals: [],
   },
 ];
 
@@ -937,6 +994,20 @@ const WRITES: Record<string, (body: Record<string, unknown>) => Response> = {
       manual: true,
     });
   },
+  // The harness answers an analysis without a model: enough to see the trace
+  // and the queue behave, never a stand-in for a real run.
+  "POST /api/agent/run": (body) => {
+    const run = {
+      ...AGENT_RUNS[0],
+      id: AGENT_RUNS.length + 1,
+      question: String(body.question ?? ""),
+      created_at: new Date().toISOString(),
+      finished_at: new Date().toISOString(),
+      proposals: [PROPOSALS[0]],
+    };
+    AGENT_RUNS.unshift(run);
+    return jsonOk(run);
+  },
   "PUT /api/plan/mode": (body) => {
     LEDGER.mode = String(body.mode ?? "real");
     return jsonOk(LEDGER);
@@ -1007,6 +1078,23 @@ export function installMockApi(): void {
           scope === null ? [] : MOCK_CHATS.filter((row) => String(row.conversation_id) !== scope);
         return new Response(null, { status: 204 });
       }
+    }
+
+    const decision = /^\/api\/agent\/proposals\/(\d+)\/(apply|refuse)$/.exec(url.pathname);
+    if (decision !== null && method === "POST") {
+      const row = PROPOSALS.find((item) => Number(item.id) === Number(decision[1]));
+      if (row === undefined) {
+        return new Response(JSON.stringify({ detail: "Proposition introuvable" }), {
+          status: 404, headers: { "Content-Type": "application/json" },
+        });
+      }
+      row.state = decision[2] === "apply" ? "applied" : "refused";
+      row.decided_at = new Date().toISOString();
+      if (decision[2] === "apply") {
+        row.applied_summary = "Budget de « Alimentation » fixé";
+        row.affected = 1;
+      }
+      return jsonOk(row);
     }
 
     // The plan's per-line routes are the only ones in the harness keyed by an

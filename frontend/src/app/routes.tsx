@@ -19,6 +19,7 @@ import { ImportPage } from "../features/import/ImportPage";
 import { OverviewPage } from "../features/overview/OverviewPage";
 import { PatrimoinePage } from "../features/portfolio/PatrimoinePage";
 import { PlanPage } from "../features/plan/PlanPage";
+import { ProposalsPage } from "../features/agent/ProposalsPage";
 import { ProjectionPage } from "../features/projection/ProjectionPage";
 import { RecurrencesPage } from "../features/recurrences/RecurrencesPage";
 import { SettingsPage } from "../features/settings/SettingsPage";
@@ -77,6 +78,7 @@ export const router = createBrowserRouter([
           { path: "projection", element: <ProjectionPage /> },
           { path: "faisabilite", element: <FeasibilityPage /> },
           { path: "assistant", element: <AssistantPage /> },
+          { path: "propositions", element: <ProposalsPage /> },
           { path: "export", element: <ExportPage /> },
           { path: "simulateurs", element: <SimulatorsPage /> },
           { path: "categories", element: <CategoriesPlaceholder /> },

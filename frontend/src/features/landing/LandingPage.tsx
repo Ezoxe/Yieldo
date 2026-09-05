@@ -12,14 +12,17 @@ import { DashboardPreview } from "./DashboardPreview";
 import {
   BankOffIcon,
   ChartIcon,
-  ClockIcon,
+  CloudUploadIcon,
   ColumnsCheckIcon,
+  CompassIcon,
   FileImportIcon,
+  GaugeIcon,
   HomeShieldIcon,
   KeyOffIcon,
   SearchIcon,
   SlidersIcon,
   TagIcon,
+  TrendIcon,
   YieldoMark,
 } from "./icons";
 import "./LandingPage.css";
@@ -31,11 +34,13 @@ interface FeatureCell {
   span: BentoSpan;
 }
 
-// Everything claimed here is something phase 1 actually shipped. Budgets,
-// recurring-payment detection, multi-account net worth and API keys are later
-// phases and appear only in the "pas encore disponible" cell below, marked as
-// such -- a landing page that oversells is the one thing this operator cannot
-// check before installing.
+// Everything claimed here is something the application actually ships, and the
+// list is only correct for as long as someone keeps it level with the app: it
+// stood for months announcing budgets, recurrence detection, net worth and API
+// keys as "not in this version" after all four had been delivered, which is the
+// same defect as overselling, pointed the other way. A landing page that
+// disagrees with the product is the one thing this operator cannot check
+// before installing.
 const CAPABILITIES: FeatureCell[] = [
   {
     icon: FileImportIcon,
@@ -76,6 +81,26 @@ const CAPABILITIES: FeatureCell[] = [
     body: "Thème clair ou sombre, affichage confortable ou compact, animations désactivables. Le réglage vous suit d'un écran à l'autre.",
     span: { md: 3, lg: 6 },
   },
+  {
+    icon: GaugeIcon,
+    title: "Budgets, récurrences et alertes",
+    body: "Un plafond mensuel par catégorie et son suivi, la détection des prélèvements récurrents, et l'alerte quand l'un d'eux change de montant.",
+    // Three across only fits the 12-column grid; at the 6-column breakpoint
+    // they go two-then-one-full-width, the same shape the boundaries take.
+    span: { md: 3, lg: 4 },
+  },
+  {
+    icon: TrendIcon,
+    title: "Patrimoine, projection et simulateurs",
+    body: "Comptes d'investissement et positions, valorisation et allocation, projection à douze mois, trésorerie, dettes et objectifs, faisabilité d'un achat.",
+    span: { md: 3, lg: 4 },
+  },
+  {
+    icon: CompassIcon,
+    title: "Plan, assistant et clés d'agent",
+    body: "Un plan prévisionnel tenu à côté du relevé, un assistant qui répond sur vos propres chiffres, et des clés d'accès pour un agent — dont les écritures restent des propositions que vous validez.",
+    span: { md: 6, lg: 4 },
+  },
 ];
 
 const BOUNDARIES: FeatureCell[] = [
@@ -97,7 +122,7 @@ const BOUNDARIES: FeatureCell[] = [
   {
     icon: HomeShieldIcon,
     title: "Aucune donnée ne quitte la machine",
-    body: "Vos opérations restent dans la base de l'instance que vous hébergez. Pas de service tiers, pas de statistiques d'usage, pas même une police de caractères chargée depuis un CDN.",
+    body: "Vos opérations restent dans la base de l'instance que vous hébergez. Pas de statistiques d'usage, pas même une police de caractères chargée depuis un CDN, et aucun service tiers tant que vous n'en branchez pas un vous-même.",
     span: { md: 6, lg: 4 },
   },
 ];
@@ -273,25 +298,30 @@ export function LandingPage() {
                 </BentoCell>
               ))}
 
-              {/* Kept inside this section on purpose: what is missing is a
-                  boundary of this version too, and saying so here is cheaper
-                  than an operator discovering it after installing. */}
+              {/* Kept inside this section on purpose. The three cells above
+                  say what never leaves; this one says what CAN, so the promise
+                  above stays exact instead of quietly excluding two features
+                  that do reach the outside once the reader turns them on. */}
               <BentoCell
                 as={motion.div}
                 span={{ md: 6, lg: 12 }}
-                className="yd-landing__cell yd-landing__cell--pending"
+                className="yd-landing__cell yd-landing__cell--caveat"
                 {...entryProps(reducedMotion)}
               >
-                <span className="yd-landing__cell-icon yd-landing__cell-icon--pending">
-                  <ClockIcon />
+                <span className="yd-landing__cell-icon yd-landing__cell-icon--caveat">
+                  <CloudUploadIcon />
                 </span>
                 <div>
-                  <h3 className="yd-landing__cell-title">Pas encore disponible</h3>
+                  <h3 className="yd-landing__cell-title">
+                    Ce qui peut sortir, seulement si vous le branchez
+                  </h3>
                   <p className="yd-landing__cell-body">
-                    Les budgets, la détection des prélèvements récurrents, le patrimoine
-                    multi-comptes et les clés API sont prévus pour les versions
-                    suivantes. Ils ne sont pas dans celle-ci, et cette page ne les
-                    promet pas.
+                    Deux fonctions appellent un service extérieur : les cours de marché
+                    du patrimoine, et l'assistant lorsqu'il s'appuie sur un modèle de
+                    langage. Ni l'une ni l'autre n'est active tant que vous n'avez pas
+                    saisi votre propre clé dans Réglages → Connexions ; sans clé, aucun
+                    appel n'est tenté. Tout le reste — import, catégorisation, budgets,
+                    plan, projections — se calcule sur votre instance.
                   </p>
                 </div>
               </BentoCell>

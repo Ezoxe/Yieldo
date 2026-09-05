@@ -142,11 +142,44 @@ export function HomeShieldIcon(props: IconProps) {
 }
 
 /** A clock — the features that are not here yet. */
-export function ClockIcon(props: IconProps) {
+/** A gauge — a ceiling set and how close the month is to it. */
+export function GaugeIcon(props: IconProps) {
   return (
     <Icon {...props}>
-      <circle cx="12" cy="12" r="8.5" />
-      <path d="M12 7.5V12l3 2" />
+      <path d="m12 14 4-4" />
+      <path d="M3.34 19a10 10 0 1 1 17.32 0" />
+    </Icon>
+  );
+}
+
+/** A line going up — holdings valued over time. */
+export function TrendIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="m22 7-8.5 8.5-5-5L2 17" />
+      <path d="M16 7h6v6" />
+    </Icon>
+  );
+}
+
+/** A compass — a plan held beside the ledger, and the assistant reading it. */
+export function CompassIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20" />
+      <path d="m16.24 7.76-2.12 6.36-6.36 2.12 2.12-6.36z" />
+    </Icon>
+  );
+}
+
+/** A cloud with an arrow leaving — the only calls that go outside, and only
+ *  once the reader has switched them on. */
+export function CloudUploadIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M12 13v8" />
+      <path d="m8 17 4-4 4 4" />
+      <path d="M20.88 18.09A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.29" />
     </Icon>
   );
 }

@@ -123,23 +123,42 @@ describe("LandingPage honesty", () => {
     expect(screen.getByText(/fichier que vous avez exporté vous-même/i)).toBeInTheDocument();
   });
 
-  // The one thing a landing page can do that a screenshot review cannot catch:
-  // promise a phase-2 feature as if it shipped. Every one of these words may
-  // appear on the page only inside the cell that marks it as unavailable.
-  it.each(["budget", "récurrent", "patrimoine", "clés API"])(
-    "mentions %s only in the 'pas encore disponible' cell",
+  // The defect this replaces: for months the page announced budgets, recurrence
+  // detection, net worth and API keys as "pas encore disponible" -- long after
+  // all four had shipped. A test that pinned those words INSIDE that cell is
+  // what kept the claim alive through every review, so the assertion is turned
+  // around: they belong in the capabilities section, and the page must carry no
+  // "not yet" cell for a test to anchor on again.
+  it.each(["budget", "récurrent", "patrimoine", "clés d'agent"])(
+    "names %s among what the application already does",
     (term) => {
       const { container } = renderLanding();
-      const pending = container.querySelector(".yd-landing__cell--pending") as HTMLElement;
-      expect(pending).not.toBeNull();
-      expect(pending.textContent?.toLowerCase()).toContain(term.toLowerCase());
-
-      const rest = (container.textContent ?? "")
-        .toLowerCase()
-        .replace((pending.textContent ?? "").toLowerCase(), "");
-      expect(rest).not.toContain(term.toLowerCase());
+      const capabilities = container.querySelector(
+        "[aria-labelledby='yd-capabilities-title']",
+      ) as HTMLElement;
+      expect(capabilities).not.toBeNull();
+      expect(capabilities.textContent?.toLowerCase()).toContain(term.toLowerCase());
     },
   );
+
+  it("no longer holds a 'pas encore disponible' cell", () => {
+    const { container } = renderLanding();
+    expect(container.querySelector(".yd-landing__cell--pending")).toBeNull();
+    expect(container.textContent?.toLowerCase()).not.toContain("pas encore disponible");
+  });
+
+  // The three boundaries say what never leaves the machine. Two features do
+  // reach outside once the operator supplies a key, and the page has to say so
+  // in the same breath or the promise above is an overstatement.
+  it("names the two features that call outside, and that a key switches them on", () => {
+    const { container } = renderLanding();
+    const caveat = container.querySelector(".yd-landing__cell--caveat") as HTMLElement;
+    expect(caveat).not.toBeNull();
+    const text = (caveat.textContent ?? "").toLowerCase();
+    expect(text).toContain("cours de marché");
+    expect(text).toContain("modèle de langage");
+    expect(text).toContain("clé");
+  });
 
   // MASTER.md forbids emoji as icons. Ranges cover pictographs, dingbats,
   // transport/map symbols and the emoji variation selector.
@@ -152,8 +171,9 @@ describe("LandingPage honesty", () => {
 
   it("draws its icons as inline SVG", () => {
     const { container } = renderLanding();
+    // Nine capabilities, three boundaries, and the outbound-calls caveat.
     const icons = container.querySelectorAll("svg.yd-icon");
-    expect(icons.length).toBe(10);
+    expect(icons.length).toBe(13);
     for (const icon of icons) {
       expect(icon).toHaveAttribute("aria-hidden", "true");
     }

@@ -270,9 +270,12 @@
   background: color-mix(in srgb, var(--yd-text) 14%, transparent);
 }
 
-.yd-landing__cell-icon--pending {
-  color: var(--yd-warning);
-  background: color-mix(in srgb, var(--yd-warning) 14%, transparent);
+/* Blue, not amber: this cell states a standing condition -- two features
+   reach outside once you switch them on -- and amber is reserved for a ceiling
+   coming into reach. */
+.yd-landing__cell-icon--caveat {
+  color: var(--yd-info);
+  background: color-mix(in srgb, var(--yd-info) 14%, transparent);
 }
 
 .yd-landing__cell-title {
@@ -290,27 +293,27 @@
   color: var(--yd-text-muted);
 }
 
-.yd-landing__cell--pending {
+.yd-landing__cell--caveat {
   flex-direction: row;
   align-items: flex-start;
   gap: var(--yd-space-md);
 }
 
-.yd-landing__cell--pending .yd-landing__cell-title {
+.yd-landing__cell--caveat .yd-landing__cell-title {
   margin-bottom: var(--yd-space-2xs);
 }
 
 /* This is the one full-width cell on the page, and at 1440 its text measured
    141 characters a line — roughly twice a readable measure. Every other cell
    is narrow enough that its column caps it. */
-.yd-landing__cell--pending .yd-landing__cell-body {
+.yd-landing__cell--caveat .yd-landing__cell-body {
   max-width: 78ch;
 }
 
 /* Below the 6-column breakpoint the icon and the text no longer fit side by
    side without squeezing the text into a gutter. */
 @media (max-width: 600px) {
-  .yd-landing__cell--pending {
+  .yd-landing__cell--caveat {
     flex-direction: column;
   }
 }

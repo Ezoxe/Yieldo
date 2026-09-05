@@ -92,6 +92,9 @@ describe("AppShell", () => {
       "Transactions",
       "Budgets",
       "Récurrences",
+      // The forecast plan sits with the everyday screens rather than with the
+      // horizon ones: it is about the month in hand, not about ten years out.
+      "Plan prévisionnel",
       "Trésorerie",
       "Analyse",
       "Dettes",

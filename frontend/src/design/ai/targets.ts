@@ -69,6 +69,20 @@ export const AI_TARGETS: AiTarget[] = [
   },
   { id: "panel-calendrier", label: "Calendrier", route: "/", terms: ["calendrier"] },
 
+  // Plan prévisionnel
+  {
+    id: "panel-plan",
+    label: "Plan prévisionnel",
+    route: "/plan",
+    terms: ["plan previsionnel", "estimation", "estime", "previsionnel"],
+  },
+  {
+    id: "panel-plan-restant",
+    label: "Ce qui n'est pas encore passé",
+    route: "/plan",
+    terms: ["pas encore passe", "reste a passer", "reel complete"],
+  },
+
   // Trésorerie
   {
     id: "kpi-solde-disponible",

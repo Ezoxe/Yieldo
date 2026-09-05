@@ -2093,3 +2093,72 @@ export interface AlertReport {
   notice: string | null;
   ledger_last_on: string | null;
 }
+
+// --- Le plan prévisionnel et les trois lectures ---------------------------
+
+/** Which reading the application answers in. See `useLedgerMode` for the
+ *  French labels and `backend/app/engines/plan.py` for what each one does. */
+export type LedgerMode = "real" | "estimated" | "blended";
+
+/** A `fixed` line is a known amount on a known date, settled all or nothing by
+ *  a matching payment. An `envelope` is a monthly allowance for a category,
+ *  drawn down by what was really spent against it. */
+export type PlanKind = "fixed" | "envelope";
+
+export type PlanPeriodicity =
+  | "weekly"
+  | "biweekly"
+  | "monthly"
+  | "quarterly"
+  | "yearly"
+  | "one_off";
+
+export interface PlanLine {
+  id: number;
+  label: string;
+  /** Signed, in cents. Negative is money leaving. */
+  amount_cents: number;
+  kind: PlanKind;
+  category_id: number | null;
+  account_id: number | null;
+  periodicity: PlanPeriodicity;
+  day_of_month: number;
+  start_on: string;
+  end_on: string | null;
+  /** What a real transaction is recognised by. Empty means "match on the
+   *  category alone", which is what an envelope always does. */
+  match_label: string | null;
+  active: boolean;
+  /** "manual" is the household itself, "recurrence" a line pre-filled from a
+   *  detected subscription, "agent" one a model proposed and a human approved. */
+  origin: "manual" | "recurrence" | "agent";
+  notes: string | null;
+}
+
+export interface PlanOccurrence {
+  line_id: number;
+  on: string;
+  amount_cents: number;
+  label: string;
+  category_id: number | null;
+  account_id: number | null;
+}
+
+/** `planned` is everything the plan produces over the window; `remaining` is
+ *  the part the ledger does not already account for. The difference between
+ *  the two totals is exactly what "Réel complété" adds to the real figures. */
+export interface PlanPreview {
+  date_from: string;
+  date_to: string;
+  planned: PlanOccurrence[];
+  remaining: PlanOccurrence[];
+  planned_total_cents: number;
+  remaining_total_cents: number;
+}
+
+export interface PlanFromRecurrences {
+  created: PlanLine[];
+  /** Detected subscriptions that already had a line, so accepting twice does
+   *  not double the plan. */
+  skipped: number;
+}

@@ -1,0 +1,358 @@
+.yd-plan {
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-lg);
+}
+
+.yd-plan__alert,
+.yd-plan__notice {
+  margin: 0;
+  padding: var(--yd-space-sm) var(--yd-space-md);
+  border-radius: var(--yd-radius-sm);
+  font-size: 0.86rem;
+  line-height: 1.5;
+}
+
+.yd-plan__alert {
+  border: 1px solid color-mix(in srgb, var(--yd-negative) 40%, transparent);
+  background: color-mix(in srgb, var(--yd-negative) 12%, transparent);
+  color: var(--yd-negative-text);
+}
+
+.yd-plan__notice {
+  border: 1px solid color-mix(in srgb, var(--yd-info) 40%, transparent);
+  background: color-mix(in srgb, var(--yd-info) 10%, transparent);
+  color: var(--yd-text);
+}
+
+.yd-plan__import {
+  min-height: 36px;
+  padding: 0 var(--yd-space-md);
+  border: 1px solid var(--yd-border-control);
+  border-radius: var(--yd-radius-sm);
+  background: transparent;
+  color: var(--yd-text);
+  font: inherit;
+  font-size: 0.84rem;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: border-color var(--yd-motion-fast) var(--yd-ease);
+}
+
+.yd-plan__import:hover:not(:disabled) {
+  border-color: var(--yd-accent);
+}
+
+.yd-plan__import:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.yd-plan__import:focus-visible {
+  outline: 2px solid var(--yd-accent);
+  outline-offset: 2px;
+}
+
+/* The three readings, side by side. Written out rather than left to a tooltip:
+   this is the one screen where a household decides what its figures mean. */
+.yd-plan__modes {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--yd-space-sm);
+}
+
+@media (min-width: 760px) {
+  .yd-plan__modes {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.yd-plan__mode {
+  padding: var(--yd-space-sm) var(--yd-space-md);
+  border: 1px solid var(--yd-border);
+  border-radius: var(--yd-radius-sm);
+  background: var(--yd-surface);
+}
+
+.yd-plan__mode--current {
+  border-color: color-mix(in srgb, var(--yd-info) 55%, transparent);
+  background: color-mix(in srgb, var(--yd-info) 10%, transparent);
+}
+
+.yd-plan__mode-name {
+  display: block;
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: var(--yd-text);
+  margin-bottom: var(--yd-space-2xs);
+}
+
+.yd-plan__mode p {
+  margin: 0;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: var(--yd-text-muted);
+}
+
+.yd-plan__foot {
+  margin: var(--yd-space-md) 0 0;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: var(--yd-text-muted);
+}
+
+/* The declaration form -------------------------------------------------- */
+
+.yd-plan__form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--yd-space-md);
+}
+
+.yd-plan__field {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--yd-space-2xs);
+  min-width: 0;
+}
+
+.yd-plan__field > label,
+.yd-plan__choice legend {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--yd-space-2xs);
+  font-size: 0.84rem;
+  color: var(--yd-text-muted);
+}
+
+.yd-plan__field input,
+.yd-plan__field select {
+  width: 100%;
+  min-height: 36px;
+  padding: 0 var(--yd-space-xs);
+  border: 1px solid var(--yd-border-control);
+  border-radius: var(--yd-radius-sm);
+  background: var(--yd-surface-strong);
+  color: var(--yd-text);
+  font: inherit;
+  font-size: 0.9rem;
+}
+
+.yd-plan__field input:focus-visible,
+.yd-plan__field select:focus-visible {
+  outline: 2px solid var(--yd-accent);
+  outline-offset: 1px;
+}
+
+.yd-plan__choice {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+
+.yd-plan__choice legend {
+  padding: 0 0 var(--yd-space-2xs);
+}
+
+.yd-plan__choice-options {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--yd-space-md);
+  min-height: 36px;
+}
+
+.yd-plan__choice-options label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--yd-space-2xs);
+  font-size: 0.9rem;
+  color: var(--yd-text);
+  cursor: pointer;
+}
+
+.yd-plan__choice-options input {
+  accent-color: var(--yd-accent);
+}
+
+.yd-plan__error {
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  color: var(--yd-negative-text);
+}
+
+.yd-plan__save {
+  justify-self: start;
+  min-height: 36px;
+  padding: 0 var(--yd-space-md);
+  border: 1px solid var(--yd-accent);
+  border-radius: var(--yd-radius-sm);
+  background: transparent;
+  color: var(--yd-accent);
+  font: inherit;
+  font-size: 0.86rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.yd-plan__save:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.yd-plan__save:focus-visible {
+  outline: 2px solid var(--yd-accent);
+  outline-offset: 2px;
+}
+
+/* The declared lines ----------------------------------------------------- */
+
+.yd-plan__waiting {
+  margin: 0;
+  font-size: 0.86rem;
+  color: var(--yd-text-muted);
+}
+
+.yd-plan__lines {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.yd-plan__line {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--yd-space-xs) var(--yd-space-md);
+  padding: var(--yd-space-sm) 0;
+  border-bottom: 1px solid var(--yd-border);
+}
+
+.yd-plan__line:last-child {
+  border-bottom: 0;
+}
+
+/* Suspended, not deleted: the line is still there and still says so. */
+.yd-plan__line--off {
+  opacity: 0.55;
+}
+
+.yd-plan__line-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.yd-plan__line-label {
+  font-size: 0.92rem;
+  color: var(--yd-text);
+}
+
+.yd-plan__line-meta,
+.yd-plan__line-origin {
+  font-size: 0.78rem;
+  color: var(--yd-text-muted);
+}
+
+.yd-plan__line-amount {
+  font-size: 0.95rem;
+  color: var(--yd-text);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.yd-plan__line-amount--out {
+  color: var(--yd-negative-text);
+}
+
+.yd-plan__line-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: var(--yd-space-xs);
+}
+
+.yd-plan__line-actions button {
+  min-height: 30px;
+  padding: 0 var(--yd-space-sm);
+  border: 1px solid var(--yd-border-control);
+  border-radius: var(--yd-radius-sm);
+  background: transparent;
+  color: var(--yd-text-muted);
+  font: inherit;
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+
+.yd-plan__line-actions button:hover {
+  color: var(--yd-text);
+  border-color: var(--yd-accent);
+}
+
+.yd-plan__line-actions button:focus-visible {
+  outline: 2px solid var(--yd-accent);
+  outline-offset: 2px;
+}
+
+.yd-plan__line-delete:hover {
+  color: var(--yd-negative-text);
+  border-color: var(--yd-negative);
+}
+
+@media (min-width: 560px) {
+  .yd-plan__line {
+    grid-template-columns: minmax(0, 1fr) auto auto;
+  }
+
+  .yd-plan__line-actions {
+    grid-column: auto;
+  }
+}
+
+/* The two totals --------------------------------------------------------- */
+
+.yd-plan__totals {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--yd-space-md);
+}
+
+@media (min-width: 560px) {
+  .yd-plan__totals {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.yd-plan__totals > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.yd-plan__total-label {
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--yd-text-muted);
+}
+
+.yd-plan__total {
+  font-size: 1.6rem;
+  color: var(--yd-text);
+}
+
+.yd-plan__total-note {
+  font-size: 0.78rem;
+  color: var(--yd-text-muted);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .yd-plan__import {
+    transition: none;
+  }
+}

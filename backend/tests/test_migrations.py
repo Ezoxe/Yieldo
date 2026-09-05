@@ -1312,16 +1312,14 @@ LLM_TIMEOUT_REVISION = "b7d3f0a91c48"
 CONVERSATIONS_REVISION = "c4a1e78b2d95"
 
 
-def test_the_conversations_migration_is_the_single_head(migration_db):
-    """`heads` and `head` must be the same single revision — two heads is a
-    database Alembic cannot upgrade without a merge, and nothing else in this
-    suite would notice. This assertion moves to the newest migration each time
-    one is added."""
+def test_the_conversations_migration_is_on_the_path(migration_db):
+    """It is no longer the head — `test_the_plan_migration_is_the_single_head`
+    owns that assertion now — but it must still be reachable from it."""
     from alembic.script import ScriptDirectory
 
     script = ScriptDirectory.from_config(migration_db.config)
-    assert len(script.get_heads()) == 1
-    assert script.get_current_head() == CONVERSATIONS_REVISION
+    revisions = {rev.revision for rev in script.walk_revisions()}
+    assert CONVERSATIONS_REVISION in revisions
 
 
 def test_the_conversations_migration_gathers_old_questions_into_one_thread(migration_db):
@@ -1436,3 +1434,103 @@ def test_deleting_a_user_takes_their_agent_key_with_them(migration_db):
 
     assert conn.execute("SELECT COUNT(*) FROM agent_keys").fetchone()[0] == 0
     conn.close()
+
+
+PLAN_REVISION = "f1c30a94b7d2"
+
+
+def test_the_plan_migration_is_the_single_head(migration_db):
+    """`heads` and `head` must be the same single revision — two heads is a
+    database Alembic cannot upgrade without a merge, and nothing else in this
+    suite would notice. This assertion moves to the newest migration each time
+    one is added."""
+    from alembic.script import ScriptDirectory
+
+    script = ScriptDirectory.from_config(migration_db.config)
+    assert len(script.get_heads()) == 1
+    assert script.get_current_head() == PLAN_REVISION
+
+
+@pytest.mark.parametrize("table", ["plan_lines", "plan_settings"])
+def test_the_plan_migration_matches_base_metadata_exactly(migration_db, table):
+    """The hand-written DDL and `models/plan_line.py` / `models/plan_settings.py`
+    must agree on every column, its nullability and its DDL-level default. See
+    `_reference_schema` for why this comparison exists at all."""
+    command.upgrade(migration_db.config, PLAN_REVISION)
+    conn = _connect(migration_db)
+    migrated_columns = {
+        (row[1], row[3], row[4]) for row in conn.execute(f"PRAGMA table_info({table})")
+    }
+    migrated_indexes = {row[1] for row in conn.execute(f"PRAGMA index_list({table})")}
+    conn.close()
+
+    reference_columns, reference_indexes = _reference_schema(table)
+    assert migrated_columns == reference_columns
+    assert migrated_indexes == reference_indexes
+
+
+def test_the_plan_migration_leaves_an_existing_household_reading_the_ledger(migration_db):
+    """No backfill, and the absence is the point: a household that has never
+    opened the plan screen has no `plan_settings` row, which `api/common.
+    ledger_mode` reads as `real` — exactly what every screen did before this
+    migration existed. Writing a row for everyone would make the deployment
+    itself a decision the household never took."""
+    command.upgrade(migration_db.config, CONVERSATIONS_REVISION)
+    conn = _connect(migration_db)
+    conn.execute(
+        "INSERT INTO users (email, name, password_hash, role, is_active, created_at)"
+        " VALUES ('max@example.com', 'Max', 'x', 'admin', 1, '2026-01-01T00:00:00+00:00')"
+    )
+    conn.commit()
+    conn.close()
+
+    command.upgrade(migration_db.config, PLAN_REVISION)
+
+    conn = _connect(migration_db)
+    assert conn.execute("SELECT COUNT(*) FROM plan_settings").fetchone()[0] == 0
+    assert conn.execute("SELECT COUNT(*) FROM plan_lines").fetchone()[0] == 0
+    assert conn.execute("SELECT COUNT(*) FROM users").fetchone()[0] == 1
+    conn.close()
+
+
+def test_deleting_a_user_takes_their_plan_with_them(migration_db):
+    """The same `ondelete="CASCADE"` isolation every other per-user table has."""
+    command.upgrade(migration_db.config, PLAN_REVISION)
+    conn = _connect(migration_db)
+    conn.execute("PRAGMA foreign_keys=ON")
+    conn.execute(
+        "INSERT INTO users (email, name, password_hash, role, is_active, created_at)"
+        " VALUES ('max@example.com', 'Max', 'x', 'admin', 1, '2026-01-01T00:00:00+00:00')"
+    )
+    user_id = conn.execute("SELECT id FROM users").fetchone()[0]
+    conn.execute(
+        "INSERT INTO plan_lines (user_id, label, amount_cents, start_on)"
+        " VALUES (?, 'Loyer', -90000, '2026-01-01')",
+        (user_id,),
+    )
+    conn.execute("INSERT INTO plan_settings (user_id, ledger_mode) VALUES (?, 'blended')",
+                 (user_id,))
+    conn.commit()
+
+    conn.execute("DELETE FROM users WHERE id = ?", (user_id,))
+    conn.commit()
+
+    assert conn.execute("SELECT COUNT(*) FROM plan_lines").fetchone()[0] == 0
+    assert conn.execute("SELECT COUNT(*) FROM plan_settings").fetchone()[0] == 0
+    conn.close()
+
+
+def test_the_plan_migration_is_reversible(migration_db):
+    """A downgrade loses the plan and the mode and touches no transaction —
+    the separation the whole feature is built on, checked at the schema level."""
+    command.upgrade(migration_db.config, PLAN_REVISION)
+    command.downgrade(migration_db.config, CONVERSATIONS_REVISION)
+
+    conn = _connect(migration_db)
+    tables = {
+        row[0] for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")
+    }
+    conn.close()
+    assert "plan_lines" not in tables
+    assert "plan_settings" not in tables
+    assert "transactions" in tables

@@ -19,6 +19,7 @@ import {
   ImportIcon,
   MenuIcon,
   OverviewIcon,
+  PlanIcon,
   PortfolioIcon,
   ProjectionIcon,
   RecurrencesIcon,
@@ -30,6 +31,8 @@ import {
   type IconComponent,
 } from "../design/icons";
 import { AssistantDrawer } from "../features/assistant/AssistantDrawer";
+import { LedgerModeControl } from "../features/plan/LedgerModeControl";
+import { useLedgerMode } from "../features/plan/useLedgerMode";
 import { slideOver } from "../design/motion/variants";
 import { useReducedMotion } from "../design/motion/useReducedMotion";
 import "./AppShell.css";
@@ -70,6 +73,7 @@ const NAV_SECTIONS: NavSection[] = [
       { to: "/transactions", label: "Transactions", icon: TransactionsIcon },
       { to: "/budgets", label: "Budgets", icon: BudgetsIcon },
       { to: "/recurrences", label: "Récurrences", icon: RecurrencesIcon },
+      { to: "/plan", label: "Plan prévisionnel", icon: PlanIcon },
       { to: "/tresorerie", label: "Trésorerie", icon: CashflowIcon },
       { to: "/analyse", label: "Analyse", icon: AnalysisIcon },
     ],
@@ -177,6 +181,15 @@ export function AppShell({ userName }: AppShellProps) {
   // mobile nav drawer above: the two are different surfaces and can be open at
   // once without either closing the other.
   const [assistantOpen, setAssistantOpen] = useState(false);
+
+  // The reading, fetched once for the whole session. Every screen below is
+  // keyed on it, so switching mode refetches the screen rather than leaving
+  // the previous mode's figures under the new mode's label.
+  const ledgerMode = useLedgerMode((state) => state.mode);
+  const hydrateLedgerMode = useLedgerMode((state) => state.hydrate);
+  useEffect(() => {
+    void hydrateLedgerMode();
+  }, [hydrateLedgerMode]);
   const reducedMotion = useReducedMotion();
   const location = useLocation();
   const navId = useId();
@@ -279,6 +292,12 @@ export function AppShell({ userName }: AppShellProps) {
             action. */}
         <header className="yd-shell__header">
           <span className="yd-shell__user">{userName}</span>
+          {/* Which reading every figure below is in. It earns its place beside
+              the assistant for the reason the theme select lost it: this is
+              not a preference set once a year, it is a statement about what
+              the numbers on screen mean, and it has to be visible wherever
+              they are. */}
+          <LedgerModeControl />
           <button
             type="button"
             className="yd-shell__assistant"
@@ -296,10 +315,14 @@ export function AppShell({ userName }: AppShellProps) {
               leave before showing the new one would add latency to every
               navigation for the sake of a symmetry nobody asked for. */}
           {reducedMotion ? (
-            <Outlet />
+            // Keyed on the mode for the same reason the animated branch is:
+            // changing the reading changes what every figure on the screen
+            // means, and a screen that kept its old numbers would be showing
+            // the previous mode's answer under the new mode's label.
+            <Outlet key={ledgerMode} />
           ) : (
             <motion.div
-              key={location.pathname}
+              key={`${location.pathname}|${ledgerMode}`}
               className="yd-shell__route"
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}

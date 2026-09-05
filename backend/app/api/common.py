@@ -8,6 +8,24 @@ Two rules hold in every function here, without exception:
 
 The engines never see an ORM object: each helper converts rows into the frozen
 dataclass its engine declares.
+
+**This module is also the ONE place the forecast plan meets the ledger.** The
+three readings a household can choose between (`app/engines/plan.LEDGER_MODES`)
+are resolved by `ledger_mode` below and applied by `tx_points` -- and by
+`tx_points` alone. That boundary is deliberate, and the three helpers left out
+of it are the argument for it:
+
+* `recurrence_points` stays real, always. Detecting a subscription from a
+  forecast of that same subscription is circular: the plan would confirm
+  itself, and "Yieldo found your Netflix" would mean "you told Yieldo about
+  your Netflix";
+* `anomaly_points` stays real, always. An anomaly is a transaction that
+  actually happened and was unusual. A declared amount is never a surprise --
+  scoring the plan against itself would report nothing, for ever;
+* `liquid_balance_cents` stays real, always. A balance is a fact about an
+  account, not a reading of a period. A runway computed from an estimated
+  monthly spend over a real balance is a coherent figure; one computed over an
+  imagined balance is not.
 """
 
 from datetime import date
@@ -19,9 +37,17 @@ from app.api.history import user_history
 from app.engines.aggregate import TxPoint
 from app.engines.anomaly import AnomalyTx
 from app.engines.period import resolve_range
+from app.engines.plan import (
+    LedgerMode,
+    RealPoint,
+    as_tx_points,
+    occurrences,
+    unrealised,
+)
+from app.engines.plan import PlanLine as PlanLinePoint
 from app.engines.recurrence import RecurringTx
 from app.importers.dedup import normalize_label
-from app.models import Account, Transaction
+from app.models import Account, PlanLine, PlanSettings, Transaction
 from app.schemas.history import HistoryOut
 
 # What "the money you could actually spend next month" is made of. A PEA or a
@@ -51,26 +77,148 @@ def period_range(
     return start, end, history
 
 
+def ledger_mode(db: Session, user_id: int) -> LedgerMode:
+    """Which of the three readings this household is in.
+
+    No row means `real`, which is what every screen did before the plan
+    existed: a household that has never opened the plan screen must keep
+    reading the ledger it always read.
+    """
+    row = db.query(PlanSettings).filter(PlanSettings.user_id == user_id).first()
+    return "real" if row is None else row.ledger_mode
+
+
+def plan_lines(db: Session, user_id: int) -> list[PlanLinePoint]:
+    """This user's whole plan, in the engine's input shape.
+
+    Always the whole plan, never a window: `engines/plan.occurrences` needs
+    every line to work out which of them fall inside the range asked about,
+    and a line declared two years ago is exactly the one still producing this
+    month's rent.
+
+    `label_key` is normalised here from `match_label`, with the same function
+    the importer and `recurrence_points` use -- so a line declared "Netflix"
+    matches a statement saying "PRLV NETFLIX INTERNATIONAL BV" by the same
+    rule everything else in the application matches labels by.
+    """
+    rows = db.query(PlanLine).filter(PlanLine.user_id == user_id).all()
+    return [
+        PlanLinePoint(
+            id=row.id,
+            label=row.label,
+            label_key=normalize_label(row.match_label) if row.match_label else "",
+            amount_cents=row.amount_cents,
+            kind=row.kind,
+            category_id=row.category_id,
+            account_id=row.account_id,
+            periodicity=row.periodicity,
+            day_of_month=row.day_of_month,
+            start_on=row.start_on,
+            end_on=row.end_on,
+            active=row.active,
+        )
+        for row in rows
+    ]
+
+
+def main_account_id(db: Session, user_id: int) -> int:
+    """Where a plan line that names no account is placed.
+
+    The household's first live current account, then any live account, then 0
+    -- an id no account has, which every "group by account" reads as a bucket
+    of its own rather than silently joining someone's savings.
+    """
+    checking = (
+        db.query(Account.id)
+        .filter(Account.user_id == user_id, Account.kind == "checking",
+                Account.archived.is_(False))
+        .order_by(Account.id)
+        .first()
+    )
+    if checking is not None:
+        return int(checking[0])
+    any_account = (
+        db.query(Account.id)
+        .filter(Account.user_id == user_id, Account.archived.is_(False))
+        .order_by(Account.id)
+        .first()
+    )
+    return int(any_account[0]) if any_account is not None else 0
+
+
+def real_points(db: Session, user_id: int) -> list[RealPoint]:
+    """The whole ledger, in the shape plan realisation matches against.
+
+    The whole ledger and not the window, on purpose: `unrealised` decides month
+    by month, and a window that clipped a month in half would hide a payment
+    from its own occurrence.
+    """
+    rows = db.query(Transaction).filter(Transaction.user_id == user_id).all()
+    return [
+        RealPoint(on=row.date, amount_cents=row.amount_cents,
+                  label_key=normalize_label(row.label_raw), category_id=row.category_id)
+        for row in rows
+    ]
+
+
 def tx_points(
     db: Session,
     user_id: int,
     date_from: date | None,
     date_to: date | None,
     account_id: int | None = None,
+    mode: LedgerMode | None = None,
 ) -> list[TxPoint]:
-    """This user's transactions in the aggregation engine's input shape."""
-    query = db.query(Transaction).filter(Transaction.user_id == user_id)
-    if date_from is not None:
-        query = query.filter(Transaction.date >= date_from)
-    if date_to is not None:
-        query = query.filter(Transaction.date <= date_to)
+    """This user's movements in the aggregation engine's input shape, under
+    whichever of the three readings they have chosen.
+
+    `real` is the ledger and nothing else -- byte for byte what this function
+    returned before the plan existed. `estimated` is the plan and nothing else:
+    the month as it was declared, with no statement in it. `blended` is the
+    ledger plus the part of the plan the ledger does not already account for,
+    which is the reading a household actually wants for the month in progress.
+
+    A non-real mode needs a window to forecast into, and "no bounds" cannot
+    mean "forecast for ever". An absent bound resolves through `period_range`,
+    exactly as every analytics route already resolves one -- the ledger's own
+    span, or today when there is no ledger at all.
+
+    `mode` is a parameter rather than only a lookup so a caller that has
+    already resolved it (a route answering several helpers, the assistant's
+    tools) does not query for it again. Left None, it is read here.
+    """
+    resolved = ledger_mode(db, user_id) if mode is None else mode
+
+    real: list[TxPoint] = []
+    if resolved != "estimated":
+        query = db.query(Transaction).filter(Transaction.user_id == user_id)
+        if date_from is not None:
+            query = query.filter(Transaction.date >= date_from)
+        if date_to is not None:
+            query = query.filter(Transaction.date <= date_to)
+        if account_id is not None:
+            query = query.filter(Transaction.account_id == account_id)
+        real = [
+            TxPoint(on=t.date, amount_cents=t.amount_cents, category_id=t.category_id,
+                    account_id=t.account_id, is_transfer=t.is_transfer)
+            for t in query.all()
+        ]
+
+    if resolved == "real":
+        return real
+
+    start, end, _ = period_range(db, user_id, date_from, date_to)
+    lines = plan_lines(db, user_id)
+    produced = (
+        occurrences(lines, start, end)
+        if resolved == "estimated"
+        else unrealised(lines, real_points(db, user_id), start, end)
+    )
+    planned = as_tx_points(produced, main_account_id(db, user_id))
     if account_id is not None:
-        query = query.filter(Transaction.account_id == account_id)
-    return [
-        TxPoint(on=t.date, amount_cents=t.amount_cents, category_id=t.category_id,
-                account_id=t.account_id, is_transfer=t.is_transfer)
-        for t in query.all()
-    ]
+        planned = [point for point in planned if point.account_id == account_id]
+
+    return sorted(real + planned, key=lambda point: point.on)
 
 
 def recurrence_points(db: Session, user_id: int) -> list[RecurringTx]:

@@ -1,0 +1,101 @@
+/* The reading, in the header. Three segments in one pill, so the choice reads
+   as one control rather than three buttons that happen to sit together. */
+.yd-mode {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--yd-space-2xs);
+  position: relative;
+}
+
+.yd-mode__group {
+  display: inline-flex;
+  align-items: stretch;
+  border: 1px solid var(--yd-border-control);
+  border-radius: 999px;
+  padding: 2px;
+  gap: 2px;
+  background: var(--yd-surface);
+}
+
+/* Not on "Réel": every figure below this is qualified, and the control says so
+   in the one colour the design reserves for a standing condition. */
+.yd-mode__group--qualified {
+  border-color: color-mix(in srgb, var(--yd-info) 55%, transparent);
+  background: color-mix(in srgb, var(--yd-info) 10%, transparent);
+}
+
+.yd-mode__option {
+  border: 0;
+  background: transparent;
+  color: var(--yd-text-muted);
+  font: inherit;
+  font-size: 0.78rem;
+  line-height: 1;
+  padding: var(--yd-space-2xs) var(--yd-space-sm);
+  border-radius: 999px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    color var(--yd-motion-fast) var(--yd-ease),
+    background var(--yd-motion-fast) var(--yd-ease);
+}
+
+.yd-mode__option:hover:not(:disabled) {
+  color: var(--yd-text);
+}
+
+.yd-mode__option[aria-checked="true"] {
+  color: var(--yd-text);
+  background: var(--yd-surface-raised);
+  font-weight: 600;
+}
+
+.yd-mode__group--qualified .yd-mode__option[aria-checked="true"] {
+  color: var(--yd-info);
+  background: color-mix(in srgb, var(--yd-info) 18%, transparent);
+}
+
+.yd-mode__option:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.yd-mode__option:focus-visible {
+  outline: 2px solid var(--yd-accent);
+  outline-offset: 2px;
+}
+
+/* Absolute so a failed write does not push the header's own row around while
+   the reader is still looking at where they clicked. */
+.yd-mode__error {
+  position: absolute;
+  top: calc(100% + var(--yd-space-2xs));
+  right: 0;
+  margin: 0;
+  max-width: 40ch;
+  padding: var(--yd-space-2xs) var(--yd-space-xs);
+  border: 1px solid color-mix(in srgb, var(--yd-negative) 40%, transparent);
+  border-radius: var(--yd-radius-sm);
+  background: var(--yd-surface-raised);
+  box-shadow: var(--yd-shadow-pop);
+  font-size: 0.78rem;
+  line-height: 1.4;
+  color: var(--yd-negative-text);
+  z-index: 30;
+}
+
+/* On a phone the header is already tight. The three labels stay, shortened by
+   the layout rather than by the words: a control that said "Réel / Est. / R+E"
+   would be three abbreviations nobody can read. */
+@media (max-width: 599px) {
+  .yd-mode__option {
+    padding: var(--yd-space-2xs) var(--yd-space-2xs);
+    font-size: 0.72rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .yd-mode__option {
+    transition: none;
+  }
+}

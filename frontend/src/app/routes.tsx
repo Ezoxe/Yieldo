@@ -18,6 +18,7 @@ import { RequireAuth } from "../features/auth/RequireAuth";
 import { ImportPage } from "../features/import/ImportPage";
 import { OverviewPage } from "../features/overview/OverviewPage";
 import { PatrimoinePage } from "../features/portfolio/PatrimoinePage";
+import { PlanPage } from "../features/plan/PlanPage";
 import { ProjectionPage } from "../features/projection/ProjectionPage";
 import { RecurrencesPage } from "../features/recurrences/RecurrencesPage";
 import { SettingsPage } from "../features/settings/SettingsPage";
@@ -65,6 +66,7 @@ export const router = createBrowserRouter([
           { path: "transactions", element: <TransactionsPage /> },
           { path: "budgets", element: <BudgetsPage /> },
           { path: "recurrences", element: <RecurrencesPage /> },
+          { path: "plan", element: <PlanPage /> },
           { path: "tresorerie", element: <CashflowPage /> },
           { path: "analyse", element: <AnalysisPage /> },
           { path: "dettes", element: <DebtsPage /> },

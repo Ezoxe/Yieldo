@@ -26,6 +26,7 @@ from app.api import goals as goal_routes
 from app.api import imports as import_routes
 from app.api import portfolio as portfolio_routes
 from app.api import projection as projection_routes
+from app.api import plan as plan_routes
 from app.api import recurrences as recurrence_routes
 from app.api import reports as report_routes
 from app.api import simulators as simulator_routes
@@ -78,6 +79,7 @@ api.include_router(analysis_routes.router)
 api.include_router(analytics_routes.router)
 api.include_router(budget_routes.router)
 api.include_router(recurrence_routes.router)
+api.include_router(plan_routes.router)
 api.include_router(cashflow_routes.router)
 api.include_router(debt_routes.router)
 api.include_router(goal_routes.router)

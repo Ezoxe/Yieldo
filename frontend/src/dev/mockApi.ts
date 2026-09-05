@@ -296,6 +296,42 @@ function transactionsFor(params: Params) {
   };
 }
 
+/** The plan expanded over a window, and the part of it the ledger does not
+ *  already hold. Deliberately a rough echo of `engines/plan.py` rather than a
+ *  reimplementation of it: this harness exists to look at a screen, and a
+ *  second copy of the realisation rule would be a second thing to keep true. */
+function planPreviewFor(params: Params) {
+  const from = params.get("date_from") ?? MONTHS[0] + "-01";
+  const to = params.get("date_to") ?? HISTORY.date_to;
+  const planned: Record<string, unknown>[] = [];
+  for (const month of MONTHS) {
+    for (const line of PLAN_LINES) {
+      if (!line.active) continue;
+      const day = String(line.day_of_month).padStart(2, "0");
+      const on = `${month}-${day}`;
+      if (on < from || on > to) continue;
+      planned.push({
+        line_id: line.id, on, amount_cents: line.amount_cents, label: line.label,
+        category_id: line.category_id, account_id: null,
+      });
+    }
+  }
+  // The last month is the one still in progress in the preview's story, so it
+  // is the only one whose occurrences are still ahead.
+  const lastMonth = MONTHS[MONTHS.length - 1];
+  const remaining = planned.filter((item) => String(item.on).startsWith(lastMonth));
+  const total = (rows: Record<string, unknown>[]) =>
+    rows.reduce((sum, row) => sum + Number(row.amount_cents), 0);
+  return {
+    date_from: from,
+    date_to: to,
+    planned,
+    remaining,
+    planned_total_cents: total(planned),
+    remaining_total_cents: total(remaining),
+  };
+}
+
 function budgetsFor(params: Params) {
   const month = params.get("month") ?? "2026-08";
   const start = `${month}-01`;
@@ -597,6 +633,9 @@ const ROUTES: Record<string, (params: Params) => unknown> = {
     { id: 1, name: "Compte courant", kind: "checking", currency: "EUR", opening_balance_cents: 412_000, opened_on: "2025-09-01", include_in_net_worth: true, archived: false },
     { id: 2, name: "Livret A", kind: "savings", currency: "EUR", opening_balance_cents: 1_240_000, opened_on: "2023-01-01", include_in_net_worth: true, archived: false },
   ],
+  "/api/plan": () => PLAN_LINES,
+  "/api/plan/mode": () => LEDGER,
+  "/api/plan/preview": planPreviewFor,
   "/api/analytics/summary": summaryFor,
   "/api/analytics/series": seriesFor,
   "/api/analytics/categories": breakdownFor,
@@ -666,6 +705,26 @@ const ROUTES: Record<string, (params: Params) => unknown> = {
  * change in memory for the rest of the tab, which is enough to see the screen
  * behave — it is not a database.
  */
+/** The forecast plan the preview starts with: two declarations a household
+ *  really would make, so the plan screen and the three readings have something
+ *  to show without anyone typing first. */
+const PLAN_LINES: Record<string, unknown>[] = [
+  {
+    id: 1, label: "Loyer", amount_cents: -92000, kind: "fixed", category_id: 1,
+    account_id: null, periodicity: "monthly", day_of_month: 5,
+    start_on: "2025-10-01", end_on: null, match_label: "LOYER", active: true,
+    origin: "manual", notes: null,
+  },
+  {
+    id: 2, label: "Courses", amount_cents: -45000, kind: "envelope", category_id: 2,
+    account_id: null, periodicity: "monthly", day_of_month: 1,
+    start_on: "2025-10-01", end_on: null, match_label: null, active: true,
+    origin: "recurrence", notes: null,
+  },
+];
+
+const LEDGER = { mode: "real" };
+
 const MUTABLE_USER = { id: 1, email: "apercu@yieldo.local", name: "Maxime", role: "owner" };
 
 /** The harness's own agent key, with the same 24-hour shape the backend gives
@@ -878,6 +937,20 @@ const WRITES: Record<string, (body: Record<string, unknown>) => Response> = {
       manual: true,
     });
   },
+  "PUT /api/plan/mode": (body) => {
+    LEDGER.mode = String(body.mode ?? "real");
+    return jsonOk(LEDGER);
+  },
+  "POST /api/plan": (body) => {
+    const line = {
+      id: Math.max(0, ...PLAN_LINES.map((row) => Number(row.id))) + 1,
+      account_id: null, end_on: null, notes: null, origin: "manual", active: true,
+      ...body,
+    };
+    PLAN_LINES.push(line);
+    return jsonOk(line);
+  },
+  "POST /api/plan/from-recurrences": () => jsonOk({ created: [], skipped: PLAN_LINES.length }),
   "POST /api/access-key/rotate": () => {
     agentKey = mintAgentKey();
     return jsonOk(agentKey);
@@ -934,6 +1007,26 @@ export function installMockApi(): void {
           scope === null ? [] : MOCK_CHATS.filter((row) => String(row.conversation_id) !== scope);
         return new Response(null, { status: 204 });
       }
+    }
+
+    // The plan's per-line routes are the only ones in the harness keyed by an
+    // id in the path, so they are matched here rather than in the tables above.
+    const planLine = /^\/api\/plan\/(\d+)$/.exec(url.pathname);
+    if (planLine !== null && (method === "DELETE" || method === "PATCH")) {
+      const id = Number(planLine[1]);
+      const index = PLAN_LINES.findIndex((row) => Number(row.id) === id);
+      if (index === -1) {
+        return new Response(JSON.stringify({ detail: "Ligne de plan introuvable" }), {
+          status: 404, headers: { "Content-Type": "application/json" },
+        });
+      }
+      if (method === "DELETE") {
+        PLAN_LINES.splice(index, 1);
+        return new Response(null, { status: 204 });
+      }
+      const patch = init?.body ? JSON.parse(String(init.body)) : {};
+      PLAN_LINES[index] = { ...PLAN_LINES[index], ...patch };
+      return jsonOk(PLAN_LINES[index]);
     }
 
     const write = WRITES[`${method} ${url.pathname}`];

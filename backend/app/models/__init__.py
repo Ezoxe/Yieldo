@@ -14,6 +14,13 @@ from app.models.instrument import INSTRUMENT_ASSET_CLASSES, Instrument
 from app.models.investment_account import INVESTMENT_ACCOUNT_KINDS, InvestmentAccount
 from app.models.llm_settings import LlmSettings
 from app.models.lot import Lot
+from app.models.plan_line import (
+    PLAN_KINDS,
+    PLAN_ORIGINS,
+    PLAN_PERIODICITIES,
+    PlanLine,
+)
+from app.models.plan_settings import PlanSettings
 from app.models.position import Position
 from app.models.price_index import PriceIndexPoint
 from app.models.price_point import PricePoint
@@ -25,12 +32,14 @@ from app.models.user import User
 
 __all__ = [
     "ACCOUNT_KINDS", "CATEGORY_KINDS", "CHALLENGE_STATES", "DEBT_KINDS",
-    "INSTRUMENT_ASSET_CLASSES", "INVESTMENT_ACCOUNT_KINDS", "MARKET_PROVIDERS", "RULE_ORIGINS",
+    "INSTRUMENT_ASSET_CLASSES", "INVESTMENT_ACCOUNT_KINDS", "MARKET_PROVIDERS",
+    "PLAN_KINDS", "PLAN_ORIGINS", "PLAN_PERIODICITIES", "RULE_ORIGINS",
     "RULE_PRIORITIES", "SCENARIO_KINDS", "TRANSACTION_CATEGORY_SOURCES",
     "Account", "AgentKey", "AlertSettings", "AllocationTarget", "ApiKey", "Category", "CategoryRule",
     "Challenge",
     "ChatMessage", "ColumnProfile", "Debt",
     "Goal", "HealthSnapshot", "ImportBatch", "Instrument", "InvestmentAccount", "LlmSettings",
-    "Lot", "Position", "PriceIndexPoint", "PricePoint", "QuotaWindow", "Scenario", "Transaction",
+    "Lot", "PlanLine", "PlanSettings", "Position", "PriceIndexPoint", "PricePoint", "QuotaWindow",
+    "Scenario", "Transaction",
     "User",
 ]

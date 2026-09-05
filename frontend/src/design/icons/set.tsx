@@ -309,6 +309,22 @@ export function CalendarIcon(props: IconProps) {
 }
 
 /** Something out of the ordinary, worth a look but not a failure. */
+/** The forecast plan: a calendar with a clock over it — dates that are known
+ *  before they arrive. Deliberately not `CalendarIcon`, which stands for the
+ *  spending calendar (what already happened, day by day). */
+export function PlanIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M20 11V6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h6" />
+      <path d="M3 9h17" />
+      <path d="M8 3v3" />
+      <path d="M15 3v3" />
+      <circle cx="17.5" cy="17.5" r="4.5" />
+      <path d="M17.5 15.5v2l1.3 1.3" />
+    </Icon>
+  );
+}
+
 export function AnomalyIcon(props: IconProps) {
   return (
     <Icon {...props}>

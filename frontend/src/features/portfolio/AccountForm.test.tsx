@@ -12,7 +12,7 @@ const EXISTING: InvestmentAccount = {
   kind: "pea",
   currency: "EUR",
   opened_on: "2019-04-01",
-  archived: false,
+  archived: false, declared_value_cents: null, declared_value_on: null,
 };
 
 afterEach(() => {
@@ -36,7 +36,7 @@ describe("AccountForm", () => {
         name: "PEA Boursorama",
         kind: "pea",
         currency: "EUR",
-        opened_on: "2019-04-01",
+        opened_on: "2019-04-01", declared_value_cents: null, declared_value_on: null,
       });
     });
     expect(onSaved).toHaveBeenCalled();
@@ -59,7 +59,7 @@ describe("AccountForm", () => {
         name: "PEA BoursoBank",
         kind: "pea",
         currency: "EUR",
-        opened_on: "2019-04-01",
+        opened_on: "2019-04-01", declared_value_cents: null, declared_value_on: null,
       });
     });
   });
@@ -114,7 +114,7 @@ describe("AccountForm", () => {
         name: "Kraken",
         kind: "crypto_exchange",
         currency: "USD",
-        opened_on: null,
+        opened_on: null, declared_value_cents: null, declared_value_on: null,
       });
     });
   });

@@ -1,6 +1,6 @@
 import { formatCents } from "../../design/theme";
 import { plural } from "../../lib/plural";
-import type { PortfolioTotal } from "../../lib/types";
+import type { DeclaredHolding, PortfolioTotal } from "../../lib/types";
 
 /**
  * What the portfolio is worth, and — inseparably — what it could not value.
@@ -18,12 +18,29 @@ import type { PortfolioTotal } from "../../lib/types";
  * the figure is not the portfolio's worth — it is a floor — and the sentence
  * says so in those words rather than leaving the reader to infer it.
  */
+/** "au 31 août 2026", or nothing at all when the household did not say. The
+ *  date is never invented: a declared amount with no date is reported without
+ *  one rather than dressed up as today's. */
+export function declaredOnSentence(declaredOn: string | null): string {
+  if (declaredOn === null) return "";
+  return ` au ${new Date(`${declaredOn}T00:00:00Z`).toLocaleDateString("fr-FR", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  })}`;
+}
+
 export function TotalPanel({
   total,
   reportingCurrency,
+  declared = [],
+  declaredTotalCents = 0,
 }: {
   total: PortfolioTotal;
   reportingCurrency: string;
+  declared?: DeclaredHolding[];
+  declaredTotalCents?: number;
 }) {
   const incomplete = total.positions_missing_price + total.positions_missing_fx > 0;
   const gain = total.unrealised_gain_cents;
@@ -41,6 +58,27 @@ export function TotalPanel({
           {`en ${reportingCurrency}, devises converties au taux du jour`}
         </p>
       </div>
+
+      {/* The declared half of the figure above, itemised. Printed only when
+          there is one, and never merged into the position counts below: a
+          declared envelope was not valued from a price, so counting it as a
+          "position valorisée" would overstate what the application measured. */}
+      {declaredTotalCents !== 0 ? (
+        <div className="yd-ptotal__declared" data-testid="yd-portfolio-declared">
+          <p className="yd-ptotal__declared-head">
+            {`Dont ${formatCents(declaredTotalCents)} déclarés par vous, sans position en face :`}
+          </p>
+          <ul className="yd-ptotal__declared-list">
+            {declared.map((holding) => (
+              <li key={holding.account_id}>
+                {`${holding.name} — `}
+                <span className="yd-num">{formatCents(holding.value_cents)}</span>
+                {declaredOnSentence(holding.declared_on)}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
 
       {/* Always printed, on every branch. See the component docstring. */}
       <p className="yd-ptotal__completeness" data-testid="yd-portfolio-completeness">

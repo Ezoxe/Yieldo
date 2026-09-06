@@ -1,6 +1,6 @@
 from datetime import date
 
-from sqlalchemy import Boolean, Date, ForeignKey, String, text
+from sqlalchemy import Boolean, Date, ForeignKey, Integer, String, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db import Base
@@ -44,3 +44,18 @@ class InvestmentAccount(Base):
     archived: Mapped[bool] = mapped_column(
         Boolean, default=False, server_default=text("0"), nullable=False
     )
+    # What the household says this envelope holds beyond its declared positions:
+    # a fonds euros inside an assurance-vie, a PER, an unlisted contract. There
+    # is a real amount in there and no quoted instrument to hang it on, and a
+    # `Position` needs an `Instrument`.
+    #
+    # It is NOT a stored total of the positions -- the class docstring above
+    # still holds, and `api/portfolio.get_valuation` reports the two apart so a
+    # reader can always see which half was measured from prices. Nullable so an
+    # envelope whose positions come to cover everything it holds can stop
+    # declaring a second figure rather than counting both for ever.
+    declared_value_cents: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # The day the figure was read off a statement. A declared amount without a
+    # date silently rots into a claim about today; with one, the screen can say
+    # how old it is.
+    declared_value_on: Mapped[date | None] = mapped_column(Date, nullable=True)

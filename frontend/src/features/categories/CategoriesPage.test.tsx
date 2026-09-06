@@ -29,7 +29,7 @@ function jsonResponse(body: unknown, status = 200) {
 
 beforeEach(() => {
   fetchMock.mockReset();
-  fetchMock.mockImplementation((input: string, init?: RequestInit) => {
+  fetchMock.mockImplementation((_input: string, init?: RequestInit) => {
     const method = init?.method ?? "GET";
     if (method === "GET") return Promise.resolve(jsonResponse(categories));
     return Promise.resolve(jsonResponse(categories[0]));

@@ -50,8 +50,28 @@ type Editing =
   | { kind: "lot"; positionId: number; symbol: string; lot?: Lot }
   | null;
 
+/**
+ * What deleting an envelope for good actually takes.
+ *
+ * Archiving is the right answer for a closed contract and the wrong one for an
+ * envelope created by mistake: the account stayed in the archived list for
+ * ever. `?purge=true` removes it with its positions and their lots, so the
+ * question has to name every row that goes -- an "are you sure" that
+ * understates what it deletes is worse than none.
+ */
+function purgeQuestion(name: string, positionCount: number, lotCount: number): string {
+  const head = `Supprimer définitivement « ${name} » ?`;
+  if (positionCount === 0) {
+    return `${head} L'enveloppe disparaît de Yieldo. Elle ne détient aucune position. Cette action est irréversible.`;
+  }
+  const positions =
+    positionCount === 1 ? "la position qu'elle détient" : `les ${positionCount} positions qu'elle détient`;
+  const lots = lotCount === 1 ? "son lot" : `leurs ${lotCount} lots`;
+  return `${head} L'enveloppe, ${positions} et ${lots} sont effacés de Yieldo. Cette action est irréversible : rien ne sera réactivable.`;
+}
+
 type Pending =
-  | { kind: "account"; id: number; question: string }
+  | { kind: "account"; id: number; question: string; purge?: boolean }
   | { kind: "position"; id: number; question: string }
   | { kind: "lot"; id: number; question: string }
   | null;
@@ -117,7 +137,10 @@ export function PortfolioEditor({
   async function confirmPending() {
     if (pending === null) return;
     try {
-      await api.delete(`${ENDPOINT[pending.kind]}/${pending.id}`);
+      const purging = pending.kind === "account" && pending.purge === true;
+      await api.delete(
+        `${ENDPOINT[pending.kind]}/${pending.id}${purging ? "?purge=true" : ""}`,
+      );
       setPending(null);
       setError(null);
       onChanged();
@@ -363,6 +386,26 @@ export function PortfolioEditor({
               <span className="sr-only">{`Archiver ${account.name}`}</span>
               <ArchiveIcon />
               <span aria-hidden="true">Archiver</span>
+            </button>
+            <button
+              type="button"
+              className="yd-editor__action yd-editor__action--danger"
+              onClick={() =>
+                setPending({
+                  kind: "account",
+                  id: account.id,
+                  purge: true,
+                  question: purgeQuestion(
+                    account.name,
+                    own.length,
+                    own.reduce((count, position) => count + lotsOf(position.position_id).length, 0),
+                  ),
+                })
+              }
+            >
+              <span className="sr-only">{`Supprimer définitivement ${account.name}`}</span>
+              <TrashIcon />
+              <span aria-hidden="true">Supprimer</span>
             </button>
           </div>
         </div>

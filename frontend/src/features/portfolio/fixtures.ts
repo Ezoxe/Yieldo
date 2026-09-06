@@ -63,6 +63,8 @@ export const NO_KEY_CONNECTIONS: Connection[] = [
 
 export const EMPTY_VALUATION: PortfolioValuation = {
   reporting_currency: "EUR",
+    declared: [],
+    declared_total_cents: 0,
   positions: [],
   total: {
     market_value_cents: 0,
@@ -126,6 +128,8 @@ export function position(overrides: Partial<PositionValuation> = {}): PositionVa
  *  pass by treating any two of them the same way. */
 export const MIXED_VALUATION: PortfolioValuation = {
   reporting_currency: "EUR",
+    declared: [],
+    declared_total_cents: 0,
   positions: [
     position(),
     position({

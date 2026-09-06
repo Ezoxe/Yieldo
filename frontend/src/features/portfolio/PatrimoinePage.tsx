@@ -254,7 +254,12 @@ export function PatrimoinePage() {
               {...entryProps(reduced)}
             >
               <PanelHead icon={PortfolioIcon}>Valeur du portefeuille</PanelHead>
-              <TotalPanel total={total} reportingCurrency={valuation.reporting_currency} />
+              <TotalPanel
+                total={total}
+                reportingCurrency={valuation.reporting_currency}
+                declared={valuation.declared}
+                declaredTotalCents={valuation.declared_total_cents}
+              />
             </BentoCell>
 
             {marketCell}

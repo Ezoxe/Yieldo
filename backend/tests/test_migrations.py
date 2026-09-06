@@ -455,8 +455,17 @@ PHASE_3_TABLES = {
     "price_points", "api_keys", "quota_windows",
 }
 
+# `investment_accounts` is compared against the models at the LATER revision
+# that last touched it (see DECLARED_VALUE_REVISION at the bottom of this file).
+# `_reference_schema` reads today's models, so a table any later migration alters
+# can only match at the revision where that alteration lands -- comparing it at
+# 5fa05f976fab would assert the models never changed again.
+PHASE_3_TABLES_ALTERED_LATER = {"investment_accounts"}
 
-@pytest.mark.parametrize("table", sorted(PHASE_3_TABLES))
+
+@pytest.mark.parametrize(
+    "table", sorted(PHASE_3_TABLES - PHASE_3_TABLES_ALTERED_LATER)
+)
 def test_the_phase_3_migration_matches_base_metadata_exactly(migration_db, table):
     """Same independent-source-of-truth comparison as the phase 2C test
     above, extended to all seven of this migration's tables: the hand-written
@@ -1537,16 +1546,13 @@ def test_the_plan_migration_is_reversible(migration_db):
 AGENT_LOOP_REVISION = "a93be2c05f18"
 
 
-def test_the_agent_migration_is_the_single_head(migration_db):
-    """`heads` and `head` must be the same single revision — two heads is a
-    database Alembic cannot upgrade without a merge, and nothing else in this
-    suite would notice. This assertion moves to the newest migration each time
-    one is added."""
+def test_the_agent_migration_stays_reachable(migration_db):
+    """It is no longer the head — `test_the_declared_value_migration_is_the_single_head`
+    owns that assertion now — but it must still be reachable from it."""
     from alembic.script import ScriptDirectory
 
     script = ScriptDirectory.from_config(migration_db.config)
-    assert len(script.get_heads()) == 1
-    assert script.get_current_head() == AGENT_LOOP_REVISION
+    assert AGENT_LOOP_REVISION in {rev.revision for rev in script.walk_revisions()}
 
 
 @pytest.mark.parametrize("table", ["agent_runs", "agent_steps", "agent_proposals"])
@@ -1629,3 +1635,66 @@ def test_deleting_a_user_takes_their_runs_and_proposals_with_them(migration_db):
     assert conn.execute("SELECT COUNT(*) FROM agent_runs").fetchone()[0] == 0
     assert conn.execute("SELECT COUNT(*) FROM agent_proposals").fetchone()[0] == 0
     conn.close()
+
+
+DECLARED_VALUE_REVISION = "b7d41e9c2a68"
+
+
+def test_the_declared_value_migration_is_the_single_head(migration_db):
+    """`heads` and `head` must be the same single revision — two heads is a
+    database Alembic cannot upgrade without a merge, and nothing else in this
+    suite would notice. This assertion moves to the newest migration each time
+    one is added."""
+    from alembic.script import ScriptDirectory
+
+    script = ScriptDirectory.from_config(migration_db.config)
+    assert len(script.get_heads()) == 1
+    assert script.get_current_head() == DECLARED_VALUE_REVISION
+
+
+def test_the_declared_value_migration_matches_base_metadata_exactly(migration_db):
+    """`investment_accounts` after b7d41e9c2a68 must be exactly what
+    `models/investment_account.py` describes — the same independent-source-of-
+    truth comparison the phase 3 tables get, moved to the revision that now
+    owns this table's shape."""
+    command.upgrade(migration_db.config, DECLARED_VALUE_REVISION)
+
+    conn = _connect(migration_db)
+    migrated_columns = _table_columns(conn, "investment_accounts")
+    migrated_indexes = _index_names(conn, "investment_accounts")
+    conn.close()
+
+    reference_columns, reference_indexes = _reference_schema("investment_accounts")
+    assert migrated_columns == reference_columns
+    assert migrated_indexes == reference_indexes
+
+
+def test_the_declared_columns_land_on_a_populated_table(migration_db):
+    """Run the real `upgrade()` over an envelope that already exists: an
+    operator's database has rows in it, and a column added with a NOT NULL and
+    no default would fail there and nowhere else."""
+    command.upgrade(migration_db.config, AGENT_LOOP_REVISION)
+    conn = _connect(migration_db)
+    conn.execute(
+        "INSERT INTO users (id, email, name, password_hash, role, is_active, created_at) "
+        "VALUES (1, 'a@b.fr', 'Max', 'x', 'user', 1, '2026-01-01T00:00:00')"
+    )
+    conn.execute(
+        "INSERT INTO investment_accounts (id, user_id, name, kind, currency, archived) "
+        "VALUES (1, 1, 'MACIF', 'assurance_vie', 'EUR', 0)"
+    )
+    conn.commit()
+    conn.close()
+
+    command.upgrade(migration_db.config, DECLARED_VALUE_REVISION)
+
+    conn = _connect(migration_db)
+    row = list(
+        conn.execute(
+            "SELECT declared_value_cents, declared_value_on FROM investment_accounts"
+        )
+    )
+    conn.close()
+    # An envelope that existed before the column declares nothing, which is the
+    # only honest value: it never said what it holds.
+    assert row == [(None, None)]

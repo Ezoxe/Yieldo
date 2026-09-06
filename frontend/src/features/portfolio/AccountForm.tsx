@@ -44,7 +44,30 @@ function openingDateConsequence(kind: string, openedOn: string): string | null {
   return null;
 }
 
-type FieldName = "name" | "kind" | "currency" | "opened";
+type FieldName = "name" | "kind" | "currency" | "opened" | "declared" | "declaredOn";
+
+/**
+ * A euro amount typed by a person, as integer cents. Null for an empty field,
+ * which is what "this envelope declares nothing" stores; undefined for
+ * something that cannot be read at all.
+ *
+ * The two must never collapse: a typo that quietly cleared a declared amount
+ * would take thousands of euros off the portfolio total without a word.
+ */
+export function parseDeclaredAmount(input: string): number | null | undefined {
+  const trimmed = input.trim();
+  if (trimmed === "") return null;
+  const cleaned = trimmed.replace(/\s/g, "").replace(",", ".");
+  if (!/^\d{1,12}(\.\d{1,2})?$/.test(cleaned)) return undefined;
+  const [whole, fraction = ""] = cleaned.split(".");
+  return Number(whole) * 100 + Number(`${fraction}00`.slice(0, 2));
+}
+
+/** Stored cents, back into the field. */
+export function declaredAmountInput(cents: number | null): string {
+  if (cents === null) return "";
+  return `${Math.trunc(cents / 100)},${String(cents % 100).padStart(2, "0")}`;
+}
 
 interface AccountFormProps {
   /** Absent for a creation; the envelope being amended otherwise. */
@@ -68,6 +91,10 @@ export function AccountForm({ account, onSaved, onCancel }: AccountFormProps) {
   const [kind, setKind] = useState(account?.kind ?? "cto");
   const [currency, setCurrency] = useState(account?.currency ?? "EUR");
   const [openedOn, setOpenedOn] = useState(account?.opened_on ?? "");
+  const [declared, setDeclared] = useState(
+    declaredAmountInput(account?.declared_value_cents ?? null),
+  );
+  const [declaredOn, setDeclaredOn] = useState(account?.declared_value_on ?? "");
   const [fieldErrors, setFieldErrors] = useState<Partial<Record<FieldName, string>>>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -104,6 +131,16 @@ export function AccountForm({ account, onSaved, onCancel }: AccountFormProps) {
       errors.opened = "Date illisible : attendue au format AAAA-MM-JJ.";
     }
 
+    const declaredCents = parseDeclaredAmount(declared);
+    if (declaredCents === undefined) {
+      errors.declared =
+        "Montant illisible : un nombre positif, avec au plus deux décimales. Laissez vide si cette enveloppe ne déclare aucun montant.";
+    }
+
+    if (declaredOn.length > 0 && !/^\d{4}-\d{2}-\d{2}$/.test(declaredOn)) {
+      errors.declaredOn = "Date illisible : attendue au format AAAA-MM-JJ.";
+    }
+
     if (Object.keys(errors).length > 0) return { errors };
     return {
       payload: {
@@ -116,6 +153,10 @@ export function AccountForm({ account, onSaved, onCancel }: AccountFormProps) {
         // empty string is a 422. Clearing an unknown opening date is a
         // legitimate edit (`InvestmentAccountPatch` leaves it nullable).
         opened_on: openedOn.length > 0 ? openedOn : null,
+        // Null, never 0: "declares nothing" and "declares zero euros" are two
+        // different statements, and the column keeps them apart.
+        declared_value_cents: declaredCents ?? null,
+        declared_value_on: declaredOn.length > 0 ? declaredOn : null,
       },
     };
   }
@@ -213,9 +254,47 @@ export function AccountForm({ account, onSaved, onCancel }: AccountFormProps) {
         />
       </Field>
 
+      <Field
+        id={fieldId("declared")}
+        label="Montant déclaré (€, facultatif)"
+        error={fieldErrors.declared}
+        hint="Ce que cette enveloppe contient et qu'aucune position ne décrit : un fonds euros, un contrat sans titre coté. Ce montant s'ajoute au total du patrimoine, à part des positions — il n'est jamais compté comme une plus-value."
+      >
+        <input
+          {...fieldAria(fieldId("declared"), fieldErrors.declared)}
+          type="text"
+          inputMode="decimal"
+          className="yd-num"
+          value={declared}
+          onChange={(event) => {
+            setDeclared(event.target.value);
+            clearField("declared");
+          }}
+          placeholder="14 500,00"
+        />
+      </Field>
+
+      <Field
+        id={fieldId("declaredOn")}
+        label="Montant relevé le (facultatif)"
+        error={fieldErrors.declaredOn}
+        hint="Le jour où vous avez lu ce montant sur votre relevé. Sans lui, l'écran ne peut pas dire de quand il date — il ne prétendra jamais qu'il est d'aujourd'hui."
+      >
+        <input
+          {...fieldAria(fieldId("declaredOn"), fieldErrors.declaredOn)}
+          type="date"
+          value={declaredOn}
+          onChange={(event) => {
+            setDeclaredOn(event.target.value);
+            clearField("declaredOn");
+          }}
+        />
+      </Field>
+
       <p className="yd-pform__note">
         Un compte d'investissement est une enveloppe : il ne porte aucun solde propre. Sa valeur est
-        celle des positions qu'il contient, recalculée à partir de leurs lots.
+        celle des positions qu'il contient, recalculée à partir de leurs lots — plus le montant
+        déclaré ci-dessus, s'il y en a un.
       </p>
 
       {formError !== null ? (

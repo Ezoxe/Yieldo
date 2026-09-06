@@ -1524,9 +1524,24 @@ export interface PortfolioTotal {
   positions_missing_fx: number;
 }
 
+// An amount declared on an envelope, reported apart from the positions: a
+// figure copied off a statement and a figure computed from a quoted price are
+// two different kinds of number.
+export interface DeclaredHolding {
+  account_id: number;
+  name: string;
+  kind: string;
+  value_cents: number;
+  declared_on: string | null;
+}
+
 export interface PortfolioValuation {
   reporting_currency: string;
   positions: PositionValuation[];
+  // `total.market_value_cents` already includes `declared_total_cents`; these
+  // two say how much of it was measured and how much was declared.
+  declared: DeclaredHolding[];
+  declared_total_cents: number;
   total: PortfolioTotal;
   weight_by_instrument: WeightedGroup[];
   weight_by_asset_class: WeightedGroup[];
@@ -1609,6 +1624,11 @@ export interface InvestmentAccount {
    *  holding-period rules count from this date, never from a lot's. */
   opened_on: string | null;
   archived: boolean;
+  // What the household says this envelope holds beyond its positions -- a
+  // fonds euros, a contract with no quoted instrument. Null means it declares
+  // nothing, which is not the same statement as zero.
+  declared_value_cents: number | null;
+  declared_value_on: string | null;
 }
 
 export interface InvestmentAccountIn {
@@ -1616,6 +1636,8 @@ export interface InvestmentAccountIn {
   kind: string;
   currency: string;
   opened_on: string | null;
+  declared_value_cents: number | null;
+  declared_value_on: string | null;
 }
 
 /** `POST /api/portfolio/instruments` — a find-or-create keyed on

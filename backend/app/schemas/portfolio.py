@@ -63,11 +63,28 @@ class InstrumentOut(BaseModel):
     is_fractionable: bool
 
 
+def _not_in_the_future(value: date | None) -> date | None:
+    """A statement cannot have been read tomorrow. Applied to the declared
+    valuation date only: `opened_on` is historical by nature and a future one is
+    already impossible for a different reason."""
+    if value is not None and value > date.today():
+        raise ValueError("La date de valorisation ne peut pas être dans le futur")
+    return value
+
+
 class InvestmentAccountIn(BaseModel):
     name: str = Field(min_length=1, max_length=120)
     kind: str
     currency: str = Field(default="EUR", min_length=3, max_length=3)
     opened_on: date | None = None
+    # See `models/investment_account.InvestmentAccount.declared_value_cents`.
+    declared_value_cents: int | None = Field(default=None, ge=0)
+    declared_value_on: date | None = None
+
+    @field_validator("declared_value_on")
+    @classmethod
+    def _declared_on_is_not_future(cls, value: date | None) -> date | None:
+        return _not_in_the_future(value)
 
 
 class InvestmentAccountPatch(BaseModel):
@@ -76,11 +93,19 @@ class InvestmentAccountPatch(BaseModel):
     currency: str | None = Field(default=None, min_length=3, max_length=3)
     # opened_on stays out of the guard below: it is the one nullable column
     # on InvestmentAccount, and clearing it (an unknown opening date) is a
-    # legitimate edit.
+    # legitimate edit. The two declared columns are nullable for the same kind
+    # of reason -- an envelope must be able to stop declaring an amount.
     opened_on: date | None = None
+    declared_value_cents: int | None = Field(default=None, ge=0)
+    declared_value_on: date | None = None
     archived: bool | None = None
 
     _no_null = not_nullable("name", "kind", "currency", "archived")
+
+    @field_validator("declared_value_on")
+    @classmethod
+    def _declared_on_is_not_future(cls, value: date | None) -> date | None:
+        return _not_in_the_future(value)
 
 
 class InvestmentAccountOut(BaseModel):
@@ -91,6 +116,8 @@ class InvestmentAccountOut(BaseModel):
     kind: str
     currency: str
     opened_on: date | None
+    declared_value_cents: int | None
+    declared_value_on: date | None
     archived: bool
 
 
@@ -194,11 +221,31 @@ class PortfolioTotalOut(BaseModel):
     positions_missing_fx: int
 
 
+class DeclaredHoldingOut(BaseModel):
+    """An amount the household declared on an envelope, reported on its own.
+
+    Never merged into `positions`: a figure copied off a statement and a figure
+    computed from a quoted price are two different kinds of number, and a screen
+    that could not tell them apart would present both as measured.
+    """
+
+    account_id: int
+    name: str
+    kind: str
+    value_cents: int
+    declared_on: date | None
+
+
 class PortfolioValuationOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     reporting_currency: str
     positions: list[PositionValuationOut]
+    # The declared half of the total, itemised. `total.market_value_cents`
+    # already includes `declared_total_cents`; these two say how much of it was
+    # measured from prices and how much was declared.
+    declared: list[DeclaredHoldingOut]
+    declared_total_cents: int
     total: PortfolioTotalOut
     weight_by_instrument: list[WeightedGroupOut]
     weight_by_asset_class: list[WeightedGroupOut]

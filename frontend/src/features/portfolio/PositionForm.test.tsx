@@ -7,8 +7,8 @@ import type { InvestmentAccount } from "../../lib/types";
 import { PositionForm } from "./PositionForm";
 
 const ACCOUNTS: InvestmentAccount[] = [
-  { id: 4, name: "PEA Boursorama", kind: "pea", currency: "EUR", opened_on: null, archived: false },
-  { id: 9, name: "Kraken", kind: "crypto_exchange", currency: "EUR", opened_on: null, archived: false },
+  { id: 4, name: "PEA Boursorama", kind: "pea", currency: "EUR", opened_on: null, archived: false, declared_value_cents: null, declared_value_on: null },
+  { id: 9, name: "Kraken", kind: "crypto_exchange", currency: "EUR", opened_on: null, archived: false, declared_value_cents: null, declared_value_on: null },
 ];
 
 afterEach(() => {

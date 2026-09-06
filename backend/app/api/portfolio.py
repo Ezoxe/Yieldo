@@ -83,6 +83,7 @@ from app.schemas.portfolio import (
     AllocationReportOut,
     AllocationTargetOut,
     AllocationTargetsIn,
+    DeclaredHoldingOut,
     InstrumentIn,
     InstrumentOut,
     InvestmentAccountIn,
@@ -239,12 +240,44 @@ def patch_account(
 
 @router.delete("/accounts/{account_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_account(
-    account_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)
+    account_id: int,
+    purge: bool = Query(default=False),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
 ) -> None:
-    """Archiving, not deleting: matches `Debt`/`Goal` -- a closed account is
-    still part of the household's history."""
+    """Archiving by default, matching `Debt`/`Goal`: a closed envelope is still
+    part of the household's history.
+
+    `?purge=true` deletes it outright, with its positions and their lots. That
+    exists because archiving is the wrong answer to an envelope created by
+    mistake -- it stayed in the archived list for ever with no way out, and a
+    household that typed a name twice had no way to take the second one back.
+
+    The rows are removed here rather than left to the FKs' ON DELETE CASCADE:
+    SQLite only enforces those with `PRAGMA foreign_keys` on, and a purge that
+    silently left orphaned lots behind on one backend and not another would be
+    the worst possible kind of half-delete.
+    """
     account = _owned_account(db, user, account_id)
-    account.archived = True
+    if not purge:
+        account.archived = True
+        db.commit()
+        return
+
+    position_ids = [
+        row.id
+        for row in db.query(Position.id)
+        .filter(Position.user_id == user.id, Position.investment_account_id == account.id)
+        .all()
+    ]
+    if position_ids:
+        db.query(Lot).filter(
+            Lot.user_id == user.id, Lot.position_id.in_(position_ids)
+        ).delete(synchronize_session=False)
+        db.query(Position).filter(
+            Position.user_id == user.id, Position.id.in_(position_ids)
+        ).delete(synchronize_session=False)
+    db.delete(account)
     db.commit()
 
 
@@ -610,11 +643,55 @@ def valuation_inputs(
 @router.get("/valuation", response_model=PortfolioValuationOut)
 def get_valuation(
     user: User = Depends(get_current_user), db: Session = Depends(get_db)
-) -> portfolio_engine.PortfolioValuation:
+) -> PortfolioValuationOut:
+    """The positions, valued by the engine — plus the amounts the household
+    declared on its envelopes, which the engine never sees.
+
+    The declared half is assembled here rather than pushed into
+    `engines/portfolio`: it is a sum of stored figures with no calculation in
+    it, and giving the engine a second kind of holding would make every
+    price-completeness count in `PortfolioTotal` ambiguous. It is added to
+    `market_value_cents` and to nothing else — a figure copied off a statement
+    has no cost basis, so folding it into `cost_basis_cents` would invent a gain
+    or a loss out of nothing.
+
+    The weights are deliberately left alone too: they answer "how is what I hold
+    spread across instruments, asset classes and currencies", and a declared
+    envelope names none of the three.
+    """
     now = datetime.now(UTC)
     reporting_currency = portfolio_engine.DEFAULT_REPORTING_CURRENCY
     inputs = valuation_inputs(db, user, now, reporting_currency)
-    return portfolio_engine.value_portfolio(inputs, reporting_currency)
+    valued = portfolio_engine.value_portfolio(inputs, reporting_currency)
+
+    declared_rows = (
+        db.query(InvestmentAccount)
+        .filter(
+            InvestmentAccount.user_id == user.id,
+            InvestmentAccount.archived.is_(False),
+            InvestmentAccount.declared_value_cents.isnot(None),
+        )
+        .order_by(InvestmentAccount.id)
+        .all()
+    )
+    declared = [
+        DeclaredHoldingOut(
+            account_id=row.id, name=row.name, kind=row.kind,
+            value_cents=row.declared_value_cents or 0,
+            declared_on=row.declared_value_on,
+        )
+        for row in declared_rows
+    ]
+    declared_total = sum(row.value_cents for row in declared)
+
+    body = PortfolioValuationOut.model_validate(
+        {**valued.__dict__, "declared": declared, "declared_total_cents": declared_total}
+    )
+    return body.model_copy(update={
+        "total": body.total.model_copy(update={
+            "market_value_cents": body.total.market_value_cents + declared_total,
+        }),
+    })
 
 
 # --- Target allocation, drift and the trades that would close it.

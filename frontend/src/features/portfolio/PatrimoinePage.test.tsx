@@ -16,7 +16,7 @@ import { PatrimoinePage } from "./PatrimoinePage";
 /** The two envelopes and the two lots the mixed fixture's positions hang off,
  *  so the declaration panel has something real to list. */
 const ACCOUNTS: InvestmentAccount[] = [
-  { id: 1, name: "CTO Boursorama", kind: "cto", currency: "EUR", opened_on: null, archived: false },
+  { id: 1, name: "CTO Boursorama", kind: "cto", currency: "EUR", opened_on: null, archived: false, declared_value_cents: null, declared_value_on: null },
 ];
 
 const LOTS: Lot[] = [
@@ -164,7 +164,7 @@ describe("PatrimoinePage — the operator's own state: no position, no key", () 
       kind: "pea",
       currency: "EUR",
       opened_on: null,
-      archived: false,
+      archived: false, declared_value_cents: null, declared_value_on: null,
     });
     const user = userEvent.setup();
     render(<PatrimoinePage />);

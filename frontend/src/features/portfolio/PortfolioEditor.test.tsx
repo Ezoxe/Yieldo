@@ -13,9 +13,9 @@ const ACCOUNTS: InvestmentAccount[] = [
     kind: "pea",
     currency: "EUR",
     opened_on: "2019-04-01",
-    archived: false,
+    archived: false, declared_value_cents: null, declared_value_on: null,
   },
-  { id: 9, name: "Kraken", kind: "crypto_exchange", currency: "EUR", opened_on: null, archived: false },
+  { id: 9, name: "Kraken", kind: "crypto_exchange", currency: "EUR", opened_on: null, archived: false, declared_value_cents: null, declared_value_on: null },
 ];
 
 function position(overrides: Partial<PositionValuation>): PositionValuation {
@@ -186,7 +186,7 @@ describe("PortfolioEditor", () => {
     renderEditor({
       onChanged,
       archivedAccounts: [
-        { id: 12, name: "Ancien PEA", kind: "pea", currency: "EUR", opened_on: null, archived: true },
+        { id: 12, name: "Ancien PEA", kind: "pea", currency: "EUR", opened_on: null, archived: true, declared_value_cents: null, declared_value_on: null },
       ],
     });
 

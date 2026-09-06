@@ -143,7 +143,13 @@ const HISTORY = {
   transaction_count: ROWS.length,
 };
 
-const CATEGORY_PAYLOAD = CATEGORIES.map((c) => ({
+// Mutable for the rest of the tab: the Catégories screen renames, recolours,
+// re-budgets, adds and removes, and every screen reading /api/categories sees
+// the result.
+const CATEGORY_PAYLOAD: {
+  id: number; parent_id: number | null; name: string; slug: string; kind: string;
+  color: string; icon: string; monthly_budget_cents: number | null; is_essential: boolean;
+}[] = CATEGORIES.map((c) => ({
   id: c.id,
   parent_id: null,
   name: c.name,
@@ -995,6 +1001,24 @@ const WRITES: Record<string, (body: Record<string, unknown>) => Response> = {
   // A hand-typed operation joins ROWS for the rest of the tab, exactly where
   // its date puts it, so every screen recomputes around it the way the real
   // backend would.
+  "POST /api/categories": (body) => {
+    const payload = body as {
+      name: string; parent_id: number | null; kind: string; color: string;
+    };
+    const category = {
+      id: Math.max(...CATEGORY_PAYLOAD.map((row) => row.id)) + 1,
+      parent_id: payload.parent_id,
+      name: payload.name,
+      slug: payload.name.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+      kind: payload.kind,
+      color: payload.color,
+      icon: "circle",
+      monthly_budget_cents: null,
+      is_essential: false,
+    };
+    CATEGORY_PAYLOAD.push(category);
+    return jsonOk(category);
+  },
   "POST /api/accounts": (body) => {
     const payload = body as { name: string; kind: string; opening_balance_cents: number };
     const account = {
@@ -1233,6 +1257,28 @@ export function installMockApi(): void {
         account.include_in_net_worth = patch.include_in_net_worth;
       }
       return jsonOk(account);
+    }
+
+    const categoryRow = /^\/api\/categories\/(\d+)$/.exec(url.pathname);
+    if (categoryRow !== null && (method === "PATCH" || method === "DELETE")) {
+      const id = Number(categoryRow[1]);
+      const index = CATEGORY_PAYLOAD.findIndex((row) => row.id === id);
+      if (index === -1) {
+        return new Response(JSON.stringify({ detail: "Catégorie introuvable" }), {
+          status: 404, headers: { "Content-Type": "application/json" },
+        });
+      }
+      if (method === "DELETE") {
+        // The children go with the parent, exactly as the real route does.
+        const doomed = new Set([id, ...CATEGORY_PAYLOAD.filter((r) => r.parent_id === id).map((r) => r.id)]);
+        for (let at = CATEGORY_PAYLOAD.length - 1; at >= 0; at -= 1) {
+          if (doomed.has(CATEGORY_PAYLOAD[at].id)) CATEGORY_PAYLOAD.splice(at, 1);
+        }
+        return new Response(null, { status: 204 });
+      }
+      const patch = (init?.body ? JSON.parse(String(init.body)) : {}) as Record<string, unknown>;
+      CATEGORY_PAYLOAD[index] = { ...CATEGORY_PAYLOAD[index], ...patch };
+      return jsonOk(CATEGORY_PAYLOAD[index]);
     }
 
     const write = WRITES[`${method} ${url.pathname}`];

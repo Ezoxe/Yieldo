@@ -22,20 +22,11 @@ import { PlanPage } from "../features/plan/PlanPage";
 import { ProposalsPage } from "../features/agent/ProposalsPage";
 import { ProjectionPage } from "../features/projection/ProjectionPage";
 import { RecurrencesPage } from "../features/recurrences/RecurrencesPage";
+import { CategoriesPage } from "../features/categories/CategoriesPage";
 import { SettingsPage } from "../features/settings/SettingsPage";
 import { SimulatorsPage } from "../features/simulators/SimulatorsPage";
 import { TransactionsPage } from "../features/transactions/TransactionsPage";
 import { AppShellRoute, HomeRoute } from "./HomeRoute";
-
-// Placeholder screen for the one route whose real implementation is still
-// pending. /, /transactions, /budgets, /reglages and /import are real screens
-// — see features/overview/OverviewPage.tsx, features/transactions/TransactionsPage.tsx,
-// features/budgets/BudgetsPage.tsx, features/settings/SettingsPage.tsx and
-// features/import/ImportPage.tsx. Until /categories exists, /budgets is the
-// only place a monthly budget can be set.
-function CategoriesPlaceholder() {
-  return <p>Catégories — à venir.</p>;
-}
 
 // Development-only instrument, not a shipped screen: /design-systeme renders
 // every visual primitive on one page so they can be judged in a browser. It is
@@ -81,7 +72,7 @@ export const router = createBrowserRouter([
           { path: "propositions", element: <ProposalsPage /> },
           { path: "export", element: <ExportPage /> },
           { path: "simulateurs", element: <SimulatorsPage /> },
-          { path: "categories", element: <CategoriesPlaceholder /> },
+          { path: "categories", element: <CategoriesPage /> },
           { path: "import", element: <ImportPage /> },
           { path: "reglages", element: <SettingsPage /> },
           // Réglages -> Connexions. A route of its own rather than a section

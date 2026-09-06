@@ -1,0 +1,200 @@
+/* The category tree. Two levels, and the second is indented rather than boxed:
+   a nested card inside a card is a second panel, and the relationship here is
+   an outline, not a hierarchy of surfaces. */
+
+.yd-categories__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.yd-categories__group + .yd-categories__group {
+  margin-top: var(--yd-space-xs);
+}
+
+.yd-categories__row {
+  padding: var(--yd-space-xs) 0;
+  border-bottom: 1px solid var(--yd-border);
+}
+
+.yd-categories__row--depth-1 {
+  padding-left: var(--yd-space-lg);
+}
+
+.yd-categories__line {
+  display: flex;
+  align-items: center;
+  gap: var(--yd-space-xs);
+  flex-wrap: wrap;
+}
+
+/* The category's own colour, so it travels as a custom property: the palette
+   comes from the user's data and no stylesheet could know it. */
+.yd-categories__dot {
+  flex: 0 0 auto;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--yd-pill, var(--yd-text-muted));
+}
+
+.yd-categories__name {
+  font-size: 0.92rem;
+  color: var(--yd-text);
+}
+
+.yd-categories__row--depth-0 .yd-categories__name {
+  font-weight: 600;
+}
+
+.yd-categories__badge {
+  padding: 1px var(--yd-space-2xs);
+  border-radius: var(--yd-radius-sm);
+  border: 1px solid var(--yd-border);
+  font-size: 0.68rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--yd-text-muted);
+}
+
+/* Pushed to the right so the ceilings line up down the list and can be read as
+   a column rather than as a run of sentences. */
+.yd-categories__budget {
+  margin-left: auto;
+  font-size: 0.8rem;
+  color: var(--yd-text-muted);
+  white-space: nowrap;
+}
+
+.yd-categories__actions {
+  display: flex;
+  gap: var(--yd-space-2xs);
+}
+
+.yd-categories__actions button {
+  min-height: 28px;
+  padding: 0 var(--yd-space-xs);
+  border: 1px solid transparent;
+  border-radius: var(--yd-radius-sm);
+  background: transparent;
+  color: var(--yd-text-muted);
+  font: inherit;
+  font-size: 0.76rem;
+  cursor: pointer;
+  transition:
+    border-color var(--yd-motion-fast) var(--yd-ease),
+    color var(--yd-motion-fast) var(--yd-ease);
+}
+
+.yd-categories__row:hover .yd-categories__actions button,
+.yd-categories__row:focus-within .yd-categories__actions button {
+  border-color: var(--yd-border-control);
+  color: var(--yd-text);
+}
+
+.yd-categories__actions button:hover:not(:disabled) {
+  border-color: var(--yd-accent);
+}
+
+.yd-categories__actions button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.yd-categories__actions button:focus-visible,
+.yd-categories__save:focus-visible {
+  outline: 2px solid var(--yd-accent);
+  outline-offset: 2px;
+}
+
+.yd-categories__form,
+.yd-categories__new {
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-sm);
+  margin-top: var(--yd-space-sm);
+}
+
+.yd-categories__field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-2xs);
+}
+
+.yd-categories__field label {
+  font-size: 0.78rem;
+  color: var(--yd-text-muted);
+}
+
+.yd-categories__field input[type="text"],
+.yd-categories__field select {
+  min-height: 36px;
+  padding: 0 var(--yd-space-sm);
+  border: 1px solid var(--yd-border-control);
+  border-radius: var(--yd-radius-sm);
+  background: var(--yd-surface);
+  color: var(--yd-text);
+  font: inherit;
+  font-size: 0.88rem;
+}
+
+.yd-categories__field input[type="color"] {
+  width: 56px;
+  height: 32px;
+  padding: 2px;
+  border: 1px solid var(--yd-border-control);
+  border-radius: var(--yd-radius-sm);
+  background: var(--yd-surface);
+  cursor: pointer;
+}
+
+.yd-categories__field input:focus-visible,
+.yd-categories__field select:focus-visible {
+  outline: 2px solid var(--yd-accent);
+  outline-offset: 1px;
+}
+
+.yd-categories__check {
+  display: flex;
+  align-items: center;
+  gap: var(--yd-space-2xs);
+  font-size: 0.84rem;
+  color: var(--yd-text);
+}
+
+.yd-categories__save {
+  align-self: flex-start;
+  min-height: 36px;
+  padding: 0 var(--yd-space-md);
+  border: 1px solid var(--yd-accent);
+  border-radius: var(--yd-radius-sm);
+  background: color-mix(in srgb, var(--yd-accent) 16%, transparent);
+  color: var(--yd-text);
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.yd-categories__save:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.yd-categories__note {
+  margin: 0;
+  font-size: 0.78rem;
+  line-height: 1.5;
+  color: var(--yd-text-muted);
+}
+
+.yd-categories__error {
+  margin: var(--yd-space-2xs) 0 0;
+  font-size: 0.82rem;
+  color: var(--yd-negative);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .yd-categories__actions button {
+    transition: none;
+  }
+}

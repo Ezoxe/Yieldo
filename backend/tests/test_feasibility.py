@@ -602,3 +602,60 @@ def test_every_nature_the_engine_publishes_is_accepted():
         report = assess_feasibility(_request(4_000_000, nature=nature), HEALTHY, BURN,
                                     1_000_000, ASSUMPTIONS, TODAY)
         assert report.request.nature == nature
+
+
+# --- The two figures a buyer actually asks for ------------------------------
+
+def test_the_report_says_how_much_a_month_the_target_costs():
+    """It was buried inside a lever. "Combien je dois mettre de côté par mois"
+    is the question the screen exists to answer, so the report leads with it."""
+    report = assess_feasibility(_request(1_200_000, horizon=24),
+                                HEALTHY, BURN, 500_000, ASSUMPTIONS, TODAY)
+    # Twenty-four payments reaching 12 000 EUR with the return credited: just
+    # under 500 EUR a month rather than exactly 12 000 / 24.
+    assert 45_000 < report.required_monthly_cents <= 50_000
+
+
+def test_that_figure_survives_a_ledger_too_short_to_measure_a_capacity():
+    """The one number such a household can act on. It depends on the price, the
+    down payment, the rate and the horizon -- never on the capacity."""
+    report = assess_feasibility(_request(1_200_000, horizon=24),
+                                None, BURN, 500_000, ASSUMPTIONS, TODAY)
+    assert report.verdict is None
+    assert report.required_monthly_cents > 0
+    assert report.months_at_measured_capacity is None
+
+
+def test_the_report_says_how_long_the_target_takes_at_the_measured_rate():
+    report = assess_feasibility(_request(1_200_000, horizon=24),
+                                HEALTHY, BURN, 500_000, ASSUMPTIONS, TODAY)
+    assert report.months_at_measured_capacity is not None
+    assert report.months_at_measured_capacity > 0
+
+
+def test_a_shrinking_pot_reports_no_date_rather_than_a_large_one():
+    """A negative capacity never arrives. `None` says so; a big month count
+    dressed up as a date would say the opposite."""
+    report = assess_feasibility(_request(4_000_000), OPERATOR_CAPACITY, OPERATOR_BURN,
+                                OPERATOR_BALANCE, ASSUMPTIONS, TODAY)
+    assert report.verdict == "out_of_reach"
+    assert report.months_at_measured_capacity is None
+
+
+# --- The catalogue of natures -----------------------------------------------
+
+def test_every_nature_the_catalogue_offers_is_one_the_engine_accepts():
+    """A nature offered on screen and refused by the engine is a dead choice."""
+    from app.engines.ownership import NATURE_PROFILES
+
+    for profile in NATURE_PROFILES:
+        assert profile.key in NATURES
+        assess_feasibility(_request(100_000, nature=profile.key), HEALTHY, BURN,
+                           500_000, ASSUMPTIONS, TODAY)
+
+
+def test_a_nature_nobody_declared_is_refused_rather_than_costed_at_zero():
+    from app.engines.ownership import profile_for
+
+    with pytest.raises(ValueError, match="bateau"):
+        profile_for("bateau")

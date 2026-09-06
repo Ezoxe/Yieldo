@@ -210,6 +210,13 @@ class OwnershipDefaultsOut(BaseModel):
 
     items: list[CostItemIn]
     depreciation_bps_per_year: int
+    # French, from `ownership.NATURE_PROFILES`. What this nature assumes and
+    # what it deliberately does not, so the reader chooses knowing which.
+    label: str
+    note: str
+    # How long this kind of thing is assumed to be kept: five years for a car,
+    # three for a laptop, one for a trip. Editable, like every assumption here.
+    ownership_years: int
 
 
 class FeasibilityContextOut(BaseModel):
@@ -223,7 +230,8 @@ class FeasibilityContextOut(BaseModel):
     balance_cents: int
     existing_debt_payments_cents: int
     assumptions: AssumptionsOut
-    # Keyed by nature: "vehicle", "property", "other". "other" prefills nothing.
+    # Keyed by nature. Four of the seven prefill no running cost at all -- see
+    # `ownership.NATURE_PROFILES`, which says so in French, per nature.
     ownership_defaults: dict[str, OwnershipDefaultsOut]
     natures: list[str] = Field(default_factory=lambda: list(NATURES))
     default_ownership_years: int = DEFAULT_OWNERSHIP_YEARS
@@ -261,6 +269,15 @@ class FeasibilityOut(BaseModel):
 
     opportunity_cost_cents: int
     opportunity_horizon_months: int
+    # What has to go aside every month to reach the target by the horizon.
+    # Never null: it depends on the price, the down payment, the rate and the
+    # horizon, none of which the measured capacity touches -- so a household
+    # whose ledger is too short for a verdict still gets this one.
+    required_monthly_cents: int
+    # How long the target takes at the capacity actually measured. Null when
+    # there is no measured capacity, when it is non-positive, or when the
+    # answer lies beyond fifty years. Never a sentinel integer.
+    months_at_measured_capacity: int | None
     ownership: OwnershipOut
     impact: ImpactOut
     # EMPTY when `capacity` is null. Otherwise exactly five, feasible first.

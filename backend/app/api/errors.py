@@ -114,6 +114,17 @@ FIELD_SUBJECTS: dict[str, str] = {
     "withdrawal_rate_bps": "Le taux de retrait",
     "marginal_rate_bps": "Le taux marginal d'imposition",
     "joint_taxation": "L'imposition commune",
+    # Declared recurrences and the due dates a household ticks off.
+    "label": "Le libellé",
+    "amount_cents": "Le montant",
+    "amount_is_variable": "Le caractère variable du montant",
+    "periodicity": "La périodicité",
+    "anchor_on": "La première échéance",
+    "ends_on": "La date de fin",
+    "active": "L'activation",
+    "paid_on": "La date de paiement",
+    "transaction_id": "L'opération",
+    "declared_recurrence_id": "La récurrence déclarée",
 }
 
 # One template per pydantic error type, formatted with the field's subject.

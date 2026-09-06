@@ -1041,6 +1041,15 @@ export interface Feasibility {
    *  horizon. Never null: nothing about it depends on the capacity. */
   opportunity_cost_cents: number;
   opportunity_horizon_months: number;
+  // What has to go aside every month to reach the target by the horizon. Never
+  // null: it depends on the price, the down payment, the rate and the horizon,
+  // none of which the measured capacity touches — so a household whose ledger
+  // is too short for a verdict still gets this one.
+  required_monthly_cents: number;
+  // How long the target takes at the capacity actually measured. Null when
+  // there is no measured capacity, when it is non-positive (a pot that shrinks
+  // never arrives), or when the answer is beyond fifty years.
+  months_at_measured_capacity: number | null;
   ownership: Ownership;
   impact: Impact;
   /** EMPTY when `capacity` is null. Otherwise exactly five, FEASIBLE FIRST and
@@ -1057,6 +1066,15 @@ export interface Feasibility {
 export interface OwnershipDefaults {
   items: CostItemIn[];
   depreciation_bps_per_year: number;
+  // French, from `engines/ownership.NATURE_PROFILES`. The label names the
+  // nature and the note says what it prefills and what it deliberately does
+  // not, so the reader chooses knowing which figures are averages and which
+  // are absent on purpose.
+  label: string;
+  note: string;
+  // How long this kind of thing is assumed to be kept: five years for a car,
+  // three for a laptop, one for a trip.
+  ownership_years: number;
 }
 
 export interface FeasibilityContext {
@@ -2289,4 +2307,77 @@ export interface AgentRun {
   finished_at: string | null;
   steps: AgentStep[];
   proposals: Proposal[];
+}
+
+// --- Récurrences déclarées -------------------------------------------------
+// The half of the recurrences screen the household writes itself.
+// `engines/recurrence.py` only describes what statements already show; it needs
+// three occurrences before it speaks and it refuses any charge whose amount
+// wanders -- which is every water and electricity bill there is.
+
+export const DECLARED_PERIODICITIES = [
+  "weekly",
+  "biweekly",
+  "monthly",
+  "quarterly",
+  "yearly",
+] as const;
+
+export type DeclaredPeriodicity = (typeof DECLARED_PERIODICITIES)[number];
+
+export interface DeclaredRecurrence {
+  id: number;
+  label: string;
+  // Signed. For a variable charge this is the household's own ESTIMATE, and
+  // `ScheduleCost.amount_basis` says whether the check-ins have replaced it.
+  amount_cents: number;
+  amount_is_variable: boolean;
+  periodicity: DeclaredPeriodicity;
+  anchor_on: string;
+  ends_on: string | null;
+  category_id: number | null;
+  account_id: number | null;
+  active: boolean;
+  notes: string | null;
+}
+
+export interface ScheduleCost {
+  schedule_id: number;
+  label: string;
+  amount_cents: number;
+  // "declared" | "observed". An estimate and a measurement are different
+  // claims, and the screen must never print one as the other.
+  amount_basis: "declared" | "observed";
+  // Zero for a declaration that is inactive or has ended: what the household is
+  // committed to going forward, not what it once paid.
+  annual_cents: number;
+  observations: number;
+}
+
+export type OccurrenceStatus = "pointed" | "late" | "due" | "upcoming";
+
+export interface Occurrence {
+  schedule_id: number;
+  label: string;
+  due_on: string;
+  amount_cents: number;
+  status: OccurrenceStatus;
+  paid_on: string | null;
+  transaction_id: number | null;
+}
+
+export interface RecurrenceCalendar {
+  date_from: string;
+  date_to: string;
+  occurrences: Occurrence[];
+  schedules: ScheduleCost[];
+  // Signed and kept apart, never netted: a declared salary must not be allowed
+  // to hide a declared rent inside one comfortable figure.
+  annual_charges_cents: number;
+  annual_income_cents: number;
+  monthly_charges_cents: number;
+  monthly_income_cents: number;
+  late_count: number;
+  pointed_count: number;
+  notice: string | null;
 }

@@ -136,6 +136,25 @@ export const AI_TARGETS: AiTarget[] = [
 
   // Récurrences
   {
+    id: "panel-engagements",
+    label: "Ce que vous vous êtes engagé à payer",
+    route: "/recurrences",
+    terms: ["engagement", "engagements", "recurrence declaree", "recurrences declarees",
+            "charges fixes"],
+  },
+  {
+    id: "panel-calendrier-echeances",
+    label: "Calendrier des échéances",
+    route: "/recurrences",
+    terms: ["echeance", "echeances", "calendrier des echeances", "pointer", "pointage"],
+  },
+  {
+    id: "panel-declarations",
+    label: "Vos déclarations",
+    route: "/recurrences",
+    terms: ["declaration", "declarations", "eau", "electricite", "facture d'energie"],
+  },
+  {
     id: "panel-recurrences",
     label: "Abonnements",
     route: "/recurrences",
@@ -154,6 +173,15 @@ export const AI_TARGETS: AiTarget[] = [
     label: "Votre panier",
     route: "/analyse",
     terms: ["panier", "inflation"],
+  },
+
+  // Faisabilité d'achat
+  {
+    id: "panel-achat",
+    label: "Votre achat",
+    route: "/faisabilite",
+    terms: ["faisabilite", "puis-je m'offrir", "achat", "combien par mois",
+            "combien economiser"],
   },
 
   // Dettes et objectifs

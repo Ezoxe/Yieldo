@@ -71,6 +71,9 @@ export const OWNERSHIP_DEFAULTS: Record<string, OwnershipDefaults> = {
       { key: "fuel", label: "Carburant", monthly_cents: 13_000, annual_bps_of_value: null },
     ],
     depreciation_bps_per_year: 1_500,
+    label: "Véhicule",
+    note: "Assurance, entretien et carburant préremplis. Décote de 15 % par an.",
+    ownership_years: 5,
   },
   property: {
     items: [
@@ -95,9 +98,26 @@ export const OWNERSHIP_DEFAULTS: Record<string, OwnershipDefaults> = {
       { key: "upkeep", label: "Entretien", monthly_cents: null, annual_bps_of_value: 100 },
     ],
     depreciation_bps_per_year: 0,
+    label: "Immobilier",
+    note: "Taxe foncière, charges, assurance et entretien préremplis. Aucune décote.",
+    ownership_years: 5,
   },
-  // Nothing at all, on purpose. `defaults_for("other")` invents no average.
-  other: { items: [], depreciation_bps_per_year: 0 },
+  // No running cost at all, on purpose: `NATURE_PROFILES` invents no average
+  // for a laptop's electricity any more than for a sofa's insurance.
+  tech: {
+    items: [],
+    depreciation_bps_per_year: 3_500,
+    label: "High-tech et équipement",
+    note: "Décote de 35 % par an sur trois ans. Aucun coût d'usage prérempli.",
+    ownership_years: 3,
+  },
+  other: {
+    items: [],
+    depreciation_bps_per_year: 0,
+    label: "Autre",
+    note: "Rien n'est prérempli et rien n'est supposé.",
+    ownership_years: 5,
+  },
 };
 
 export const OPERATOR_CONTEXT: FeasibilityContext = {
@@ -122,6 +142,10 @@ export const OPERATOR_REPORT: Feasibility = {
   down_payment_cents: 0,
   nature: "vehicle",
   horizon_end_on: "2027-08-31",
+  // 40 000 € en 12 mois, apport nul, à 3 %/an.
+  required_monthly_cents: 328_312,
+  // Sa capacité mesurée est négative : la somme n'est jamais atteinte.
+  months_at_measured_capacity: null,
   assumptions: OPERATOR_ASSUMPTIONS,
   capacity: OPERATOR_CAPACITY,
   capacity_unavailable_reason: null,

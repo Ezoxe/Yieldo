@@ -28,6 +28,7 @@ import { FinancingPanel } from "./FinancingPanel";
 import { ImpactPanel } from "./ImpactPanel";
 import { LeverList } from "./LeverList";
 import { OwnershipPanel } from "./OwnershipPanel";
+import { NaturePicker } from "./NaturePicker";
 import { PurchaseForm } from "./PurchaseForm";
 import { ScenarioBar } from "./ScenarioBar";
 import { VerdictPanel } from "./VerdictPanel";
@@ -111,6 +112,11 @@ export function FeasibilityPage() {
   const [reportRefusal, setReportRefusal] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [showLoa, setShowLoa] = useState(false);
+  // What is being bought, chosen before the form exists. Null until the reader
+  // has chosen: the tool used to open on a price field with the nature as its
+  // fourth question, which made it a property calculator that could also be
+  // told about a car.
+  const [nature, setNature] = useState<string | null>(null);
 
   // The question that produced `report`, kept so a scenario can store it. It is
   // the REQUEST and never the answer: `POST /feasibility/scenarios` stores the
@@ -295,17 +301,38 @@ export function FeasibilityPage() {
           {renderContext(context)}
         </BentoCell>
 
-        <BentoCell as={motion.div} span={SPAN.form} className="yd-panel" {...entryProps(reduced)}>
-          <PanelHead icon={FeasibilityIcon}>Votre achat</PanelHead>
-          <PurchaseForm
-            key={reopened?.key ?? "new"}
-            context={context}
-            initial={reopened?.request ?? null}
-            busy={busy}
-            showLoa={showLoa}
-            onToggleLoa={setShowLoa}
-            onSubmit={(request) => void ask(request)}
-          />
+        {/* Full width while nothing is chosen: seven cards with a sentence
+            each do not fit in the five columns the form takes, and the
+            sentence is the load-bearing part of the choice. */}
+        <BentoCell
+          as={motion.div}
+          span={nature === null ? SPAN.full : SPAN.form}
+          className="yd-panel"
+          data-ai-target="panel-achat"
+          {...entryProps(reduced)}
+        >
+          <PanelHead icon={FeasibilityIcon}>
+            {nature === null ? "Que voulez-vous acheter ?" : "Votre achat"}
+          </PanelHead>
+          {nature === null ? (
+            <NaturePicker context={context} value={null} onChoose={setNature} />
+          ) : (
+            <PurchaseForm
+              // Remounted on a change of nature as well as on a reopened
+              // scenario: the running-cost items are seeded from the nature at
+              // mount, and a car's carburant surviving onto a flat would be a
+              // leftover wearing a French average's clothes.
+              key={`${nature}:${reopened?.key ?? "new"}`}
+              context={context}
+              initial={reopened?.request ?? null}
+              busy={busy}
+              showLoa={showLoa}
+              onToggleLoa={setShowLoa}
+              onSubmit={(request) => void ask(request)}
+              nature={nature}
+              onChangeNature={() => setNature(null)}
+            />
+          )}
         </BentoCell>
 
         <BentoCell
@@ -328,8 +355,15 @@ export function FeasibilityPage() {
             <VerdictPanel report={report} />
           ) : (
             <EmptyState
-              title="Aucune question posée."
-              detail="Renseignez un prix et une échéance à gauche. La réponse sera calculée à partir des rythmes mesurés ci-dessus, pas à partir de moyennes : si elle est négative, elle le dira."
+              // Not the panel head's own sentence: "Que voulez-vous acheter ?"
+              // already heads the picker beside it, and printing it twice makes
+              // the screen ask the same question in two places.
+              title={nature === null ? "Le verdict s'affichera ici." : "Aucune question posée."}
+              detail={
+                nature === null
+                  ? "Choisissez d'abord une catégorie ci-dessus. Ce que vous achetez décide de ce qu'il coûte à garder et de ce qu'il vaudra ensuite."
+                  : "Renseignez un prix et une échéance à gauche. La réponse sera calculée à partir des rythmes mesurés ci-dessus, pas à partir de moyennes : si elle est négative, elle le dira."
+              }
             />
           )}
         </BentoCell>

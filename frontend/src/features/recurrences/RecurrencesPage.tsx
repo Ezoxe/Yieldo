@@ -16,7 +16,8 @@ import "../../design/Skeleton.css";
 import { formatCents } from "../../design/theme";
 import { ApiError, api } from "../../lib/api";
 import { plural } from "../../lib/plural";
-import type { Recurrence, RecurrenceReport } from "../../lib/types";
+import type { Account, Category, Recurrence, RecurrenceReport } from "../../lib/types";
+import { DeclaredRecurrences } from "./DeclaredRecurrences";
 import {
   ANNUALISATION_FLOOR_DAYS,
   describeSpread,
@@ -143,6 +144,11 @@ function splitRecurrences(recurrences: Recurrence[]): Split {
 export function RecurrencesPage() {
   const reduced = useReducedMotion();
   const [report, setReport] = useState<RecurrenceReport | null>(null);
+  // The declared half needs both to fill its form's two optional selects. Loaded
+  // here rather than inside it so a failure on either leaves the detection half
+  // -- which needs neither -- on screen and working.
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [accounts, setAccounts] = useState<Account[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -166,6 +172,25 @@ export function RecurrencesPage() {
       }
     }
     void load();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadReferences() {
+      const [categoryResult, accountResult] = await Promise.allSettled([
+        api.get<Category[]>("/categories"),
+        api.get<Account[]>("/accounts"),
+      ]);
+      if (cancelled) return;
+      // Settled, not all: the form's two selects are both optional, and losing
+      // one of them must not take the whole screen down with it.
+      if (categoryResult.status === "fulfilled") setCategories(categoryResult.value);
+      if (accountResult.status === "fulfilled") setAccounts(accountResult.value);
+    }
+    void loadReferences();
     return () => {
       cancelled = true;
     };
@@ -415,7 +440,8 @@ export function RecurrencesPage() {
       <PageHead icon={RecurrencesIcon} title="Récurrences" className="yd-recurrences__header">
 
         <p className="yd-recurrences__lead">
-          Abonnements et prélèvements repérés dans tout votre historique.
+          Ce que vous avez déclaré, échéance par échéance, et ce que Yieldo a repéré tout
+          seul dans votre historique.
         </p>
       </PageHead>
 
@@ -424,6 +450,20 @@ export function RecurrencesPage() {
           {error}
         </p>
       ) : null}
+
+      {/* The declared half comes first, and deliberately: it is the one the
+          household controls. What it states is true; what the engine below
+          finds is a claim Yieldo makes about the past and can be wrong about. */}
+      <DeclaredRecurrences categories={categories} accounts={accounts} />
+
+      <div className="yd-recurrences__detected">
+        <h2>Ce que Yieldo a repéré tout seul</h2>
+        <p>
+          Lu dans tout votre historique, sans rien déclarer. Un rythme se reconnaît à
+          partir de trois échéances régulières : une facture dont le montant change à
+          chaque fois ne s'y trouvera pas, déclarez-la plus haut.
+        </p>
+      </div>
 
       {body}
       {detail}

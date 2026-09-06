@@ -124,6 +124,63 @@ function BandRow({ label, cents, tone }: { label: string; cents: number; tone?: 
   );
 }
 
+/**
+ * The plan, in the two numbers a buyer actually came for.
+ *
+ * "Combien je dois mettre de côté par mois, et sur combien de temps" was the
+ * question, and until now it was buried inside a lever four panels down. Both
+ * figures are the engine's -- `required_monthly_cents` and
+ * `months_at_measured_capacity` -- never recomputed here, so the plan and the
+ * verdict cannot disagree.
+ *
+ * `required_monthly_cents` survives a ledger too short for a verdict: it
+ * depends on the price, the down payment, the rate and the horizon, and on
+ * none of them does the measured capacity have any say. That is why this block
+ * renders on the refusal branch too.
+ */
+export function SavingPlan({ report }: VerdictPanelProps) {
+  const months = report.months_at_measured_capacity;
+  const capacity = report.capacity;
+  const required = report.required_monthly_cents;
+  const shortfall =
+    capacity === null ? null : required - Math.max(0, capacity.median_cents);
+
+  return (
+    <div className="yd-verdict__plan">
+      <p className="yd-verdict__plan-line">
+        <span>Pour y arriver à l'échéance, il faut mettre de côté</span>
+        <strong className="yd-num">{formatCents(required)}</strong>
+        <span>{`par mois pendant ${report.horizon_months} ${plural(report.horizon_months, "mois", "mois")}.`}</span>
+      </p>
+
+      {/* The comparison against what the household actually saves, which is
+          what turns a target into a plan. Null capacity means there is nothing
+          honest to compare against, and the sentence says so rather than
+          treating an unmeasured rate as a zero. */}
+      {capacity === null ? (
+        <p className="yd-verdict__plan-note">
+          Avec quoi comparer ce montant ? Rien encore : la phrase ci-dessus dit pourquoi
+          votre capacité d'épargne n'a pas pu être mesurée.
+        </p>
+      ) : shortfall !== null && shortfall > 0 ? (
+        <p className="yd-verdict__plan-note">
+          {`Soit ${formatCents(shortfall)} de plus que ce que vos relevés vous voient mettre de côté chaque mois.`}
+        </p>
+      ) : (
+        <p className="yd-verdict__plan-note">
+          {`Votre rythme mesuré y suffit déjà : vous mettez ${formatCents(Math.max(0, capacity.median_cents))} de côté par mois.`}
+        </p>
+      )}
+
+      <p className="yd-verdict__plan-note">
+        {months === null
+          ? "À votre rythme actuel, cette somme n'est jamais atteinte : la question n'est pas le délai, c'est le rythme."
+          : `Sans rien changer à vos dépenses, vous y seriez en ${months} ${plural(months, "mois", "mois")}.`}
+      </p>
+    </div>
+  );
+}
+
 export function VerdictPanel({ report }: VerdictPanelProps) {
   // Branch on the refusal FIRST, then on the sign. Two states with two different
   // remedies: import more statements, or change what a month costs. Deriving one
@@ -144,6 +201,7 @@ export function VerdictPanel({ report }: VerdictPanelProps) {
             "mois complets",
           )}. Il en faut au moins ${MIN_MONTHS_FOR_RATE} pour qu'une médiane veuille dire quelque chose.`}
         </p>
+        <SavingPlan report={report} />
       </div>
     );
   }
@@ -187,6 +245,8 @@ export function VerdictPanel({ report }: VerdictPanelProps) {
         </p>
         <p className="yd-verdict__gap">{gapSentence(report.gap_cents ?? 0)}</p>
       </div>
+
+      <SavingPlan report={report} />
 
       <p className="yd-verdict__explanation">{verdictExplanation(report, verdict)}</p>
 

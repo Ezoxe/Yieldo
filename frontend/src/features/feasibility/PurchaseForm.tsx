@@ -69,6 +69,13 @@ export interface PurchaseFormProps {
   showLoa: boolean;
   onToggleLoa: (open: boolean) => void;
   onSubmit: (request: FeasibilityRequest) => void;
+  /** What is being bought. Chosen upstream, on `NaturePicker`, because it
+   *  decides which running costs are prefilled and what the thing is worth
+   *  afterwards -- a decision that belongs before the form, not as its fourth
+   *  field. */
+  nature: string;
+  /** Back to the picker. The choice stays visible and stays changeable. */
+  onChangeNature: () => void;
 }
 
 /**
@@ -140,6 +147,8 @@ export function PurchaseForm({
   showLoa,
   onToggleLoa,
   onSubmit,
+  nature,
+  onChangeNature,
 }: PurchaseFormProps) {
   const baseId = useId();
   const [target, setTarget] = useState(
@@ -147,16 +156,14 @@ export function PurchaseForm({
   );
   const [horizon, setHorizon] = useState(String(initial?.horizon_months ?? 12));
   const [down, setDown] = useState(centsToInput(initial?.down_payment_cents ?? 0));
-  const [nature, setNature] = useState(initial?.nature ?? context.natures[0] ?? "vehicle");
   const [openAssumptions, setOpenAssumptions] = useState(false);
   const [openItems, setOpenItems] = useState(false);
-  // Prefilled from the chosen nature's French averages, and reset to the new
-  // nature's when it changes -- a car's carburant on a flat is not an average,
-  // it is a leftover. Reset in the select's own handler rather than in an
-  // effect, so it cannot fire while the user is mid-edit for any other reason.
+  // Prefilled from the chosen nature's French averages. The nature is a prop
+  // now, and the page remounts this form (a new `key`) when it changes -- a
+  // car's carburant on a flat is not an average, it is a leftover, and a
+  // remount is what guarantees it cannot survive the change.
   const [items, setItems] = useState<ItemDraft[]>(() =>
-    draftsFor(context.ownership_defaults, initial?.nature ?? context.natures[0] ?? "vehicle",
-      initial?.ownership_items),
+    draftsFor(context.ownership_defaults, nature, initial?.ownership_items),
   );
 
   const [annualReturn, setAnnualReturn] = useState(
@@ -401,30 +408,24 @@ export function PurchaseForm({
 
   return (
     <form className="yd-purchase" onSubmit={submit} noValidate>
+      {/* The choice stays on screen instead of vanishing into a field, and
+          stays changeable. The label is the server's, so a nature added to the
+          engine names itself here too. */}
+      <p className="yd-nature__chosen">
+        <span>Vous achetez :</span>
+        <strong>
+          {context.ownership_defaults[nature]?.label ?? NATURE_LABEL[nature] ?? nature}
+        </strong>
+        <button type="button" className="yd-nature__change" onClick={onChangeNature}>
+          Changer
+        </button>
+      </p>
+
       <div className="yd-purchase__grid">
         {amountField("target", "Prix du bien (€)", target, setTarget, "40 000,00")}
         {countField("horizon", "Échéance (mois)", horizon, setHorizon)}
         {amountField("down", "Apport déjà disponible (€)", down, setDown, "0,00")}
 
-        <div className="yd-purchase__field">
-          <label htmlFor={fieldId("target")+"-nature"}>Nature du bien</label>
-          <select
-            id={fieldId("target") + "-nature"}
-            value={nature}
-            onChange={(event) => {
-              setNature(event.target.value);
-              // A car's carburant on a flat is a leftover, not an average.
-              setItems(draftsFor(context.ownership_defaults, event.target.value));
-              setErrors({});
-            }}
-          >
-            {context.natures.map((value) => (
-              <option key={value} value={value}>
-                {NATURE_LABEL[value] ?? value}
-              </option>
-            ))}
-          </select>
-        </div>
       </div>
 
       <div className="yd-purchase__disclosure">

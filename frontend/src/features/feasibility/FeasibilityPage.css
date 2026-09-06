@@ -1328,3 +1328,44 @@
   line-height: 1.45;
   color: var(--yd-text);
 }
+
+/* The plan: what to set aside a month, and for how long. The two numbers the
+   buyer actually came for, and they used to be buried in a lever four panels
+   down. Boxed rather than run in with the prose so the eye finds them without
+   reading. */
+.yd-verdict__plan {
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-2xs);
+  margin: var(--yd-space-md) 0;
+  padding: var(--yd-space-md);
+  border: 1px solid var(--yd-border);
+  border-left: 3px solid var(--yd-accent);
+  border-radius: var(--yd-radius-sm);
+  background: color-mix(in srgb, var(--yd-accent) 7%, transparent);
+}
+
+.yd-verdict__plan-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.35em;
+  margin: 0;
+  color: var(--yd-text-muted);
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+.yd-verdict__plan-line strong {
+  color: var(--yd-text);
+  font-size: 1.35rem;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+.yd-verdict__plan-note {
+  margin: 0;
+  color: var(--yd-text-muted);
+  font-size: 0.8rem;
+  line-height: 1.5;
+}

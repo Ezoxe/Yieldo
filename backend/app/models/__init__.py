@@ -9,6 +9,11 @@ from app.models.category import CATEGORY_KINDS, Category
 from app.models.challenge import CHALLENGE_STATES, Challenge
 from app.models.chat_message import ChatMessage
 from app.models.debt import DEBT_KINDS, Debt
+from app.models.declared_recurrence import (
+    DECLARED_PERIODICITIES,
+    DeclaredRecurrence,
+    RecurrenceCheckin,
+)
 from app.models.goal import Goal
 from app.models.health_snapshot import HealthSnapshot
 from app.models.import_batch import ColumnProfile, ImportBatch
@@ -35,6 +40,7 @@ from app.models.user import User
 __all__ = [
     "ACCOUNT_KINDS", "AGENT_RUN_STATES", "AGENT_STEP_KINDS",
     "CATEGORY_KINDS", "CHALLENGE_STATES", "DEBT_KINDS",
+    "DECLARED_PERIODICITIES",
     "INSTRUMENT_ASSET_CLASSES", "INVESTMENT_ACCOUNT_KINDS", "MARKET_PROVIDERS",
     "PLAN_KINDS", "PLAN_ORIGINS", "PLAN_PERIODICITIES",
     "PROPOSAL_KINDS", "PROPOSAL_STATES", "RULE_ORIGINS",
@@ -42,9 +48,9 @@ __all__ = [
     "Account", "AgentKey", "AgentProposal", "AgentRun", "AgentStep", "AlertSettings",
     "AllocationTarget", "ApiKey", "Category", "CategoryRule",
     "Challenge",
-    "ChatMessage", "ColumnProfile", "Debt",
+    "ChatMessage", "ColumnProfile", "Debt", "DeclaredRecurrence",
     "Goal", "HealthSnapshot", "ImportBatch", "Instrument", "InvestmentAccount", "LlmSettings",
     "Lot", "PlanLine", "PlanSettings", "Position", "PriceIndexPoint", "PricePoint", "QuotaWindow",
-    "Scenario", "Transaction",
+    "RecurrenceCheckin", "Scenario", "Transaction",
     "User",
 ]

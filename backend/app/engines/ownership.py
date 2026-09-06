@@ -108,17 +108,159 @@ PROPERTY_DEFAULTS: tuple[CostItem, ...] = (
 # -- baking a market view into a cost engine would hide it.
 PROPERTY_DEPRECIATION_BPS_PER_YEAR = 0
 
+# Everything below is a purchase a household saves for, and none of them is a
+# car or a flat. A screen that offers only those two forces every other
+# question -- a laptop, a kitchen, a wedding, a year of training -- through a
+# nature called "Autre" that prefills nothing and names nothing.
+#
+# NONE of them prefills a running cost, and that is the same refusal
+# `"other"` has always made: the electricity a computer draws, the insurance on
+# a sofa, the spending money on a trip are not figures anyone can average
+# honestly. What they DO carry is a depreciation rate and a holding period,
+# because those are real, documented properties of the thing itself.
+
+# Consumer electronics lose value faster than anything else a household buys.
+# A phone or a laptop is worth roughly a third less each year on the
+# second-hand market.
+TECH_DEPRECIATION_BPS_PER_YEAR = 3500
+# Furniture and white goods: slow, and they are kept a long time.
+FURNITURE_DEPRECIATION_BPS_PER_YEAR = 1500
+# A trip, a wedding, a year of training. There is no asset at the end and no
+# resale value, so the whole price is consumed -- 100 % over the first year,
+# which is exactly what the declining balance gives.
+CONSUMED_DEPRECIATION_BPS_PER_YEAR = 10_000
+
+
+@dataclass(frozen=True)
+class NatureProfile:
+    """One kind of purchase, and everything a screen needs to offer it.
+
+    The French label lives here rather than in the front end for the same
+    reason the cost items do: a nature added to the engine and not to the
+    screen is a nature nobody can choose, and a label in two places drifts.
+    """
+
+    key: str
+    label: str
+    # One sentence, French, saying what this nature assumes and what it
+    # deliberately does not. Printed beside the choice, so the reader picks
+    # knowing what they are getting.
+    note: str
+    items: tuple[CostItem, ...]
+    depreciation_bps_per_year: int
+    # How long the household is assumed to keep it. Five years for a car or a
+    # flat; three for a laptop, which is dead by then; one for a trip, which is
+    # over. Editable, like every other assumption.
+    ownership_years: int
+
+
+NATURE_PROFILES: tuple[NatureProfile, ...] = (
+    NatureProfile(
+        key="vehicle",
+        label="Véhicule",
+        note=(
+            "Assurance, entretien et carburant préremplis par des moyennes "
+            "françaises, pour un foyer roulant environ 12 000 km par an. Décote "
+            "de 15 % par an."
+        ),
+        items=VEHICLE_DEFAULTS,
+        depreciation_bps_per_year=VEHICLE_DEPRECIATION_BPS_PER_YEAR,
+        ownership_years=DEFAULT_OWNERSHIP_YEARS,
+    ),
+    NatureProfile(
+        key="property",
+        label="Immobilier",
+        note=(
+            "Taxe foncière, charges, assurance et entretien préremplis. Aucune "
+            "décote : la revalorisation d'un bien est une hypothèse à part, "
+            "affichée et modifiable dans le simulateur immobilier."
+        ),
+        items=PROPERTY_DEFAULTS,
+        depreciation_bps_per_year=PROPERTY_DEPRECIATION_BPS_PER_YEAR,
+        ownership_years=DEFAULT_OWNERSHIP_YEARS,
+    ),
+    NatureProfile(
+        key="tech",
+        label="High-tech et équipement",
+        note=(
+            "Ordinateur, téléphone, appareil photo, vélo électrique. Décote de "
+            "35 % par an sur trois ans. Aucun coût d'usage prérempli : le vôtre "
+            "dépend de ce que vous en faites, et une moyenne inventée serait un "
+            "chiffre sans source."
+        ),
+        items=(),
+        depreciation_bps_per_year=TECH_DEPRECIATION_BPS_PER_YEAR,
+        ownership_years=3,
+    ),
+    NatureProfile(
+        key="furniture",
+        label="Mobilier et électroménager",
+        note=(
+            "Canapé, cuisine, lave-linge. Décote de 15 % par an sur dix ans. "
+            "Aucun coût d'usage prérempli."
+        ),
+        items=(),
+        depreciation_bps_per_year=FURNITURE_DEPRECIATION_BPS_PER_YEAR,
+        ownership_years=10,
+    ),
+    NatureProfile(
+        key="leisure",
+        label="Voyage, loisirs, événement",
+        note=(
+            "Un voyage ou un mariage n'a pas de valeur de revente : le prix est "
+            "intégralement consommé. Il n'y a donc ni coût de possession ni "
+            "valeur résiduelle, seulement la somme à réunir."
+        ),
+        items=(),
+        depreciation_bps_per_year=CONSUMED_DEPRECIATION_BPS_PER_YEAR,
+        ownership_years=1,
+    ),
+    NatureProfile(
+        key="education",
+        label="Formation et études",
+        note=(
+            "Une formation ne se revend pas : le prix est intégralement "
+            "consommé. Ce que vous en retirez ensuite n'est pas un chiffre que "
+            "Yieldo peut mesurer, et il ne prétendra pas le faire."
+        ),
+        items=(),
+        depreciation_bps_per_year=CONSUMED_DEPRECIATION_BPS_PER_YEAR,
+        ownership_years=1,
+    ),
+    NatureProfile(
+        key="other",
+        label="Autre",
+        note=(
+            "Rien n'est prérempli et rien n'est supposé : ni coût d'usage, ni "
+            "décote. Ajoutez vous-même les postes que vous connaissez."
+        ),
+        items=(),
+        depreciation_bps_per_year=0,
+        ownership_years=DEFAULT_OWNERSHIP_YEARS,
+    ),
+)
+
+_BY_KEY: dict[str, NatureProfile] = {profile.key: profile for profile in NATURE_PROFILES}
+
+
+def profile_for(nature: str) -> NatureProfile:
+    """The whole profile for a nature. Raises on an unknown one rather than
+    handing back a silent empty default that would read as "nothing to pay"."""
+    try:
+        return _BY_KEY[nature]
+    except KeyError:
+        raise ValueError(f"Nature d'achat inconnue : {nature}") from None
+
 
 def defaults_for(nature: str) -> tuple[tuple[CostItem, ...], int]:
     """The prefilled items and depreciation rate for a purchase's nature.
 
-    `"other"` returns nothing at all, on purpose. See the module docstring.
+    Four of the seven natures return no items at all, on purpose. See
+    `NATURE_PROFILES` and the module docstring: inventing a fuel budget for a
+    sofa would be a fabricated figure wearing a French average's clothes.
     """
-    if nature == "vehicle":
-        return VEHICLE_DEFAULTS, VEHICLE_DEPRECIATION_BPS_PER_YEAR
-    if nature == "property":
-        return PROPERTY_DEFAULTS, PROPERTY_DEPRECIATION_BPS_PER_YEAR
-    return (), 0
+    profile = profile_for(nature)
+    return profile.items, profile.depreciation_bps_per_year
 
 
 def _validate(

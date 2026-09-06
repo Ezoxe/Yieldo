@@ -43,7 +43,7 @@ const CONTEXT: FeasibilityContext = {
     existing_debt_payments_cents: 0,
   },
   ownership_defaults: OWNERSHIP_DEFAULTS,
-  natures: ["vehicle", "property", "other"],
+  natures: ["vehicle", "property", "tech", "other"],
   default_ownership_years: 5,
   default_annual_return_bps: 300,
 };
@@ -57,6 +57,8 @@ function renderForm(over: Partial<Parameters<typeof PurchaseForm>[0]> = {}) {
       showLoa={false}
       onToggleLoa={vi.fn()}
       onSubmit={onSubmit}
+      nature="vehicle"
+      onChangeNature={vi.fn()}
       {...over}
     />,
   );
@@ -203,8 +205,7 @@ describe("PurchaseForm — the running-cost items, prefilled and adjustable", ()
     // item, and the engine refuses both or neither — so the form has to keep
     // which one an item uses, not flatten everything to a monthly euro figure.
     const user = userEvent.setup();
-    renderForm();
-    await user.selectOptions(screen.getByLabelText(/Nature du bien/), "property");
+    renderForm({ nature: "property" });
     await user.click(screen.getByRole("button", { name: /Postes de fonctionnement/ }));
 
     expect(screen.getByLabelText(/Taxe foncière \(% de la valeur par an\)/)).toHaveValue("0,90");
@@ -237,9 +238,8 @@ describe("PurchaseForm — the running-cost items, prefilled and adjustable", ()
 
   it("keeps a percentage item a percentage on the way back out", async () => {
     const user = userEvent.setup();
-    const onSubmit = renderForm();
+    const onSubmit = renderForm({ nature: "property" });
     await user.type(screen.getByLabelText(/Prix du bien/), "300000");
-    await user.selectOptions(screen.getByLabelText(/Nature du bien/), "property");
     await user.click(screen.getByRole("button", { name: /Postes de fonctionnement/ }));
     const tax = screen.getByLabelText(/Taxe foncière/);
     await user.clear(tax);
@@ -257,21 +257,29 @@ describe("PurchaseForm — the running-cost items, prefilled and adjustable", ()
     });
   });
 
-  it("swaps the items when the nature changes rather than keeping a car's", async () => {
+  // The nature moved upstream, to `NaturePicker`, and the page remounts this
+  // form when it changes -- which is what guarantees a car's carburant cannot
+  // survive onto a flat. Rendered twice here rather than driven through a
+  // select, because a remount is exactly what the page does.
+  it("seeds its items from the nature it was given, never from another's", async () => {
     const user = userEvent.setup();
-    renderForm();
+    const { unmount } = render(
+      <PurchaseForm context={CONTEXT} busy={false} showLoa={false} onToggleLoa={vi.fn()}
+                    onSubmit={vi.fn()} nature="vehicle" onChangeNature={vi.fn()} />,
+    );
     await user.click(screen.getByRole("button", { name: /Postes de fonctionnement/ }));
     expect(screen.getByLabelText(/Carburant/)).toBeInTheDocument();
+    unmount();
 
-    await user.selectOptions(screen.getByLabelText(/Nature du bien/), "property");
+    renderForm({ nature: "property" });
+    await user.click(screen.getByRole("button", { name: /Postes de fonctionnement/ }));
     expect(screen.queryByLabelText(/Carburant/)).not.toBeInTheDocument();
     expect(screen.getByLabelText(/Charges de copropriété/)).toBeInTheDocument();
   });
 
   it("says so rather than showing an empty group when a nature prefills nothing", async () => {
     const user = userEvent.setup();
-    renderForm();
-    await user.selectOptions(screen.getByLabelText(/Nature du bien/), "other");
+    renderForm({ nature: "other" });
     await user.click(screen.getByRole("button", { name: /Postes de fonctionnement/ }));
 
     expect(screen.getByText(/Yieldo n'invente pas de moyenne/)).toBeInTheDocument();

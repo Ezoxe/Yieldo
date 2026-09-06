@@ -71,7 +71,17 @@ function renderPage() {
   );
 }
 
+/** The nature is chosen before the form exists now: what is being bought
+ *  decides which running costs are prefilled and what it is worth afterwards,
+ *  so it comes first rather than as the form's fourth field. */
+async function chooseNature(
+  user: ReturnType<typeof userEvent.setup>, label = /Véhicule/,
+) {
+  await user.click(await screen.findByRole("button", { name: label }));
+}
+
 async function askTheOperatorsQuestion(user: ReturnType<typeof userEvent.setup>) {
+  await chooseNature(user);
   await user.type(await screen.findByLabelText(/Prix du bien/), "40000");
   await user.click(screen.getByRole("button", { name: /Calculer/ }));
 }
@@ -106,9 +116,27 @@ describe("FeasibilityPage — the measured context, before any question", () => 
     expect(screen.getAllByText(/Non mesurable/)).toHaveLength(1);
   });
 
-  it("says nothing has been asked yet rather than showing an empty verdict", async () => {
+  // Two empty states now, and they are different questions. Before a nature is
+  // chosen there is no form to fill, so telling the reader to fill it would
+  // point at nothing.
+  it("asks what is being bought before anything else", async () => {
     setupFetch();
     renderPage();
+
+    expect(
+      await screen.findByRole("heading", { name: /Que voulez-vous acheter/ }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Véhicule/ })).toBeInTheDocument();
+    // The verdict panel waits rather than asking the same question again.
+    expect(screen.getByText(/Le verdict s'affichera ici/)).toBeInTheDocument();
+    expect(screen.queryByText(/Hors de portée/)).not.toBeInTheDocument();
+  });
+
+  it("says nothing has been asked yet once a nature is chosen", async () => {
+    const user = userEvent.setup();
+    setupFetch();
+    renderPage();
+    await user.click(await screen.findByRole("button", { name: /Véhicule/ }));
 
     expect(await screen.findByText(/Aucune question posée/)).toBeInTheDocument();
     expect(screen.queryByText(/Hors de portée/)).not.toBeInTheDocument();

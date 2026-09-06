@@ -492,7 +492,12 @@ def test_the_context_publishes_the_prefilled_ownership_items_it_expects_back(cli
     defaults = client.get("/api/feasibility/context", headers=headers).json()[
         "ownership_defaults"]
 
-    assert set(defaults) == {"vehicle", "property", "other"}
+    # The whole catalogue, not a car and a flat: a household saves for a
+    # laptop, a kitchen and a trip too, and a screen offering only two natures
+    # forces every other question through "Autre".
+    assert set(defaults) == {
+        "vehicle", "property", "tech", "furniture", "leisure", "education", "other",
+    }
     vehicle = defaults["vehicle"]
     assert vehicle["depreciation_bps_per_year"] == 1500
     assert [item["key"] for item in vehicle["items"]] == ["insurance", "maintenance", "fuel"]
@@ -503,6 +508,25 @@ def test_the_context_publishes_the_prefilled_ownership_items_it_expects_back(cli
     # Property is not assumed to lose value; "other" prefills nothing at all.
     assert defaults["property"]["depreciation_bps_per_year"] == 0
     assert defaults["other"]["items"] == []
+    assert defaults["other"]["depreciation_bps_per_year"] == 0
+
+    # Every nature names itself and says what it assumes, so the reader chooses
+    # knowing which figures are prefilled and which are deliberately not.
+    for profile in defaults.values():
+        assert profile["label"]
+        assert profile["note"]
+        assert profile["ownership_years"] >= 1
+
+    # The four added natures prefill no running cost at all -- the same refusal
+    # "other" has always made, for the same reason: a fuel budget for a sofa
+    # would be a fabricated figure wearing a French average's clothes.
+    for key in ("tech", "furniture", "leisure", "education"):
+        assert defaults[key]["items"] == []
+    # A trip has no resale value: the whole price is consumed.
+    assert defaults["leisure"]["depreciation_bps_per_year"] == 10_000
+    assert defaults["leisure"]["ownership_years"] == 1
+    # A laptop is dead in three years, not five.
+    assert defaults["tech"]["ownership_years"] == 3
 
     # And what it publishes is accepted back verbatim.
     echoed = client.post("/api/feasibility", headers=headers, json={

@@ -1,3 +1,8 @@
+import {
+  OPERATOR_CONTEXT,
+  OPERATOR_REPORT,
+  OWNERSHIP_DEFAULTS,
+} from "../features/feasibility/fixtures";
 /**
  * Development-only fetch stub — never bundled behaviour in production.
  *
@@ -658,6 +663,262 @@ function goalsPayload() {
   };
 }
 
+
+// --- Récurrences déclarées -------------------------------------------------
+// A household's own declarations, and the due dates it has ticked off. Mutable
+// so the preview can be used: declaring, pointing and un-pointing all write
+// here and the calendar recomputes, exactly as the real routes do.
+
+interface DeclaredRow {
+  id: number;
+  label: string;
+  amount_cents: number;
+  amount_is_variable: boolean;
+  periodicity: "weekly" | "biweekly" | "monthly" | "quarterly" | "yearly";
+  anchor_on: string;
+  ends_on: string | null;
+  category_id: number | null;
+  account_id: number | null;
+  active: boolean;
+  notes: string | null;
+}
+
+const DECLARED: DeclaredRow[] = [
+  { id: 1, label: "Loyer", amount_cents: -78_000, amount_is_variable: false,
+    periodicity: "monthly", anchor_on: "2025-10-03", ends_on: null,
+    category_id: 1, account_id: 1, active: true, notes: null },
+  { id: 2, label: "Électricité", amount_cents: -6_500, amount_is_variable: true,
+    periodicity: "monthly", anchor_on: "2025-10-08", ends_on: null,
+    category_id: 1, account_id: 1, active: true, notes: "Mensualisation EDF" },
+  { id: 3, label: "Eau", amount_cents: -3_200, amount_is_variable: true,
+    periodicity: "quarterly", anchor_on: "2025-10-12", ends_on: null,
+    category_id: 1, account_id: 1, active: true, notes: null },
+  { id: 4, label: "Netflix", amount_cents: -1_599, amount_is_variable: false,
+    periodicity: "monthly", anchor_on: "2025-10-18", ends_on: null,
+    category_id: 4, account_id: 1, active: true, notes: null },
+  { id: 5, label: "Assurance habitation", amount_cents: -24_500,
+    amount_is_variable: false, periodicity: "yearly", anchor_on: "2025-11-05",
+    ends_on: null, category_id: 1, account_id: 1, active: true, notes: null },
+  { id: 6, label: "Salaire", amount_cents: 298_000, amount_is_variable: false,
+    periodicity: "monthly", anchor_on: "2025-10-02", ends_on: null,
+    category_id: 9, account_id: 1, active: true, notes: null },
+];
+
+interface CheckinRow {
+  declared_recurrence_id: number;
+  due_on: string;
+  amount_cents: number;
+  paid_on: string;
+  transaction_id: number | null;
+}
+
+const CHECKINS: CheckinRow[] = [
+  // Three real electricity bills, so the preview shows a variable charge that
+  // has stopped being an estimate.
+  { declared_recurrence_id: 2, due_on: "2026-06-08", amount_cents: -7_120, paid_on: "2026-06-08", transaction_id: null },
+  { declared_recurrence_id: 2, due_on: "2026-07-08", amount_cents: -5_940, paid_on: "2026-07-08", transaction_id: null },
+  { declared_recurrence_id: 2, due_on: "2026-08-08", amount_cents: -6_780, paid_on: "2026-08-08", transaction_id: null },
+  { declared_recurrence_id: 1, due_on: "2026-09-03", amount_cents: -78_000, paid_on: "2026-09-03", transaction_id: null },
+  { declared_recurrence_id: 6, due_on: "2026-09-02", amount_cents: 301_400, paid_on: "2026-09-02", transaction_id: null },
+];
+
+const OCCURRENCES_PER_YEAR: Record<DeclaredRow["periodicity"], number> = {
+  weekly: 52, biweekly: 26, monthly: 12, quarterly: 4, yearly: 1,
+};
+
+const NOMINAL_DAYS: Record<DeclaredRow["periodicity"], number> = {
+  weekly: 7, biweekly: 14, monthly: 30, quarterly: 91, yearly: 365,
+};
+
+function shiftMonths(anchor: string, months: number): string {
+  const [y, m, d] = anchor.split("-").map(Number);
+  const total = m - 1 + months;
+  const year = y + Math.floor(total / 12);
+  const month = ((total % 12) + 12) % 12 + 1;
+  const last = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  const day = Math.min(d, last);
+  return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
+function addDays(anchor: string, days: number): string {
+  const at = new Date(`${anchor}T00:00:00Z`);
+  at.setUTCDate(at.getUTCDate() + days);
+  return at.toISOString().slice(0, 10);
+}
+
+function stepOf(row: DeclaredRow, k: number): string {
+  if (row.periodicity === "weekly") return addDays(row.anchor_on, 7 * k);
+  if (row.periodicity === "biweekly") return addDays(row.anchor_on, 14 * k);
+  if (row.periodicity === "monthly") return shiftMonths(row.anchor_on, k);
+  if (row.periodicity === "quarterly") return shiftMonths(row.anchor_on, 3 * k);
+  return shiftMonths(row.anchor_on, 12 * k);
+}
+
+function dueDatesFor(row: DeclaredRow, from: string, to: string): string[] {
+  if (!row.active) return [];
+  const horizon = row.ends_on !== null && row.ends_on < to ? row.ends_on : to;
+  const out: string[] = [];
+  for (let k = 0; k < 800; k += 1) {
+    const at = stepOf(row, k);
+    if (at > horizon) break;
+    if (at >= from) out.push(at);
+  }
+  return out;
+}
+
+function medianOf(values: number[]): number {
+  const sorted = [...values].sort((a, b) => a - b);
+  const middle = Math.floor(sorted.length / 2);
+  return sorted.length % 2 === 1
+    ? sorted[middle]
+    : Math.round((sorted[middle - 1] + sorted[middle]) / 2);
+}
+
+function calendarPayload(params: Params) {
+  const today = TODAY;
+  const from = params.get("date_from") ?? `${today.slice(0, 7)}-01`;
+  const to = params.get("date_to")
+    ?? `${today.slice(0, 7)}-${String(new Date(Date.UTC(Number(today.slice(0, 4)), Number(today.slice(5, 7)), 0)).getUTCDate()).padStart(2, "0")}`;
+
+  const occurrences: unknown[] = [];
+  const schedules: unknown[] = [];
+  let annualCharges = 0;
+  let annualIncome = 0;
+  let late = 0;
+  let pointed = 0;
+
+  for (const row of [...DECLARED].sort((a, b) => a.label.localeCompare(b.label))) {
+    const mine = CHECKINS.filter((c) => c.declared_recurrence_id === row.id);
+    const observed = row.amount_is_variable && mine.length >= 3;
+    const amount = observed ? medianOf(mine.map((c) => c.amount_cents)) : row.amount_cents;
+
+    for (const dueOn of dueDatesFor(row, from, to)) {
+      const checkin = mine.find((c) => c.due_on === dueOn);
+      const grace = Math.max(3, Math.round(NOMINAL_DAYS[row.periodicity] * 0.2));
+      let status: string;
+      if (checkin) {
+        status = "pointed";
+        pointed += 1;
+      } else if (today < dueOn) {
+        status = "upcoming";
+      } else if (today <= addDays(dueOn, grace)) {
+        status = "due";
+      } else {
+        status = "late";
+        late += 1;
+      }
+      occurrences.push({
+        schedule_id: row.id,
+        label: row.label,
+        due_on: dueOn,
+        amount_cents: checkin ? checkin.amount_cents : amount,
+        status,
+        paid_on: checkin ? checkin.paid_on : null,
+        transaction_id: checkin ? checkin.transaction_id : null,
+      });
+    }
+
+    const running = row.active && (row.ends_on === null || row.ends_on >= today);
+    const annual = amount * OCCURRENCES_PER_YEAR[row.periodicity];
+    schedules.push({
+      schedule_id: row.id,
+      label: row.label,
+      amount_cents: amount,
+      amount_basis: observed ? "observed" : "declared",
+      annual_cents: running ? annual : 0,
+      observations: mine.length,
+    });
+    if (running) {
+      if (annual < 0) annualCharges += annual;
+      else annualIncome += annual;
+    }
+  }
+
+  occurrences.sort((a, b) =>
+    String((a as { due_on: string }).due_on).localeCompare(String((b as { due_on: string }).due_on)),
+  );
+
+  return {
+    date_from: from,
+    date_to: to,
+    occurrences,
+    schedules,
+    annual_charges_cents: annualCharges,
+    annual_income_cents: annualIncome,
+    monthly_charges_cents: Math.round(annualCharges / 12),
+    monthly_income_cents: Math.round(annualIncome / 12),
+    late_count: late,
+    pointed_count: pointed,
+    notice: DECLARED.length === 0
+      ? "Aucune récurrence déclarée pour l'instant."
+      : occurrences.length === 0
+        ? "Aucune échéance sur cette période."
+        : null,
+  };
+}
+
+
+/** `engines/ownership.NATURE_PROFILES`, as the context route publishes it. */
+const FEASIBILITY_NATURES: Record<string, unknown> = {
+  vehicle: OWNERSHIP_DEFAULTS.vehicle,
+  property: OWNERSHIP_DEFAULTS.property,
+  tech: OWNERSHIP_DEFAULTS.tech,
+  furniture: {
+    items: [], depreciation_bps_per_year: 1_500,
+    label: "Mobilier et électroménager",
+    note: "Canapé, cuisine, lave-linge. Décote de 15 % par an sur dix ans. Aucun coût d'usage prérempli.",
+    ownership_years: 10,
+  },
+  leisure: {
+    items: [], depreciation_bps_per_year: 10_000,
+    label: "Voyage, loisirs, événement",
+    note: "Un voyage n'a pas de valeur de revente : le prix est intégralement consommé.",
+    ownership_years: 1,
+  },
+  education: {
+    items: [], depreciation_bps_per_year: 10_000,
+    label: "Formation et études",
+    note: "Une formation ne se revend pas : le prix est intégralement consommé.",
+    ownership_years: 1,
+  },
+  // Last, like the catalogue: it is the fallback, not a peer of the six above.
+  other: OWNERSHIP_DEFAULTS.other,
+};
+
+
+// --- Faisabilité d'achat ---------------------------------------------------
+// The screen was not simulated at all, so the preview answered it with a 501
+// and nobody could look at it. The operator's own context and report already
+// exist as fixtures; they are reused here rather than restated, so the preview
+// and the tests describe the same household.
+
+function feasibilityContext() {
+  return {
+    ...OPERATOR_CONTEXT,
+    ownership_defaults: FEASIBILITY_NATURES,
+    natures: Object.keys(FEASIBILITY_NATURES),
+  };
+}
+
+function feasibilityReport(payload: Record<string, unknown>) {
+  const target = Number(payload.target_cents ?? OPERATOR_REPORT.target_cents);
+  const horizon = Number(payload.horizon_months ?? OPERATOR_REPORT.horizon_months);
+  const down = Number(payload.down_payment_cents ?? 0);
+  // Une annuité simple : la vraie recherche binaire vit dans
+  // `engines/savings.required_monthly_cents`, et l'aperçu n'a pas à la refaire
+  // — il lui suffit d'être du bon ordre de grandeur pour qu'on voie l'écran.
+  const required = Math.max(0, Math.round((target - down) / Math.max(1, horizon)));
+  return {
+    ...OPERATOR_REPORT,
+    target_cents: target,
+    horizon_months: horizon,
+    down_payment_cents: down,
+    nature: String(payload.nature ?? "vehicle"),
+    required_monthly_cents: required,
+    months_at_measured_capacity: null,
+  };
+}
+
 const ROUTES: Record<string, (params: Params) => unknown> = {
   "/api/auth/refresh": () => ({ access_token: "apercu", token_type: "bearer", user: MUTABLE_USER }),
   "/api/auth/me": () => MUTABLE_USER,
@@ -707,6 +968,10 @@ const ROUTES: Record<string, (params: Params) => unknown> = {
   "/api/transactions": transactionsFor,
   "/api/budgets": budgetsFor,
   "/api/recurrences": recurrencesPayload,
+  "/api/feasibility/context": feasibilityContext,
+  "/api/feasibility/scenarios": () => [],
+  "/api/recurrences/declared": () => DECLARED,
+  "/api/recurrences/calendar": calendarPayload,
   "/api/analysis/inflation": inflationPayload,
   "/api/analysis/anomalies": anomaliesPayload,
   "/api/analysis/price-index": () => [],
@@ -1125,6 +1390,7 @@ const WRITES: Record<string, (body: Record<string, unknown>) => Response> = {
     return jsonOk(line);
   },
   "POST /api/plan/from-recurrences": () => jsonOk({ created: [], skipped: PLAN_LINES.length }),
+  "POST /api/feasibility": (body) => jsonOk(feasibilityReport(body)),
   "POST /api/access-key/rotate": () => {
     agentKey = mintAgentKey();
     return jsonOk(agentKey);
@@ -1312,6 +1578,97 @@ export function installMockApi(): void {
       const patch = (init?.body ? JSON.parse(String(init.body)) : {}) as Record<string, unknown>;
       CATEGORY_PAYLOAD[index] = { ...CATEGORY_PAYLOAD[index], ...patch };
       return jsonOk(CATEGORY_PAYLOAD[index]);
+    }
+
+
+    // Récurrences déclarées : déclarer, corriger, supprimer.
+    if (url.pathname === "/api/recurrences/declared" && method === "POST") {
+      const draft = JSON.parse(String(init?.body ?? "{}")) as Partial<DeclaredRow>;
+      const row: DeclaredRow = {
+        id: Math.max(0, ...DECLARED.map((r) => r.id)) + 1,
+        label: String(draft.label ?? "Sans nom"),
+        amount_cents: Number(draft.amount_cents ?? 0),
+        amount_is_variable: draft.amount_is_variable === true,
+        periodicity: (draft.periodicity ?? "monthly") as DeclaredRow["periodicity"],
+        anchor_on: String(draft.anchor_on ?? TODAY),
+        ends_on: (draft.ends_on ?? null) as string | null,
+        category_id: (draft.category_id ?? null) as number | null,
+        account_id: (draft.account_id ?? null) as number | null,
+        active: draft.active !== false,
+        notes: (draft.notes ?? null) as string | null,
+      };
+      DECLARED.push(row);
+      return new Response(JSON.stringify(row), {
+        status: 201, headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    const declaredRow = /^\/api\/recurrences\/declared\/(\d+)$/.exec(url.pathname);
+    if (declaredRow !== null && (method === "PATCH" || method === "DELETE")) {
+      const id = Number(declaredRow[1]);
+      const index = DECLARED.findIndex((row) => row.id === id);
+      if (index === -1) {
+        return new Response(JSON.stringify({ detail: "Récurrence déclarée introuvable" }), {
+          status: 404, headers: { "Content-Type": "application/json" },
+        });
+      }
+      if (method === "DELETE") {
+        DECLARED.splice(index, 1);
+        for (let at = CHECKINS.length - 1; at >= 0; at -= 1) {
+          if (CHECKINS[at].declared_recurrence_id === id) CHECKINS.splice(at, 1);
+        }
+        return new Response(null, { status: 204 });
+      }
+      const patch = JSON.parse(String(init?.body ?? "{}")) as Partial<DeclaredRow>;
+      DECLARED[index] = { ...DECLARED[index], ...patch };
+      return jsonOk(DECLARED[index]);
+    }
+
+    const checkinPost = /^\/api\/recurrences\/declared\/(\d+)\/checkins$/.exec(url.pathname);
+    if (checkinPost !== null && method === "POST") {
+      const id = Number(checkinPost[1]);
+      const declaration = DECLARED.find((row) => row.id === id);
+      const payload = JSON.parse(String(init?.body ?? "{}")) as Record<string, unknown>;
+      const dueOn = String(payload.due_on ?? "");
+      if (!declaration) {
+        return new Response(JSON.stringify({ detail: "Récurrence déclarée introuvable" }), {
+          status: 404, headers: { "Content-Type": "application/json" },
+        });
+      }
+      const amount = payload.amount_cents === undefined || payload.amount_cents === null
+        ? declaration.amount_cents
+        : Number(payload.amount_cents);
+      const existing = CHECKINS.find(
+        (c) => c.declared_recurrence_id === id && c.due_on === dueOn,
+      );
+      if (existing) {
+        existing.amount_cents = amount;
+      } else {
+        CHECKINS.push({
+          declared_recurrence_id: id, due_on: dueOn, amount_cents: amount,
+          paid_on: dueOn, transaction_id: null,
+        });
+      }
+      return new Response(JSON.stringify({
+        id: CHECKINS.length, declared_recurrence_id: id, due_on: dueOn,
+        amount_cents: amount, paid_on: dueOn, transaction_id: null,
+      }), { status: 201, headers: { "Content-Type": "application/json" } });
+    }
+
+    const checkinDelete =
+      /^\/api\/recurrences\/declared\/(\d+)\/checkins\/(\d{4}-\d{2}-\d{2})$/.exec(url.pathname);
+    if (checkinDelete !== null && method === "DELETE") {
+      const id = Number(checkinDelete[1]);
+      const at = CHECKINS.findIndex(
+        (c) => c.declared_recurrence_id === id && c.due_on === checkinDelete[2],
+      );
+      if (at === -1) {
+        return new Response(JSON.stringify({ detail: "Cette échéance n'est pas pointée" }), {
+          status: 404, headers: { "Content-Type": "application/json" },
+        });
+      }
+      CHECKINS.splice(at, 1);
+      return new Response(null, { status: 204 });
     }
 
     const write = WRITES[`${method} ${url.pathname}`];

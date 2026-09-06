@@ -1,0 +1,451 @@
+/* The declared half of the recurrences screen. It sits above the detected half
+   because it is the one the household controls: what it states is true, what
+   the engine below finds is a guess Yieldo makes about the past. */
+.yd-declared {
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-md);
+}
+
+.yd-declared__head {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: start;
+  gap: var(--yd-space-sm) var(--yd-space-lg);
+}
+
+.yd-declared__head h2 {
+  grid-column: 1;
+  margin: 0;
+  font-size: 1.05rem;
+  color: var(--yd-text);
+}
+
+.yd-declared__head p {
+  grid-column: 1;
+  margin: 0;
+  max-width: 68ch;
+  color: var(--yd-text-muted);
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+.yd-declared__add {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--yd-space-2xs);
+  padding: var(--yd-space-2xs) var(--yd-space-md);
+  border: 1px solid var(--yd-border-control);
+  border-radius: var(--yd-radius-sm);
+  background: var(--yd-surface);
+  color: var(--yd-text);
+  font: inherit;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.yd-declared__add:hover {
+  border-color: var(--yd-accent);
+}
+
+.yd-declared__error {
+  margin: 0;
+  padding: var(--yd-space-sm) var(--yd-space-md);
+  border: 1px solid var(--yd-negative);
+  border-radius: var(--yd-radius-sm);
+  background: color-mix(in srgb, var(--yd-negative) 14%, transparent);
+  color: var(--yd-negative-text);
+  font-size: 0.9rem;
+}
+
+.yd-declared__figure {
+  margin: var(--yd-space-sm) 0 0;
+  color: var(--yd-text);
+  font-size: clamp(1.6rem, 3vw, 2.2rem);
+  font-weight: 650;
+  letter-spacing: -0.02em;
+}
+
+.yd-declared__uncomputable {
+  margin: var(--yd-space-sm) 0 0;
+  color: var(--yd-text);
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.yd-declared__figure-note,
+.yd-declared__notice {
+  margin: var(--yd-space-2xs) 0 0;
+  color: var(--yd-text-muted);
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+/* Month navigation ---------------------------------------------------------- */
+
+.yd-declared__monthbar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--yd-space-md);
+  margin: var(--yd-space-sm) 0;
+}
+
+.yd-declared__monthbar button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  min-height: 32px;
+  border: 1px solid var(--yd-border-control);
+  border-radius: var(--yd-radius-sm);
+  background: transparent;
+  color: var(--yd-text-muted);
+  cursor: pointer;
+}
+
+.yd-declared__monthbar button:hover {
+  border-color: var(--yd-accent);
+  color: var(--yd-text);
+}
+
+.yd-declared__chevron--prev {
+  rotate: 180deg;
+}
+
+.yd-declared__month {
+  min-width: 12ch;
+  text-align: center;
+  color: var(--yd-text);
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.yd-declared__late {
+  display: flex;
+  align-items: center;
+  gap: var(--yd-space-2xs);
+  margin: 0 0 var(--yd-space-sm);
+  color: var(--yd-warning);
+  font-size: 0.85rem;
+}
+
+/* The list of declarations -------------------------------------------------- */
+
+.yd-declared__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-2xs);
+  margin: var(--yd-space-sm) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.yd-declared__row {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: var(--yd-space-md);
+  padding: var(--yd-space-sm) 0;
+  border-top: 1px solid var(--yd-border);
+}
+
+.yd-declared__row-main {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.yd-declared__row-label {
+  color: var(--yd-text);
+  font-weight: 600;
+}
+
+.yd-declared__row-rhythm,
+.yd-declared__row-basis {
+  color: var(--yd-text-muted);
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
+.yd-declared__row-amount {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.yd-declared__row-actions {
+  display: flex;
+  gap: var(--yd-space-2xs);
+}
+
+.yd-declared__row-actions button {
+  padding: var(--yd-space-3xs, 0.2rem) var(--yd-space-xs);
+  border: 1px solid transparent;
+  border-radius: var(--yd-radius-sm);
+  background: transparent;
+  color: var(--yd-text-muted);
+  font: inherit;
+  font-size: 0.78rem;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.yd-declared__row:hover .yd-declared__row-actions button,
+.yd-declared__row:focus-within .yd-declared__row-actions button {
+  border-color: var(--yd-border-control);
+  color: var(--yd-text);
+}
+
+.yd-declared__row-delete:hover {
+  border-color: var(--yd-negative) !important;
+  color: var(--yd-negative-text) !important;
+}
+
+@media (max-width: 640px) {
+  .yd-declared__head {
+    grid-template-columns: 1fr;
+  }
+
+  .yd-declared__add {
+    grid-column: 1;
+    grid-row: auto;
+    justify-self: start;
+  }
+
+  .yd-declared__row {
+    grid-template-columns: 1fr auto;
+  }
+
+  .yd-declared__row-actions {
+    grid-column: 1 / -1;
+  }
+}
+
+/* The calendar grid --------------------------------------------------------- */
+
+.yd-rcal {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.yd-rcal__weekday {
+  padding: var(--yd-space-2xs);
+  color: var(--yd-text-muted);
+  font-size: 0.7rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  text-align: left;
+}
+
+.yd-rcal__day,
+.yd-rcal__pad {
+  height: 74px;
+  padding: var(--yd-space-3xs, 0.2rem);
+  border: 1px solid var(--yd-border);
+  vertical-align: top;
+}
+
+/* The days outside the month are ground, not cells: a border around an empty
+   square reads as a day that exists and holds nothing. */
+.yd-rcal__pad {
+  border-color: transparent;
+}
+
+.yd-rcal__number {
+  display: block;
+  color: var(--yd-text-muted);
+  font-size: 0.72rem;
+  line-height: 1.2;
+}
+
+/* One due date. Small, because a month can hold twenty of them and the grid has
+   to stay a grid; the accessible name carries the whole sentence. */
+.yd-rcal__event {
+  display: block;
+  width: 100%;
+  margin-top: 2px;
+  padding: 2px 4px;
+  border: 1px solid transparent;
+  border-left-width: 3px;
+  border-radius: var(--yd-radius-sm);
+  background: var(--yd-surface-raised);
+  color: var(--yd-text);
+  font: inherit;
+  font-size: 0.68rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.yd-rcal__event:disabled {
+  opacity: 0.5;
+  cursor: progress;
+}
+
+.yd-rcal__event-label {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.yd-rcal__event-amount {
+  display: block;
+  color: var(--yd-text-muted);
+}
+
+/* Four states, four different things to do about them. Ticked off is quiet --
+   it is finished; late is the only one that asks for attention. */
+.yd-rcal__event--pointed {
+  border-left-color: var(--yd-positive);
+  opacity: 0.72;
+}
+
+.yd-rcal__event--pointed .yd-rcal__event-label {
+  text-decoration: line-through;
+}
+
+.yd-rcal__event--late {
+  border-left-color: var(--yd-negative);
+  background: color-mix(in srgb, var(--yd-negative) 12%, var(--yd-surface-raised));
+}
+
+.yd-rcal__event--due {
+  border-left-color: var(--yd-warning);
+  background: color-mix(in srgb, var(--yd-warning) 12%, var(--yd-surface-raised));
+}
+
+.yd-rcal__event--upcoming {
+  border-left-color: var(--yd-info);
+}
+
+.yd-rcal__event:hover {
+  border-color: var(--yd-accent);
+}
+
+.yd-rcal__event:focus-visible {
+  outline: 2px solid var(--yd-accent);
+  outline-offset: 1px;
+}
+
+/* Under 720px seven columns of 90px do not fit and the month becomes a scroll.
+   The table keeps its own scroller rather than pushing the page sideways. */
+@media (max-width: 720px) {
+  .yd-rcal {
+    min-width: 560px;
+  }
+}
+
+/* The form ------------------------------------------------------------------ */
+
+.yd-declaration-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-md);
+}
+
+.yd-declaration-form__field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-3xs, 0.25rem);
+  border: none;
+  padding: 0;
+  margin: 0;
+  color: var(--yd-text-muted);
+  font-size: 0.8rem;
+}
+
+.yd-declaration-form__field > span:first-child,
+.yd-declaration-form__field > label:first-child,
+.yd-declaration-form__field legend {
+  color: var(--yd-text-muted);
+  font-size: 0.8rem;
+  padding: 0;
+}
+
+.yd-declaration-form__field input,
+.yd-declaration-form__field select,
+.yd-declaration-form__field textarea {
+  padding: var(--yd-space-2xs) var(--yd-space-sm);
+  border: 1px solid var(--yd-border-control);
+  border-radius: var(--yd-radius-sm);
+  background: var(--yd-surface);
+  color: var(--yd-text);
+  font: inherit;
+}
+
+.yd-declaration-form__choices {
+  display: flex;
+  gap: var(--yd-space-lg);
+}
+
+.yd-declaration-form__choices label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--yd-space-2xs);
+  color: var(--yd-text);
+  cursor: pointer;
+}
+
+.yd-declaration-form__toggle {
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-3xs, 0.25rem);
+  color: var(--yd-text);
+  font-size: 0.85rem;
+}
+
+.yd-declaration-form__toggle > label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--yd-space-2xs);
+  cursor: pointer;
+}
+
+.yd-declaration-form__hint {
+  display: block;
+  color: var(--yd-text-muted);
+  font-size: 0.75rem;
+  line-height: 1.45;
+}
+
+.yd-declaration-form__error {
+  color: var(--yd-negative-text);
+  font-size: 0.75rem;
+}
+
+.yd-declaration-form__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--yd-space-sm);
+  margin-top: var(--yd-space-sm);
+}
+
+.yd-declaration-form__cancel,
+.yd-declaration-form__submit {
+  padding: var(--yd-space-2xs) var(--yd-space-lg);
+  border: 1px solid var(--yd-border-control);
+  border-radius: var(--yd-radius-sm);
+  background: transparent;
+  color: var(--yd-text);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.yd-declaration-form__submit {
+  background: var(--yd-accent);
+  border-color: var(--yd-accent);
+  color: var(--yd-accent-contrast, #fff);
+}
+
+.yd-declaration-form__submit:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}

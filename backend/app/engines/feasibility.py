@@ -83,17 +83,26 @@ from dataclasses import dataclass
 from datetime import date
 
 from app.engines.capacity import MeasuredRate
-from app.engines.ownership import DEFAULT_OWNERSHIP_YEARS, MAX_OWNERSHIP_YEARS
+from app.engines.ownership import (
+    DEFAULT_OWNERSHIP_YEARS,
+    MAX_OWNERSHIP_YEARS,
+    NATURE_PROFILES,
+)
 from app.engines.period import month_end
 from app.engines.runway import months_of_runway
 from app.engines.savings import (
     MAX_PROJECTION_MONTHS,
+    months_to_target,
     opportunity_cost_cents,
     project_savings,
+    required_monthly_cents,
 )
 
 VERDICTS = ("comfortable", "tight", "out_of_reach")
-NATURES = ("vehicle", "property", "other")
+# Read off `ownership.NATURE_PROFILES` rather than restated: a nature added
+# to the catalogue and forgotten here would be refused by `assess_feasibility`
+# on a screen that had just offered it.
+NATURES = tuple(profile.key for profile in NATURE_PROFILES)
 
 # A horizon this engine accepts must be one `project_savings` will project, so
 # the bound is that module's, not a second number that could drift from it.
@@ -234,6 +243,16 @@ class FeasibilityReport:
     # above. The horizon is published so the sentence can name it.
     opportunity_cost_cents: int
     opportunity_horizon_months: int
+    # THE question a buyer asks, and it was buried in a lever: how much has to
+    # go aside every month to reach the target by the horizon. Never None -- it
+    # depends on the price, the down payment, the rate and the horizon, none of
+    # which the capacity touches, so it survives the refusal above.
+    required_monthly_cents: int
+    # How long the target takes at the capacity actually measured. `None` when
+    # the capacity could not be measured, when it is non-positive (a pot that
+    # shrinks never arrives), or when the answer lies beyond `months_to_target`
+    # own fifty-year bound -- never a sentinel integer standing in for "never".
+    months_at_measured_capacity: int | None
     impact: Impact
     # The last day of the month the horizon lands in, so the screen prints a
     # date rather than only a month count.
@@ -374,6 +393,14 @@ def assess_feasibility(
         request.target_cents, assumptions.annual_return_bps, ownership_months
     )
     emergency = _emergency(balance_cents, request.target_cents, expense_rate)
+    # What the household would have to put aside every month. Computed before
+    # the refusal below because it does not depend on the capacity at all: a
+    # ledger too short to measure a capacity can still be told what the target
+    # costs per month, and that is the one figure such a household can act on.
+    required = required_monthly_cents(
+        request.target_cents, request.down_payment_cents,
+        assumptions.annual_return_bps, request.horizon_months,
+    )
 
     if capacity is None:
         return FeasibilityReport(
@@ -383,6 +410,8 @@ def assess_feasibility(
             saved_at_horizon_high_cents=None, gap_cents=None,
             opportunity_cost_cents=opportunity,
             opportunity_horizon_months=ownership_months,
+            required_monthly_cents=required,
+            months_at_measured_capacity=None,
             impact=Impact(emergency=emergency, liquid_in_five_years_before_cents=None,
                           liquid_in_five_years_after_cents=None,
                           liquid_unavailable_reason=_reason_liquid_unmeasurable()),
@@ -429,6 +458,14 @@ def assess_feasibility(
         saved_at_horizon_high_cents=at_high,
         gap_cents=request.target_cents - at_median,
         opportunity_cost_cents=opportunity, opportunity_horizon_months=ownership_months,
+        required_monthly_cents=required,
+        # `months_to_target` returns None on a pot that never arrives, which is
+        # exactly the answer a negative capacity deserves -- not a large number
+        # dressed up as a date.
+        months_at_measured_capacity=months_to_target(
+            request.target_cents, request.down_payment_cents,
+            capacity.median_cents, assumptions.annual_return_bps,
+        ),
         impact=Impact(emergency=emergency,
                       liquid_in_five_years_before_cents=liquid_before,
                       liquid_in_five_years_after_cents=liquid_after,

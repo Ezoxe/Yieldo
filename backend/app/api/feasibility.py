@@ -43,6 +43,7 @@ from app.engines.feasibility import Assumptions, PurchaseRequest, assess_feasibi
 from app.engines.levers import CategoryHistory, LoaTerms, build_levers, compare_financing
 from app.engines.ownership import (
     DEFAULT_OWNERSHIP_YEARS,
+    NATURE_PROFILES,
     CostItem,
     defaults_for,
     total_cost_of_ownership,
@@ -177,14 +178,20 @@ def _ownership_defaults() -> dict[str, OwnershipDefaultsOut]:
     engine applies cannot drift apart.
     """
     natures = {}
-    for nature in ("vehicle", "property", "other"):
-        items, depreciation = defaults_for(nature)
-        natures[nature] = OwnershipDefaultsOut(
+    # Every profile the catalogue carries, never a hand-written subset: a
+    # nature added to the engine and forgotten in this list would be offered by
+    # `FeasibilityContextOut.natures` and prefill nothing, which reads as "this
+    # one costs nothing to own".
+    for profile in NATURE_PROFILES:
+        natures[profile.key] = OwnershipDefaultsOut(
             items=[CostItemIn(key=item.key, label=item.label,
                               monthly_cents=item.monthly_cents,
                               annual_bps_of_value=item.annual_bps_of_value)
-                   for item in items],
-            depreciation_bps_per_year=depreciation,
+                   for item in profile.items],
+            depreciation_bps_per_year=profile.depreciation_bps_per_year,
+            label=profile.label,
+            note=profile.note,
+            ownership_years=profile.ownership_years,
         )
     return natures
 
@@ -219,21 +226,25 @@ def _assess(payload: FeasibilityIn, user: User, db: Session) -> FeasibilityOut:
         down_payment_cents=payload.down_payment_cents, nature=payload.nature,
     )
 
-    default_items, depreciation = defaults_for(payload.nature)
-    items = (
-        [CostItem(key=i.key, label=i.label, monthly_cents=i.monthly_cents,
-                  annual_bps_of_value=i.annual_bps_of_value)
-         for i in payload.ownership_items]
-        if payload.ownership_items is not None
-        else list(default_items)
-    )
-
     # Fetched once and reused: three calls would be three identical aggregate
     # queries, and a figure the response reports must be the same one the
     # engine was handed.
     balance = liquid_balance_cents(db, user.id)
 
     try:
+        # Inside the try, because `defaults_for` refuses an unknown nature by
+        # raising rather than by handing back an empty default that would read
+        # as "this one costs nothing to own". Its French sentence names the
+        # nature, and the handler below turns it into the 422 the screen shows.
+        default_items, depreciation = defaults_for(payload.nature)
+        items = (
+            [CostItem(key=i.key, label=i.label, monthly_cents=i.monthly_cents,
+                      annual_bps_of_value=i.annual_bps_of_value)
+             for i in payload.ownership_items]
+            if payload.ownership_items is not None
+            else list(default_items)
+        )
+
         report = assess_feasibility(
             request,
             measure_savings_capacity(months),
@@ -275,6 +286,8 @@ def _assess(payload: FeasibilityIn, user: User, db: Session) -> FeasibilityOut:
         gap_cents=report.gap_cents,
         opportunity_cost_cents=report.opportunity_cost_cents,
         opportunity_horizon_months=report.opportunity_horizon_months,
+        required_monthly_cents=report.required_monthly_cents,
+        months_at_measured_capacity=report.months_at_measured_capacity,
         ownership=OwnershipOut(
             price_cents=ownership.price_cents, years=ownership.years,
             lines=[CostLineOut(key=line.key, label=line.label,

@@ -1,0 +1,117 @@
+/* The step before the tool. Cards rather than a select, because the note under
+   each label is the load-bearing part: it says which figures this nature
+   prefills and which it deliberately leaves empty, and a select can show only
+   one of them at a time — after the choice has already been made. */
+.yd-nature {
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-md);
+}
+
+.yd-nature__lead {
+  margin: 0;
+  max-width: 68ch;
+  color: var(--yd-text-muted);
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+.yd-nature__list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: var(--yd-space-sm);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.yd-nature__card {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-rows: auto auto;
+  align-items: center;
+  gap: var(--yd-space-2xs) var(--yd-space-sm);
+  width: 100%;
+  height: 100%;
+  padding: var(--yd-space-md);
+  border: 1px solid var(--yd-border-control);
+  border-radius: var(--yd-radius-md, 12px);
+  background: var(--yd-surface);
+  color: var(--yd-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color var(--yd-motion-fast) var(--yd-ease),
+    background var(--yd-motion-fast) var(--yd-ease);
+}
+
+.yd-nature__card:hover {
+  border-color: var(--yd-accent);
+}
+
+.yd-nature__card:focus-visible {
+  outline: 2px solid var(--yd-accent);
+  outline-offset: 2px;
+}
+
+.yd-nature__card[aria-pressed="true"] {
+  border-color: var(--yd-accent);
+  background: color-mix(in srgb, var(--yd-accent) 10%, var(--yd-surface));
+}
+
+/* A flat tint and a hairline, never a gradient: the glyph is the drawing, the
+   container is a ground for it. */
+.yd-nature__mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--yd-border);
+  border-radius: var(--yd-radius-sm);
+  background: color-mix(in srgb, var(--yd-accent) 12%, transparent);
+  color: var(--yd-accent);
+}
+
+.yd-nature__label {
+  font-weight: 600;
+}
+
+.yd-nature__note {
+  grid-column: 1 / -1;
+  color: var(--yd-text-muted);
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+/* The chosen nature, once the form is open: a chip that names it and offers to
+   change it, so the choice stays visible instead of vanishing into a field. */
+.yd-nature__chosen {
+  display: flex;
+  align-items: center;
+  gap: var(--yd-space-sm);
+  margin-bottom: var(--yd-space-sm);
+  color: var(--yd-text-muted);
+  font-size: 0.82rem;
+}
+
+.yd-nature__chosen strong {
+  color: var(--yd-text);
+  font-weight: 600;
+}
+
+.yd-nature__change {
+  padding: var(--yd-space-3xs, 0.2rem) var(--yd-space-sm);
+  border: 1px solid var(--yd-border-control);
+  border-radius: var(--yd-radius-sm);
+  background: transparent;
+  color: var(--yd-text);
+  font: inherit;
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+
+.yd-nature__change:hover {
+  border-color: var(--yd-accent);
+}

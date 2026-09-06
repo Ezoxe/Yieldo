@@ -1,9 +1,18 @@
 from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from app.api.common import LIQUID_ACCOUNT_KINDS
 from app.db import get_db
-from app.models import ACCOUNT_KINDS, Account, User
-from app.schemas.accounts import AccountIn, AccountOut, AccountPatch
+from app.models import ACCOUNT_KINDS, Account, Transaction, User
+from app.schemas.accounts import (
+    AccountBalanceOut,
+    AccountIn,
+    AccountOut,
+    AccountPatch,
+    BalanceBreakdownOut,
+    TransferAuditOut,
+)
 from app.security.deps import get_current_user
 
 router = APIRouter(prefix="/accounts", tags=["accounts"])
@@ -28,6 +37,78 @@ def list_accounts(user: User = Depends(get_current_user),
         .filter(Account.user_id == user.id, Account.archived.is_(False))
         .order_by(Account.id)
         .all()
+    )
+
+
+# Declared before "/{account_id}" so the literal segment is matched first.
+@router.get("/balance", response_model=BalanceBreakdownOut)
+def balance_breakdown(user: User = Depends(get_current_user),
+                      db: Session = Depends(get_db)) -> BalanceBreakdownOut:
+    """Where the solde comes from, account by account.
+
+    `common.liquid_balance_cents` answers one number over every liquid account
+    at once, which is the right answer to give an engine and the wrong one to
+    show a household that says "je n'ai pas ça sur mes comptes". Every way that
+    figure can be wrong -- a statement imported twice under two accounts, an
+    opening balance typed as today's balance on top of a backfilled history, a
+    savings account declared but never imported -- looks identical from the
+    outside. Split into its parts it does not.
+
+    The liquid total is asserted equal to `liquid_balance_cents` by a test:
+    this route shows that balance, it does not compute a second one.
+    """
+    accounts = (
+        db.query(Account)
+        .filter(Account.user_id == user.id, Account.archived.is_(False))
+        .order_by(Account.id)
+        .all()
+    )
+    movements = dict(
+        db.query(Transaction.account_id, func.coalesce(func.sum(Transaction.amount_cents), 0))
+        .filter(Transaction.user_id == user.id)
+        .group_by(Transaction.account_id)
+        .all()
+    )
+    counts = dict(
+        db.query(Transaction.account_id, func.count(Transaction.id))
+        .filter(Transaction.user_id == user.id)
+        .group_by(Transaction.account_id)
+        .all()
+    )
+
+    rows: list[AccountBalanceOut] = []
+    liquid_total = 0
+    for account in accounts:
+        moved = int(movements.get(account.id, 0))
+        liquid = account.kind in LIQUID_ACCOUNT_KINDS
+        balance = account.opening_balance_cents + moved
+        if liquid:
+            liquid_total += balance
+        rows.append(AccountBalanceOut(
+            id=account.id, name=account.name, kind=account.kind, liquid=liquid,
+            opening_balance_cents=account.opening_balance_cents,
+            movements_cents=moved,
+            transaction_count=int(counts.get(account.id, 0)),
+            balance_cents=balance,
+        ))
+
+    flagged = (
+        db.query(Transaction.amount_cents)
+        .filter(Transaction.user_id == user.id, Transaction.is_transfer.is_(True))
+        .all()
+    )
+    received = sum(row[0] for row in flagged if row[0] > 0)
+    sent = sum(row[0] for row in flagged if row[0] < 0)
+
+    return BalanceBreakdownOut(
+        accounts=rows,
+        liquid_total_cents=liquid_total,
+        transfers=TransferAuditOut(
+            count=len(flagged), received_cents=received, sent_cents=sent,
+            # The two legs of a transfer cancel; whatever is left over is a leg
+            # flagged without its counterpart.
+            unmatched_cents=received + sent,
+        ),
     )
 
 

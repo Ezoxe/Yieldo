@@ -10,6 +10,7 @@ import {
   AccountIcon,
   AppearanceIcon,
   ChevronIcon,
+  CoinsIcon,
   ConnectionsIcon,
   KeyIcon,
   LockIcon,
@@ -23,6 +24,7 @@ import { PageHead } from "../../design/PageHead";
 import type { DensityPreference, ThemePreference } from "../../design/theme";
 import { useSession } from "../auth/session";
 import { AccessKeyPanel } from "./AccessKeyPanel";
+import { AccountsPanel } from "./AccountsPanel";
 import { PasswordForm } from "./PasswordForm";
 import { ProfileForm } from "./ProfileForm";
 import "./SettingsPage.css";
@@ -85,6 +87,14 @@ export function SettingsPage() {
         <BentoCell as={motion.div} span={SPAN.half} className="yd-panel" {...entryProps(reduced)}>
           <PanelHead icon={LockIcon}>Mot de passe</PanelHead>
           <PasswordForm />
+        </BentoCell>
+
+        {/* Full width: this is a list that grows with the household, and it is
+            the one screen where the opening balance -- the figure under every
+            solde the application prints -- can be corrected. */}
+        <BentoCell as={motion.div} span={SPAN.full} className="yd-panel" {...entryProps(reduced)}>
+          <PanelHead icon={CoinsIcon}>Comptes</PanelHead>
+          <AccountsPanel />
         </BentoCell>
 
         <BentoCell as={motion.div} span={SPAN.half} className="yd-panel" {...entryProps(reduced)}>

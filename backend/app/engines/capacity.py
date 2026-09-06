@@ -112,23 +112,39 @@ def complete_months(
     return observations
 
 
-def _measure(values: list[int]) -> MeasuredRate | None:
+def _measure(values: list[int], *, floor_at_zero: bool = False) -> MeasuredRate | None:
+    """The median and its P10/P90 band, from a robust scale.
+
+    `floor_at_zero` is for the two rates that are magnitudes rather than signed
+    figures: what a month costs, and what it brings in. The band is symmetric
+    around the median, so a spread wider than the median itself puts the low end
+    below zero -- and "vos dépenses valent entre -655,57 EUR et 2 112,35 EUR par
+    mois" is not a wide estimate, it is a sentence with no meaning. A month
+    cannot spend a negative amount, so the low end stops at the edge of what the
+    quantity can be.
+
+    It is deliberately NOT applied to `measure_savings_capacity`, which is
+    signed: a household whose pot shrinks has a negative capacity and
+    `engines/feasibility` forbids flipping or clamping it -- see that module's
+    "No abs() and no clamp".
+    """
     if len(values) < MIN_MONTHS_FOR_RATE:
         return None
     spread = describe(values)
     offset = quantile_offset_cents(spread.sigma)
+    low = spread.median - offset
     return MeasuredRate(
         months=len(values),
         median_cents=spread.median,
         spread_cents=spread.sigma,
-        low_cents=spread.median - offset,
+        low_cents=max(0, low) if floor_at_zero else low,
         high_cents=spread.median + offset,
     )
 
 
 def measure_expense_rate(months: list[MonthObservation]) -> MeasuredRate | None:
     """What a month costs, as a positive magnitude. None when unmeasurable."""
-    return _measure([abs(month.outflow_cents) for month in months])
+    return _measure([abs(month.outflow_cents) for month in months], floor_at_zero=True)
 
 
 def measure_income_rate(months: list[MonthObservation]) -> MeasuredRate | None:
@@ -148,7 +164,7 @@ def measure_income_rate(months: list[MonthObservation]) -> MeasuredRate | None:
     ratio at all, and `amortization.debt_ratio_bps` refuses in the same way for
     the same reason.
     """
-    return _measure([month.inflow_cents for month in months])
+    return _measure([month.inflow_cents for month in months], floor_at_zero=True)
 
 
 def measure_savings_capacity(months: list[MonthObservation]) -> MeasuredRate | None:

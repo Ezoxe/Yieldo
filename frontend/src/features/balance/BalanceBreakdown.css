@@ -1,0 +1,151 @@
+/* Where a solde comes from, opened on demand.
+
+   A disclosure and not a permanent table: the number above it is the answer,
+   and this is the working. It is closed until a reader disagrees with the
+   figure -- which is exactly when a list of accounts stops being clutter. */
+
+.yd-balance {
+  margin-top: var(--yd-space-sm);
+  border-top: 1px solid var(--yd-border);
+  padding-top: var(--yd-space-sm);
+  font-size: 0.85rem;
+}
+
+.yd-balance__summary {
+  cursor: pointer;
+  color: var(--yd-text-muted);
+  font-size: 0.82rem;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: var(--yd-space-2xs);
+  transition: color var(--yd-motion-fast) var(--yd-ease);
+}
+
+.yd-balance__summary::-webkit-details-marker {
+  display: none;
+}
+
+/* The triangle is drawn rather than borrowed from the browser's marker: the
+   default glyph is a different shape in every engine and cannot be sized. */
+.yd-balance__summary::before {
+  content: "";
+  width: 0;
+  height: 0;
+  border-left: 5px solid currentColor;
+  border-top: 4px solid transparent;
+  border-bottom: 4px solid transparent;
+  transition: transform var(--yd-motion-fast) var(--yd-ease);
+}
+
+.yd-balance[open] > .yd-balance__summary::before {
+  transform: rotate(90deg);
+}
+
+.yd-balance__summary:hover,
+.yd-balance[open] > .yd-balance__summary {
+  color: var(--yd-text);
+}
+
+.yd-balance__summary:focus-visible {
+  outline: 2px solid var(--yd-accent);
+  outline-offset: 2px;
+  border-radius: var(--yd-radius-sm);
+}
+
+.yd-balance__table {
+  width: 100%;
+  margin-top: var(--yd-space-sm);
+  border-collapse: collapse;
+  /* Wide content scrolls inside its own box rather than pushing the panel. */
+  display: block;
+  overflow-x: auto;
+}
+
+.yd-balance__table th,
+.yd-balance__table td {
+  padding: var(--yd-space-2xs) var(--yd-space-xs);
+  text-align: right;
+  white-space: nowrap;
+  font-weight: 400;
+  color: var(--yd-text);
+}
+
+.yd-balance__table thead th {
+  font-size: 0.7rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--yd-text-muted);
+  border-bottom: 1px solid var(--yd-border);
+}
+
+.yd-balance__table th:first-child,
+.yd-balance__table tbody th {
+  text-align: left;
+  padding-left: 0;
+}
+
+.yd-balance__table tbody tr {
+  border-bottom: 1px solid var(--yd-border);
+}
+
+.yd-balance__name {
+  display: block;
+}
+
+.yd-balance__kind {
+  display: block;
+  font-size: 0.72rem;
+  color: var(--yd-text-muted);
+}
+
+/* An account that is not liquid is listed, not hidden: leaving it off the table
+   would read as a missing account rather than an excluded one. */
+.yd-balance__row--excluded td,
+.yd-balance__row--excluded .yd-balance__name {
+  color: var(--yd-text-muted);
+}
+
+.yd-balance__count {
+  color: var(--yd-text-muted);
+  font-size: 0.72rem;
+}
+
+.yd-balance__table tfoot th,
+.yd-balance__table tfoot td {
+  padding-top: var(--yd-space-xs);
+  font-weight: 600;
+}
+
+.yd-balance__note {
+  margin: var(--yd-space-xs) 0 0;
+  font-size: 0.78rem;
+  line-height: 1.5;
+  color: var(--yd-text-muted);
+}
+
+/* A standing condition about the data, not a threshold coming into reach:
+   --yd-info, never --yd-warning. */
+.yd-balance__warning {
+  margin: var(--yd-space-xs) 0 0;
+  padding: var(--yd-space-xs) var(--yd-space-sm);
+  border-radius: var(--yd-radius-sm);
+  border: 1px solid color-mix(in srgb, var(--yd-info) 35%, transparent);
+  background: color-mix(in srgb, var(--yd-info) 10%, transparent);
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: var(--yd-text);
+}
+
+.yd-balance__error {
+  margin: var(--yd-space-sm) 0 0;
+  font-size: 0.8rem;
+  color: var(--yd-negative);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .yd-balance__summary,
+  .yd-balance__summary::before {
+    transition: none;
+  }
+}

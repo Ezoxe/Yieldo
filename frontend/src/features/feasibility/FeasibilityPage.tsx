@@ -22,6 +22,7 @@ import type {
   MeasuredRate,
   Scenario,
 } from "../../lib/types";
+import { BalanceBreakdown } from "../balance/BalanceBreakdown";
 import "./FeasibilityPage.css";
 import { FinancingPanel } from "./FinancingPanel";
 import { ImpactPanel } from "./ImpactPanel";
@@ -233,6 +234,8 @@ export function FeasibilityPage() {
             {" par mois."}
           </p>
         </div>
+
+        <BalanceBreakdown />
 
         <p className="yd-context__note">
           {`${measured.months_observed} ${plural(measured.months_observed, "mois complet", "mois complets")} ${plural(measured.months_observed, "observé", "observés")} dans votre historique.`}

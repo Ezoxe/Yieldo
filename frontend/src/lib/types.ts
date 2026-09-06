@@ -66,6 +66,36 @@ export interface Transaction {
   manual: boolean;
 }
 
+// GET /api/accounts/balance: the solde taken apart, so a household that does
+// not recognise it has something to check it against.
+export interface AccountBalance {
+  id: number;
+  name: string;
+  kind: string;
+  // Whether the account counts towards money that could be spent next month.
+  liquid: boolean;
+  opening_balance_cents: number;
+  movements_cents: number;
+  transaction_count: number;
+  balance_cents: number;
+}
+
+// The two legs of every internal transfer, weighed against each other. They
+// cancel; `unmatched_cents` is what they fail to cancel by, which is a leg
+// flagged without its counterpart.
+export interface TransferAudit {
+  count: number;
+  received_cents: number;
+  sent_cents: number;
+  unmatched_cents: number;
+}
+
+export interface BalanceBreakdown {
+  accounts: AccountBalance[];
+  liquid_total_cents: number;
+  transfers: TransferAudit;
+}
+
 // The span of the user's whole ledger, whatever period is being asked about.
 // `null` on the wire means they have no transactions at all — which is what
 // tells an empty screen apart from a screen pointed at an empty window.

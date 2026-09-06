@@ -629,10 +629,30 @@ const ROUTES: Record<string, (params: Params) => unknown> = {
     return agentKey;
   },
   "/api/categories": () => CATEGORY_PAYLOAD,
-  "/api/accounts": () => [
-    { id: 1, name: "Compte courant", kind: "checking", currency: "EUR", opening_balance_cents: 412_000, opened_on: "2025-09-01", include_in_net_worth: true, archived: false },
-    { id: 2, name: "Livret A", kind: "savings", currency: "EUR", opening_balance_cents: 1_240_000, opened_on: "2023-01-01", include_in_net_worth: true, archived: false },
-  ],
+  "/api/accounts": () => ACCOUNTS.filter((row) => row.archived === false),
+  // The solde taken apart. Every movement in the harness sits on account 1, so
+  // the total the preview shows is the total its own ledger adds up to.
+  "/api/accounts/balance": () => {
+    const movements = ROWS.reduce((sum, row) => sum + row.amount_cents, 0);
+    const rows = ACCOUNTS.filter((account) => account.archived === false).map((account) => {
+      const moved = account.id === 1 ? movements : 0;
+      return {
+        id: account.id, name: account.name, kind: account.kind,
+        liquid: LIQUID_KINDS.includes(account.kind),
+        opening_balance_cents: account.opening_balance_cents,
+        movements_cents: moved,
+        transaction_count: account.id === 1 ? ROWS.length : 0,
+        balance_cents: account.opening_balance_cents + moved,
+      };
+    });
+    return {
+      accounts: rows,
+      liquid_total_cents: rows
+        .filter((row) => row.liquid)
+        .reduce((sum, row) => sum + row.balance_cents, 0),
+      transfers: { count: 0, received_cents: 0, sent_cents: 0, unmatched_cents: 0 },
+    };
+  },
   "/api/agent/proposals": (params) => {
     const wanted = params.get("state");
     return wanted === null ? PROPOSALS : PROPOSALS.filter((row) => row.state === wanted);
@@ -710,6 +730,21 @@ const ROUTES: Record<string, (params: Params) => unknown> = {
  * change in memory for the rest of the tab, which is enough to see the screen
  * behave — it is not a database.
  */
+/** The household's accounts, mutable for the rest of the tab: the Réglages
+ *  panel creates, renames, re-opens and archives them, and every balance the
+ *  preview prints is recomputed from this list. */
+const LIQUID_KINDS = ["checking", "savings", "cash"];
+
+const ACCOUNTS: {
+  id: number; name: string; kind: string; currency: string;
+  opening_balance_cents: number; opened_on: string | null;
+  include_in_net_worth: boolean; archived: boolean;
+}[] = [
+  { id: 1, name: "Compte courant", kind: "checking", currency: "EUR", opening_balance_cents: 412_000, opened_on: "2025-09-01", include_in_net_worth: true, archived: false },
+  { id: 2, name: "Livret A", kind: "savings", currency: "EUR", opening_balance_cents: 1_240_000, opened_on: "2023-01-01", include_in_net_worth: true, archived: false },
+  { id: 3, name: "PEA", kind: "pea", currency: "EUR", opening_balance_cents: 860_000, opened_on: "2022-04-01", include_in_net_worth: true, archived: false },
+];
+
 /** The forecast plan the preview starts with: two declarations a household
  *  really would make, so the plan screen and the three readings have something
  *  to show without anyone typing first. */
@@ -960,6 +995,17 @@ const WRITES: Record<string, (body: Record<string, unknown>) => Response> = {
   // A hand-typed operation joins ROWS for the rest of the tab, exactly where
   // its date puts it, so every screen recomputes around it the way the real
   // backend would.
+  "POST /api/accounts": (body) => {
+    const payload = body as { name: string; kind: string; opening_balance_cents: number };
+    const account = {
+      id: Math.max(...ACCOUNTS.map((row) => row.id)) + 1,
+      name: payload.name, kind: payload.kind, currency: "EUR",
+      opening_balance_cents: payload.opening_balance_cents,
+      opened_on: null, include_in_net_worth: true, archived: false,
+    };
+    ACCOUNTS.push(account);
+    return jsonOk(account);
+  },
   "POST /api/transactions": (body) => {
     const payload = body as {
       account_id: number; date: string; amount_cents: number;
@@ -1160,6 +1206,33 @@ export function installMockApi(): void {
         learned_rule_id: null,
         backfilled: 0,
       });
+    }
+
+    // The accounts' own per-id routes, matched here like the plan's and the
+    // ledger's for the same reason: an id in the path.
+    const accountRow = /^\/api\/accounts\/(\d+)$/.exec(url.pathname);
+    if (accountRow !== null && (method === "PATCH" || method === "DELETE")) {
+      const id = Number(accountRow[1]);
+      const account = ACCOUNTS.find((row) => row.id === id);
+      if (account === undefined) {
+        return new Response(JSON.stringify({ detail: "Compte introuvable" }), {
+          status: 404, headers: { "Content-Type": "application/json" },
+        });
+      }
+      if (method === "DELETE") {
+        // Archived, never removed -- the real route does the same.
+        account.archived = true;
+        return new Response(null, { status: 204 });
+      }
+      const patch = (init?.body ? JSON.parse(String(init.body)) : {}) as Record<string, unknown>;
+      if (typeof patch.name === "string") account.name = patch.name;
+      if (typeof patch.opening_balance_cents === "number") {
+        account.opening_balance_cents = patch.opening_balance_cents;
+      }
+      if (typeof patch.include_in_net_worth === "boolean") {
+        account.include_in_net_worth = patch.include_in_net_worth;
+      }
+      return jsonOk(account);
     }
 
     const write = WRITES[`${method} ${url.pathname}`];

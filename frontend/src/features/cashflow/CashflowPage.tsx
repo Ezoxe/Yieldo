@@ -18,6 +18,7 @@ import { formatCents } from "../../design/theme";
 import { ApiError, api } from "../../lib/api";
 import { plural } from "../../lib/plural";
 import type { Forecast, Runway } from "../../lib/types";
+import { BalanceBreakdown } from "../balance/BalanceBreakdown";
 import { RunwayPanel } from "./RunwayPanel";
 import "./CashflowPage.css";
 
@@ -331,6 +332,10 @@ export function CashflowPage() {
                   reste aucune autonomie à compter.
                 </p>
               ) : null}
+              {/* The InfoTip above says what the figure counts; this says where
+                  it came from. A household that does not recognise the number
+                  has nothing to check it against otherwise. */}
+              <BalanceBreakdown />
             </>
           ) : (
             <p className="yd-cashflow__note">

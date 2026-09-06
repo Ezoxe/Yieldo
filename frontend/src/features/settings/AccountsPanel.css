@@ -1,0 +1,162 @@
+/* The bank accounts, listed where two error messages already said they were. */
+
+.yd-accounts {
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-sm);
+}
+
+.yd-accounts__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.yd-accounts__row {
+  padding: var(--yd-space-sm) 0;
+  border-bottom: 1px solid var(--yd-border);
+}
+
+.yd-accounts__row:first-child {
+  padding-top: 0;
+}
+
+.yd-accounts__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--yd-space-sm);
+  flex-wrap: wrap;
+}
+
+.yd-accounts__name {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--yd-text);
+}
+
+.yd-accounts__meta {
+  margin: 2px 0 0;
+  font-size: 0.8rem;
+  color: var(--yd-text-muted);
+}
+
+.yd-accounts__actions {
+  display: flex;
+  gap: var(--yd-space-2xs);
+}
+
+.yd-accounts__actions button {
+  min-height: 30px;
+  padding: 0 var(--yd-space-sm);
+  border: 1px solid var(--yd-border-control);
+  border-radius: var(--yd-radius-sm);
+  background: transparent;
+  color: var(--yd-text);
+  font: inherit;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: border-color var(--yd-motion-fast) var(--yd-ease);
+}
+
+.yd-accounts__actions button:hover:not(:disabled) {
+  border-color: var(--yd-accent);
+}
+
+.yd-accounts__actions button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.yd-accounts__form,
+.yd-accounts__new {
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-sm);
+  margin-top: var(--yd-space-sm);
+}
+
+.yd-accounts__new {
+  padding-top: var(--yd-space-sm);
+  border-top: 1px solid var(--yd-border);
+}
+
+.yd-accounts__field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-2xs);
+}
+
+.yd-accounts__field label {
+  font-size: 0.78rem;
+  color: var(--yd-text-muted);
+}
+
+.yd-accounts__field input,
+.yd-accounts__field select {
+  min-height: 36px;
+  padding: 0 var(--yd-space-sm);
+  border: 1px solid var(--yd-border-control);
+  border-radius: var(--yd-radius-sm);
+  background: var(--yd-surface);
+  color: var(--yd-text);
+  font: inherit;
+  font-size: 0.88rem;
+}
+
+.yd-accounts__field input:focus-visible,
+.yd-accounts__field select:focus-visible {
+  outline: 2px solid var(--yd-accent);
+  outline-offset: 1px;
+}
+
+.yd-accounts__field input[aria-invalid="true"] {
+  border-color: var(--yd-negative);
+}
+
+.yd-accounts__hint,
+.yd-accounts__note,
+.yd-accounts__empty {
+  margin: 0;
+  font-size: 0.78rem;
+  line-height: 1.5;
+  color: var(--yd-text-muted);
+}
+
+.yd-accounts__error {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--yd-negative);
+}
+
+.yd-accounts__save {
+  align-self: flex-start;
+  min-height: 36px;
+  padding: 0 var(--yd-space-md);
+  border: 1px solid var(--yd-accent);
+  border-radius: var(--yd-radius-sm);
+  background: color-mix(in srgb, var(--yd-accent) 16%, transparent);
+  color: var(--yd-text);
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.yd-accounts__save:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.yd-accounts__save:focus-visible {
+  outline: 2px solid var(--yd-accent);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .yd-accounts__actions button {
+    transition: none;
+  }
+}

@@ -204,8 +204,13 @@ const SPAN = {
   // they answer "how much, and where" in one glance.
   donut: { base: 1, md: 6, lg: 5 },
   split: { base: 1, md: 6, lg: 7 },
-  lines: { base: 1, md: 6, lg: 7 },
-  unbudgeted: { base: 1, md: 6, lg: 5 },
+  // Full width each, one under the other. Paired 7/5 they held 535px of budget
+  // rows beside 56px of suggestions, which stretched "Sans budget" to 646px for
+  // a row of chips -- 511px of nothing, the largest void on the application.
+  // The suggestions are a band of "fixer un seuil pour X" buttons and read as
+  // one; the list needs the width more than it needs a neighbour.
+  lines: { base: 1, md: 6, lg: 12 },
+  unbudgeted: { base: 1, md: 6, lg: 12 },
   empty: { base: 1, md: 6, lg: 12 },
 } satisfies Record<string, BentoSpan>;
 

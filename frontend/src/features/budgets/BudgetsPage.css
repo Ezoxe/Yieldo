@@ -670,12 +670,3 @@
   text-align: center;
   white-space: nowrap;
 }
-
-/* Measured at 1920: this panel holds a 56px suggestion list in the 646px row
-   the budget list next to it makes, with 511px of nothing underneath — the
-   largest void on the application. The cell keeps stretching, as every bento
-   cell does; the head stays pinned to the top and the suggestions sit in the
-   room rather than above it. */
-.yd-budgets__suggestions {
-  margin-block: auto;
-}

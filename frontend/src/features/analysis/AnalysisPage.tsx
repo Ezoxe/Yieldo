@@ -277,11 +277,32 @@ function anomalyScopeSentence(report: AnomalyReport): string {
  * qualifying them; the basket is one figure and the index form is one
  * textarea.
  */
+/**
+ * Four panels holding 137, 364, 479 and 739px of content, measured at 1920.
+ *
+ * Paired 5/7 they produced the worst voids on the application: the basket, a
+ * headline percentage and two amounts, was stretched to the height of a
+ * thirteen-row list -- 384px of nothing under three lines -- and the index form
+ * to the height of the anomalies list, another 462px. A bento cell stretches to
+ * its row, which is the right rule; the mistake was the pairing, and no amount
+ * of centring inside the cell fixes a card sharing a row with five times its
+ * content.
+ *
+ * So the rows are rebuilt around what each panel actually holds. The basket is
+ * the page's headline figure -- personal inflation, the one number this screen
+ * exists to state -- and it takes the full width as a band, where it has no
+ * neighbour to be stretched by. The two panels of comparable weight, the index
+ * form and the category comparison, share the row under it. The anomalies list,
+ * the longest thing on the page, gets the full width in turn.
+ *
+ * The order of the cells below is part of the layout: CSS grid auto-placement
+ * is sparse, so a later cell never backfills a gap an earlier one left.
+ */
 const SPAN = {
-  basket: { base: 1, md: 6, lg: 5 },
-  lines: { base: 1, md: 6, lg: 7 },
-  anomalies: { base: 1, md: 6, lg: 7 },
+  basket: { base: 1, md: 6, lg: 12 },
   index: { base: 1, md: 6, lg: 5 },
+  lines: { base: 1, md: 6, lg: 7 },
+  anomalies: { base: 1, md: 6, lg: 12 },
 } satisfies Record<string, BentoSpan>;
 
 interface LoadErrors {
@@ -399,6 +420,10 @@ export function AnalysisPage() {
           <div className="yd-skeleton yd-skeleton--an-title" aria-hidden="true" />
           <div className="yd-skeleton yd-skeleton--an-figure" aria-hidden="true" />
         </BentoCell>
+        <BentoCell span={SPAN.index} className="yd-panel">
+          <div className="yd-skeleton yd-skeleton--an-title" aria-hidden="true" />
+          <div className="yd-skeleton yd-skeleton--an-form" aria-hidden="true" />
+        </BentoCell>
         <BentoCell span={SPAN.lines} className="yd-panel">
           <div className="yd-skeleton yd-skeleton--an-title" aria-hidden="true" />
           <div className="yd-skeleton yd-skeleton--an-list" aria-hidden="true" />
@@ -406,10 +431,6 @@ export function AnalysisPage() {
         <BentoCell span={SPAN.anomalies} className="yd-panel">
           <div className="yd-skeleton yd-skeleton--an-title" aria-hidden="true" />
           <div className="yd-skeleton yd-skeleton--an-list" aria-hidden="true" />
-        </BentoCell>
-        <BentoCell span={SPAN.index} className="yd-panel">
-          <div className="yd-skeleton yd-skeleton--an-title" aria-hidden="true" />
-          <div className="yd-skeleton yd-skeleton--an-form" aria-hidden="true" />
         </BentoCell>
       </BentoGrid>
     );
@@ -502,6 +523,15 @@ export function AnalysisPage() {
           )}
         </BentoCell>
 
+        <BentoCell
+          as={motion.div}
+          span={SPAN.index}
+          className="yd-panel"
+          {...entryProps(reduced)}
+        >
+          <PanelHead icon={PriceChangeIcon}>Indice de référence</PanelHead>
+          <PriceIndexForm points={indexPoints} onSaved={reload} />
+        </BentoCell>
         <BentoCell as={motion.div} span={SPAN.lines} className="yd-panel" {...entryProps(reduced)}>
           <PanelHead icon={TrendUpIcon}>Où l'argent part davantage qu'avant</PanelHead>
           {inflationRefusal !== null ? (
@@ -708,15 +738,6 @@ export function AnalysisPage() {
           )}
         </BentoCell>
 
-        <BentoCell
-          as={motion.div}
-          span={SPAN.index}
-          className="yd-panel"
-          {...entryProps(reduced)}
-        >
-          <PanelHead icon={PriceChangeIcon}>Indice de référence</PanelHead>
-          <PriceIndexForm points={indexPoints} onSaved={reload} />
-        </BentoCell>
       </BentoGrid>
     );
   }

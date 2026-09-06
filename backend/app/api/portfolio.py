@@ -54,6 +54,7 @@ spend quota this valuation call has no need of.
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -66,9 +67,11 @@ from app.market.cache import CacheEntry, MarketDataKind
 from app.market.cache import evaluate as cache_evaluate
 from app.market.client import MarketError, Quote
 from app.market.providers import PROVIDERS
+from app.engines.transfer import SAVINGS_ACCOUNT_KINDS
 from app.models import (
     INSTRUMENT_ASSET_CLASSES,
     INVESTMENT_ACCOUNT_KINDS,
+    Account,
     AllocationTarget,
     ApiKey,
     Instrument,
@@ -77,12 +80,14 @@ from app.models import (
     Position,
     PricePoint,
     QuotaWindow,
+    Transaction,
     User,
 )
 from app.schemas.portfolio import (
     AllocationReportOut,
     AllocationTargetOut,
     AllocationTargetsIn,
+    CashHoldingOut,
     DeclaredHoldingOut,
     InstrumentIn,
     InstrumentOut,
@@ -658,6 +663,19 @@ def get_valuation(
     The weights are deliberately left alone too: they answer "how is what I hold
     spread across instruments, asset classes and currencies", and a declared
     envelope names none of the three.
+
+    The SAVINGS ACCOUNTS are assembled here for the same reasons, and they are
+    the audit's finding of 2026-09-06: a Livret A holding 9 912,40 EUR read as
+    0,00 EUR on this screen, because there are two notions of account in the
+    model -- `Account` and `InvestmentAccount` -- and only the second was ever
+    read here. A household that imported its livret saw it in its balances and
+    not in its wealth.
+
+    Their perimeter is `engines/transfer.SAVINGS_ACCOUNT_KINDS`, the same set
+    that already decides what "mettre de côté" means: a current account is the
+    money you live on and belongs to Trésorerie, not here. An archived account,
+    and one the household deliberately kept out of its net worth, are both left
+    out.
     """
     now = datetime.now(UTC)
     reporting_currency = portfolio_engine.DEFAULT_REPORTING_CURRENCY
@@ -684,12 +702,50 @@ def get_valuation(
     ]
     declared_total = sum(row.value_cents for row in declared)
 
-    body = PortfolioValuationOut.model_validate(
-        {**valued.__dict__, "declared": declared, "declared_total_cents": declared_total}
+    cash_accounts = (
+        db.query(Account)
+        .filter(
+            Account.user_id == user.id,
+            Account.archived.is_(False),
+            Account.include_in_net_worth.is_(True),
+            Account.kind.in_(sorted(SAVINGS_ACCOUNT_KINDS)),
+        )
+        .order_by(Account.id)
+        .all()
     )
+    movements = dict(
+        db.query(Transaction.account_id,
+                 func.coalesce(func.sum(Transaction.amount_cents), 0))
+        .filter(Transaction.user_id == user.id)
+        .group_by(Transaction.account_id)
+        .all()
+    )
+    counts = dict(
+        db.query(Transaction.account_id, func.count(Transaction.id))
+        .filter(Transaction.user_id == user.id)
+        .group_by(Transaction.account_id)
+        .all()
+    )
+    cash = [
+        CashHoldingOut(
+            account_id=row.id, name=row.name, kind=row.kind,
+            balance_cents=row.opening_balance_cents + int(movements.get(row.id, 0)),
+            transaction_count=int(counts.get(row.id, 0)),
+        )
+        for row in cash_accounts
+    ]
+    cash_total = sum(row.balance_cents for row in cash)
+
+    body = PortfolioValuationOut.model_validate({
+        **valued.__dict__,
+        "declared": declared, "declared_total_cents": declared_total,
+        "cash": cash, "cash_total_cents": cash_total,
+    })
     return body.model_copy(update={
         "total": body.total.model_copy(update={
-            "market_value_cents": body.total.market_value_cents + declared_total,
+            "market_value_cents": (
+                body.total.market_value_cents + declared_total + cash_total
+            ),
         }),
     })
 

@@ -53,6 +53,7 @@ export function buildForecastOption(
   months: ForecastMonth[],
   thresholdCents: number,
   tokens: ChartTokens,
+  bandless = false,
 ): ForecastOptionResult {
   const labels = months.map((month) => monthAxisLabel(month.key));
   const breach = months.find((month) => month.below_threshold);
@@ -60,7 +61,10 @@ export function buildForecastOption(
   const option: EChartsOption = {
     legend: {
       data: [
-        { name: "Intervalle P10–P90" },
+        // Dropped with the series itself when nothing was measured: a legend
+        // entry for a band that is not drawn names a thing the reader cannot
+        // find on the plot.
+        ...(bandless ? [] : [{ name: "Intervalle P10–P90" }]),
         // `charts/theme.ts` forces `legend.icon: "roundRect"` app-wide, which
         // would draw both entries as blocks of two teals that sit ~1.32:1
         // apart -- legible only because the labels differ. "inherit" routes
@@ -107,8 +111,12 @@ export function buildForecastOption(
         if (!month) return "";
         return [
           `<strong>${monthLongLabel(month.key)}</strong>`,
-          `Médiane : ${formatCents(month.balance_p50_cents)}`,
-          `Fourchette : ${formatCents(month.balance_p10_cents)} à ${formatCents(month.balance_p90_cents)}`,
+          bandless
+            ? `Solde projeté : ${formatCents(month.balance_p50_cents)}`
+            : `Médiane : ${formatCents(month.balance_p50_cents)}`,
+          bandless
+            ? "Aucune fourchette : rien n'a pu être mesuré autour de ce chiffre."
+            : `Fourchette : ${formatCents(month.balance_p10_cents)} à ${formatCents(month.balance_p90_cents)}`,
           month.seasonal
             ? "Estimation saisonnière (même mois observé plusieurs fois)"
             : "Estimation moyenne (mois jamais observé deux fois)",
@@ -119,6 +127,10 @@ export function buildForecastOption(
       },
     },
     series: [
+      // The two band series are dropped, not flattened, when no interval was
+      // measured: a ribbon of zero height is still a ribbon, and the reader
+      // would take it for a fourchette somebody computed.
+      ...(bandless ? [] : [
       {
         // Invisible floor of the band. Carries P10 so the stack starts there.
         name: "P10",
@@ -165,6 +177,7 @@ export function buildForecastOption(
         // The band's HEIGHT, not its top edge — see the doc comment above.
         data: months.map((month) => month.balance_p90_cents - month.balance_p10_cents),
       },
+      ] as EChartsOption["series"] extends (infer T)[] ? T[] : never[]),
       {
         name: "Solde projeté (médiane)",
         type: "line",
@@ -239,9 +252,21 @@ export function buildForecastOption(
 interface ForecastFanChartProps {
   months: ForecastMonth[];
   thresholdCents: number;
+  /**
+   * No interval was measured: every month carries `p10 === p50 === p90`. The
+   * band series and its legend entry are dropped entirely rather than drawn at
+   * zero height — a flat ribbon still reads as a ribbon, and the tooltip would
+   * announce "Fourchette : 7 200,00 € à 7 200,00 €", which is a claim of
+   * certainty nobody measured. The caller prints the reason beside the chart.
+   */
+  bandless?: boolean;
 }
 
-export function ForecastFanChart({ months, thresholdCents }: ForecastFanChartProps) {
+export function ForecastFanChart({
+  months,
+  thresholdCents,
+  bandless = false,
+}: ForecastFanChartProps) {
   const { resolved } = useTheme();
 
   if (months.length === 0) {
@@ -256,6 +281,7 @@ export function ForecastFanChart({ months, thresholdCents }: ForecastFanChartPro
     months,
     thresholdCents,
     chartTokens(resolved),
+    bandless,
   );
 
   return (

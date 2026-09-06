@@ -1,6 +1,6 @@
 import { formatCents } from "../../design/theme";
 import { plural } from "../../lib/plural";
-import type { DeclaredHolding, PortfolioTotal } from "../../lib/types";
+import type { CashHolding, DeclaredHolding, PortfolioTotal } from "../../lib/types";
 
 /**
  * What the portfolio is worth, and — inseparably — what it could not value.
@@ -36,11 +36,15 @@ export function TotalPanel({
   reportingCurrency,
   declared = [],
   declaredTotalCents = 0,
+  cash = [],
+  cashTotalCents = 0,
 }: {
   total: PortfolioTotal;
   reportingCurrency: string;
   declared?: DeclaredHolding[];
   declaredTotalCents?: number;
+  cash?: CashHolding[];
+  cashTotalCents?: number;
 }) {
   const incomplete = total.positions_missing_price + total.positions_missing_fx > 0;
   const gain = total.unrealised_gain_cents;
@@ -74,6 +78,30 @@ export function TotalPanel({
                 {`${holding.name} — `}
                 <span className="yd-num">{formatCents(holding.value_cents)}</span>
                 {declaredOnSentence(holding.declared_on)}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
+      {/* The savings accounts, itemised like the declared amounts and for the
+          same reason: a bank balance was not valued from a price either, and
+          counting it as a "position valorisée" would overstate what was
+          measured. Before the audit of 2026-09-06 they were simply absent, and
+          a household's Livret A read as nothing at all. */}
+      {cashTotalCents !== 0 ? (
+        <div className="yd-ptotal__declared" data-testid="yd-portfolio-cash">
+          <p className="yd-ptotal__declared-head">
+            {`Dont ${formatCents(cashTotalCents)} sur vos comptes d'épargne, au solde de vos relevés :`}
+          </p>
+          <ul className="yd-ptotal__declared-list">
+            {cash.map((holding) => (
+              <li key={holding.account_id}>
+                {`${holding.name} — `}
+                <span className="yd-num">{formatCents(holding.balance_cents)}</span>
+                {holding.transaction_count === 0
+                  ? " (solde initial, aucune opération importée)"
+                  : ` (${holding.transaction_count} ${plural(holding.transaction_count, "opération", "opérations")})`}
               </li>
             ))}
           </ul>

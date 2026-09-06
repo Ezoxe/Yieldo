@@ -85,7 +85,7 @@ précisément, il faut les **déclarer** — ce que le chantier 2 rend possible,
 c'est le seul endroit où l'information existe : elle vient du foyer, pas d'une
 inférence.
 
-## Ce qui a été trouvé et laissé en décision
+## Ce qui a été trouvé, arbitré et corrigé
 
 ### 3. La prévision de trésorerie refuse sur un foyer régulier
 
@@ -100,10 +100,27 @@ non-récurrentes, il n'y a pas de marge d'erreur à estimer. Mais la conséquenc
 est perverse — **plus un foyer est régulier, moins l'écran Trésorerie lui sert**,
 alors que c'est exactement le foyer dont la trésorerie est la plus prévisible.
 
-Piste : quand tout est récurrent, la projection est la somme des récurrences
-avec une bande de largeur nulle. Dire « votre mois est entièrement composé de
-charges connues, voici leur somme, sans marge d'erreur parce qu'il n'y a rien
-qui varie » vaudrait mieux qu'un écran vide. À arbitrer.
+**Corrigé.** Il y a désormais une projection **sans bande**. Deux causes la
+produisent, chacune avec sa phrase :
+
+* tout est récurrent — la projection porte les seules charges connues, et dit
+  en toutes lettres que la part variable en est **absente**, pas estimée à
+  zéro : « le solde réel sera plus bas de ce que vous dépensez en dehors de ces
+  lignes » ;
+* le résidu est mesurable mais parfaitement plat — la projection est complète
+  et exacte, seule la marge d'erreur manque.
+
+Dans les deux cas `balance_p10 == balance_p50 == balance_p90`, les deux séries
+de bande sont **retirées du graphe** au lieu d'être aplaties (un ruban de
+hauteur nulle reste un ruban), l'entrée de légende part avec elles, et
+l'infobulle dit « Aucune fourchette : rien n'a pu être mesuré autour de ce
+chiffre ». La phrase de dépassement perd son « pourrait », qui appartenait à
+une borne basse qui n'existe plus.
+
+Un historique trop court, lui, refuse toujours : importer des relevés le
+corrige, et une projection bâtie sur deux mois serait l'invention que ce moteur
+existe pour refuser. Un historique long sans résidu **ni** récurrence refuse
+aussi — ce n'est pas un foyer régulier, c'est un foyer vide.
 
 ### 4. Le Patrimoine ignore les comptes d'épargne
 
@@ -116,10 +133,25 @@ Il y a deux notions de compte dans le modèle, sans pont entre elles :
 (`InvestmentAccount`), et `/api/portfolio/*` ne lit que la seconde. Un foyer
 qui a importé son livret le voit dans ses soldes et pas dans son patrimoine.
 
-Piste : soit le Patrimoine lit aussi les `Account` du périmètre épargne — ils
-ont un solde calculable, ce qui est exactement ce qu'une valeur déclarée est
-déjà —, soit l'écran dit explicitement qu'il ne couvre que les enveloppes
-d'investissement. Le silence actuel est la seule option à écarter.
+**Corrigé.** `/api/portfolio/valuation` publie une troisième section, `cash`,
+à côté des positions et des montants déclarés : les comptes du périmètre
+`engines/transfer.SAVINGS_ACCOUNT_KINDS` — le même ensemble qui décide déjà de
+ce que « mettre de côté » veut dire —, au solde que leurs propres opérations
+additionnent.
+
+Section à part, jamais fondue dans les positions : un cours de bourse, un
+montant recopié d'un relevé et une somme de mouvements sont trois genres de
+nombres, et chacun dit autre chose sur la confiance qu'on peut lui faire. Le
+solde s'ajoute au total et **à rien d'autre** — une balance bancaire n'a pas de
+prix de revient, l'inclure dans `cost_basis_cents` inventerait une plus-value.
+Un compte archivé, ou que le foyer a explicitement sorti de son patrimoine, en
+reste dehors. Un compte courant aussi : c'est l'argent sur lequel on vit, et sa
+place est en Trésorerie.
+
+L'écran l'itemise avec son nombre d'opérations — un solde bâti sur quatre
+lignes et un solde bâti sur quatre cents sont le même nombre avec un crédit
+très différent — et dit « solde initial, aucune opération importée » quand
+c'est le cas.
 
 ### 5. Six écrans n'ont aucune donnée dans l'aperçu
 
@@ -136,7 +168,13 @@ d'investissement. Le silence actuel est la seule option à écarter.
 
 `/api/feasibility/*` en faisait partie ; il est simulé depuis le chantier 3.
 CLAUDE.md dit de juger une interface dans un navigateur avant de la déclarer
-finie ; sur ces six écrans, personne ne peut. Le reste des routes répond.
+finie ; sur ces six écrans, personne ne pouvait.
+
+**Corrigé.** Les six répondent. Les fixtures des tests sont réutilisées telles
+quelles plutôt que réécrites — elles décrivent déjà le même foyer, et deux jeux
+de données pour un écran finissent toujours par diverger. Vérifié en parcourant
+les **22 routes** de l'application dans le navigateur avec `fetch` instrumenté :
+zéro réponse non-2xx, zéro bandeau d'erreur.
 
 ### 6. L'alerte de hausse de prix se déclenche sur du bruit
 
@@ -147,9 +185,17 @@ ce qui est censé écarter « un arrondi, un ajustement de TVA ou un mois
 partiel ». À 63 centimes sur un poste de loisirs, l'alerte est vraie et sans
 valeur.
 
-Piste : un plancher **en euros** à côté du plancher en pourcentage — une hausse
-de moins d'un ou deux euros par échéance n'appelle aucune décision, quel que
-soit son pourcentage.
+**Corrigé.** `PRICE_CHANGE_MIN_ANNUAL_CENTS = 1 200` : une hausse qui coûte
+moins de douze euros **sur un an** n'est pas signalée, quel que soit son
+pourcentage. Douze euros, c'est un euro par mois — la plus petite hausse sur un
+prélèvement mensuel qui appelle une décision.
+
+Jugée sur l'année et non par échéance, parce que ce n'est pas le même fait :
+63 centimes une fois par mois font 7,56 € par an et ne changent rien, les mêmes
+63 centimes chaque semaine font 32,76 € et sont une vraie dérive. Le plancher
+par échéance en est donc déduit, rythme par rythme. Et une hausse écartée
+n'existe pas : le niveau retenu redevient la médiane de toute la série, puisque
+les deux niveaux ont été jugés n'en former qu'un.
 
 ## Ce qui a été vérifié et tient
 
@@ -198,5 +244,6 @@ soit son pourcentage.
 
 ## Suites tests
 
-Backend 1 902 tests passés (6 ignorés), front 1 348, `npm run build` sans
-erreur TypeScript.
+Backend 1 919 tests passés (6 ignorés), front 1 351, `npm run build` sans
+erreur TypeScript. Les 22 routes de l'application parcourues dans le
+navigateur : aucune réponse non-2xx, aucun bandeau d'erreur.

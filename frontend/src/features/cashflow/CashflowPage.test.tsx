@@ -60,6 +60,8 @@ const forecast: Forecast = {
   ledger_last_on: "2026-08-31",
   pooled_scale_cents: 42000,
   seasonal_scale_cents: null,
+  band_unavailable_reason: null,
+  recurring_only: false,
 };
 
 /** The operator's real state: three complete months against a floor of six. */
@@ -78,6 +80,8 @@ const thinForecast: Forecast = {
   ledger_last_on: "2026-01-09",
   pooled_scale_cents: 0,
   seasonal_scale_cents: null,
+  band_unavailable_reason: null,
+  recurring_only: false,
 };
 
 const runway: Runway = {

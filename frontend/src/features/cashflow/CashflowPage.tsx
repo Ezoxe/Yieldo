@@ -445,9 +445,11 @@ export function CashflowPage() {
                       {forecast.seasonality_used
                         ? "La saisonnalité observée est prise en compte : certains mois sont estimés sur les mêmes mois des années précédentes."
                         : "Aucun mois civil n'a été observé assez de fois : la saisonnalité n'est pas prise en compte, chaque mois est estimé au rythme moyen."}
-                      {forecast.pooled_scale_cents > 0
-                        ? ` La bande indique une fourchette, pas une certitude : elle est bâtie sur un écart de ${formatCents(forecast.pooled_scale_cents)} d'un mois à l'autre.`
-                        : " La bande indique une fourchette, pas une certitude."}
+                      {forecast.band_unavailable_reason !== null
+                        ? " Aucune bande n'est tracée : rien n'a pu être mesuré autour de ces chiffres, et une fourchette de largeur nulle se lirait comme une certitude."
+                        : forecast.pooled_scale_cents > 0
+                          ? ` La bande indique une fourchette, pas une certitude : elle est bâtie sur un écart de ${formatCents(forecast.pooled_scale_cents)} d'un mois à l'autre.`
+                          : " La bande indique une fourchette, pas une certitude."}
                     </span>
                   </span>
                 </InfoTip>
@@ -484,14 +486,31 @@ export function CashflowPage() {
             </>
           ) : (
             <>
+              {/* Said BEFORE the chart, not under it: it changes what the
+                  drawing means. Either the ribbon is missing because nothing
+                  could be measured around these figures, or the whole variable
+                  part of the month is absent from them — and a reader who
+                  meets the line first will read it as an ordinary projection. */}
+              {forecast.band_unavailable_reason !== null ? (
+                <p className="yd-cashflow__note yd-cashflow__note--strong">
+                  {forecast.band_unavailable_reason}
+                </p>
+              ) : null}
+
               <ForecastFanChart
                 months={forecast.months}
                 thresholdCents={forecast.threshold_cents}
+                bandless={forecast.band_unavailable_reason !== null}
               />
 
               <p className="yd-cashflow__note yd-cashflow__note--strong">
+                {/* "pourrait" belongs to a band. With no band there is no low
+                    estimate to hedge against, and the sentence says what the
+                    single projected figure actually does. */}
                 {forecast.first_breach_key !== null
-                  ? `Le solde pourrait passer sous ${formatCents(forecast.threshold_cents)} dès ${monthLongLabel(forecast.first_breach_key)}.`
+                  ? forecast.band_unavailable_reason !== null
+                    ? `Le solde projeté passe sous ${formatCents(forecast.threshold_cents)} en ${monthLongLabel(forecast.first_breach_key)}.`
+                    : `Le solde pourrait passer sous ${formatCents(forecast.threshold_cents)} dès ${monthLongLabel(forecast.first_breach_key)}.`
                   : `Le solde ne passe sous ${formatCents(forecast.threshold_cents)} sur aucun des mois projetés.`}
               </p>
 

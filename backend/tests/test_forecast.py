@@ -242,20 +242,31 @@ def test_a_residual_wider_than_the_ledger_it_came_from_is_rejected():
         )
 
 
-def test_a_history_with_no_variation_at_all_is_refused_rather_than_drawn_flat():
+def test_a_history_with_no_variation_at_all_is_drawn_without_a_band():
     """Zero dispersion is not evidence of zero uncertainty; it is evidence that
     the sample is too coarse to show any. `robust.modified_z` refuses the same
-    input for the same reason. A band of zero width is a claim of certainty,
-    and §7.3 forbids the single line it would draw."""
+    input for the same reason, and §7.3 forbids drawing a band of zero width as
+    though it were a measurement.
+
+    It no longer refuses the whole projection, though — the audit of 2026-09-06
+    found that this branch, and the thin-residual one beside it, blanked the
+    Trésorerie screen for exactly the households whose cash flow is most
+    knowable. The months are projected and exact; every one carries
+    `p10 == p50 == p90`, and `band_unavailable_reason` says in French that no
+    interval was measured. A screen must draw a line here, never a ribbon."""
     entries = [
         MonthlyEntry(on=date(2025, month, 15), amount_cents=-10_000)
         for month in range(1, 7)
     ]
     flat = complete_months(entries, date(2025, 1, 1), date(2025, 12, 31))
     report = project_cashflow(100_000, ResidualHistory(flat, len(flat)), [], TODAY)
-    assert report.months == []
-    assert report.insufficient_reason is not None
-    assert "intervalle de confiance" in report.insufficient_reason
+    assert report.insufficient_reason is None
+    assert report.months != []
+    assert report.band_unavailable_reason is not None
+    assert "ne varient pas" in report.band_unavailable_reason
+    for month in report.months:
+        assert month.balance_p10_cents == month.balance_p50_cents
+        assert month.balance_p90_cents == month.balance_p50_cents
 
 
 def test_an_impossible_horizon_is_refused_in_french():
@@ -542,15 +553,16 @@ def test_the_no_dispersion_refusal_is_only_used_when_it_is_true():
         date(2026, 1, 20),
     )
     assert healthy.insufficient_reason is None
+    assert healthy.band_unavailable_reason is None
 
     entries = [
         MonthlyEntry(on=date(2025, month, 15), amount_cents=-10_000)
         for month in range(1, 7)
     ]
     flat = complete_months(entries, date(2025, 1, 1), date(2025, 12, 31))
-    refused = project_cashflow(100_000, ResidualHistory(flat, len(flat)), [], TODAY)
-    assert "ne varient pas d'un mois à l'autre" in refused.insufficient_reason
-    assert refused.pooled_scale_cents == 0
+    bandless = project_cashflow(100_000, ResidualHistory(flat, len(flat)), [], TODAY)
+    assert "ne varient pas d'un mois à l'autre" in bandless.band_unavailable_reason
+    assert bandless.pooled_scale_cents == 0
 
 
 def test_the_seasonal_scale_is_absent_when_no_month_has_one():

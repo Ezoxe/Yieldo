@@ -461,6 +461,14 @@ export interface Forecast {
   opening_balance_cents: number;
   /** French, non-null exactly when `months` is empty. Print it. */
   insufficient_reason: string | null;
+  // Non-null exactly when the months were projected with NO band — every one
+  // carries `balance_p10 === balance_p50 === balance_p90`. The screen draws a
+  // LINE here, never a ribbon: a zero-width band shown as an interval would be
+  // a claim of certainty nobody measured.
+  band_unavailable_reason: string | null;
+  // Whether those months carry the recurring charges alone. The variable part
+  // is then ABSENT from every figure, not estimated at zero.
+  recurring_only: boolean;
   /** The date this projection actually starts counting from — the ledger's
    *  own last transaction date, not necessarily today's real calendar date.
    *  Read this field rather than assume "today" means the real date. */
@@ -1569,6 +1577,17 @@ export interface DeclaredHolding {
   declared_on: string | null;
 }
 
+export interface CashHolding {
+  account_id: number;
+  name: string;
+  /** One of `models.account.ACCOUNT_KINDS`, always a savings-perimeter one. */
+  kind: string;
+  balance_cents: number;
+  /** A balance built from four rows and one built from four hundred are the
+   *  same number with very different standing. */
+  transaction_count: number;
+}
+
 export interface PortfolioValuation {
   reporting_currency: string;
   positions: PositionValuation[];
@@ -1576,6 +1595,13 @@ export interface PortfolioValuation {
   // two say how much of it was measured and how much was declared.
   declared: DeclaredHolding[];
   declared_total_cents: number;
+  // Les comptes d'épargne du foyer, au solde que ses propres opérations
+  // additionnent. Un troisième genre de nombre à côté d'une position valorisée
+  // et d'un montant déclaré : l'un vient d'un cours, l'autre d'un relevé
+  // recopié, celui-ci d'une somme de mouvements.
+  // `total.market_value_cents` contient déjà ce total.
+  cash: CashHolding[];
+  cash_total_cents: number;
   total: PortfolioTotal;
   weight_by_instrument: WeightedGroup[];
   weight_by_asset_class: WeightedGroup[];

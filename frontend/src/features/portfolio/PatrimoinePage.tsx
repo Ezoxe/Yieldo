@@ -259,6 +259,8 @@ export function PatrimoinePage() {
                 reportingCurrency={valuation.reporting_currency}
                 declared={valuation.declared}
                 declaredTotalCents={valuation.declared_total_cents}
+                cash={valuation.cash}
+                cashTotalCents={valuation.cash_total_cents}
               />
             </BentoCell>
 

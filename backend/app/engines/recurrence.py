@@ -95,6 +95,22 @@ MIN_ANNUALISATION_SPAN_DAYS = PERIOD_BOUNDS["quarterly"][0]
 # A level change below 2 % is rounding, a VAT tweak or a partial month -- not a
 # price rise worth telling anyone about.
 PRICE_CHANGE_MIN_RATIO = 0.02
+
+# And a rise that costs less than this over a YEAR is not worth telling anyone
+# about either, whatever its percentage.
+#
+# Found by the audit of 2026-09-06: the only alert an eighteen-month ledger
+# raised was a sports-shop charge going from 28,07 EUR to 28,70 EUR -- +2,2 %,
+# and sixty-three centimes. True, and worth nobody's attention. The relative
+# floor above is blind to it precisely because 2 % of a small charge is small
+# in euros too.
+#
+# Judged over a year rather than per instalment, because that is where the
+# money is felt and because the two are not the same fact: 63 centimes once a
+# month is 7,56 EUR a year and changes nothing, the same 63 centimes every week
+# is 32,76 EUR and is a real subscription drift. Twelve euros is one euro a
+# month -- the smallest rise on a monthly charge anyone would act on.
+PRICE_CHANGE_MIN_ANNUAL_CENTS = 1_200
 # Two occurrences on each side: one charge at a new amount is an adjustment,
 # two is a level.
 MIN_SIDE_OCCURRENCES = 2
@@ -240,15 +256,25 @@ def _analysable_run(dates: list[date]) -> tuple[int, Periodicity, Spread] | None
     return None
 
 
-def find_price_change(amounts: list[int], dates: list[date]) -> PriceChange | None:
+def find_price_change(
+    amounts: list[int], dates: list[date], min_step_cents: int = 0
+) -> PriceChange | None:
     """The clearest sustained level change in a series of charges, if any.
 
     Every split with at least `MIN_SIDE_OCCURRENCES` charges on each side is
-    tried. A split only qualifies if the step clears both a relative floor (2 %,
-    so rounding is not a rise) and the series' own noise (twice the larger of the
-    two sides' MAD, so a charge that always wobbles is not read as having
-    jumped); a split whose two sides disagree in sign never qualifies, because a
-    label mixing charges and refunds has no single price level to speak of.
+    tried. A split only qualifies if the step clears THREE floors: a relative
+    one (2 %, so rounding is not a rise), an absolute one in cents
+    (`min_step_cents`, which the caller derives from the rhythm so materiality
+    is judged over a year rather than per instalment), and the series' own noise
+    (twice the larger of the two sides' MAD, so a charge that always wobbles is
+    not read as having jumped). A split whose two sides disagree in sign never
+    qualifies, because a label mixing charges and refunds has no single price
+    level to speak of.
+
+    `min_step_cents` defaults to 0, which is no absolute floor at all: this
+    function answers "where did the level change", and how big a change has to
+    be before it deserves a sentence is the caller's judgement, not this
+    search's.
 
     The winner is the qualifying split with the largest step *net of the scatter
     it leaves behind* -- `|step| - (mean absolute deviation of each side)`. Size
@@ -273,7 +299,7 @@ def find_price_change(amounts: list[int], dates: list[date]) -> PriceChange | No
         # from -13,49 to -15,99 EUR is +18,5 % and not -18,5 %.
         step = abs(after.median) - abs(before.median)
         ratio = step / abs(before.median)
-        if abs(ratio) < PRICE_CHANGE_MIN_RATIO:
+        if abs(ratio) < PRICE_CHANGE_MIN_RATIO or abs(step) < min_step_cents:
             continue
         if abs(step) <= 2 * max(before.mad, after.mad):
             continue
@@ -365,7 +391,13 @@ def detect_recurrences(
         rows = group[run_start:]
         dates = [row.on for row in rows]
         amounts = [row.amount_cents for row in rows]
-        change = find_price_change(amounts, dates)
+        # The absolute floor is per-instalment, derived from the yearly one and
+        # this rhythm's own frequency: the same sixty-three centimes is noise on
+        # a monthly charge and a real drift on a weekly one.
+        min_step = _divide(
+            PRICE_CHANGE_MIN_ANNUAL_CENTS, OCCURRENCES_PER_YEAR[periodicity]
+        )
+        change = find_price_change(amounts, dates, min_step)
         current_level = amounts[change.occurrence_index:] if change else amounts
         level_spread = describe(current_level)
         amount_cents = level_spread.median

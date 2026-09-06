@@ -165,6 +165,25 @@ class ForecastReport:
     opening_balance_cents: int
     # French. Non-null exactly when `months` is empty.
     insufficient_reason: str | None
+    # French. Non-null exactly when the months were projected with NO band --
+    # `balance_p10 == balance_p50 == balance_p90` on every one of them. Two
+    # causes reach it, and the sentence names which:
+    #
+    # * everything the household spends is a detected recurrence, so there is no
+    #   residual to measure a spread over. The projection then covers the known
+    #   charges ONLY and `recurring_only` says so;
+    # * the residual IS measurable and comes out cent-exact. The projection is
+    #   complete and exact; what does not exist is a margin of error.
+    #
+    # Both used to refuse outright, which left the Trésorerie screen blank for
+    # exactly the households whose cash flow is most knowable. A screen must
+    # never draw a ribbon on these months: there is nothing to draw, and the
+    # sentence is what goes in its place.
+    band_unavailable_reason: str | None = None
+    # Whether the projected months carry the recurring charges alone. True only
+    # on the first cause above, where the variable part could not be measured
+    # and is therefore ABSENT from every figure rather than estimated at zero.
+    recurring_only: bool = False
 
 
 def _is_projected(recurrence: Recurrence) -> bool:
@@ -380,11 +399,44 @@ def _reason_thin_residual(observed: int, ledger_months: int) -> str:
 
 
 def _reason_no_dispersion(observed: int) -> str:
+    """The residual was measured and came out flat.
+
+    Not a refusal any more. A residual measured over a dozen months that
+    repeats to the cent is not unmeasurable -- it is measured, and it does not
+    move. The projection is exact; what does not exist is a margin of error,
+    and saying so is more useful than an empty screen.
+    """
     return (
-        f"Impossible de mesurer un intervalle de confiance : les {observed} mois "
-        "observés ne varient pas d'un mois à l'autre, il n'y a donc aucune "
-        "dispersion à mesurer. Une projection sans marge d'erreur donnerait une "
-        "fausse impression de certitude, elle n'est pas affichée."
+        f"Projection sans marge d'erreur : les {observed} mois observés ne "
+        "varient pas d'un mois à l'autre, il n'y a donc aucune dispersion à "
+        "mesurer. Les montants ci-dessous sont exacts au regard de vos relevés, "
+        "mais aucun intervalle de confiance ne les entoure — ce n'est pas une "
+        "certitude sur l'avenir, c'est l'absence d'une mesure."
+    )
+
+
+def _reason_recurring_only(observed: int, ledger_months: int) -> str:
+    """Everything is a recurrence, so only the recurrences are projected.
+
+    The variable part is ABSENT from every figure, never estimated at zero: a
+    zero would say "you spend nothing outside your standing orders", which is a
+    claim, and this branch exists precisely because nothing could be measured
+    about it.
+    """
+    if observed == 0:
+        carrying = "aucun ne porte d'opération non récurrente"
+    elif observed == 1:
+        carrying = "un seul porte des opérations non récurrentes"
+    else:
+        carrying = f"seuls {observed} d'entre eux portent des opérations non récurrentes"
+    return (
+        f"Projection de vos seules charges récurrentes. Sur {ledger_months} mois "
+        f"complets de relevés, {carrying} — il en faudrait au moins "
+        f"{MIN_MONTHS_FOR_FORECAST} pour mesurer ce que vos dépenses variables "
+        "coûtent et la marge d'erreur qui va avec. Ce qui est projeté ici est "
+        "donc ce que vos charges connues font à votre solde, sans marge "
+        "d'erreur et sans la part variable : le solde réel sera plus bas de ce "
+        "que vous dépensez en dehors de ces lignes."
     )
 
 
@@ -407,6 +459,77 @@ def _refusal(
         first_breach_key=None,
         opening_balance_cents=balance_cents,
         insufficient_reason=reason,
+        band_unavailable_reason=None,
+        recurring_only=False,
+    )
+
+
+def _bandless(
+    balance_cents: int,
+    observed: int,
+    ledger_months: int,
+    threshold_cents: int,
+    reason: str,
+    recurring_only: bool,
+    residual_cents: int,
+    recurrences: list[Recurrence],
+    keys: list[str],
+    horizon_start: date,
+    horizon_end: date,
+) -> ForecastReport:
+    """The horizon projected with no band at all.
+
+    Every month gets `balance_p10 == balance_p50 == balance_p90`. Not a band of
+    width zero pretending to be a measurement -- `band_unavailable_reason` says
+    in French why there is none, and a screen reading it must draw a line
+    rather than a ribbon.
+
+    The breach test therefore runs on the single figure. On a banded projection
+    it deliberately runs on the LOW estimate, because the reader wants to know
+    when the balance *could* go under; here there is no low estimate, and using
+    the median is not a softening -- it is the only figure there is.
+    """
+    recurring = _recurring_by_month(recurrences, keys, horizon_start, horizon_end)
+    months: list[ForecastMonth] = []
+    running = balance_cents
+    first_breach: str | None = None
+
+    for key in keys:
+        start, end = bucket_bounds(key, "month")
+        recurring_cents = recurring[key]
+        net = recurring_cents + residual_cents
+        running += net
+        breached = running < threshold_cents
+        if breached and first_breach is None:
+            first_breach = key
+        months.append(ForecastMonth(
+            key=key, start=start, end=end,
+            recurring_cents=recurring_cents,
+            residual_cents=residual_cents,
+            net_p50_cents=net,
+            balance_p10_cents=running,
+            balance_p50_cents=running,
+            balance_p90_cents=running,
+            below_threshold=breached,
+            seasonal=False,
+        ))
+
+    return ForecastReport(
+        months=months,
+        months_observed=observed,
+        ledger_months_observed=ledger_months,
+        seasonality_used=False,
+        recurrences_projected=sum(1 for item in recurrences if _is_projected(item)),
+        # Nothing was measured, so nothing is published. Never a zero standing
+        # in for a scale nobody computed.
+        pooled_scale_cents=0,
+        seasonal_scale_cents=None,
+        threshold_cents=threshold_cents,
+        first_breach_key=first_breach,
+        opening_balance_cents=balance_cents,
+        insufficient_reason=None,
+        band_unavailable_reason=reason,
+        recurring_only=recurring_only,
     )
 
 
@@ -494,14 +617,30 @@ def project_cashflow(
     observed = len(residual_observations)
     ledger_months = history.ledger_months_observed
 
+    keys = _future_month_keys(today, horizon_months)
+    horizon_start = bucket_bounds(keys[0], "month")[0]
+    horizon_end = bucket_bounds(keys[-1], "month")[1]
+
     if observed < MIN_MONTHS_FOR_FORECAST:
-        # Two distinct causes, and the reader can only act on one of them.
-        reason = (
-            _reason_thin_residual(observed, ledger_months)
-            if ledger_months >= MIN_MONTHS_FOR_FORECAST
-            else _reason_short_ledger(observed, ledger_months)
+        # Three distinct causes now, and the reader can act on exactly one.
+        if ledger_months < MIN_MONTHS_FOR_FORECAST:
+            # Too few statements. Importing more fixes it, and a projection
+            # built on two months would be the invention this engine refuses.
+            return _refusal(balance_cents, observed, ledger_months, threshold_cents,
+                            _reason_short_ledger(observed, ledger_months))
+        if not any(_is_projected(item) for item in recurrences):
+            # A long ledger with no residual AND no recurrence is not a regular
+            # household, it is an empty one. There is nothing to draw.
+            return _refusal(balance_cents, observed, ledger_months, threshold_cents,
+                            _reason_thin_residual(observed, ledger_months))
+        # Everything the household spends is a detected recurrence. Those
+        # charges are known; what cannot be measured is the variable part, so
+        # it is left out and the sentence says so.
+        return _bandless(
+            balance_cents, observed, ledger_months, threshold_cents,
+            _reason_recurring_only(observed, ledger_months),
+            True, 0, recurrences, keys, horizon_start, horizon_end,
         )
-        return _refusal(balance_cents, observed, ledger_months, threshold_cents, reason)
 
     nets = [observation.net_cents for observation in residual_observations]
     pooled = median_cents(nets)
@@ -519,13 +658,18 @@ def project_cashflow(
     if pooled_scale == 0:
         # Every observed month is identical to the cent, so there is no scale to
         # measure against anywhere and any band drawn would be manufactured.
-        # `robust.modified_z` refuses the same input for the same reason. This is
-        # the *only* degenerate case that can refuse: a degenerate seasonal scale
-        # is handled by falling back, below, and `pooled_scale == 0` implies every
-        # seasonal deviation is 0 too, so this branch subsumes it.
-        return _refusal(
+        # `robust.modified_z` refuses the same input for the same reason.
+        #
+        # It no longer refuses the whole projection, though. A residual measured
+        # over a dozen months that repeats to the cent is not unmeasurable -- it
+        # is measured, and it does not move. The months are exact; only the
+        # margin of error is missing, and `band_unavailable_reason` says so.
+        # `pooled_scale == 0` implies every seasonal deviation is 0 too, so this
+        # branch subsumes the degenerate-seasonal case.
+        return _bandless(
             balance_cents, observed, ledger_months, threshold_cents,
             _reason_no_dispersion(observed),
+            False, pooled, recurrences, keys, horizon_start, horizon_end,
         )
 
     def eligible(calendar_month: int) -> bool:
@@ -565,9 +709,6 @@ def project_cashflow(
             return median_cents(samples), True, len(samples)
         return pooled, False, observed
 
-    keys = _future_month_keys(today, horizon_months)
-    horizon_start = bucket_bounds(keys[0], "month")[0]
-    horizon_end = bucket_bounds(keys[-1], "month")[1]
     recurring = _recurring_by_month(recurrences, keys, horizon_start, horizon_end)
 
     months: list[ForecastMonth] = []
@@ -657,4 +798,6 @@ def project_cashflow(
         first_breach_key=first_breach,
         opening_balance_cents=balance_cents,
         insufficient_reason=None,
+        band_unavailable_reason=None,
+        recurring_only=False,
     )

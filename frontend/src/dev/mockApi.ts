@@ -1,3 +1,13 @@
+import { OPERATOR_REPORT as ALERTS_REPORT } from "../features/alerts/fixtures";
+import {
+  OPTIONS as EXPORT_OPTIONS,
+  TEMPLATES as EXPORT_TEMPLATES,
+} from "../features/export/fixtures";
+import {
+  MIXED_VALUATION,
+  DRIFTED_ALLOCATION,
+} from "../features/portfolio/fixtures";
+import { RICH_PROJECTION } from "../features/projection/fixtures";
 import {
   OPERATOR_CONTEXT,
   OPERATOR_REPORT,
@@ -919,6 +929,81 @@ function feasibilityReport(payload: Record<string, unknown>) {
   };
 }
 
+
+// --- Les six écrans que l'aperçu ne simulait pas ---------------------------
+// Trouvé par l'audit du 2026-09-06 : Alertes, Patrimoine, Projection, Export IA,
+// Import et Réglages répondaient tous « n'est pas simulé dans ce mode ».
+// CLAUDE.md demande de juger une interface dans un navigateur avant de la
+// déclarer finie ; sur ces six-là, personne ne pouvait.
+//
+// Les fixtures des tests sont réutilisées telles quelles plutôt que réécrites :
+// elles décrivent déjà le même foyer, et deux jeux de données pour un écran
+// finissent toujours par diverger.
+
+/** Les enveloppes d'investissement derrière `MIXED_VALUATION`. */
+const INVESTMENT_ACCOUNTS = [
+  { id: 1, name: "PEA Bourse Direct", kind: "pea", currency: "EUR",
+    opened_on: "2019-04-12", archived: false,
+    declared_value_cents: null, declared_value_on: null },
+  { id: 2, name: "Assurance-vie MACIF", kind: "assurance_vie", currency: "EUR",
+    opened_on: "2001-08-30", archived: false,
+    declared_value_cents: 1_450_000, declared_value_on: "2026-08-31" },
+  { id: 3, name: "Compte-titres Degiro", kind: "cto", currency: "EUR",
+    opened_on: "2022-01-10", archived: false,
+    declared_value_cents: null, declared_value_on: null },
+];
+
+/** Les lots derrière les positions. Un seul par position suffit à l'aperçu :
+ *  l'écran affiche leur nombre et leur date d'acquisition, pas une comptabilité
+ *  de plus-value lot par lot. */
+const PORTFOLIO_LOTS = MIXED_VALUATION.positions.map((position, index) => ({
+  id: index + 1,
+  position_id: position.position_id,
+  quantity: position.quantity,
+  unit_cost_cents: position.cost_basis_cents,
+  acquired_on: "2023-06-15",
+}));
+
+/** `MIXED_VALUATION` plus les comptes d'épargne, comme la vraie route les
+ *  publie désormais — un Livret A qui n'apparaissait nulle part était
+ *  précisément la quatrième trouvaille de l'audit. */
+const PREVIEW_VALUATION = {
+  ...MIXED_VALUATION,
+  cash: [
+    { account_id: 2, name: "Livret A", kind: "savings",
+      balance_cents: 1_240_000, transaction_count: 19 },
+  ],
+  cash_total_cents: 1_240_000,
+  total: {
+    ...MIXED_VALUATION.total,
+    market_value_cents: MIXED_VALUATION.total.market_value_cents + 1_240_000,
+  },
+};
+
+/** Les lots d'import déjà passés, pour l'écran Réglages. */
+const IMPORT_BATCHES = [
+  { id: 3, account_id: 1, filename: "boursorama-2026-08.csv", rows_total: 42,
+    rows_imported: 40, rows_duplicate: 2, rows_failed: 0,
+    created_at: "2026-09-01T09:12:00Z" },
+  { id: 2, account_id: 1, filename: "boursorama-2026-07.csv", rows_total: 38,
+    rows_imported: 38, rows_duplicate: 0, rows_failed: 0,
+    created_at: "2026-08-02T08:41:00Z" },
+  { id: 1, account_id: 2, filename: "livret-a-2026.csv", rows_total: 12,
+    rows_imported: 11, rows_duplicate: 0, rows_failed: 1,
+    created_at: "2026-07-04T18:03:00Z" },
+];
+
+/** Un taggage de colonnes enregistré, pour que l'écran Import montre à quoi
+ *  sert le bouton « réutiliser un profil ». */
+const COLUMN_PROFILES = [
+  { id: 1, name: "Boursorama — export CSV",
+    dialect: { delimiter: ";", decimal: ",", encoding: "utf-8",
+               date_format: "%d/%m/%Y", has_header: true },
+    mapping: { "0": "date", "1": "value_date", "2": "label", "3": "ignore",
+               "4": "amount" },
+    created_at: "2026-07-04T18:00:00Z" },
+];
+
 const ROUTES: Record<string, (params: Params) => unknown> = {
   "/api/auth/refresh": () => ({ access_token: "apercu", token_type: "bearer", user: MUTABLE_USER }),
   "/api/auth/me": () => MUTABLE_USER,
@@ -968,6 +1053,17 @@ const ROUTES: Record<string, (params: Params) => unknown> = {
   "/api/transactions": transactionsFor,
   "/api/budgets": budgetsFor,
   "/api/recurrences": recurrencesPayload,
+  "/api/alerts": () => ALERTS_REPORT,
+  "/api/portfolio/valuation": () => PREVIEW_VALUATION,
+  "/api/portfolio/accounts": (params) =>
+    params.get("archived") === "true" ? [] : INVESTMENT_ACCOUNTS,
+  "/api/portfolio/lots": () => PORTFOLIO_LOTS,
+  "/api/portfolio/allocation": () => DRIFTED_ALLOCATION,
+  "/api/projection": () => RICH_PROJECTION,
+  "/api/export/options": () => EXPORT_OPTIONS,
+  "/api/export/templates": () => EXPORT_TEMPLATES,
+  "/api/imports": () => IMPORT_BATCHES,
+  "/api/imports/profiles": () => COLUMN_PROFILES,
   "/api/feasibility/context": feasibilityContext,
   "/api/feasibility/scenarios": () => [],
   "/api/recurrences/declared": () => DECLARED,

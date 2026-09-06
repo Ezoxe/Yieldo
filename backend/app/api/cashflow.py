@@ -170,6 +170,8 @@ def forecast(
         first_breach_key=report.first_breach_key,
         opening_balance_cents=report.opening_balance_cents,
         insufficient_reason=report.insufficient_reason,
+        band_unavailable_reason=report.band_unavailable_reason,
+        recurring_only=report.recurring_only,
         projected_from=today,
         ledger_last_on=history.date_to if history is not None else None,
     )

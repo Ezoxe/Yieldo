@@ -221,6 +221,24 @@ class PortfolioTotalOut(BaseModel):
     positions_missing_fx: int
 
 
+class CashHoldingOut(BaseModel):
+    """One savings account, at what its movements add up to.
+
+    Not a position and not a declaration: nobody quoted it and nobody typed it,
+    it is the opening balance plus every transaction on the account. Which is
+    why it carries `transaction_count` -- a balance built from four rows and one
+    built from four hundred are the same number with very different standing.
+    """
+
+    account_id: int
+    name: str
+    # One of `models.account.ACCOUNT_KINDS`, always inside
+    # `engines.transfer.SAVINGS_ACCOUNT_KINDS`.
+    kind: str
+    balance_cents: int
+    transaction_count: int
+
+
 class DeclaredHoldingOut(BaseModel):
     """An amount the household declared on an envelope, reported on its own.
 
@@ -246,6 +264,13 @@ class PortfolioValuationOut(BaseModel):
     # measured from prices and how much was declared.
     declared: list[DeclaredHoldingOut]
     declared_total_cents: int
+    # The household's savings accounts, at the balance its own transactions
+    # add up to. A third kind of number beside a valued position and a declared
+    # amount, and reported apart for the same reason those two are: one comes
+    # from a quoted price, one from a statement somebody typed, one from adding
+    # up movements. `total.market_value_cents` already includes this total.
+    cash: list[CashHoldingOut]
+    cash_total_cents: int
     total: PortfolioTotalOut
     weight_by_instrument: list[WeightedGroupOut]
     weight_by_asset_class: list[WeightedGroupOut]

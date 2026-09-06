@@ -567,3 +567,68 @@ def test_a_recurring_key_is_only_authoritative_over_its_own_run():
     found = report.recurrences[0]
     assert (found.first_on, found.last_on) == (date(2024, 10, 10), date(2025, 6, 9))
     assert all(row.on < found.first_on for row in lapsed)
+
+
+# --- A price rise has to be worth a decision --------------------------------
+
+def test_a_rise_too_small_to_matter_over_a_year_is_not_reported():
+    """Found by the audit: the only alert an eighteen-month ledger raised was a
+    sports-shop charge going from 28,07 EUR to 28,70 EUR — +2,2 %, and
+    **63 centimes**. True, and worth nobody's attention.
+
+    The 2 % floor was there to drop rounding and VAT tweaks, and it does. What
+    it cannot see is that 2 % of a small charge is small in euros too, so the
+    materiality is judged where it is felt: over a year.
+    """
+    dates = [date(2025, 1, 5) + timedelta(days=30 * index) for index in range(8)]
+    amounts = [-2_807] * 4 + [-2_870] * 4  # +2,2 %, 63 centimes, 7,56 EUR/an
+
+    report = detect_recurrences(
+        [RecurringTx(on=on, amount_cents=amount, label_key="decathlon",
+                     label_raw="CB DECATHLON", category_id=None)
+         for on, amount in zip(dates, amounts)],
+        today=date(2025, 8, 10),
+    )
+
+    assert len(report.recurrences) == 1
+    assert report.recurrences[0].price_change is None
+    # And the level is the whole run's, because the two levels were judged to
+    # be one level -- not the post-"rise" one.
+    assert report.recurrences[0].amount_cents == -2_839  # médiane des huit
+
+
+def test_a_rise_that_costs_a_real_amount_over_a_year_is_still_reported():
+    """The control. A monthly charge gaining 1,50 EUR costs 18 EUR a year, and
+    that is a subscription worth looking at."""
+    dates = [date(2025, 1, 5) + timedelta(days=30 * index) for index in range(8)]
+    amounts = [-1_599] * 4 + [-1_749] * 4  # +9,4 %, 1,50 EUR, 18 EUR/an
+
+    report = detect_recurrences(
+        [RecurringTx(on=on, amount_cents=amount, label_key="netflix",
+                     label_raw="PRLV NETFLIX", category_id=None)
+         for on, amount in zip(dates, amounts)],
+        today=date(2025, 8, 10),
+    )
+
+    change = report.recurrences[0].price_change
+    assert change is not None
+    assert change.previous_cents == -1_599
+    assert change.current_cents == -1_749
+
+
+def test_the_same_small_step_on_a_weekly_charge_is_reported():
+    """Materiality is judged over a YEAR, not per instalment: 63 centimes on a
+    weekly charge is 32,76 EUR a year, which is a different fact from the same
+    63 centimes once a month."""
+    dates = [date(2025, 1, 6) + timedelta(days=7 * index) for index in range(8)]
+    amounts = [-2_807] * 4 + [-2_870] * 4
+
+    report = detect_recurrences(
+        [RecurringTx(on=on, amount_cents=amount, label_key="cafe",
+                     label_raw="CB CAFE", category_id=None)
+         for on, amount in zip(dates, amounts)],
+        today=date(2025, 3, 5),
+    )
+
+    assert report.recurrences[0].periodicity == "weekly"
+    assert report.recurrences[0].price_change is not None

@@ -58,6 +58,14 @@ class ForecastOut(BaseModel):
     opening_balance_cents: int
     # French. Non-null exactly when `months` is empty.
     insufficient_reason: str | None
+    # French. Non-null exactly when the months were projected with NO band --
+    # every one carries `balance_p10 == balance_p50 == balance_p90`. A screen
+    # reading it must draw a LINE, never a ribbon: there is no interval, and a
+    # zero-width band presented as one would be a claim of certainty.
+    band_unavailable_reason: str | None = None
+    # Whether those months carry the recurring charges alone, the variable part
+    # being absent rather than estimated at zero.
+    recurring_only: bool = False
     # The date this projection actually starts counting from -- `today` as
     # handed to `project_cashflow`, which for `forecast` is the ledger's own
     # last transaction date, not the real calendar date. See

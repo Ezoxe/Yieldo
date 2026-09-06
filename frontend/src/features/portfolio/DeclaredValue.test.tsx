@@ -89,3 +89,63 @@ describe("TotalPanel with a declared amount", () => {
     expect(screen.queryByTestId("yd-portfolio-declared")).toBeNull();
   });
 });
+
+describe("TotalPanel — les comptes d'épargne", () => {
+  /**
+   * Trouvé par l'audit du 2026-09-06 : un Livret A de 9 912,40 € s'affichait
+   * à 0,00 € sur cet écran. Deux notions de compte dans le modèle, sans pont
+   * entre elles, et seule la seconde était lue ici.
+   */
+  it("itemises the savings accounts and their share of the total", () => {
+    render(
+      <TotalPanel
+        total={{
+          market_value_cents: 450_000, cost_basis_cents: 0,
+          unrealised_gain_cents: 0, positions_total: 0, positions_valued: 0,
+          positions_missing_price: 0, positions_missing_fx: 0,
+        }}
+        reportingCurrency="EUR"
+        cash={[{ account_id: 2, name: "Livret A", kind: "savings",
+                 balance_cents: 450_000, transaction_count: 19 }]}
+        cashTotalCents={450_000}
+      />,
+    );
+
+    expect(screen.getByTestId("yd-portfolio-cash")).toBeInTheDocument();
+    expect(screen.getByText(/Livret A/)).toBeInTheDocument();
+    expect(screen.getByText(/19 opérations/)).toBeInTheDocument();
+  });
+
+  it("says when a balance rests on no imported operation at all", () => {
+    render(
+      <TotalPanel
+        total={{
+          market_value_cents: 200_000, cost_basis_cents: 0,
+          unrealised_gain_cents: 0, positions_total: 0, positions_valued: 0,
+          positions_missing_price: 0, positions_missing_fx: 0,
+        }}
+        reportingCurrency="EUR"
+        cash={[{ account_id: 3, name: "PEA", kind: "pea",
+                 balance_cents: 200_000, transaction_count: 0 }]}
+        cashTotalCents={200_000}
+      />,
+    );
+
+    expect(screen.getByText(/aucune opération importée/)).toBeInTheDocument();
+  });
+
+  it("shows nothing when there is no savings account", () => {
+    render(
+      <TotalPanel
+        total={{
+          market_value_cents: 0, cost_basis_cents: 0, unrealised_gain_cents: 0,
+          positions_total: 0, positions_valued: 0,
+          positions_missing_price: 0, positions_missing_fx: 0,
+        }}
+        reportingCurrency="EUR"
+      />,
+    );
+
+    expect(screen.queryByTestId("yd-portfolio-cash")).not.toBeInTheDocument();
+  });
+});

@@ -65,6 +65,8 @@ export const EMPTY_VALUATION: PortfolioValuation = {
   reporting_currency: "EUR",
     declared: [],
     declared_total_cents: 0,
+    cash: [],
+    cash_total_cents: 0,
   positions: [],
   total: {
     market_value_cents: 0,
@@ -130,6 +132,8 @@ export const MIXED_VALUATION: PortfolioValuation = {
   reporting_currency: "EUR",
     declared: [],
     declared_total_cents: 0,
+    cash: [],
+    cash_total_cents: 0,
   positions: [
     position(),
     position({

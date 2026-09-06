@@ -114,7 +114,7 @@ function uncomputableCopy(anyAnnualisable: boolean): UncomputableCopy {
  * Recurrences arrive sorted on `abs(annual_cents)` with the annualisation gate
  * ignored, so on a short ledger the biggest figure in the payload is exactly
  * the one that takes no part in the total. Rendering the list as sent puts it
- * first under a heading that says "coût des abonnements". Counted rows keep
+ * first under a heading that says what these recurrences cost. Counted rows keep
  * that order — there it means what it says, most expensive first, which is why
  * the reader opened the screen. Excluded rows are re-sorted on the amount
  * actually charged, because for a non-annualisable row `annual_cents` is a
@@ -262,7 +262,16 @@ export function RecurrencesPage() {
     body = (
       <BentoGrid as={motion.div} {...staggerProps(reduced)}>
         <BentoCell as={motion.div} span={SPAN.cost} className="yd-panel" {...entryProps(reduced)}>
-          <PanelHead icon={ListIcon}>Coût des abonnements</PanelHead>
+          {/* "Dépenses récurrentes", never "abonnements". Measured on a real
+              eighteen-month ledger, this total came to 20 492 EUR a year while
+              the household's actual subscriptions came to 2 368: the engine
+              detects RHYTHMS, so the rent, the car loan instalment and four
+              weekly grocery runs all land in it, and each of them is a
+              perfectly real recurrence. It is the heading that was wrong.
+              Which charges are subscriptions is something only the household
+              knows -- and the declared half of this screen is where it says
+              so. */}
+          <PanelHead icon={ListIcon}>Coût de vos dépenses récurrentes</PanelHead>
 
           {/* A total of zero is a claim, and it is never the claim this screen
               means: an empty sum says either "nothing has been watched long
@@ -301,8 +310,14 @@ export function RecurrencesPage() {
               : ""}
           </p>
           <p className="yd-recurrences__scope">
-            Prélèvements récurrents uniquement. Les revenus réguliers sont listés plus bas
-            mais n'entrent dans aucun coût.
+            Tout ce qui revient à un rythme régulier : un loyer, une mensualité de crédit
+            et des courses hebdomadaires en font partie autant qu'un abonnement. Yieldo
+            détecte un rythme, pas une nature — pour savoir ce que vous coûtent vos
+            abonnements précisément, déclarez-les plus haut.
+          </p>
+          <p className="yd-recurrences__scope">
+            Sorties uniquement. Les revenus réguliers sont listés plus bas mais n'entrent
+            dans aucun coût.
           </p>
         </BentoCell>
 

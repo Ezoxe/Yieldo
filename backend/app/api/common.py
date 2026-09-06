@@ -47,7 +47,7 @@ from app.engines.plan import (
 from app.engines.plan import PlanLine as PlanLinePoint
 from app.engines.recurrence import RecurringTx
 from app.importers.dedup import normalize_label
-from app.models import Account, PlanLine, PlanSettings, Transaction
+from app.models import Account, Category, PlanLine, PlanSettings, Transaction
 from app.schemas.history import HistoryOut
 
 # What "the money you could actually spend next month" is made of. A PEA or a
@@ -306,3 +306,60 @@ def liquid_balance_cents(db: Session, user_id: int) -> int:
         .scalar()
     )
     return int(opening) + int(movements)
+
+
+def budget_owner(
+    categories: list[Category], budgeted_ids: set[int]
+) -> dict[int, int | None]:
+    """Which budget line each category's spending belongs to.
+
+    Itself if it carries a budget, else its nearest ancestor that does, else
+    `None` -- nothing budgeted covers it, and it belongs in the "hors budget"
+    list rather than inside somebody else's envelope.
+
+    A budget on a parent has to count what its children spent. The seeded tree
+    files every expense on a CHILD -- "Courses", "Carburant", "Énergie" --
+    while the natural place to set a budget is the parent, so reading a
+    parent's own rows alone showed "42,00 € de budget, 0,00 € dépensé" to a
+    household that had spent 341 € on groceries that month, and no budget alert
+    could ever fire.
+
+    The NEAREST ancestor, never every ancestor: a child with its own budget
+    belongs in its own line and not also in its parent's, or the same euro sits
+    in two lines and the screen's totals stop adding up to what was spent.
+
+    Shared by `api/budgets.py` and `api/alerts.py` rather than written twice: a
+    budget crossed on the screen must be the same budget the alert fires on,
+    and two copies of this walk would eventually disagree.
+
+    Bounded by the number of categories rather than by trusting the tree to be
+    acyclic, for the same reason `transfers._root` is: a hang is a worse answer
+    than an arbitrary one.
+    """
+    parents = {category.id: category.parent_id for category in categories}
+    owner: dict[int, int | None] = {}
+    for category_id in parents:
+        seen: set[int] = set()
+        current: int | None = category_id
+        while current is not None and current not in seen:
+            if current in budgeted_ids:
+                break
+            seen.add(current)
+            current = parents.get(current)
+        owner[category_id] = current if current in budgeted_ids else None
+    return owner
+
+
+def rolled_budget_spend(
+    spent_by_category: dict[int | None, int],
+    categories: list[Category],
+    budgeted_ids: set[int],
+) -> dict[int, int]:
+    """Each budgeted category's spend, its descendants' included."""
+    owner = budget_owner(categories, budgeted_ids)
+    rolled = {category_id: 0 for category_id in budgeted_ids}
+    for category_id, total_cents in spent_by_category.items():
+        target = owner.get(category_id) if category_id is not None else None
+        if target is not None:
+            rolled[target] += total_cents
+    return rolled

@@ -4,7 +4,7 @@ from datetime import date
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from app.api.common import tx_points
+from app.api.common import budget_owner, rolled_budget_spend, tx_points
 from app.api.history import user_history
 from app.db import get_db
 from app.engines.aggregate import aggregate_by_category
@@ -72,11 +72,15 @@ def budget_report(
     )
 
     budgeted = [c for c in categories if c.monthly_budget_cents and c.monthly_budget_cents > 0]
+    budgeted_ids = {category.id for category in budgeted}
+    counted_by = budget_owner(categories, budgeted_ids)
+    rolled = rolled_budget_spend(spent_by_category, categories, budgeted_ids)
+
     entries = [
         BudgetEntry(
             category_id=category.id,
             budget_cents=category.monthly_budget_cents,
-            spent_cents=spent_by_category.get(category.id, 0),
+            spent_cents=rolled[category.id],
         )
         for category in budgeted
     ]
@@ -100,7 +104,6 @@ def budget_report(
     # Worst first: the reader opens this screen to find out what went wrong.
     lines.sort(key=lambda line: line.consumed_ratio, reverse=True)
 
-    budgeted_ids = set(by_id)
     known = {category.id: category for category in categories}
     unbudgeted = [
         UnbudgetedOut(
@@ -111,8 +114,11 @@ def budget_report(
         )
         for category_id, total_cents in spent_by_category.items()
         # `None` is the uncategorized bucket: there is no category to hang a
-        # budget on, so offering one here would lead nowhere.
-        if category_id is not None and category_id not in budgeted_ids and category_id in known
+        # budget on, so offering one here would lead nowhere. And a child
+        # already folded into its parent's line HAS been budgeted, through that
+        # parent -- listing it again under "hors budget" would say the opposite.
+        if category_id is not None and counted_by.get(category_id) is None
+        and category_id in known
     ]
     unbudgeted.sort(key=lambda entry: entry.spent_cents)
 

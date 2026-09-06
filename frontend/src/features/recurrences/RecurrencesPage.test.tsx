@@ -255,7 +255,7 @@ describe("RecurrencesPage", () => {
   // The sort trap: recurrences arrive on descending un-gated `annual_cents`,
   // so the two biggest figures in this payload are both excluded from the
   // total. A screen that renders the list as sent puts them at the top of a
-  // page headed "coût des abonnements".
+  // page headed with what these recurrences cost.
   it("keeps the excluded recurrences out of the counted list, whatever their rank", async () => {
     setupFetch();
     renderPage();
@@ -316,7 +316,7 @@ describe("RecurrencesPage", () => {
   });
 
   // Zero is not the answer here — "not computable yet" is. Printing 0,00 €
-  // under "coût des abonnements" says the subscriptions cost nothing.
+  // under a cost heading says the recurring charges cost nothing.
   it("refuses to print a zero total when nothing cleared the annualisation bar", async () => {
     setupFetch(() => jsonResponse(nothingAnnualisable));
     renderPage();

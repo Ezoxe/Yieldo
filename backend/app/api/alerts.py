@@ -44,6 +44,7 @@ from app.api.common import (
     liquid_balance_cents,
     period_range,
     recurrence_points,
+    rolled_budget_spend,
     tx_points,
 )
 from app.api.history import user_history
@@ -160,6 +161,10 @@ def _budgets(db: Session, user: User, ledger_last: date | None, today: date) -> 
         total.category_id: total.total_cents
         for total in aggregate_by_category(tx_points(db, user.id, month_start, month_end))
     }
+    # The same roll-up `api/budgets.py` applies, through the same helper: a
+    # budget crossed on that screen has to be the budget this alert fires on,
+    # and two copies of the walk would eventually disagree about which.
+    rolled = rolled_budget_spend(spent, categories, {c.id for c in budgeted})
     entries = [
         BudgetEntry(
             category_id=category.id,
@@ -168,7 +173,7 @@ def _budgets(db: Session, user: User, ledger_last: date | None, today: date) -> 
             # and `evaluate_budgets` refuses it outright. Clamped to 0 here --
             # "nothing went out" -- rather than allowed to raise a 500 on a
             # screen whose whole job is to be readable.
-            spent_cents=min(0, spent.get(category.id, 0)),
+            spent_cents=min(0, rolled[category.id]),
         )
         for category in budgeted
     ]

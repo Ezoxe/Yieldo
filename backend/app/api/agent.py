@@ -295,6 +295,131 @@ def _apply_debt_strategy(db: Session, user: User, payload: dict) -> tuple[str, i
     )
 
 
+def _apply_correct_transaction(db: Session, user: User, payload: dict) -> tuple[str, int, dict]:
+    """A date, an amount or a label put right on one row.
+
+    Validated through `TransactionPatch` and applied through the same helpers
+    `api/transactions.patch_transaction` uses -- `normalize_label` for the
+    search index and `_free_fingerprint` for the dedup hash -- so an approved
+    proposal can never reach a state the ordinary route would have refused, and
+    can never leave a fingerprint describing a transaction that no longer
+    exists.
+    """
+    from app.api.transactions import _free_fingerprint, _owned_transaction
+    from app.importers.dedup import compute_dedup_hash, normalize_label
+    from app.schemas.transactions import TransactionPatch
+
+    transaction = _owned_transaction(db, user, int(payload["transaction_id"]))
+    fields = {key: value for key, value in payload.items() if key != "transaction_id"}
+    if not fields:
+        raise HTTPException(status_code=422, detail="La correction ne change rien")
+    try:
+        parsed = TransactionPatch.model_validate(fields)
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+
+    changes = parsed.model_dump(exclude_unset=True)
+    before = {field: getattr(transaction, field) for field in changes}
+    for field in ("date", "amount_cents"):
+        if field in changes:
+            setattr(transaction, field, changes[field])
+    if "label_raw" in changes:
+        transaction.label_raw = changes["label_raw"]
+        transaction.label_clean = normalize_label(changes["label_raw"])
+    transaction.dedup_hash = _free_fingerprint(
+        db, user.id,
+        compute_dedup_hash(user.id, transaction.account_id, transaction.date,
+                           transaction.amount_cents, transaction.label_raw),
+        exclude_id=transaction.id,
+    )
+    return (f"Opération #{transaction.id} corrigée", 1, {"fields": _isoformat(before)})
+
+
+def _apply_mark_transfer(db: Session, user: User, payload: dict) -> tuple[str, int, dict]:
+    """Both legs of an internal transfer, marked together.
+
+    The measured rates drop every flagged row while the balance keeps them, so a
+    receipt flagged without its emission is counted as income that was never
+    spent. The tool's description tells the model to propose the two legs
+    together; this applier does not check that they pair, because a household
+    moving money to an account Yieldo does not hold has exactly one leg and is
+    right to flag it.
+    """
+    ids = [int(value) for value in payload.get("transaction_ids", [])]
+    flag = bool(payload.get("is_transfer", True))
+    if not ids:
+        raise HTTPException(status_code=422, detail="Aucune opération à marquer")
+    rows = (
+        db.query(Transaction)
+        .filter(Transaction.user_id == user.id, Transaction.id.in_(ids))
+        .all()
+    )
+    if not rows:
+        raise HTTPException(status_code=404, detail="Aucune de ces opérations n'existe")
+    before = {str(row.id): row.is_transfer for row in rows}
+    for row in rows:
+        row.is_transfer = flag
+    verb = "marquées comme virements internes" if flag else "démarquées"
+    return (f"{len(rows)} opérations {verb}", len(rows), {"is_transfer": before})
+
+
+def _apply_declared_value(db: Session, user: User, payload: dict) -> tuple[str, int, dict]:
+    from app.models import InvestmentAccount
+    from app.schemas.portfolio import InvestmentAccountPatch
+
+    account = (
+        db.query(InvestmentAccount)
+        .filter(
+            InvestmentAccount.id == int(payload["investment_account_id"]),
+            InvestmentAccount.user_id == user.id,
+        )
+        .first()
+    )
+    if account is None:
+        raise HTTPException(status_code=404, detail="Compte d'investissement introuvable")
+    fields = {key: value for key, value in payload.items() if key != "investment_account_id"}
+    try:
+        parsed = InvestmentAccountPatch.model_validate(fields)
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+
+    changes = parsed.model_dump(exclude_unset=True)
+    before = {field: getattr(account, field) for field in changes}
+    for field, value in changes.items():
+        setattr(account, field, value)
+    return (f"Montant déclaré sur « {account.name} »", 1, {"fields": _isoformat(before)})
+
+
+def _apply_opening_balance(db: Session, user: User, payload: dict) -> tuple[str, int, dict]:
+    """The figure under every solde the application prints.
+
+    Kept behind the same approval as everything else, and it is the one write
+    here where that matters most: an opening balance is not a line in a list, it
+    shifts every balance, every runway and every forecast at once.
+    """
+    from app.models import Account
+
+    account = (
+        db.query(Account)
+        .filter(Account.id == int(payload["account_id"]), Account.user_id == user.id)
+        .first()
+    )
+    if account is None:
+        raise HTTPException(status_code=404, detail="Compte introuvable")
+    before = {"opening_balance_cents": account.opening_balance_cents}
+    account.opening_balance_cents = int(payload["opening_balance_cents"])
+    return (f"Solde initial de « {account.name} » corrigé", 1, before)
+
+
+def _isoformat(values: dict) -> dict:
+    """Dates as ISO strings: `before` is stored in a JSON column, and a
+    `datetime.date` would fail to serialise on the way in."""
+    return {
+        key: value.isoformat() if isinstance(value, date) else value
+        for key, value in values.items()
+    }
+
+
 _APPLIERS = {
     "recategorize": _apply_recategorize,
     "category_rule": _apply_rule,
@@ -303,6 +428,10 @@ _APPLIERS = {
     "category_budget": _apply_budget,
     "goal": _apply_goal,
     "debt_strategy": _apply_debt_strategy,
+    "correct_transaction": _apply_correct_transaction,
+    "mark_transfer": _apply_mark_transfer,
+    "declared_value": _apply_declared_value,
+    "opening_balance": _apply_opening_balance,
 }
 
 

@@ -451,3 +451,28 @@
     transition: none;
   }
 }
+
+/* -- Two stat panels in rows a list makes tall ------------------------------
+
+   A bento cell stretches to its row (see CLAUDE.md), which is right when the
+   difference is modest and wrong at the sizes this page produces: measured at
+   1920, "Votre panier" holds 137px of content in a 565px row and "Indice de
+   référence" 364px in an 837px row, both pinned to the top with 384px and
+   462px of nothing underneath.
+
+   The answer is not to stop stretching -- that brings back the ragged edge the
+   contract rejects -- but to let the figures sit in the room instead of above
+   it. The panel head stays pinned to the top, where every other head on the
+   application is; the figures below it become a group centred in what is
+   left. */
+.yd-analysis__ratio {
+  margin-top: auto;
+}
+
+.yd-analysis__basket-costs {
+  margin-bottom: auto;
+}
+
+.yd-index {
+  margin-block: auto;
+}

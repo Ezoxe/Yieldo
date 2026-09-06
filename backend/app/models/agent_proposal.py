@@ -16,6 +16,15 @@ PROPOSAL_KINDS = (
     "category_budget",
     "goal",
     "debt_strategy",
+    # The four below let the agent reach the corrections a household actually
+    # asks for out loud -- a date typed a month off, two legs of an internal
+    # transfer counted as income, an assurance-vie worth nothing on screen, an
+    # opening balance holding today's figure on top of a backfilled history.
+    # Every one of them still goes through this table and a human click.
+    "correct_transaction",
+    "mark_transfer",
+    "declared_value",
+    "opening_balance",
 )
 
 # `pending` until a human decides. `applied` and `refused` are both final; a

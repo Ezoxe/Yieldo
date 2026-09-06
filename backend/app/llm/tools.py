@@ -43,17 +43,26 @@ from app.api.common import (
     recurrence_points,
     tx_points,
 )
+from app.api.common import LIQUID_ACCOUNT_KINDS, liquid_balance_cents
+from app.api.goals import observed_months
 from app.api.history import user_history
+from app.engines.capacity import (
+    measure_expense_rate,
+    measure_income_rate,
+    measure_savings_capacity,
+)
 from app.engines.anomaly import detect_anomalies
 from app.engines.budget import BudgetEntry, evaluate_budgets
 from app.engines.plan import occurrences, unrealised
 from app.engines.recurrence import detect_recurrences
 from app.models import (
+    Account,
     AgentProposal,
     Category,
     CategoryRule,
     Debt,
     Goal,
+    InvestmentAccount,
     Transaction,
     User,
 )
@@ -302,6 +311,140 @@ def _read_rules(context: ToolContext, args: dict[str, Any]) -> str:
     )
 
 
+def _read_balances(context: ToolContext, args: dict[str, Any]) -> str:
+    """Where the solde comes from, account by account, plus the transfer audit.
+
+    The one read that lets a model answer "je n'ai pas ça sur mes comptes"
+    instead of repeating the aggregate back. Every way the total can be wrong --
+    a statement imported twice under two accounts, an opening balance carrying
+    today's figure on top of a backfilled history, a savings account declared
+    but never imported -- is visible here and invisible in the total.
+    """
+    accounts = (
+        context.db.query(Account)
+        .filter(Account.user_id == context.user.id, Account.archived.is_(False))
+        .order_by(Account.id)
+        .all()
+    )
+    if not accounts:
+        return "Aucun compte déclaré."
+
+    lines = []
+    for account in accounts:
+        moved = sum(
+            row[0]
+            for row in context.db.query(Transaction.amount_cents)
+            .filter(
+                Transaction.user_id == context.user.id,
+                Transaction.account_id == account.id,
+            )
+            .all()
+        )
+        count = (
+            context.db.query(Transaction.id)
+            .filter(
+                Transaction.user_id == context.user.id,
+                Transaction.account_id == account.id,
+            )
+            .count()
+        )
+        liquid = account.kind in LIQUID_ACCOUNT_KINDS
+        lines.append(
+            f"#{account.id} {account.name} ({account.kind}"
+            f"{'' if liquid else ', hors solde disponible'}) : "
+            f"solde initial {euros(account.opening_balance_cents)} "
+            f"+ mouvements {euros(moved)} sur {count} opérations "
+            f"= {euros(account.opening_balance_cents + moved)}"
+        )
+
+    flagged = (
+        context.db.query(Transaction.amount_cents)
+        .filter(
+            Transaction.user_id == context.user.id,
+            Transaction.is_transfer.is_(True),
+        )
+        .all()
+    )
+    received = sum(row[0] for row in flagged if row[0] > 0)
+    sent = sum(row[0] for row in flagged if row[0] < 0)
+    unmatched = received + sent
+
+    lines.append(f"Solde disponible total : {euros(liquid_balance_cents(context.db, context.user.id))}")
+    lines.append(
+        f"Virements internes marqués : {len(flagged)} lignes, "
+        f"{euros(received)} reçus et {euros(sent)} émis, écart {euros(unmatched)}."
+    )
+    if unmatched != 0:
+        lines.append(
+            "Un écart non nul veut dire qu'une jambe est marquée sans l'autre : "
+            "les taux mesurés écartent les lignes marquées et gardent les autres, "
+            "donc les revenus mesurés et la capacité d'épargne sont faussés d'autant."
+        )
+    return "\n".join(lines)
+
+
+def _read_capacity(context: ToolContext, args: dict[str, Any]) -> str:
+    """What a month brings in, what it costs, and what it leaves — measured.
+
+    Medians over complete observed months, with their P10/P90 band, straight
+    from `engines/capacity`. `None` below three months rather than a figure:
+    the refusal is the answer, and the model must repeat it rather than
+    estimate around it.
+    """
+    months = observed_months(context.db, context.user.id)
+    if not months:
+        return "Aucun mois complet observé : rien n'est mesurable."
+
+    def line(label: str, rate) -> str:
+        if rate is None:
+            return f"{label} : non mesurable (moins de 3 mois complets observés)."
+        return (
+            f"{label} : {euros(rate.median_cents)} par mois "
+            f"(entre {euros(rate.low_cents)} et {euros(rate.high_cents)}, "
+            f"sur {rate.months} mois)."
+        )
+
+    return "\n".join([
+        f"{len(months)} mois complets observés.",
+        line("Revenus", measure_income_rate(months)),
+        line("Dépenses", measure_expense_rate(months)),
+        line("Capacité d'épargne", measure_savings_capacity(months)),
+    ])
+
+
+def _read_portfolio(context: ToolContext, args: dict[str, Any]) -> str:
+    """The investment envelopes, with what they declare.
+
+    Positions are not valued here: that needs live prices and a quota, which a
+    tool call must never spend on its own. What this answers is the shape of
+    the patrimoine — which envelopes exist, when they opened (the date the PEA
+    and assurance-vie tax rules count from) and what the household declared on
+    each.
+    """
+    rows = (
+        context.db.query(InvestmentAccount)
+        .filter(
+            InvestmentAccount.user_id == context.user.id,
+            InvestmentAccount.archived.is_(False),
+        )
+        .order_by(InvestmentAccount.id)
+        .all()
+    )
+    if not rows:
+        return "Aucune enveloppe d'investissement déclarée."
+    return "\n".join(
+        f"#{row.id} {row.name} ({row.kind}, {row.currency}"
+        f"{f', ouvert le {row.opened_on}' if row.opened_on else ', date d’ouverture inconnue'}) : "
+        + (
+            f"montant déclaré {euros(row.declared_value_cents)}"
+            + (f" au {row.declared_value_on}" if row.declared_value_on else " (sans date)")
+            if row.declared_value_cents is not None
+            else "aucun montant déclaré"
+        )
+        for row in rows
+    )
+
+
 # --- proposing ------------------------------------------------------------
 
 
@@ -424,6 +567,61 @@ _WINDOW_PARAMS = {
 }
 
 
+def _propose_correct_transaction(context: ToolContext, args: dict[str, Any]) -> str:
+    payload: dict[str, Any] = {"transaction_id": int(args["transaction_id"])}
+    for field in ("date", "label_raw"):
+        if args.get(field):
+            payload[field] = _text(args, field)
+    if args.get("amount_cents") is not None:
+        payload["amount_cents"] = int(args["amount_cents"])
+    return _propose(
+        context, "correct_transaction",
+        _text(args, "summary") or f"Corriger l'opération #{payload['transaction_id']}",
+        _text(args, "evidence"), payload,
+    )
+
+
+def _propose_mark_transfer(context: ToolContext, args: dict[str, Any]) -> str:
+    ids = [int(value) for value in args.get("transaction_ids", [])][:400]
+    flag = bool(args.get("is_transfer", True))
+    return _propose(
+        context, "mark_transfer",
+        _text(args, "summary")
+        or f"Marquer {len(ids)} opérations comme virements internes",
+        _text(args, "evidence"), {"transaction_ids": ids, "is_transfer": flag},
+    )
+
+
+def _propose_declared_value(context: ToolContext, args: dict[str, Any]) -> str:
+    payload: dict[str, Any] = {
+        "investment_account_id": int(args["investment_account_id"]),
+        "declared_value_cents": int(args["declared_value_cents"]),
+    }
+    if args.get("declared_value_on"):
+        payload["declared_value_on"] = _text(args, "declared_value_on")
+    return _propose(
+        context, "declared_value",
+        _text(args, "summary")
+        or f"Déclarer {euros(payload['declared_value_cents'])} sur l'enveloppe "
+           f"#{payload['investment_account_id']}",
+        _text(args, "evidence"), payload,
+    )
+
+
+def _propose_opening_balance(context: ToolContext, args: dict[str, Any]) -> str:
+    payload = {
+        "account_id": int(args["account_id"]),
+        "opening_balance_cents": int(args["opening_balance_cents"]),
+    }
+    return _propose(
+        context, "opening_balance",
+        _text(args, "summary")
+        or f"Corriger le solde initial du compte #{payload['account_id']} "
+           f"à {euros(payload['opening_balance_cents'])}",
+        _text(args, "evidence"), payload,
+    )
+
+
 def _schema(properties: dict[str, Any], required: list[str] | None = None) -> dict[str, Any]:
     return {"type": "object", "properties": properties, "required": required or []}
 
@@ -455,6 +653,20 @@ TOOLS: tuple[Tool, ...] = (
     Tool("lire_dettes", "Les dettes déclarées.", _schema({}), _read_debts),
     Tool("lire_objectifs", "Les objectifs d'épargne déclarés.", _schema({}), _read_goals),
     Tool("lire_regles", "Les règles de catégorisation du foyer.", _schema({}), _read_rules),
+    Tool("lire_soldes",
+         "Le solde disponible décomposé compte par compte — solde initial déclaré, "
+         "mouvements importés, nombre d'opérations — et l'audit des virements internes. "
+         "À lire avant toute réponse sur un solde que le foyer ne reconnaît pas.",
+         _schema({}), _read_balances),
+    Tool("lire_capacite",
+         "Revenus, dépenses et capacité d'épargne mesurés sur les mois complets observés, "
+         "avec leur dispersion. Refuse sous trois mois plutôt que d'estimer.",
+         _schema({}), _read_capacity),
+    Tool("lire_patrimoine",
+         "Les enveloppes d'investissement déclarées, leur date d'ouverture et le montant "
+         "que le foyer a déclaré sur chacune. Ne valorise pas les positions : cela "
+         "consommerait du quota de marché.",
+         _schema({}), _read_portfolio),
 
     Tool("proposer_recategorisation",
          "PROPOSE de reclasser des opérations. N'applique rien : dépose une proposition "
@@ -534,7 +746,56 @@ TOOLS: tuple[Tool, ...] = (
              "evidence": {"type": "string"},
          }, ["debt_id"]),
          _propose_debt_strategy, writes_proposal=True),
+    Tool("proposer_correction_operation",
+         "PROPOSE de corriger une opération du grand livre : sa date, son montant signé "
+         "ou son libellé. N'applique rien.",
+         _schema({
+             "transaction_id": {"type": "integer"},
+             "date": {"type": "string", "description": "AAAA-MM-JJ."},
+             "amount_cents": {"type": "integer",
+                              "description": "Signé, en centimes. Négatif = sortie."},
+             "label_raw": {"type": "string"},
+             "summary": {"type": "string", "description": "Une phrase en français."},
+             "evidence": {"type": "string",
+                          "description": "Le chiffre moteur qui justifie, en français."},
+         }, ["transaction_id"]),
+         _propose_correct_transaction, writes_proposal=True),
+    Tool("proposer_virement_interne",
+         "PROPOSE de marquer des opérations comme virements internes (ou de retirer la "
+         "marque). Un virement a deux jambes : proposez-les ensemble, sinon les taux "
+         "mesurés compteront l'une sans l'autre. N'applique rien.",
+         _schema({
+             "transaction_ids": {"type": "array", "items": {"type": "integer"}},
+             "is_transfer": {"type": "boolean",
+                             "description": "true par défaut ; false retire la marque."},
+             "summary": {"type": "string"},
+             "evidence": {"type": "string"},
+         }, ["transaction_ids"]),
+         _propose_mark_transfer, writes_proposal=True),
+    Tool("proposer_valeur_declaree",
+         "PROPOSE de déclarer le montant que contient une enveloppe d'investissement, "
+         "pour ce qu'aucune position ne décrit. N'applique rien.",
+         _schema({
+             "investment_account_id": {"type": "integer"},
+             "declared_value_cents": {"type": "integer", "description": "Positif, en centimes."},
+             "declared_value_on": {"type": "string", "description": "AAAA-MM-JJ, le jour du relevé."},
+             "summary": {"type": "string"},
+             "evidence": {"type": "string"},
+         }, ["investment_account_id", "declared_value_cents"]),
+         _propose_declared_value, writes_proposal=True),
+    Tool("proposer_solde_initial",
+         "PROPOSE de corriger le solde initial d'un compte bancaire — le chiffre sous "
+         "tous les soldes de l'application. N'applique rien.",
+         _schema({
+             "account_id": {"type": "integer"},
+             "opening_balance_cents": {"type": "integer",
+                                       "description": "Signé, en centimes."},
+             "summary": {"type": "string"},
+             "evidence": {"type": "string"},
+         }, ["account_id", "opening_balance_cents"]),
+         _propose_opening_balance, writes_proposal=True),
 )
+
 
 BY_NAME: dict[str, Tool] = {tool.name: tool for tool in TOOLS}
 

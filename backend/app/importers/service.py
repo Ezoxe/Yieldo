@@ -11,6 +11,7 @@ from app.importers.mapping import suggest_mapping, validate_mapping
 from app.importers.parser import CandidateRow, parse_rows
 from app.models import Category, ImportBatch, Transaction
 from app.models.rule import CategoryRule
+from app.transfers import TransferResolver
 
 
 class MappingError(ValueError):
@@ -231,6 +232,11 @@ def commit_import(
     db.add(batch)
     db.flush()
 
+    # Built once for the whole statement: the rule reads the category and
+    # account tables, and a per-row lookup would turn a two-thousand-line
+    # import into four thousand round trips.
+    transfers = TransferResolver(db, user_id)
+
     imported = duplicate = failed = 0
     for candidate in parse_rows(rows, mapping, dialect):
         if candidate.error is not None:
@@ -265,6 +271,11 @@ def commit_import(
             value_date=candidate.value_date, amount_cents=candidate.amount_cents,
             label_raw=candidate.label_raw, label_clean=candidate.label_clean,
             category_id=category_id, category_source=source,
+            # The same rule a hand-typed row runs, so an imported versement to
+            # a livret is not counted as spending either. `auto`, always: an
+            # import is never the reader deciding.
+            is_transfer=transfers.decide(account_id=account_id, category_id=category_id),
+            transfer_source="auto",
             import_batch_id=batch.id, dedup_hash=fingerprint,
             notes=candidate.notes, tags=[],
         ))

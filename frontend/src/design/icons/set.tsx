@@ -256,6 +256,18 @@ export function OutflowIcon(props: IconProps) {
   );
 }
 
+/** Money moved between two of your own accounts: it leaves and it arrives. */
+export function TransferIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="m8 3-4 4 4 4" />
+      <path d="M4 7h16" />
+      <path d="m16 21 4-4-4-4" />
+      <path d="M20 17H4" />
+    </Icon>
+  );
+}
+
 /** A rise. */
 export function TrendUpIcon(props: IconProps) {
   return (

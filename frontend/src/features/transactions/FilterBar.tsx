@@ -19,6 +19,15 @@ interface FilterBarProps {
   uncategorizedOnly: boolean;
   onUncategorizedOnlyChange: (value: boolean) => void;
   uncategorizedCount: number | null;
+  includeTransfers: boolean;
+  onIncludeTransfersChange: (value: boolean) => void;
+  /**
+   * How many rows of the period are internal transfers, whether or not they
+   * are on screen. Null while it is not known yet. Without it the switch is a
+   * control with no consequence to read: the list simply gets shorter and
+   * nothing says by how much.
+   */
+  transferCount: number | null;
   onSearchChange: (value: string) => void;
 }
 
@@ -33,6 +42,9 @@ export function FilterBar({
   uncategorizedOnly,
   onUncategorizedOnlyChange,
   uncategorizedCount,
+  includeTransfers,
+  onIncludeTransfersChange,
+  transferCount,
   onSearchChange,
 }: FilterBarProps) {
   const [searchInput, setSearchInput] = useState("");
@@ -114,6 +126,26 @@ export function FilterBar({
             Non catégorisées uniquement
             {uncategorizedCount !== null ? (
               <span className="yd-filterbar__count"> ({uncategorizedCount})</span>
+            ) : null}
+          </span>
+        </label>
+
+        {/* Off by default, and the count says what that costs. Money moved
+            between your own accounts is not spending, so the list matches the
+            figures every other screen prints — but a list quietly shortened is
+            worse than no filter at all, which is what the number is for. */}
+        <label className="yd-filterbar__toggle">
+          <input
+            type="checkbox"
+            role="switch"
+            checked={includeTransfers}
+            aria-checked={includeTransfers}
+            onChange={(event) => onIncludeTransfersChange(event.target.checked)}
+          />
+          <span>
+            Inclure les virements internes
+            {transferCount !== null ? (
+              <span className="yd-filterbar__count"> ({transferCount})</span>
             ) : null}
           </span>
         </label>

@@ -54,6 +54,15 @@ export const AI_TARGETS: AiTarget[] = [
     route: "/",
     terms: ["taux d'epargne", "taux d epargne"],
   },
+  {
+    id: "panel-mis-de-cote",
+    label: "Ce que la période a mis de côté",
+    route: "/",
+    terms: [
+      "mis de cote", "mise de cote", "epargne versee", "virement interne",
+      "virements internes", "argent deplace",
+    ],
+  },
   { id: "chart-flux", label: "Flux de trésorerie", route: "/", terms: ["flux de tresorerie"] },
   {
     id: "chart-repartition",

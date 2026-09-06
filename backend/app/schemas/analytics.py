@@ -38,6 +38,15 @@ class PeriodTotalsOut(BaseModel):
     transaction_count: int
     # A savings rate without income is undefined, not zero -- null when inflow is 0.
     savings_rate: float | None
+    # What actually left the spendable perimeter for a savings account, from
+    # `engines/transfer.measure_set_aside`. NEVER add it to `net_cents`: the
+    # euro moved to a livret is already counted as saved there, because nothing
+    # spends it any more. The two stand side by side.
+    set_aside_cents: int
+    # `net_cents - set_aside_cents`: the surplus the period produced and left
+    # sitting on the current account. Negative means the savings were funded by
+    # drawing the balance down.
+    set_aside_gap_cents: int
 
 
 class SummaryOut(PeriodTotalsOut):

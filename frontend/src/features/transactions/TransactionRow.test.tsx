@@ -6,7 +6,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
-import { TransactionRow } from "./TransactionRow";
+import { TransactionRow, transferHint } from "./TransactionRow";
 
 const css = readFileSync(
   path.resolve(path.dirname(fileURLToPath(import.meta.url)), "./TransactionsPage.css"),
@@ -29,40 +29,40 @@ const categories = [
 const transaction = {
   id: 10, account_id: 1, date: "2025-03-01", value_date: null, amount_cents: -4732,
   label_raw: "CARREFOUR MARKET CB 01/03", label_clean: "carrefour market",
-  category_id: 2, category_source: "builtin", is_transfer: false,
+  category_id: 2, category_source: "builtin", is_transfer: false, transfer_source: "auto" as const,
   is_recurring: false, notes: null, tags: [], manual: false,
 };
 
 describe("TransactionRow", () => {
   it("shows a debit in French formatting", () => {
     render(<TransactionRow transaction={transaction} categories={categories}
-                           onRecategorize={vi.fn()} onEdit={vi.fn()} />);
+                           onRecategorize={vi.fn()} onEdit={vi.fn()} onToggleTransfer={vi.fn()} />);
     expect(screen.getByText("−47,32 €")).toBeInTheDocument();
   });
 
   it("shows the raw label so the user recognizes the line on their statement", () => {
     render(<TransactionRow transaction={transaction} categories={categories}
-                           onRecategorize={vi.fn()} onEdit={vi.fn()} />);
+                           onRecategorize={vi.fn()} onEdit={vi.fn()} onToggleTransfer={vi.fn()} />);
     expect(screen.getByText("CARREFOUR MARKET CB 01/03")).toBeInTheDocument();
   });
 
   it("marks where the category came from", () => {
     render(<TransactionRow transaction={transaction} categories={categories}
-                           onRecategorize={vi.fn()} onEdit={vi.fn()} />);
+                           onRecategorize={vi.fn()} onEdit={vi.fn()} onToggleTransfer={vi.fn()} />);
     expect(screen.getByTitle("Catégorie déduite d'une règle intégrée")).toBeInTheDocument();
   });
 
   it("labels an uncategorized transaction explicitly", () => {
     render(<TransactionRow
       transaction={{ ...transaction, category_id: null, category_source: "uncategorized" }}
-      categories={categories} onRecategorize={vi.fn()} onEdit={vi.fn()} />);
+      categories={categories} onRecategorize={vi.fn()} onEdit={vi.fn()} onToggleTransfer={vi.fn()} />);
     expect(screen.getByText("Non catégorisé")).toBeInTheDocument();
   });
 
   it("reports the chosen category when the user recategorizes", async () => {
     const onRecategorize = vi.fn();
     render(<TransactionRow transaction={transaction} categories={categories}
-                           onRecategorize={onRecategorize} onEdit={vi.fn()} />);
+                           onRecategorize={onRecategorize} onEdit={vi.fn()} onToggleTransfer={vi.fn()} />);
     await userEvent.selectOptions(screen.getByLabelText("Catégorie"), "1");
     expect(onRecategorize).toHaveBeenCalledWith(10, 1);
   });
@@ -70,14 +70,14 @@ describe("TransactionRow", () => {
   it("sends null -- not a coerced zero -- when Non catégorisé is chosen", async () => {
     const onRecategorize = vi.fn();
     render(<TransactionRow transaction={transaction} categories={categories}
-                           onRecategorize={onRecategorize} onEdit={vi.fn()} />);
+                           onRecategorize={onRecategorize} onEdit={vi.fn()} onToggleTransfer={vi.fn()} />);
     await userEvent.selectOptions(screen.getByLabelText("Catégorie"), "");
     expect(onRecategorize).toHaveBeenCalledWith(10, null);
   });
 
   it("renders a credit with the positive tone", () => {
     render(<TransactionRow transaction={{ ...transaction, amount_cents: 245000 }}
-                           categories={categories} onRecategorize={vi.fn()} onEdit={vi.fn()} />);
+                           categories={categories} onRecategorize={vi.fn()} onEdit={vi.fn()} onToggleTransfer={vi.fn()} />);
     expect(screen.getByText("2 450,00 €")).toHaveClass("yd-amount--positive");
   });
 
@@ -86,7 +86,7 @@ describe("TransactionRow", () => {
   // stylesheet and no test could reach it.
   it("renders a debit with the negative tone, carried by the class and not an inline style", () => {
     render(<TransactionRow transaction={transaction} categories={categories}
-                           onRecategorize={vi.fn()} onEdit={vi.fn()} />);
+                           onRecategorize={vi.fn()} onEdit={vi.fn()} onToggleTransfer={vi.fn()} />);
     const amount = screen.getByText("−47,32 €");
     expect(amount).toHaveClass("yd-amount--negative");
     expect(amount.getAttribute("style")).toBeNull();
@@ -105,7 +105,7 @@ describe("TransactionRow", () => {
   // task-4-report.md.
   it("declares its table semantics instead of leaving them to the layout", () => {
     const { container } = render(<TransactionRow transaction={transaction} categories={categories}
-                                                 onRecategorize={vi.fn()} onEdit={vi.fn()} />);
+                                                 onRecategorize={vi.fn()} onEdit={vi.fn()} onToggleTransfer={vi.fn()} />);
     // The attribute, not the inferred role: jsdom infers `row`/`cell` from the
     // tag whatever the stylesheet says, so only the written-down role proves
     // the semantics survive `display: grid` in a real browser.
@@ -126,7 +126,7 @@ describe("TransactionRow", () => {
   it("offers to correct the row, naming which row it would correct", async () => {
     const onEdit = vi.fn();
     render(<TransactionRow transaction={transaction} categories={categories}
-                           onRecategorize={vi.fn()} onEdit={onEdit} />);
+                           onRecategorize={vi.fn()} onEdit={onEdit} onToggleTransfer={vi.fn()} />);
 
     await userEvent.click(
       screen.getByRole("button", { name: "Modifier CARREFOUR MARKET CB 01/03" }),
@@ -139,8 +139,47 @@ describe("TransactionRow", () => {
   // the mono family, right-aligned. `.yd-num` carries the first two.
   it("keeps the amount in the tabular figure style", () => {
     render(<TransactionRow transaction={transaction} categories={categories}
-                           onRecategorize={vi.fn()} onEdit={vi.fn()} />);
+                           onRecategorize={vi.fn()} onEdit={vi.fn()} onToggleTransfer={vi.fn()} />);
     expect(screen.getByText("−47,32 €")).toHaveClass("yd-num");
     expect(ruleBody(".yd-transactions__cell--amount")).toMatch(/text-align:\s*right/);
+  });
+
+  // The control that fixes what the rule got wrong, without opening anything.
+  it("offers to mark the row as an internal transfer, naming which row", async () => {
+    const onToggleTransfer = vi.fn();
+    render(<TransactionRow transaction={transaction} categories={categories}
+                           onRecategorize={vi.fn()} onEdit={vi.fn()}
+                           onToggleTransfer={onToggleTransfer} />);
+
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: "Marquer comme virement interne : CARREFOUR MARKET CB 01/03",
+      }),
+    );
+    expect(onToggleTransfer).toHaveBeenCalledWith(10, true);
+  });
+
+  it("shows a marked row as pressed, and offers to give it back to the expenses", async () => {
+    const onToggleTransfer = vi.fn();
+    const marked = { ...transaction, is_transfer: true };
+    render(<TransactionRow transaction={marked} categories={categories}
+                           onRecategorize={vi.fn()} onEdit={vi.fn()}
+                           onToggleTransfer={onToggleTransfer} />);
+
+    const control = screen.getByRole("button", {
+      name: "Rendre à vos dépenses : CARREFOUR MARKET CB 01/03",
+    });
+    expect(control).toHaveAttribute("aria-pressed", "true");
+    await userEvent.click(control);
+    expect(onToggleTransfer).toHaveBeenCalledWith(10, false);
+  });
+
+  // A row Yieldo marked and a row the reader marked are not the same claim:
+  // the rule can be argued with, their own decision cannot.
+  it("tells a rule's mark from the reader's own", () => {
+    expect(transferHint({ ...transaction, is_transfer: true, transfer_source: "auto" }))
+      .toContain("déduit de sa catégorie ou de son compte");
+    expect(transferHint({ ...transaction, is_transfer: true, transfer_source: "manual" }))
+      .toContain("vous l'avez marqué vous-même");
   });
 });

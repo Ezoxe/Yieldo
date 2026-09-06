@@ -259,7 +259,7 @@ const existing: Transaction = {
   label_clean: "boulangerie du coin",
   category_id: 1,
   category_source: "manual",
-  is_transfer: false,
+  is_transfer: false, transfer_source: "auto" as const,
   is_recurring: false,
   notes: "en espèces",
   tags: [],

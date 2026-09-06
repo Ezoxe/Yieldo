@@ -356,9 +356,18 @@ def _apply_mark_transfer(db: Session, user: User, payload: dict) -> tuple[str, i
     )
     if not rows:
         raise HTTPException(status_code=404, detail="Aucune de ces opérations n'existe")
-    before = {str(row.id): row.is_transfer for row in rows}
+    before = {
+        str(row.id): {"is_transfer": row.is_transfer,
+                      "transfer_source": row.transfer_source}
+        for row in rows
+    }
     for row in rows:
         row.is_transfer = flag
+        # An agent proposal is only ever applied once a human approved it, so
+        # this is the reader deciding -- exactly like the control on the row --
+        # and the automatic rule in `engines/transfer.py` must leave it alone
+        # from here on.
+        row.transfer_source = "manual"
     verb = "marquées comme virements internes" if flag else "démarquées"
     return (f"{len(rows)} opérations {verb}", len(rows), {"is_transfer": before})
 

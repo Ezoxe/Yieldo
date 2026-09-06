@@ -139,7 +139,14 @@ def _read_summary(context: ToolContext, args: dict[str, Any]) -> str:
     return (
         f"Du {start.isoformat()} au {end.isoformat()} (mode de lecture : {mode}). "
         f"Entrées {euros(totals.inflow_cents)}, sorties {euros(totals.outflow_cents)}, "
-        f"solde net {euros(totals.net_cents)}, {totals.transaction_count} mouvements."
+        f"solde net {euros(totals.net_cents)}, {totals.transaction_count} mouvements. "
+        # Publié à côté du net, jamais additionné avec lui : l'euro viré au
+        # livret est déjà compté comme épargné dans le net, puisque plus rien ne
+        # le dépense. Le dire ici, en toutes lettres, est ce qui empêche le
+        # modèle de refaire l'addition à la place du lecteur.
+        f"Mis de côté sur un compte d'épargne {euros(totals.set_aside_cents)}, "
+        f"resté sur le compte courant {euros(totals.set_aside_gap_cents)} "
+        "(ces deux chiffres découpent le solde net, ils ne s'y ajoutent pas)."
     )
 
 

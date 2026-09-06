@@ -1,6 +1,6 @@
 import type { CSSProperties } from "react";
 
-import { EditIcon } from "../../design/icons";
+import { EditIcon, TransferIcon } from "../../design/icons";
 import { formatCents } from "../../design/theme";
 import type { Category, Transaction } from "../../lib/types";
 
@@ -49,12 +49,47 @@ const SOURCE_BADGES: Record<string, string> = {
   uncategorized: "—",
 };
 
+/**
+ * What the transfer control DOES, in three words. This is what names the
+ * button: twenty rows are twenty controls, and each has to say which row it
+ * would act on without reciting a paragraph first.
+ */
+export function transferAction(transaction: Transaction): string {
+  return transaction.is_transfer
+    ? "Rendre à vos dépenses"
+    : "Marquer comme virement interne";
+}
+
+/**
+ * Why the row is where it is, in the two registers the two cases deserve.
+ *
+ * A row Yieldo marked itself and a row the reader marked are not the same
+ * claim, and this says which it is -- the rule can be argued with, the
+ * reader's own decision cannot. It rides on `title` rather than on the
+ * accessible name: a name is an instruction, and this is an explanation.
+ */
+export function transferHint(transaction: Transaction): string {
+  if (!transaction.is_transfer) {
+    return "Cette opération compte dans vos dépenses. La marquer comme virement interne l'en retire.";
+  }
+  return transaction.transfer_source === "manual"
+    ? "Virement interne : vous l'avez marqué vous-même."
+    : "Virement interne : déduit de sa catégorie ou de son compte.";
+}
+
 interface TransactionRowProps {
   transaction: Transaction;
   categories: Category[];
   onRecategorize: (transactionId: number, categoryId: number | null) => void;
   /** Opens the row in the same drawer that writes a new one. */
   onEdit: (transaction: Transaction) => void;
+  /**
+   * Flip the row between "argent dépensé" and "argent déplacé", without
+   * opening anything. The whole point of the control: the rule gets most rows
+   * right and the reader has to be able to fix the rest in one click, on the
+   * screen where they noticed.
+   */
+  onToggleTransfer: (transactionId: number, isTransfer: boolean) => void;
 }
 
 export function TransactionRow({
@@ -62,6 +97,7 @@ export function TransactionRow({
   categories,
   onRecategorize,
   onEdit,
+  onToggleTransfer,
 }: TransactionRowProps) {
   const category = categories.find((candidate) => candidate.id === transaction.category_id);
   const isCredit = transaction.amount_cents > 0;
@@ -73,7 +109,12 @@ export function TransactionRow({
     // role="row"/"cell" rather than the tags alone: under 600px the row is laid
     // out as a two-line grid (see TransactionsPage.css), and a browser reads
     // table semantics off the display value unless they are declared.
-    <tr className="yd-transactions__row" role="row">
+    <tr
+      className={`yd-transactions__row${
+        transaction.is_transfer ? " yd-transactions__row--transfer" : ""
+      }`}
+      role="row"
+    >
       <td role="cell" className="yd-num yd-transactions__cell yd-transactions__cell--date">
         {new Date(transaction.date).toLocaleDateString("fr-FR")}
       </td>
@@ -147,6 +188,19 @@ export function TransactionRow({
         </span>
       </td>
       <td role="cell" className="yd-transactions__cell yd-transactions__cell--action">
+        {/* aria-pressed, not a checkbox: this is a state the button toggles on
+            the row, and the row is the thing being described. The label names
+            the operation so twenty of these are twenty different controls. */}
+        <button
+          type="button"
+          className="yd-transactions__transfer"
+          aria-pressed={transaction.is_transfer}
+          aria-label={`${transferAction(transaction)} : ${transaction.label_raw}`}
+          title={transferHint(transaction)}
+          onClick={() => onToggleTransfer(transaction.id, !transaction.is_transfer)}
+        >
+          <TransferIcon aria-hidden="true" />
+        </button>
         {/* The label rides along in the accessible name -- as an aria-label,
             never as a second copy of the text in the document -- so twenty
             buttons on screen are twenty different buttons to a screen reader,

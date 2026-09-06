@@ -32,6 +32,7 @@ import type {
 } from "../../lib/types";
 import { HeroTrend } from "./HeroTrend";
 import { RecentTransactions } from "./RecentTransactions";
+import { SetAsidePanel } from "./SetAsidePanel";
 import { StatTile } from "./StatTile";
 import "./OverviewPage.css";
 import { PeriodSelector } from "../transactions/PeriodSelector";
@@ -127,6 +128,11 @@ const SPAN = {
   // remaining 5 columns beside it.
   cashflow: { base: 1, md: 6, lg: 7 },
   stat: { base: 1, md: 2, lg: 5 },
+  // Full width, under the cash-flow band. Three figures and a sentence: this
+  // is a horizontal reading, not a tile, and wedging it into 5 columns would
+  // break "produced − set aside = left" into three storeys that no longer read
+  // as a subtraction.
+  setAside: { base: 1, md: 6, lg: 12 },
   treemap: { base: 1, md: 6, lg: 5 },
   waterfall: { base: 1, md: 6, lg: 7 },
   // Full width, and not the 5 columns the plan sketched: this is a 53-week
@@ -209,6 +215,11 @@ function DashboardSkeleton() {
           </div>
         </BentoCell>
       ))}
+
+      <BentoCell span={SPAN.setAside} className="yd-panel">
+        <Skeleton variant="title" />
+        <Skeleton variant="chart-short" />
+      </BentoCell>
 
       <BentoCell span={SPAN.treemap} className="yd-panel">
         <Skeleton variant="title" />
@@ -539,7 +550,7 @@ export function OverviewPage() {
             icon={InflowIcon}
             iconTone="positive"
             sparkline={series.map((bucket) => bucket.inflow_cents)}
-            hint="Tout ce qui est entré sur la période, virements internes compris. La courbe derrière le chiffre est le même total, bucket par bucket."
+            hint="Tout ce qui est entré sur la période, hors virements entre vos propres comptes — déplacer de l'argent n'est pas en gagner. La courbe derrière le chiffre est le même total, bucket par bucket."
           />
         </BentoCell>
 
@@ -556,7 +567,7 @@ export function OverviewPage() {
             icon={OutflowIcon}
             iconTone="negative"
             sparkline={series.map((bucket) => bucket.outflow_cents)}
-            hint="Tout ce qui est sorti sur la période, signe négatif compris. La courbe derrière le chiffre est le même total, bucket par bucket."
+            hint="Tout ce qui est sorti sur la période, hors virements vers vos propres comptes d'épargne — mettre de côté n'est pas dépenser. Le panneau « Ce que la période a mis de côté » compte ces virements séparément. La courbe derrière le chiffre est le même total, bucket par bucket."
           />
         </BentoCell>
 
@@ -581,6 +592,18 @@ export function OverviewPage() {
             hint="Ce qu'il reste des entrées une fois les sorties déduites, en part des entrées. Une période sans aucune entrée n'a pas de taux : le chiffre est alors indisponible, jamais zéro."
           />
         </BentoCell>
+
+        {summary ? (
+          <BentoCell
+            as={motion.div}
+            span={SPAN.setAside}
+            className="yd-panel"
+            data-ai-target="panel-mis-de-cote"
+            {...entryProps(reduced)}
+          >
+            <SetAsidePanel summary={summary} />
+          </BentoCell>
+        ) : null}
 
         <BentoCell
           as={motion.div}

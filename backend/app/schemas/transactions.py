@@ -20,6 +20,10 @@ class TransactionOut(BaseModel):
     category_id: int | None
     category_source: str
     is_transfer: bool
+    # WHO decided `is_transfer`: "auto" for the rule in `engines/transfer.py`,
+    # "manual" for a mark the reader made themselves. The screen shows the
+    # difference, because a figure the user set is not a figure Yieldo guessed.
+    transfer_source: str
     is_recurring: bool
     notes: str | None
     tags: list[str]
@@ -44,7 +48,10 @@ class TransactionIn(BaseModel):
     amount_cents: int = Field(description="Signed, in cents. Negative is money out.")
     label_raw: str = Field(min_length=1, max_length=500)
     category_id: int | None = None
-    is_transfer: bool = False
+    # Omitted means "let the rule decide" -- `engines/transfer.py` reads the
+    # category and the account. Sent explicitly, it is the reader's own call
+    # and the row comes back with `transfer_source == "manual"`.
+    is_transfer: bool | None = None
     notes: str | None = Field(default=None, max_length=2000)
     tags: list[str] = Field(default_factory=list)
 
@@ -73,6 +80,10 @@ class TransactionPage(BaseModel):
     # filter dropped. `total == 0` alone cannot say whether the period is empty
     # or a filter is hiding what is in it; these two figures can.
     period_total: int
+    # How many of the period's rows are internal transfers, whether or not this
+    # page is showing them. Without it a list shortened by the default filter
+    # is indistinguishable from a period that simply holds less.
+    transfer_total: int
     history: HistoryOut | None
 
 

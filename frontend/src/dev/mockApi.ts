@@ -36,6 +36,7 @@ const CATEGORIES = [
   { id: 7, name: "Loisirs", slug: "loisirs", color: "#a78bfa", budget: 12000 },
   { id: 8, name: "Divers", slug: "divers", color: "#94a3b8", budget: null },
   { id: 9, name: "Salaire", slug: "salaire", color: "#22c55e", budget: null },
+  { id: 10, name: "Épargne et investissement", slug: "epargne", color: "#3b82f6", budget: null },
 ];
 
 const MONTHS = [
@@ -65,6 +66,9 @@ interface Row {
   // Only a hand-typed line carries these; imported rows leave them unset.
   notes?: string | null;
   manual?: boolean;
+  // A movement between two of the household's own accounts. Neither an inflow
+  // nor an outflow: the screen has to be able to show both readings.
+  transfer?: boolean;
 }
 
 const LABELS: Record<number, string[]> = {
@@ -77,6 +81,7 @@ const LABELS: Record<number, string[]> = {
   7: ["CB FNAC", "CB DECATHLON", "CB CINEMA UGC"],
   8: ["VIR INSTANTANE EMIS POUR: Marc AURIAU", "PRLV EUROPEEN PAYPAL EUROPE", "RETRAIT DAB"],
   9: ["VIR SALAIRE MENSUEL SOCIETE NOVA"],
+  10: ["VIR PERMANENT LIVRET A"],
 };
 
 const ROWS: Row[] = (() => {
@@ -91,6 +96,17 @@ const ROWS: Row[] = (() => {
       amount_cents: 298000 + Math.round(rand(mi + 1) * 24000),
       label: LABELS[9][0],
       category_id: 9,
+    });
+    // The monthly standing order to the Livret A, two days after payday. This
+    // is what the "Inclure les virements internes" switch reveals, and what the
+    // set-aside panel counts.
+    rows.push({
+      id: id++,
+      date: `${month}-04`,
+      amount_cents: -(30000 + Math.round(rand(mi + 40) * 20000)),
+      label: LABELS[10][0],
+      category_id: 10,
+      transfer: true,
     });
     for (let i = 0; i < 26; i += 1) {
       const seed = mi * 100 + i + 7;
@@ -122,18 +138,28 @@ function inRange(row: Row, from?: string | null, to?: string | null): boolean {
 }
 
 function totalsFor(from?: string | null, to?: string | null) {
-  const rows = ROWS.filter((row) => inRange(row, from, to));
+  const all = ROWS.filter((row) => inRange(row, from, to));
+  // Like the backend: an internal transfer is neither an inflow nor an outflow.
+  const rows = all.filter((row) => !row.transfer);
   const inflow = rows.filter((r) => r.amount_cents > 0).reduce((s, r) => s + r.amount_cents, 0);
   const outflow = rows.filter((r) => r.amount_cents < 0).reduce((s, r) => s + r.amount_cents, 0);
-  const dates = rows.map((r) => r.date).sort();
+  const dates = all.map((r) => r.date).sort();
+  const net = inflow + outflow;
+  // Sign flipped, like `engines/transfer.measure_set_aside`: a 300 EUR debit
+  // sets 300 EUR aside.
+  const setAside = all
+    .filter((row) => row.transfer && row.category_id === 10)
+    .reduce((s, r) => s - r.amount_cents, 0);
   return {
     date_from: from || dates[0] || "2025-10-01",
     date_to: to || dates[dates.length - 1] || TODAY,
     inflow_cents: inflow,
     outflow_cents: outflow,
-    net_cents: inflow + outflow,
+    net_cents: net,
     transaction_count: rows.length,
-    savings_rate: inflow > 0 ? (inflow + outflow) / inflow : null,
+    savings_rate: inflow > 0 ? net / inflow : null,
+    set_aside_cents: setAside,
+    set_aside_gap_cents: net - setAside,
   };
 }
 
@@ -154,7 +180,7 @@ const CATEGORY_PAYLOAD: {
   parent_id: null,
   name: c.name,
   slug: c.slug,
-  kind: c.id === 9 ? "income" : "expense",
+  kind: c.id === 9 ? "income" : c.id === 10 ? "transfer" : "expense",
   color: c.color,
   icon: c.slug,
   monthly_budget_cents: c.budget,
@@ -276,7 +302,12 @@ function transactionsFor(params: Params) {
   const to = params.get("date_to");
   const limit = Number(params.get("limit") ?? 50);
   const offset = Number(params.get("offset") ?? 0);
-  const rows = ROWS.filter((r) => inRange(r, from, to));
+  const includeTransfers = params.get("include_transfers") === "true";
+  const period = ROWS.filter((r) => inRange(r, from, to));
+  // Like the route: counted BEFORE the filter takes them out, or a shortened
+  // list is indistinguishable from a shorter period.
+  const transferTotal = period.filter((r) => r.transfer === true).length;
+  const rows = includeTransfers ? period : period.filter((r) => r.transfer !== true);
   return {
     items: rows.slice(offset, offset + limit).map((row) => ({
       id: row.id,
@@ -288,7 +319,8 @@ function transactionsFor(params: Params) {
       label_clean: row.label,
       category_id: row.category_id,
       category_source: row.id % 5 === 0 ? "user" : "rule",
-      is_transfer: false,
+      is_transfer: row.transfer === true,
+      transfer_source: "auto" as const,
       is_recurring: row.category_id === 4 || row.category_id === 1,
       notes: row.notes ?? null,
       tags: [],
@@ -297,7 +329,8 @@ function transactionsFor(params: Params) {
     total: rows.length,
     limit,
     offset,
-    period_total: rows.length,
+    period_total: period.length,
+    transfer_total: transferTotal,
     history: HISTORY,
   };
 }
@@ -1057,7 +1090,7 @@ const WRITES: Record<string, (body: Record<string, unknown>) => Response> = {
       label_clean: payload.label_raw.toLowerCase(),
       category_id: payload.category_id,
       category_source: payload.category_id === null ? "uncategorized" : "manual",
-      is_transfer: false,
+      is_transfer: false, transfer_source: "auto" as const,
       is_recurring: false,
       notes: payload.notes,
       tags: [],
@@ -1220,7 +1253,7 @@ export function installMockApi(): void {
         label_clean: String(row.label).toLowerCase(),
         category_id: row.category_id === 0 ? null : row.category_id,
         category_source: row.category_id === 0 ? "uncategorized" : "manual",
-        is_transfer: false,
+        is_transfer: false, transfer_source: "auto" as const,
         is_recurring: false,
         notes: row.notes ?? null,
         tags: [],

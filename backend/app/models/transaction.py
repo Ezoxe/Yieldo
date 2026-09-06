@@ -1,9 +1,20 @@
 from datetime import date
 
-from sqlalchemy import JSON, Boolean, Date, ForeignKey, Index, Integer, String, UniqueConstraint
+from sqlalchemy import (
+    JSON,
+    Boolean,
+    Date,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    UniqueConstraint,
+    text,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
+from app.engines.transfer import TRANSFER_SOURCES
 
 # "builtin" and "rule" both mean "matched a rule"; "builtin" additionally says the
 # rule shipped with Yieldo rather than being written by the user. classify() returns
@@ -11,6 +22,10 @@ from app.db import Base
 TRANSACTION_CATEGORY_SOURCES = (
     "builtin", "rule", "learned", "manual", "csv", "uncategorized",
 )
+
+# Re-exported from the engine that owns the rule, so a model importer does not
+# have to know which module the two values live in.
+TRANSACTION_TRANSFER_SOURCES = TRANSFER_SOURCES
 
 
 class Transaction(Base):
@@ -36,6 +51,13 @@ class Transaction(Base):
     category_source: Mapped[str] = mapped_column(
         String(16), default="uncategorized", nullable=False)
     is_transfer: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    # WHO decided `is_transfer`, exactly as `category_source` says who chose the
+    # category. "manual" is the user's own mark (or the agent's, acting for
+    # them) and `engines/transfer.is_internal_transfer` refuses to answer for
+    # it -- an automatic rule must never overwrite a decision a human made.
+    transfer_source: Mapped[str] = mapped_column(
+        String(8), default="auto", server_default=text("'auto'"), nullable=False
+    )
     is_recurring: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     recurrence_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     import_batch_id: Mapped[int | None] = mapped_column(

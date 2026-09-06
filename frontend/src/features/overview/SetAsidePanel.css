@@ -1,0 +1,84 @@
+/* Three figures and two operators, on one line. Not a grid of three tiles: the
+   reading is an arithmetic sentence, and the "−" and "=" between the numbers
+   are what stop it being read as a sum. Refusing that sum is the whole reason
+   this panel exists. */
+.yd-setaside {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--yd-space-md);
+  margin-top: var(--yd-space-md);
+}
+
+.yd-setaside__figure {
+  display: flex;
+  flex: 1 1 180px;
+  min-width: 0;
+  flex-direction: column;
+  gap: var(--yd-space-3xs, 0.25rem);
+}
+
+/* The result carries the eye: a hairline on its left detaches it from the
+   operation that produced it, without making it a second card. */
+.yd-setaside__figure--gap {
+  padding-left: var(--yd-space-md);
+  border-left: 1px solid var(--yd-border);
+}
+
+.yd-setaside__label {
+  color: var(--yd-text-muted);
+  font-size: 0.78rem;
+  line-height: 1.3;
+}
+
+.yd-setaside__value {
+  color: var(--yd-text);
+  font-size: clamp(1.25rem, 2.2vw, 1.7rem);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+/* What left for savings: blue, the hue of a standing condition. Neither green
+   nor rose -- this is not a gain and not a loss, it is a movement. */
+.yd-setaside__value--aside {
+  color: var(--yd-info);
+}
+
+/* A negative gap: the savings were funded by drawing the balance down. */
+.yd-setaside__value--short {
+  color: var(--yd-warning);
+}
+
+.yd-setaside__operator {
+  padding-bottom: 0.35rem;
+  color: var(--yd-text-muted);
+  font-size: 1.1rem;
+  line-height: 1;
+}
+
+.yd-setaside__note {
+  margin: var(--yd-space-md) 0 0;
+  color: var(--yd-text-muted);
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+/* Under 640px the sentence breaks into three stacked lines: the operators have
+   nothing left to separate horizontally and go, and the result's hairline moves
+   above it. */
+@media (max-width: 640px) {
+  .yd-setaside {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .yd-setaside__operator {
+    display: none;
+  }
+
+  .yd-setaside__figure--gap {
+    padding: var(--yd-space-sm) 0 0;
+    border-left: none;
+    border-top: 1px solid var(--yd-border);
+  }
+}

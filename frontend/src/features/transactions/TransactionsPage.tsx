@@ -86,6 +86,10 @@ export interface ActiveFilters {
   accountName: string | null;
   categoryName: string | null;
   uncategorizedOnly: boolean;
+  /** True when transfers are being HIDDEN — the state that removes rows. */
+  transfersHidden: boolean;
+  /** How many rows that costs, so the sentence can name a figure. */
+  transferCount: number;
 }
 
 /**
@@ -101,6 +105,12 @@ export function activeFilterLabels(filters: ActiveFilters): string[] {
   if (filters.categoryName) labels.push(`la catégorie « ${filters.categoryName} »`);
   if (filters.accountName) labels.push(`le compte « ${filters.accountName} »`);
   if (filters.uncategorizedOnly) labels.push("« Non catégorisées uniquement »");
+  if (filters.transfersHidden && filters.transferCount > 0) {
+    labels.push(
+      `« Inclure les virements internes » désactivé (${filters.transferCount} ` +
+      `${plural(filters.transferCount, "opération", "opérations")})`,
+    );
+  }
   return labels;
 }
 
@@ -173,6 +183,9 @@ export function TransactionsPage() {
   const [accountId, setAccountId] = useState<number | null>(null);
   const [categoryId, setCategoryId] = useState<number | null>(null);
   const [uncategorizedOnly, setUncategorizedOnly] = useState(false);
+  // Off by default: an internal transfer is not spending, and a list that
+  // shows it beside real expenses invites the reader to add them up.
+  const [includeTransfers, setIncludeTransfers] = useState(false);
   const [search, setSearch] = useState("");
 
   // Bumped by "Effacer les filtres" to remount FilterBar: the search box holds
@@ -197,6 +210,7 @@ export function TransactionsPage() {
   // whole ledger: between them, an empty list can say which of the three
   // reasons it is empty for.
   const [periodTotal, setPeriodTotal] = useState(0);
+  const [transferTotal, setTransferTotal] = useState(0);
   const [history, setHistory] = useState<History | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
@@ -246,6 +260,7 @@ export function TransactionsPage() {
           account_id: accountId,
           category_id: categoryId,
           uncategorized_only: uncategorizedOnly,
+          include_transfers: includeTransfers,
           search,
           limit: PAGE_SIZE,
           offset: 0,
@@ -254,6 +269,7 @@ export function TransactionsPage() {
         setItems(page.items);
         setTotal(page.total);
         setPeriodTotal(page.period_total);
+        setTransferTotal(page.transfer_total);
         setHistory(page.history);
       } catch (err) {
         if (cancelled) return;
@@ -266,7 +282,8 @@ export function TransactionsPage() {
     return () => {
       cancelled = true;
     };
-  }, [period.from, period.to, accountId, categoryId, uncategorizedOnly, search, reloadToken]);
+  }, [period.from, period.to, accountId, categoryId, uncategorizedOnly, includeTransfers,
+      search, reloadToken]);
 
   async function loadMore() {
     setIsLoadingMore(true);
@@ -278,6 +295,7 @@ export function TransactionsPage() {
         account_id: accountId,
         category_id: categoryId,
         uncategorized_only: uncategorizedOnly,
+        include_transfers: includeTransfers,
         search,
         limit: PAGE_SIZE,
         offset: itemsRef.current.length,
@@ -305,6 +323,35 @@ export function TransactionsPage() {
           ? { transactionId, previousCategoryId, count: updated.backfilled, origin: "correction" }
           : null,
       );
+    } catch (err) {
+      setPatchError(messageFor(err));
+    }
+  }
+
+  /**
+   * Flip one row between money spent and money moved.
+   *
+   * Sending `is_transfer` at all stamps the row `manual` server-side, and no
+   * later rule touches it again — which is the point: the reader is correcting
+   * a rule that got this one wrong.
+   *
+   * A row that becomes a transfer leaves the list when transfers are hidden,
+   * and the count beside the switch takes it. Leaving it on screen under a
+   * filter that excludes it would say the filter does not work.
+   */
+  async function handleToggleTransfer(transactionId: number, isTransfer: boolean) {
+    try {
+      const updated = await api.patch<TransactionPatchResult>(`/transactions/${transactionId}`, {
+        is_transfer: isTransfer,
+      });
+      setPatchError(null);
+      setTransferTotal((count) => count + (isTransfer ? 1 : -1));
+      if (isTransfer && !includeTransfers) {
+        setItems((current) => current.filter((t) => t.id !== transactionId));
+        setTotal((count) => Math.max(0, count - 1));
+        return;
+      }
+      setItems((current) => current.map((t) => (t.id === transactionId ? updated : t)));
     } catch (err) {
       setPatchError(messageFor(err));
     }
@@ -344,6 +391,8 @@ export function TransactionsPage() {
     setAccountId(null);
     setCategoryId(null);
     setUncategorizedOnly(false);
+    // Cleared means "hide nothing": the reader asked to see what is there.
+    setIncludeTransfers(true);
     setSearch("");
     setFilterResetKey((key) => key + 1);
   }
@@ -353,6 +402,8 @@ export function TransactionsPage() {
     accountName: accounts.find((a) => a.id === accountId)?.name ?? null,
     categoryName: categories.find((c) => c.id === categoryId)?.name ?? null,
     uncategorizedOnly,
+    transfersHidden: !includeTransfers,
+    transferCount: transferTotal,
   });
 
   // Three reasons a list comes back empty, in the order that makes the answer
@@ -517,6 +568,9 @@ export function TransactionsPage() {
             onAccountChange={setAccountId}
             categoryId={categoryId}
             onCategoryChange={setCategoryId}
+            includeTransfers={includeTransfers}
+            onIncludeTransfersChange={setIncludeTransfers}
+            transferCount={transferTotal}
             uncategorizedOnly={uncategorizedOnly}
             onUncategorizedOnlyChange={setUncategorizedOnly}
             uncategorizedCount={uncategorizedCount}
@@ -558,8 +612,12 @@ export function TransactionsPage() {
                       <th scope="col" role="columnheader">
                         Montant
                       </th>
+                      {/* "Actions" rather than "Modifier": the column has
+                          carried two controls since the internal-transfer mark
+                          moved onto the row, and a heading naming only one of
+                          them describes what it heads badly. */}
                       <th scope="col" role="columnheader">
-                        Modifier
+                        Actions
                       </th>
                     </tr>
                   </thead>
@@ -588,6 +646,7 @@ export function TransactionsPage() {
                             key={transaction.id}
                             transaction={transaction}
                             categories={categories}
+                            onToggleTransfer={handleToggleTransfer}
                             onRecategorize={(id, catId) => void handleRecategorize(id, catId)}
                             onEdit={setEditing}
                           />

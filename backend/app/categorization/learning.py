@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from app.categorization.engine import compile_rules
 from app.models import Transaction
 from app.models.rule import RULE_PRIORITIES, CategoryRule
+from app.transfers import TransferResolver
 
 # Words that appear on nearly every French bank line: on their own they identify
 # nothing, so a rule built from them would mislabel unrelated transactions.
@@ -90,10 +91,22 @@ def apply_learned_rule(
 
     Manual assignments are never overwritten: the user's explicit choice outranks
     anything inferred.
+
+    A row whose category moves has its transfer flag re-decided, because that
+    flag is READ OFF the category (`engines/transfer.is_internal_transfer`). A
+    learned rule that files twelve past rows under "Épargne et investissement"
+    and leaves all twelve counted as spending would defeat the whole rule by the
+    back door -- and it is the one path that changes a category without going
+    through `api/transactions.patch_transaction`. A row marked by hand is left
+    alone here too: `TransferResolver.apply` returns without touching it.
     """
     compiled = compile_rules([rule])
     if not compiled:
         return 0
+
+    # Read once for the whole backfill: the rule needs this user's category and
+    # account tables, and a per-row lookup would query twice per matched line.
+    transfers = TransferResolver(db, user_id)
 
     query = db.query(Transaction).filter(Transaction.user_id == user_id)
     if only_uncategorized:
@@ -115,6 +128,7 @@ def apply_learned_rule(
         if compiled_rule.matcher.search(transaction.label_clean):
             transaction.category_id = rule.category_id
             transaction.category_source = "learned"
+            transfers.apply(transaction)
             updated += 1
 
     db.commit()

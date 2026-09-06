@@ -1638,9 +1638,13 @@ def test_deleting_a_user_takes_their_runs_and_proposals_with_them(migration_db):
 
 
 DECLARED_VALUE_REVISION = "b7d41e9c2a68"
+# The rule that finally poses `is_transfer`, and the backfill that applies it to
+# an existing ledger. Its own behaviour is pinned in
+# `test_transfer_backfill_migration.py`; here it only has to be the head.
+TRANSFER_SOURCE_REVISION = "c8e2f1a54d90"
 
 
-def test_the_declared_value_migration_is_the_single_head(migration_db):
+def test_the_transfer_source_migration_is_the_single_head(migration_db):
     """`heads` and `head` must be the same single revision — two heads is a
     database Alembic cannot upgrade without a merge, and nothing else in this
     suite would notice. This assertion moves to the newest migration each time
@@ -1649,7 +1653,7 @@ def test_the_declared_value_migration_is_the_single_head(migration_db):
 
     script = ScriptDirectory.from_config(migration_db.config)
     assert len(script.get_heads()) == 1
-    assert script.get_current_head() == DECLARED_VALUE_REVISION
+    assert script.get_current_head() == TRANSFER_SOURCE_REVISION
 
 
 def test_the_declared_value_migration_matches_base_metadata_exactly(migration_db):

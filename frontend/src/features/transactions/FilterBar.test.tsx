@@ -42,6 +42,9 @@ function baseProps(overrides: Partial<FilterBarProps> = {}): FilterBarProps {
     uncategorizedOnly: false,
     onUncategorizedOnlyChange: vi.fn(),
     uncategorizedCount: null,
+    includeTransfers: false,
+    onIncludeTransfersChange: vi.fn(),
+    transferCount: null,
     onSearchChange: vi.fn(),
     ...overrides,
   };
@@ -117,5 +120,26 @@ describe("FilterBar", () => {
 
       await waitFor(() => expect(onSearchChange).toHaveBeenCalledWith("netflix"), { timeout: 1000 });
     });
+  });
+
+  // Off by default, and the count says what that costs: a list silently
+  // shortened is worse than no filter at all.
+  it("offers to bring the internal transfers back, and says how many there are", async () => {
+    const onIncludeTransfersChange = vi.fn();
+    render(<FilterBar {...baseProps({ transferCount: 12, onIncludeTransfersChange })} />);
+
+    const toggle = screen.getByRole("switch", { name: /Inclure les virements internes/ });
+    expect(toggle).not.toBeChecked();
+    expect(screen.getByText("(12)")).toBeInTheDocument();
+
+    await userEvent.click(toggle);
+    expect(onIncludeTransfersChange).toHaveBeenCalledWith(true);
+  });
+
+  it("shows no count while it is not known yet", () => {
+    render(<FilterBar {...baseProps({ transferCount: null })} />);
+    expect(
+      screen.getByRole("switch", { name: "Inclure les virements internes" }),
+    ).toBeInTheDocument();
   });
 });

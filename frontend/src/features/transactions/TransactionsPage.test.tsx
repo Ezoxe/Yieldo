@@ -6,7 +6,31 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { activeFilterLabels, filteredEmptyDetail, TransactionsPage } from "./TransactionsPage";
 
 describe("activeFilterLabels", () => {
-  const none = { search: "", accountName: null, categoryName: null, uncategorizedOnly: false };
+  // The default filter takes rows out with nothing saying so -- exactly the
+  // unexplained shortened list this screen exists to refuse.
+  it("names the transfers the default filter is hiding, and how many", () => {
+    const labels = activeFilterLabels({
+      search: "", accountName: null, categoryName: null, uncategorizedOnly: false,
+      transfersHidden: true, transferCount: 12,
+    });
+    expect(labels).toEqual([
+      "« Inclure les virements internes » désactivé (12 opérations)",
+    ]);
+  });
+
+  it("says nothing about a filter that is hiding nothing", () => {
+    expect(
+      activeFilterLabels({
+        search: "", accountName: null, categoryName: null, uncategorizedOnly: false,
+        transfersHidden: true, transferCount: 0,
+      }),
+    ).toEqual([]);
+  });
+
+  const none = {
+    search: "", accountName: null, categoryName: null, uncategorizedOnly: false,
+    transfersHidden: false, transferCount: 0,
+  };
 
   it("names nothing when nothing is filtering", () => {
     expect(activeFilterLabels(none)).toEqual([]);
@@ -19,6 +43,8 @@ describe("activeFilterLabels", () => {
         accountName: "Compte courant",
         categoryName: "Alimentation",
         uncategorizedOnly: true,
+        transfersHidden: false,
+        transferCount: 0,
       }),
     ).toEqual([
       "la recherche « netflix »",
@@ -63,14 +89,14 @@ const categories = [
 const txCarrefour = {
   id: 10, account_id: 1, date: "2025-03-01", value_date: null, amount_cents: -4732,
   label_raw: "CARREFOUR MARKET CB 01/03", label_clean: "carrefour market",
-  category_id: 2, category_source: "builtin", is_transfer: false,
+  category_id: 2, category_source: "builtin", is_transfer: false, transfer_source: "auto" as const,
   is_recurring: false, notes: null, tags: [],
 };
 
 const txSalaire = {
   id: 11, account_id: 1, date: "2025-03-02", value_date: null, amount_cents: 250000,
   label_raw: "VIR SALAIRE MARS", label_clean: "vir salaire mars",
-  category_id: null, category_source: "uncategorized", is_transfer: false,
+  category_id: null, category_source: "uncategorized", is_transfer: false, transfer_source: "auto" as const,
   is_recurring: false, notes: null, tags: [],
 };
 
@@ -186,7 +212,7 @@ describe("TransactionsPage — the grid", () => {
       "Libellé",
       "Catégorie",
       "Montant",
-      "Modifier",
+      "Actions",
     ]);
   });
 

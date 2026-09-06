@@ -58,6 +58,10 @@ export interface Transaction {
   category_id: number | null;
   category_source: string;
   is_transfer: boolean;
+  // Who decided `is_transfer`: "auto" for the rule in `engines/transfer.py`,
+  // "manual" for a mark the reader made themselves. The screen shows the
+  // difference, because a figure the user set is not a figure Yieldo guessed.
+  transfer_source: "auto" | "manual";
   is_recurring: boolean;
   notes: string | null;
   tags: string[];
@@ -114,6 +118,10 @@ export interface TransactionPage {
   // dropped: `total === 0` alone cannot say whether the period is empty or a
   // filter is hiding what is in it.
   period_total: number;
+  // How many of the period's rows are internal transfers, whether or not this
+  // page is showing them. Without it, a list shortened by the default filter is
+  // indistinguishable from a period that simply holds less.
+  transfer_total: number;
   history: History | null;
 }
 
@@ -254,6 +262,14 @@ export interface PeriodTotals {
   transaction_count: number;
   // A savings rate without income is undefined, not zero — null when inflow is 0.
   savings_rate: number | null;
+  // What actually left the spendable perimeter for a savings account. NEVER
+  // add it to `net_cents`: the euro moved to a livret is already counted as
+  // saved in there, because nothing spends it any more.
+  set_aside_cents: number;
+  // `net_cents - set_aside_cents`: the surplus the period produced and left
+  // sitting on the current account. Negative means the savings were funded by
+  // drawing the balance down.
+  set_aside_gap_cents: number;
 }
 
 export interface Comparison {

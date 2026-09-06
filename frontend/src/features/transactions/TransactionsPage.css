@@ -342,6 +342,85 @@
   width: 1%;
 }
 
+/* A row Yieldo counts as moved rather than spent. Tinted and marked at the
+   left edge, never hidden: when the switch above says to show them, they have
+   to be tellable apart from the expenses beside them at a glance. A tint and a
+   rule, not a colour on the amount -- the amount's own sign already carries a
+   meaning and must not be overloaded with a second one. */
+.yd-transactions__row--transfer .yd-transactions__cell {
+  background: color-mix(in srgb, var(--yd-info) 6%, transparent);
+}
+
+.yd-transactions__row--transfer .yd-transactions__cell--date {
+  box-shadow: inset 2px 0 0 var(--yd-info);
+}
+
+/* Same register as the edit control beside it: quiet until the row is under
+   the pointer. Pressed is the loud state, because a marked row is a claim the
+   reader can argue with and the control has to say so without being hovered. */
+.yd-transactions__transfer {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 30px;
+  min-height: 30px;
+  margin-right: var(--yd-space-2xs);
+  border: 1px solid transparent;
+  border-radius: var(--yd-radius-sm);
+  background: transparent;
+  color: var(--yd-text-muted);
+  cursor: pointer;
+  transition:
+    border-color var(--yd-motion-fast) var(--yd-ease),
+    color var(--yd-motion-fast) var(--yd-ease);
+}
+
+.yd-transactions__transfer svg {
+  width: 15px;
+  height: 15px;
+}
+
+.yd-transactions__row:hover .yd-transactions__transfer,
+.yd-transactions__row:focus-within .yd-transactions__transfer {
+  border-color: var(--yd-border-control);
+  color: var(--yd-text);
+}
+
+.yd-transactions__transfer[aria-pressed="true"] {
+  border-color: color-mix(in srgb, var(--yd-info) 45%, transparent);
+  color: var(--yd-info);
+}
+
+.yd-transactions__transfer:hover {
+  border-color: var(--yd-accent);
+  color: var(--yd-text);
+}
+
+.yd-transactions__transfer:focus-visible {
+  outline: 2px solid var(--yd-accent);
+  outline-offset: 2px;
+}
+
+/* Two controls in the action column, and under ~1320px the table no longer has
+   room for the word "Modifier": measured in the browser at 1280, where the
+   table wanted 977px inside a 948px container and grew a horizontal scrollbar
+   on an ordinary laptop. The word goes first because it is the only one of the
+   two that is redundant -- the button's accessible name already carries it, row
+   by row. Below 600px the mobile grid does the same thing, for the same
+   reason. */
+@media (max-width: 1320px) {
+  .yd-transactions__edit-text {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}
+
 /* Quiet until the row is under the pointer or holding focus: twenty outlined
    buttons down a list read as twenty things to do, when the list's job is to
    be read. The control keeps its full hit area and its accessible name at all

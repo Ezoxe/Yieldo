@@ -18,6 +18,7 @@ from app.schemas.transactions import (
     TransactionPatchOut,
 )
 from app.security.deps import get_current_user
+from app.transfers import TransferResolver
 
 router = APIRouter(prefix="/transactions", tags=["transactions"])
 
@@ -94,6 +95,7 @@ def list_transactions(
     account_id: int | None = None,
     search: str | None = None,
     uncategorized_only: bool = False,
+    include_transfers: bool = False,
     min_cents: int | None = None,
     max_cents: int | None = None,
     limit: int = Query(default=50, ge=1, le=500),
@@ -114,6 +116,19 @@ def list_transactions(
     # the period alone, which is what tells an empty list apart from a list
     # emptied by a filter.
     period_query = query
+    # Counted before the transfer filter takes them out, so the screen can say
+    # how many rows the toggle is hiding rather than leaving a shorter list
+    # unexplained.
+    transfer_total = (
+        period_query.with_entities(func.count(Transaction.id))
+        .filter(Transaction.is_transfer.is_(True)).scalar() or 0
+    )
+    if not include_transfers:
+        # Off by default, so the list matches the figures every other screen
+        # prints: money moved between your own accounts is not spending, and a
+        # list that shows it beside real expenses invites the reader to add
+        # them up.
+        query = query.filter(Transaction.is_transfer.is_(False))
     if category_id is not None:
         query = query.filter(Transaction.category_id == category_id)
     if account_id is not None:
@@ -135,7 +150,8 @@ def list_transactions(
     )
     return TransactionPage(
         items=items, total=total, limit=limit, offset=offset,
-        period_total=period_total, history=user_history(db, user.id),
+        period_total=period_total, transfer_total=transfer_total,
+        history=user_history(db, user.id),
     )
 
 
@@ -158,6 +174,11 @@ def create_transaction(
     are run over the label, exactly as the importer runs them, so a hand-typed
     "NETFLIX.COM" lands in the same place as the imported one. Only when no
     rule matches does the line stay uncategorised.
+
+    `is_transfer` left out is likewise not a transfer refused: the rule in
+    `engines/transfer.py` reads the category and the account and answers. Sent
+    explicitly, it is the caller's own decision and the row is stamped
+    `manual`, which every later rule then leaves alone.
     """
     account = _owned_account(db, user, payload.account_id)
 
@@ -171,6 +192,14 @@ def create_transaction(
         match = classify(label_clean, payload.amount_cents, compile_rules(rules))
         category_id = None if match is None else match.category_id
         source = "uncategorized" if match is None else match.source
+
+    if payload.is_transfer is None:
+        is_transfer = TransferResolver(db, user.id).decide(
+            account_id=account.id, category_id=category_id)
+        transfer_source = "auto"
+    else:
+        is_transfer = payload.is_transfer
+        transfer_source = "manual"
 
     fingerprint = _free_fingerprint(db, user.id, compute_dedup_hash(
         user.id, account.id, payload.date, payload.amount_cents, payload.label_raw,
@@ -186,7 +215,8 @@ def create_transaction(
         label_clean=label_clean,
         category_id=category_id,
         category_source=source,
-        is_transfer=payload.is_transfer,
+        is_transfer=is_transfer,
+        transfer_source=transfer_source,
         import_batch_id=None,
         dedup_hash=fingerprint,
         notes=payload.notes,
@@ -239,9 +269,20 @@ def patch_transaction(
         # behind would keep matching a label the row no longer carries.
         transaction.label_clean = normalize_label(changes["label_raw"])
 
-    for field in ("notes", "is_transfer", "tags"):
+    for field in ("notes", "tags"):
         if field in changes:
             setattr(transaction, field, changes[field])
+
+    # Sending `is_transfer` at all is the reader answering the question
+    # themselves, and that answer outranks every rule from here on -- including
+    # the one re-run just below, and every later import.
+    if "is_transfer" in changes:
+        transaction.is_transfer = changes["is_transfer"]
+        transaction.transfer_source = "manual"
+    elif category_id_provided or "account_id" in changes:
+        # The two facts the rule reads have moved, so the rule is asked again.
+        # `apply` returns without touching a row already marked by hand.
+        TransferResolver(db, user.id).apply(transaction)
 
     # The fingerprint is computed from exactly those four fields, so once any
     # of them moves the stored hash describes a transaction that no longer

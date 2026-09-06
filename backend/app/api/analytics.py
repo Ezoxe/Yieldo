@@ -5,6 +5,8 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app.api.common import period_range, tx_points
+from app.engines.transfer import measure_set_aside
+from app.transfers import set_aside_rows
 from app.db import get_db
 from app.engines.aggregate import (
     aggregate_by_category,
@@ -56,11 +58,13 @@ def series(
 def categories_breakdown(
     date_from: date | None = None,
     date_to: date | None = None,
+    include_transfers: bool = False,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> list[CategoryBreakdownOut]:
     start, end, _ = period_range(db, user.id, date_from, date_to)
-    totals = aggregate_by_category(tx_points(db, user.id, start, end))
+    totals = aggregate_by_category(
+        tx_points(db, user.id, start, end), include_transfers)
     names = {c.id: c for c in db.query(Category).filter(Category.user_id == user.id).all()}
     return [
         CategoryBreakdownOut(
@@ -77,17 +81,31 @@ def categories_breakdown(
     ]
 
 
-def _period_totals(db: Session, user_id: int, from_: date, to_: date) -> PeriodTotalsOut:
+def _period_totals(
+    db: Session, user_id: int, from_: date, to_: date, include_transfers: bool = False
+) -> PeriodTotalsOut:
     points = tx_points(db, user_id, from_, to_)
-    inflow = sum(p.amount_cents for p in points if p.amount_cents > 0 and not p.is_transfer)
-    outflow = sum(p.amount_cents for p in points if p.amount_cents < 0 and not p.is_transfer)
+    if not include_transfers:
+        points = [p for p in points if not p.is_transfer]
+    inflow = sum(p.amount_cents for p in points if p.amount_cents > 0)
+    outflow = sum(p.amount_cents for p in points if p.amount_cents < 0)
     net = inflow + outflow
+    # A separate read, on purpose: `tx_points` drops the account and category
+    # facts the set-aside measure needs, and it is ABOUT the rows every figure
+    # above excludes. Summed across the period's months -- a period is not
+    # required to be whole months, and each month's rows are already inside it.
+    set_aside = sum(measure_set_aside(set_aside_rows(db, user_id, from_, to_)).values())
     return PeriodTotalsOut(
         date_from=from_, date_to=to_,
         inflow_cents=inflow, outflow_cents=outflow, net_cents=net,
-        transaction_count=len([p for p in points if not p.is_transfer]),
+        transaction_count=len(points),
         # A savings rate without income is undefined, not zero.
         savings_rate=(net / inflow) if inflow > 0 else None,
+        set_aside_cents=set_aside,
+        # Never `net + set_aside`. The euro moved to a livret is already inside
+        # `net`, by not having been spent; the difference is what the period
+        # produced and left on the current account.
+        set_aside_gap_cents=net - set_aside,
     )
 
 
@@ -95,11 +113,12 @@ def _period_totals(db: Session, user_id: int, from_: date, to_: date) -> PeriodT
 def summary(
     date_from: date | None = None,
     date_to: date | None = None,
+    include_transfers: bool = False,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> SummaryOut:
     start, end, history = period_range(db, user.id, date_from, date_to)
-    current = _period_totals(db, user.id, start, end)
+    current = _period_totals(db, user.id, start, end, include_transfers)
 
     # Only a start the caller actually asked for has a period before it. A
     # defaulted one *is* the user's earliest transaction, so the window ahead of
@@ -115,7 +134,8 @@ def summary(
         span = (end - start).days + 1
         previous_end = start - timedelta(days=1)
         previous_start = previous_end - timedelta(days=span - 1)
-        previous = _period_totals(db, user.id, previous_start, previous_end)
+        previous = _period_totals(db, user.id, previous_start, previous_end,
+                                  include_transfers)
         delta = compare_periods(current.net_cents, previous.net_cents)
         comparison = ComparisonOut(delta_cents=delta.delta_cents,
                                    delta_ratio=delta.delta_ratio)
@@ -132,6 +152,7 @@ def summary(
 def calendar_heatmap(
     date_from: date | None = None,
     date_to: date | None = None,
+    include_transfers: bool = False,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> list[CalendarPointOut]:
@@ -141,7 +162,7 @@ def calendar_heatmap(
     a full-width panel showing whatever happens to fall inside this year."""
     start, end, _ = period_range(db, user.id, date_from, date_to)
     points = tx_points(db, user.id, start, end)
-    buckets = aggregate_series(points, "day")
+    buckets = aggregate_series(points, "day", include_transfers)
     return [
         CalendarPointOut(date=b.key, inflow_cents=b.inflow_cents,
                          outflow_cents=b.outflow_cents, net_cents=b.net_cents, count=b.count)

@@ -45,7 +45,17 @@
      Three layers: the frosted fill, a few percent of light falling on the top
      40%, and the masked edge ring below. */
   background-color: var(--yd-surface-frosted);
-  background-image: var(--yd-surface-veil);
+  /* Two layers: the light that follows the pointer, then the card's own veil.
+     The light is painted here rather than in a pseudo-element because both of
+     the cell's pseudos are already spoken for — ::before is the masked edge
+     ring, ::after is the accent thread. */
+  background-image:
+    radial-gradient(
+      420px circle at var(--yd-cell-x, 50%) var(--yd-cell-y, 0%),
+      color-mix(in srgb, var(--yd-accent) calc(var(--yd-cell-glow) * 15%), transparent) 0%,
+      transparent 68%
+    ),
+    var(--yd-surface-veil);
   backdrop-filter: blur(16px) saturate(var(--yd-glass-saturate));
   -webkit-backdrop-filter: blur(16px) saturate(var(--yd-glass-saturate));
   box-shadow: var(--yd-shadow);
@@ -53,7 +63,27 @@
   transition:
     border-color var(--yd-motion-base) var(--yd-ease),
     box-shadow var(--yd-motion-base) var(--yd-ease),
+    --yd-cell-glow var(--yd-motion-slow) var(--yd-ease),
     translate var(--yd-motion-fast) var(--yd-ease);
+}
+
+/* How bright the pointer light is, 0 to 1. Registered so it can be
+   transitioned: an unregistered custom property is a string to the animation
+   engine, and the light would snap on and off instead of arriving. A browser
+   with no `@property` still gets the light — it just appears at once, which is
+   a card that lights up rather than a broken one. */
+@property --yd-cell-glow {
+  syntax: "<number>";
+  inherits: false;
+  initial-value: 0;
+}
+
+/* The position comes from `useCardSpotlight`; whether the light is on is this
+   rule, so the fade is the browser's own transition and no JavaScript ever
+   animates anything. With the hook off (reduced motion, or a touch screen)
+   the card still lights, from the default position at its top edge. */
+.yd-bento__cell:hover {
+  --yd-cell-glow: 1;
 }
 
 /* The lit edge. One hairline of light along the top and left of the card, the
@@ -111,9 +141,15 @@
     opacity var(--yd-motion-base) var(--yd-ease);
 }
 
+/* The raised shadow, plus a wide ambient in the app's own accent. A card under
+   the pointer sits further off the page AND borrows a little of the light it
+   is being given — which is what stops a hover reading as "the same card, a
+   bit darker underneath". */
 .yd-bento__cell:hover {
   border-color: var(--yd-border-strong);
-  box-shadow: var(--yd-shadow-raised);
+  box-shadow:
+    var(--yd-shadow-raised),
+    0 12px 42px -12px color-mix(in srgb, var(--yd-accent) 30%, transparent);
 }
 
 .yd-bento__cell:hover::after {
@@ -153,7 +189,27 @@
   align-items: center;
   gap: var(--yd-space-sm);
   padding-bottom: var(--yd-space-sm);
-  border-bottom: 1px solid var(--yd-border);
+  position: relative;
+}
+
+/* The rule under a panel head, with the app's colour in its first fifth. It
+   replaces a flat hairline, and it is the same idea as the accent thread on
+   the card's own top-left corner: one short piece of the frame carries the
+   brand, and the rest of it stays furniture. */
+.yd-panel__head::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 1px;
+  pointer-events: none;
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--yd-accent) 55%, transparent) 0%,
+    var(--yd-border) 18%,
+    var(--yd-border) 100%
+  );
 }
 
 .yd-panel__heading {
@@ -268,4 +324,17 @@
 
 :root[data-motion="off"] .yd-bento__cell:hover::after {
   --yd-frame-thread-width: 64px;
+}
+
+/* The OS preference and the in-app Animations switch: the light still lands on
+   the card under the pointer, it simply stops fading in. A registered custom
+   property's transition is not reachable by the zeroed duration tokens. */
+@media (prefers-reduced-motion: reduce) {
+  .yd-bento__cell {
+    transition: none;
+  }
+}
+
+:root[data-motion="off"] .yd-bento__cell {
+  transition: none;
 }

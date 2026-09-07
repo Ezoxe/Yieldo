@@ -23,3 +23,31 @@
 :where(button, a) > .yd-icon {
   font-size: 1.05em;
 }
+
+/* Every control gives a little under the press.
+ *
+ * One pixel, on the independent `translate` property, and the whole selector
+ * inside `:where()` so it carries zero specificity — a component's own rule
+ * still wins outright, and a card rendered as a `<button>` keeps the two-pixel
+ * hover lift it declares for itself.
+ *
+ * Pointer devices only. On a touch screen `:active` lasts as long as the
+ * finger is down, including during a scroll that started on a button, and a
+ * page whose controls twitch while it scrolls is worse than one that does not
+ * answer at all.
+ */
+@media (hover: hover) {
+  :where(button:not(:disabled), [role="button"]:not([aria-disabled="true"])) {
+    transition: translate var(--yd-motion-fast) var(--yd-ease);
+  }
+
+  :where(button:not(:disabled):active, [role="button"]:not([aria-disabled="true"]):active) {
+    translate: 0 1px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :where(button, [role="button"]) {
+    transition: none;
+  }
+}

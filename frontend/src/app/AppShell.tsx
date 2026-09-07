@@ -4,6 +4,7 @@ import { NavLink, Outlet, useLocation } from "react-router";
 
 import { AISpotlightProvider } from "../design/ai/AISpotlight";
 import { AtmosphericBackground } from "../design/atmosphere/AtmosphericBackground";
+import { useCardSpotlight } from "../design/bento/useCardSpotlight";
 import {
   AlertsIcon,
   AnalysisIcon,
@@ -209,6 +210,8 @@ export function AppShell({ userName }: AppShellProps) {
   }, [hydrateLedgerMode]);
 
   const reducedMotion = useReducedMotion();
+  // One listener for every card on every screen — see useCardSpotlight.
+  useCardSpotlight();
   const location = useLocation();
   const navId = useId();
 

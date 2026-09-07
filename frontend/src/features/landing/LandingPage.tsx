@@ -5,6 +5,7 @@ import { Link } from "react-router";
 import { AtmosphericBackground } from "../../design/atmosphere/AtmosphericBackground";
 import { BentoCell } from "../../design/bento/BentoCell";
 import { BentoGrid } from "../../design/bento/BentoGrid";
+import { useCardSpotlight } from "../../design/bento/useCardSpotlight";
 import type { BentoSpan } from "../../design/bento/BentoCell";
 import { AssistantIcon, ProposalsIcon } from "../../design/icons";
 import { useReducedMotion } from "../../design/motion/useReducedMotion";
@@ -239,6 +240,7 @@ function Section({ id, eyebrow, title, lead, children }: SectionProps) {
 export function LandingPage() {
   const reducedMotion = useReducedMotion();
   const resolvedTheme = useResolvedTheme();
+  useCardSpotlight();
 
   // Decided once, on the first render: a machine either draws WebGL or it does
   // not, and re-probing on every render would create and drop a context each

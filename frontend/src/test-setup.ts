@@ -121,6 +121,13 @@ if (typeof HTMLCanvasElement !== "undefined") {
     contextId: string,
     ...rest: unknown[]
   ) {
+    // jsdom has no WebGL either, and asking for it prints a page of
+    // "Not implemented" noise before returning undefined. `null` is the
+    // truthful answer a browser without WebGL gives, and it is the answer the
+    // landing page's capability probe is written against.
+    if (contextId === "webgl" || contextId === "webgl2" || contextId === "experimental-webgl") {
+      return null;
+    }
     if (contextId !== "2d") {
       return originalGetContext.apply(this, [contextId, ...rest] as never);
     }

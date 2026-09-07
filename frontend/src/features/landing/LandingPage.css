@@ -124,14 +124,77 @@
   color: var(--yd-text-muted);
 }
 
-.yd-landing__hero-preview {
+/* Part of the headline, in the accent, as a gradient rather than a flat fill.
+   Both stops are tokens that `design/contrast.test.ts` already measures
+   against this ground, so the softest pixel of the ramp is still one of two
+   colours known to clear AA — a gradient mixed from arbitrary hexes would not
+   be. `background-clip: text` needs a transparent fill, and the fallback
+   `color` under it is what a browser that cannot clip paints instead. */
+.yd-landing__hero-accent {
+  color: var(--yd-accent);
+  background: linear-gradient(
+    100deg,
+    var(--yd-accent-strong) 0%,
+    var(--yd-accent) 45%,
+    var(--yd-info) 100%
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* The sculpture's box. It has to be given a height of its own: a WebGL canvas
+   is `position: absolute` inside it and therefore contributes nothing to the
+   layout, so without this the hero's second column would measure zero.
+
+   `aspect-ratio` rather than a fixed height, so the scene keeps its framing
+   from a phone to a 27-inch display; the clamp is what stops that ratio
+   turning into a 900px-tall hero on a wide screen. */
+.yd-landing__hero-stage {
+  position: relative;
   min-width: 0;
+  aspect-ratio: 6 / 5;
+  max-height: min(58vh, 520px);
+  /* The halo the sculpture floats in. Two radial washes in the app's own two
+     accents, well under the alpha where they would start competing with the
+     headline beside them. */
+  background:
+    radial-gradient(
+      52% 46% at 62% 38%,
+      color-mix(in srgb, var(--yd-accent) 22%, transparent) 0%,
+      transparent 70%
+    ),
+    radial-gradient(
+      44% 40% at 30% 74%,
+      color-mix(in srgb, var(--yd-positive) 13%, transparent) 0%,
+      transparent 72%
+    );
+}
+
+/* No WebGL on this machine: the stage holds nothing, so it takes no room and
+   the copy becomes the hero on its own rather than sitting beside a hole. */
+.yd-landing__hero--copy-only .yd-landing__hero-stage {
+  display: none;
+}
+
+.yd-landing__hero--copy-only .yd-landing__hero-copy {
+  max-width: 68ch;
 }
 
 @media (min-width: 1000px) {
   .yd-landing__hero {
     grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
   }
+
+  .yd-landing__hero--copy-only {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* --- The product preview, in its own section ---------------------------- */
+
+.yd-landing__preview {
+  min-width: 0;
 }
 
 /* --- Calls to action ---------------------------------------------------- */

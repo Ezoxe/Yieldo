@@ -73,6 +73,7 @@ describe("LandingPage structure", () => {
     const { container } = renderLanding();
     const titles = [...container.querySelectorAll("h2")].map((heading) => heading.textContent);
     expect(titles).toEqual([
+      "Le tableau de bord, tel qu'il se lit",
       "Ce qui est en place aujourd'hui",
       "Et c'est exactement le sujet",
       "Quatre étapes, une seule fois",
@@ -171,9 +172,9 @@ describe("LandingPage honesty", () => {
 
   it("draws its icons as inline SVG", () => {
     const { container } = renderLanding();
-    // Nine capabilities, three boundaries, and the outbound-calls caveat.
+    // Eleven capabilities, three boundaries, and the outbound-calls caveat.
     const icons = container.querySelectorAll("svg.yd-icon");
-    expect(icons.length).toBe(13);
+    expect(icons.length).toBe(15);
     for (const icon of icons) {
       expect(icon).toHaveAttribute("aria-hidden", "true");
     }
@@ -243,7 +244,7 @@ describe("LandingPage hero stagger", () => {
       (props) => props.className === "yd-landing__hero-copy",
     ) as { variants?: { visible?: { transition?: { delay?: number } } } } | undefined;
     const preview = capturedMotionDivs.find(
-      (props) => props.className === "yd-landing__hero-preview",
+      (props) => props.className === "yd-landing__hero-stage",
     ) as { variants?: { visible?: { transition?: { delay?: number } } } } | undefined;
     expect(copy).toBeDefined();
     expect(preview).toBeDefined();
@@ -253,5 +254,23 @@ describe("LandingPage hero stagger", () => {
 
     expect(previewDelay).toBeCloseTo(0.12);
     expect(previewDelay).toBeGreaterThan(copyDelay);
+  });
+});
+
+describe("LandingPage hero sculpture", () => {
+  // jsdom has no WebGL, which is exactly the machine this branch is for: the
+  // hero must fall back to a single centred column of copy rather than to a
+  // hole where a canvas would have been.
+  it("keeps the hero copy alone when the machine cannot draw WebGL", () => {
+    const { container } = renderLanding();
+    expect(container.querySelector(".yd-landing__hero--copy-only")).not.toBeNull();
+    expect(container.querySelector("canvas")).toBeNull();
+  });
+
+  // The sculpture is abstract and the preview is captioned; neither may end up
+  // rendered twice by the fallback path.
+  it("shows the captioned product preview exactly once, either way", () => {
+    renderLanding();
+    expect(screen.getAllByText(/Exemple — données fictives/)).toHaveLength(1);
   });
 });

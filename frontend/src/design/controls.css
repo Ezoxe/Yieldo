@@ -51,3 +51,22 @@
     transition: none;
   }
 }
+
+/* Boxes and radios: the app's colour, and a target a finger can hit.
+ *
+ * Measured on a 375px screen — 13px in the transactions filter band, 18px in
+ * the export picker, 22px in Réglages: three sizes, none of them the 24px a
+ * touch target needs. `accent-color` is what makes the checked state indigo
+ * instead of the platform blue, which is the one place in the app where an
+ * unbranded colour was still being painted.
+ *
+ * Zero specificity, so a control drawn as something else — the `role="switch"`
+ * toggles above the transactions list among them — keeps its own dimensions.
+ */
+:where(input[type="checkbox"], input[type="radio"]) {
+  width: 1.15rem;
+  height: 1.15rem;
+  flex: 0 0 auto;
+  accent-color: var(--yd-accent);
+  cursor: pointer;
+}

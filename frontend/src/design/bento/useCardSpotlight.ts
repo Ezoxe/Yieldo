@@ -2,10 +2,12 @@ import { useEffect } from "react";
 
 import { useReducedMotion } from "../motion/useReducedMotion";
 
-/** Where the light is, on the card under the pointer. Read by Bento.css. */
+/** Where the light is, in the halo's own box. Read by Bento.css. */
 const X = "--yd-cell-x";
 const Y = "--yd-cell-y";
 const CELL = ".yd-bento__cell";
+/** The element the light is painted on — `BentoCell` renders exactly one. */
+const HALO = ":scope > .yd-bento__cell-halo";
 
 /**
  * A soft light that follows the pointer across whichever card it is over.
@@ -22,6 +24,10 @@ const CELL = ".yd-bento__cell";
  *
  * Mouse only. A touch screen has no hover: a spotlight left where the finger
  * last pressed is a smudge on the card, not a highlight.
+ *
+ * The coordinates are written on the HALO, not on the cell, and measured
+ * against the halo's own box — it is bigger than the card on every side, so a
+ * percentage taken from the card would put the light 90px off.
  */
 export function useCardSpotlight(): void {
   const reduced = useReducedMotion();
@@ -33,21 +39,21 @@ export function useCardSpotlight(): void {
 
     let frame = 0;
     let lit: HTMLElement | null = null;
-    let pending: { cell: HTMLElement; x: number; y: number } | null = null;
+    let pending: { halo: HTMLElement; x: number; y: number } | null = null;
 
-    const clear = (cell: HTMLElement) => {
-      cell.style.removeProperty(X);
-      cell.style.removeProperty(Y);
+    const clear = (halo: HTMLElement) => {
+      halo.style.removeProperty(X);
+      halo.style.removeProperty(Y);
     };
 
     const flush = () => {
       frame = 0;
       if (!pending) return;
-      const { cell, x, y } = pending;
-      if (lit && lit !== cell) clear(lit);
-      cell.style.setProperty(X, `${x}%`);
-      cell.style.setProperty(Y, `${y}%`);
-      lit = cell;
+      const { halo, x, y } = pending;
+      if (lit && lit !== halo) clear(lit);
+      halo.style.setProperty(X, `${x}%`);
+      halo.style.setProperty(Y, `${y}%`);
+      lit = halo;
     };
 
     const onPointerMove = (event: PointerEvent) => {
@@ -56,8 +62,9 @@ export function useCardSpotlight(): void {
       const target = event.target;
       const cell =
         target instanceof Element ? (target.closest(CELL) as HTMLElement | null) : null;
+      const halo = cell?.querySelector<HTMLElement>(HALO) ?? null;
 
-      if (!cell) {
+      if (!halo) {
         pending = null;
         if (lit) {
           clear(lit);
@@ -66,13 +73,13 @@ export function useCardSpotlight(): void {
         return;
       }
 
-      const rect = cell.getBoundingClientRect();
+      const rect = halo.getBoundingClientRect();
       // jsdom, and a cell mid-unmount, both measure zero. A division by it
       // would write `NaN%` into the style attribute.
       if (rect.width === 0 || rect.height === 0) return;
 
       pending = {
-        cell,
+        halo,
         x: ((event.clientX - rect.left) / rect.width) * 100,
         y: ((event.clientY - rect.top) / rect.height) * 100,
       };

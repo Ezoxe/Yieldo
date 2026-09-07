@@ -64,6 +64,13 @@ export function BentoCell({
 
   return (
     <Component className={classes} style={spanStyle} {...rest}>
+      {/* The pointer light, and nothing else. It lives here rather than in a
+          pseudo-element because the cell's two are already spoken for — the
+          masked edge ring and the accent thread — and because it has to sit
+          OUTSIDE the card's own box, which a background layer cannot do.
+          Absolutely positioned, so it takes no part in the column layout the
+          cell lays out for its real children. */}
+      <span className="yd-bento__cell-halo" aria-hidden="true" />
       {children}
     </Component>
   );

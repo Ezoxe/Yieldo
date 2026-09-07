@@ -45,17 +45,7 @@
      Three layers: the frosted fill, a few percent of light falling on the top
      40%, and the masked edge ring below. */
   background-color: var(--yd-surface-frosted);
-  /* Two layers: the light that follows the pointer, then the card's own veil.
-     The light is painted here rather than in a pseudo-element because both of
-     the cell's pseudos are already spoken for — ::before is the masked edge
-     ring, ::after is the accent thread. */
-  background-image:
-    radial-gradient(
-      420px circle at var(--yd-cell-x, 50%) var(--yd-cell-y, 0%),
-      color-mix(in srgb, var(--yd-accent) calc(var(--yd-cell-glow) * 15%), transparent) 0%,
-      transparent 68%
-    ),
-    var(--yd-surface-veil);
+  background-image: var(--yd-surface-veil);
   backdrop-filter: blur(16px) saturate(var(--yd-glass-saturate));
   -webkit-backdrop-filter: blur(16px) saturate(var(--yd-glass-saturate));
   box-shadow: var(--yd-shadow);
@@ -74,16 +64,64 @@
    a card that lights up rather than a broken one. */
 @property --yd-cell-glow {
   syntax: "<number>";
-  inherits: false;
+  /* Inherited, because the element that reads it is the halo INSIDE the cell
+     while the `:hover` that sets it is on the cell itself. */
+  inherits: true;
   initial-value: 0;
 }
 
 /* The position comes from `useCardSpotlight`; whether the light is on is this
    rule, so the fade is the browser's own transition and no JavaScript ever
    animates anything. With the hook off (reduced motion, or a touch screen)
-   the card still lights, from the default position at its top edge. */
+   the card still lights, from the middle of its own edge. */
 .yd-bento__cell:hover {
   --yd-cell-glow: 1;
+}
+
+/* The light that follows the pointer — AROUND the card, never across it.
+ *
+ * It was painted inside, as a background layer, and it sat between the reader
+ * and the figures: a wash of indigo drifting under a column of amounts is
+ * exactly the kind of decoration that costs legibility. So the halo is its own
+ * element now, inset past the card on every side and masked so that the part
+ * covering the card is cut away. What is left is a soft aura in the gutter,
+ * which says the same thing without touching a single number.
+ *
+ * `padding` equal to the spread is what makes the mask exact: the element's
+ * content box is then the card's border box to the pixel, and `exclude` takes
+ * it out of the full-bleed layer.
+ *
+ * Guarded on mask compositing, like the frame sheen above: without it the
+ * gradient would paint flat over the card, which is the defect this rule
+ * exists to remove.
+ */
+@supports ((mask-composite: exclude) or (-webkit-mask-composite: xor)) {
+  .yd-bento__cell-halo {
+    --yd-halo-spread: 90px;
+    position: absolute;
+    inset: calc(-1 * var(--yd-halo-spread));
+    padding: var(--yd-halo-spread);
+    z-index: -1;
+    pointer-events: none;
+    border-radius: calc(var(--yd-radius) + var(--yd-halo-spread));
+    background: radial-gradient(
+      240px circle at var(--yd-cell-x, 50%) var(--yd-cell-y, 50%),
+      var(--yd-accent) 0%,
+      transparent 66%
+    );
+    /* Quiet on purpose. At full strength an aura this wide competes with the
+       card it surrounds; a tenth of the accent is enough to read as light
+       falling on the page and not enough to be looked at. */
+    opacity: calc(var(--yd-cell-glow) * 0.1);
+    -webkit-mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+  }
 }
 
 /* The lit edge. One hairline of light along the top and left of the card, the
@@ -149,7 +187,7 @@
   border-color: var(--yd-border-strong);
   box-shadow:
     var(--yd-shadow-raised),
-    0 12px 42px -12px color-mix(in srgb, var(--yd-accent) 30%, transparent);
+    0 12px 42px -12px color-mix(in srgb, var(--yd-accent) 16%, transparent);
 }
 
 .yd-bento__cell:hover::after {
@@ -163,6 +201,10 @@
    which deliberately hangs outside its card. */
 .yd-cell--stat {
   overflow: hidden;
+  /* Note: this also clips the pointer halo, so a KPI tile gets the accent in
+     its hover shadow and no aura in the gutter. Deliberate — the clip is what
+     holds the sparkline inside the card's radius, and moving it onto the tile
+     would cut the bleed it exists for. */
 }
 
 /* The standard body of a cell: a title stacked over whatever the cell shows.

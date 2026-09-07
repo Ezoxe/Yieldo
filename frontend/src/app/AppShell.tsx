@@ -250,7 +250,11 @@ export function AppShell({ userName }: AppShellProps) {
         onClick={() => setDrawerOpen((open) => !open)}
       >
         <MenuIcon />
-        Menu
+        {/* Hidden below 600px, where the header has to hold the reading and
+            the assistant on the same 375px line — the hamburger is the one
+            glyph a phone reader does not need a word for. The accessible name
+            is untouched: the span is only ever visually hidden. */}
+        <span className="yd-shell__menu-label">Menu</span>
       </button>
 
       <SidebarNav

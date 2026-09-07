@@ -63,7 +63,18 @@
     flex-wrap: wrap;
   }
 
+  /* One control per line, each the full width of the column. Side by side they
+     wrapped inside themselves instead: "Voir les transactions de cette
+     période" took three lines in a 150px column beside the add button. */
   .yd-page-head__actions {
     width: 100%;
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--yd-space-2xs);
+  }
+
+  .yd-page-head__actions > * {
+    justify-content: center;
+    text-align: center;
   }
 }

@@ -245,3 +245,56 @@ describe("LedgerModeControl", () => {
     expect(useLedgerMode.getState().mode).toBe("real");
   });
 });
+
+/**
+ * On a phone the header holds the menu, the reading and the assistant on one
+ * 375px line, and three segments plus their labels do not fit beside the other
+ * two — the segmented control used to sit UNDER the menu button. So below
+ * 900px the same choice is a list button: one control naming the current
+ * reading, opening the three.
+ *
+ * Not a second control rendered beside the first and hidden with a media
+ * query: two controls carrying the same accessible name is worse than either.
+ */
+describe("LedgerModeControl, on a phone", () => {
+  function narrow() {
+    Object.defineProperty(window, "matchMedia", {
+      writable: true,
+      configurable: true,
+      value: (query: string) => ({
+        matches: query.includes("max-width: 899px"),
+        media: query,
+        onchange: null,
+        addEventListener: () => {},
+        removeEventListener: () => {},
+        addListener: () => {},
+        removeListener: () => {},
+        dispatchEvent: () => false,
+      }),
+    });
+  }
+
+  it("collapses the three segments into one list button", () => {
+    narrow();
+    routeFetch();
+    render(<LedgerModeControl />);
+
+    expect(screen.queryByRole("radiogroup")).not.toBeInTheDocument();
+    const list = screen.getByRole("combobox", { name: "Mode de lecture" });
+    expect([...(list as HTMLSelectElement).options].map((option) => option.textContent)).toEqual([
+      "Réel", "Estimé", "Réel complété",
+    ]);
+    expect(list).toHaveValue("real");
+  });
+
+  it("writes the chosen reading through to the server", async () => {
+    narrow();
+    routeFetch();
+    const user = userEvent.setup();
+    render(<LedgerModeControl />);
+
+    await user.selectOptions(screen.getByRole("combobox", { name: "Mode de lecture" }), "blended");
+
+    await waitFor(() => expect(useLedgerMode.getState().mode).toBe("blended"));
+  });
+});

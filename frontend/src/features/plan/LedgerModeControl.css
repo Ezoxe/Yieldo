@@ -84,14 +84,75 @@
   z-index: 30;
 }
 
-/* On a phone the header is already tight. The three labels stay, shortened by
-   the layout rather than by the words: a control that said "Réel / Est. / R+E"
-   would be three abbreviations nobody can read. */
-@media (max-width: 599px) {
-  .yd-mode__option {
-    padding: var(--yd-space-2xs) var(--yd-space-2xs);
-    font-size: 0.72rem;
-  }
+/* The list button, below 900px — see LedgerModeControl.tsx for why it is a
+   different control rather than the same one squeezed. A pill of the same
+   shape and the same two states as the segmented group above it, so the
+   reading looks like the same object on both sizes. */
+.yd-mode__list {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--yd-border-control);
+  border-radius: 999px;
+  background: var(--yd-surface);
+}
+
+/* Not on "Réel": every figure below this is qualified, and the control says so
+   in the one colour the design reserves for a standing condition. */
+.yd-mode__list--qualified {
+  border-color: color-mix(in srgb, var(--yd-info) 55%, transparent);
+  background: color-mix(in srgb, var(--yd-info) 12%, transparent);
+  color: var(--yd-info);
+}
+
+.yd-mode__select {
+  appearance: none;
+  -webkit-appearance: none;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1;
+  /* Room on the right for the chevron drawn over it. */
+  padding: var(--yd-space-xs) calc(var(--yd-space-md) + 0.8rem) var(--yd-space-xs)
+    var(--yd-space-sm);
+  border-radius: 999px;
+  cursor: pointer;
+  /* A finger-sized target: the segmented control it replaces measured 20px
+     tall, which is half of what a touch target has to be. */
+  min-height: 34px;
+}
+
+.yd-mode__list .yd-icon {
+  position: absolute;
+  right: var(--yd-space-xs);
+  font-size: 0.8rem;
+  color: var(--yd-text-muted);
+  pointer-events: none;
+  rotate: 90deg;
+}
+
+.yd-mode__list--qualified .yd-icon {
+  color: var(--yd-info);
+}
+
+.yd-mode__select:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.yd-mode__select:focus-visible {
+  outline: 2px solid var(--yd-accent);
+  outline-offset: 2px;
+}
+
+/* The options themselves are painted by the platform, which does not inherit
+   the page's ground — an unset colour here is white-on-white on some engines. */
+.yd-mode__select option {
+  background: var(--yd-surface-strong);
+  color: var(--yd-text);
 }
 
 @media (prefers-reduced-motion: reduce) {

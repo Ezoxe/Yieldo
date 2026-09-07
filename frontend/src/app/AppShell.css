@@ -307,12 +307,56 @@
   }
 
   .yd-shell__header {
-    /* Clears the fixed menu toggle in the top-left corner. */
-    padding-left: 92px;
+    /* Clears the fixed menu toggle in the top-left corner. 12px of inset, the
+       button itself, and a gap — measured, not guessed: at 92px the toggle's
+       own right edge landed at 103px and the reader's name was painted under
+       it on every screen. */
+    padding-left: 116px;
+    gap: var(--yd-space-sm);
   }
 
   .yd-shell__main {
     padding: 20px 16px 16px;
+  }
+}
+
+/* A phone header holds three things on one 375px line: the way out to the nav,
+   the reading every figure is in, and the assistant. The reader's own name is
+   the fourth, and the only one of the four that is not a control — so it is
+   the one that goes, and the hamburger loses its word. Both were overlapping
+   the menu button rather than fitting beside it. */
+@media (max-width: 599px) {
+  .yd-shell__menu-toggle {
+    padding: 8px;
+    /* A finger-sized square once the word is gone. */
+    min-width: 38px;
+    min-height: 38px;
+    justify-content: center;
+  }
+
+  .yd-shell__menu-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .yd-shell__header {
+    padding-left: 62px;
+    padding-right: var(--yd-space-md);
+    gap: var(--yd-space-xs);
+  }
+
+  .yd-shell__user {
+    display: none;
+  }
+
+  .yd-shell__assistant {
+    padding: 7px 12px 7px 10px;
   }
 }
 

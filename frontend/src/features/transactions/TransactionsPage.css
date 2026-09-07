@@ -19,6 +19,13 @@
    the list below it stays the largest thing on the screen. */
 .yd-transactions__filters {
   padding: var(--yd-space-md) var(--yd-space-lg);
+  /* Above the list cell below it. Every bento cell carries a `backdrop-filter`,
+     which makes it a stacking context of its own — so the category popover's
+     own `z-index: 20` only ever ranked it INSIDE this cell, and the later
+     sibling (the list) painted over it whatever that number said. The open
+     list of categories was cut off two rows down. Raising the cell raises
+     everything it holds with it. */
+  z-index: 3;
 }
 
 .yd-filterbar {

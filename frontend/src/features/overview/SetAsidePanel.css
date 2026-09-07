@@ -76,6 +76,15 @@
     display: none;
   }
 
+  /* `flex: 1 1 180px` is a WIDTH on a row and a HEIGHT on a column: once the
+     three figures stack, each one claimed 180px of height for a label and a
+     number that need fifty, and the card opened three empty holes down the
+     middle of the dashboard. The basis has nothing left to distribute here —
+     the figures take the height they need. */
+  .yd-setaside__figure {
+    flex: 0 0 auto;
+  }
+
   .yd-setaside__figure--gap {
     padding: var(--yd-space-sm) 0 0;
     border-left: none;

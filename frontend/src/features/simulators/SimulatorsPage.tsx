@@ -85,7 +85,20 @@ export function SimulatorsPage() {
 
   return (
     <section className="yd-sims">
-      <PageHead icon={SimulatorsIcon} title="Simulateurs" className="yd-sims__header">
+      <PageHead
+        icon={SimulatorsIcon}
+        title="Simulateurs"
+        className="yd-sims__header"
+        shortLead={
+          <p className="yd-sims__lead" data-testid="yd-sim-lead">
+            {"« Et si ? », à partir des chiffres que vous tapez. Pour « puis-je ? », à partir de vos relevés, c'est "}
+            <Link className="yd-sims__link" to="/faisabilite">
+              Faisabilité d'achat
+            </Link>
+            {" qui répond."}
+          </p>
+        }
+      >
 
         <p className="yd-sims__lead" data-testid="yd-sim-lead">
           {"Ces simulateurs répondent à « et si ? », à partir des chiffres que vous tapez. Pour « puis-je ? », à partir des rythmes mesurés dans vos relevés, c'est l'écran "}

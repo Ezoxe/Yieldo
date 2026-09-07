@@ -242,6 +242,12 @@ export function PlanPage() {
             {importing ? "Reprise…" : "Reprendre mes abonnements détectés"}
           </button>
         }
+        shortLead={
+          <p>
+            Ce que vous savez déjà d'un mois dont le relevé n'existe pas encore. Vos relevés
+            ne sont jamais modifiés.
+          </p>
+        }
       >
         <p>
           Ce que vous savez déjà d'un mois dont le relevé n'existe pas encore : le loyer, les

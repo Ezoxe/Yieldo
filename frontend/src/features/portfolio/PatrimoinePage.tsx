@@ -322,7 +322,17 @@ export function PatrimoinePage() {
 
   return (
     <section className="yd-patrimoine">
-      <PageHead icon={PortfolioIcon} title="Patrimoine" className="yd-patrimoine__header">
+      <PageHead
+        icon={PortfolioIcon}
+        title="Patrimoine"
+        className="yd-patrimoine__header"
+        shortLead={
+          <p className="yd-patrimoine__lead">
+            Ce que vous détenez, ce que Yieldo a pu valoriser, et ce qu'il n'a pas pu —
+            nommément.
+          </p>
+        }
+      >
 
         <p className="yd-patrimoine__lead">
           Ce que vous détenez, ce que Yieldo a pu valoriser, et ce qu'il n'a pas pu — nommément.

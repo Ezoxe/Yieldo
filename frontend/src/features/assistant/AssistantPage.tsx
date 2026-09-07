@@ -254,7 +254,17 @@ export function AssistantPage() {
 
   return (
     <section className="yd-assistant">
-      <PageHead icon={AssistantIcon} title="Assistant" className="yd-assistant__header">
+      <PageHead
+        icon={AssistantIcon}
+        title="Assistant"
+        className="yd-assistant__header"
+        shortLead={
+          <p className="yd-assistant__lead">
+            Posez une question en français sur vos propres relevés. Chaque réponse affiche{" "}
+            <strong>la requête exécutée, en clair</strong>.
+          </p>
+        }
+      >
 
         <p className="yd-assistant__lead">
           Posez une question en français sur vos propres relevés. Chaque réponse est calculée par

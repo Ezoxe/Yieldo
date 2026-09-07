@@ -235,7 +235,17 @@ export function AlertsPage() {
 
   return (
     <section className="yd-alerts">
-      <PageHead icon={AlertsIcon} title="Alertes" className="yd-alerts__header">
+      <PageHead
+        icon={AlertsIcon}
+        title="Alertes"
+        className="yd-alerts__header"
+        shortLead={
+          <p className="yd-alerts__lead">
+            Cinq conditions mesurées sur vos propres relevés.{" "}
+            <strong>Aucune alerte n'est levée sur des données qui n'ont pas été mesurées.</strong>
+          </p>
+        }
+      >
 
         <p className="yd-alerts__lead">
           Cinq conditions mesurées sur vos propres relevés. Chacune dit{" "}

@@ -291,7 +291,17 @@ export function ProjectionPage() {
 
   return (
     <section className="yd-projection">
-      <PageHead icon={ProjectionIcon} title="Projection" className="yd-projection__header">
+      <PageHead
+        icon={ProjectionIcon}
+        title="Projection"
+        className="yd-projection__header"
+        shortLead={
+          <p className="yd-projection__lead">
+            Des trajectoires simulées plutôt qu'un chiffre unique, chacune avec l'hypothèse
+            qui l'a produite — <strong>Yieldo calcule, il ne prédit pas</strong>.
+          </p>
+        }
+      >
 
         <p className="yd-projection__lead">
           Ce que vos positions et vos relevés permettent de calculer sur le long terme&nbsp;: des

@@ -147,7 +147,16 @@ export function ProposalsPage() {
 
   return (
     <section className="yd-proposals">
-      <PageHead icon={ProposalsIcon} title="Propositions">
+      <PageHead
+        icon={ProposalsIcon}
+        title="Propositions"
+        shortLead={
+          <p>
+            Ce que l'IA voudrait changer. Rien n'est appliqué tant que vous ne l'avez pas
+            validé, ligne par ligne.
+          </p>
+        }
+      >
         <p>
           Ce que l'IA voudrait changer, et qui n'a pas eu lieu. Rien ici n'est appliqué tant que
           vous ne l'avez pas validé, ligne par ligne — c'est vous qui décidez, toujours.

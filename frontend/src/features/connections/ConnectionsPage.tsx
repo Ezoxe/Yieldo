@@ -380,7 +380,17 @@ export function ConnectionsPage() {
 
   return (
     <section className="yd-connections">
-      <PageHead icon={ConnectionsIcon} title="Réglages → Connexions" className="yd-connections__header">
+      <PageHead
+        icon={ConnectionsIcon}
+        title="Réglages → Connexions"
+        className="yd-connections__header"
+        shortLead={
+          <p className="yd-connections__lead">
+            Les clés de marché et le modèle de langage se saisissent ici.{" "}
+            <strong>Tout est facultatif</strong>, et une clé s'écrit sans jamais se relire.
+          </p>
+        }
+      >
 
         <p className="yd-connections__lead">
           Les clés de données de marché et le modèle de langage se saisissent ici, et nulle part

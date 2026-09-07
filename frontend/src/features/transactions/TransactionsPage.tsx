@@ -468,6 +468,12 @@ export function TransactionsPage() {
             Ajouter une opération
           </button>
         }
+        shortLead={
+          <p>
+            Chaque opération, sur la période de votre choix. Corrigez une catégorie et Yieldo
+            la retient.
+          </p>
+        }
       >
         <p>
           Chaque opération importée ou saisie à la main, sur la période de votre choix.

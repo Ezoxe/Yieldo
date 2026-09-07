@@ -188,7 +188,17 @@ export function SuiviPage() {
 
   return (
     <section className="yd-suivi">
-      <PageHead icon={StreakIcon} title="Suivi" className="yd-suivi__header">
+      <PageHead
+        icon={StreakIcon}
+        title="Suivi"
+        className="yd-suivi__header"
+        shortLead={
+          <p className="yd-suivi__lead">
+            Ce que vos relevés disent de votre régularité et de votre santé financière. Des
+            mesures, jamais des badges.
+          </p>
+        }
+      >
 
         <p className="yd-suivi__lead">
           Ce que vos relevés disent de votre régularité, de votre santé financière et des marges

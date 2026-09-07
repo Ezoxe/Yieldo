@@ -744,7 +744,17 @@ export function AnalysisPage() {
 
   return (
     <section className="yd-analysis">
-      <PageHead icon={AnalysisIcon} title="Analyse" className="yd-analysis__header">
+      <PageHead
+        icon={AnalysisIcon}
+        title="Analyse"
+        className="yd-analysis__header"
+        shortLead={
+          <p className="yd-analysis__lead">
+            Le prix de votre propre panier d'une année sur l'autre, et les montants qui
+            sortent de l'ordinaire.
+          </p>
+        }
+      >
 
         <p className="yd-analysis__lead">
           Ce qui a changé : le prix de votre propre panier d'une année sur l'autre, et les

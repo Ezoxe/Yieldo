@@ -283,7 +283,17 @@ export function ExportPage() {
 
   return (
     <section className="yd-export">
-      <PageHead icon={ExportIcon} title="Export de contexte" className="yd-export__header">
+      <PageHead
+        icon={ExportIcon}
+        title="Export de contexte"
+        className="yd-export__header"
+        shortLead={
+          <p className="yd-export__lead">
+            Composez un document Markdown à partir de vos données, pour l'IA de votre choix.{" "}
+            <strong>Tout ce qui n'est pas coché en est absent.</strong>
+          </p>
+        }
+      >
 
         <p className="yd-export__lead">
           Composez un document Markdown à partir de vos propres données et donnez-le à l'IA de

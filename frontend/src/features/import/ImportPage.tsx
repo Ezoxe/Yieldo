@@ -660,7 +660,16 @@ export function ImportPage() {
 
   return (
     <section className="yd-import">
-      <PageHead icon={ImportIcon} title="Import de relevé">
+      <PageHead
+        icon={ImportIcon}
+        title="Import de relevé"
+        shortLead={
+          <p>
+            Déposez le fichier exporté depuis votre banque. Rien n'est importé sans votre
+            confirmation.
+          </p>
+        }
+      >
         <p>
           Déposez le fichier exporté depuis votre banque. Rien n'est importé avant que vous
           ayez vu et confirmé la correspondance des colonnes.

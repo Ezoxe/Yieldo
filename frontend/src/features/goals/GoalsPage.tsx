@@ -624,7 +624,17 @@ export function GoalsPage() {
 
   return (
     <section className="yd-goals">
-      <PageHead icon={GoalsIcon} title="Objectifs" className="yd-goals__header">
+      <PageHead
+        icon={GoalsIcon}
+        title="Objectifs"
+        className="yd-goals__header"
+        shortLead={
+          <p className="yd-goals__lead">
+            Ce que vous mettez de côté, pour quoi, et ce que votre rythme d'épargne mesuré
+            permet vraiment.
+          </p>
+        }
+      >
 
         <p className="yd-goals__lead">
           Ce que vous mettez de côté, pour quoi, et ce que votre rythme d'épargne mesuré permet

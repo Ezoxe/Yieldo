@@ -338,7 +338,13 @@ export function CategoriesPage() {
 
   return (
     <section className="yd-categories">
-      <PageHead icon={CategoriesIcon} title="Catégories">
+      <PageHead
+        icon={CategoriesIcon}
+        title="Catégories"
+        shortLead={
+          <p>L'arborescence qui classe vos opérations, et le plafond mensuel de chacune.</p>
+        }
+      >
         <p>
           L'arborescence qui classe vos opérations, et le plafond mensuel de chacune. Une
           correction de catégorie sur une transaction devient une règle ; c'est ici que se règle

@@ -12,6 +12,7 @@ import { useReducedMotion } from "../../design/motion/useReducedMotion";
 import { entryProps, fadeInUp, fadeInUpDelayed, inViewStaggerProps } from "../../design/motion/variants";
 import { useResolvedTheme } from "../../design/useResolvedTheme";
 import { DashboardPreview } from "./DashboardPreview";
+import { ShibiShowcase } from "./ShibiShowcase";
 import {
   BankOffIcon,
   ChartIcon,
@@ -349,6 +350,30 @@ export function LandingPage() {
                   })}
             >
               <DashboardPreview />
+            </motion.div>
+          </Section>
+
+          {/* The assistant, introduced by its own face. It sits before the
+              capability list on purpose: the shibi is the thing a visitor
+              remembers, and the list reads better once they know who is
+              running down it. */}
+          <Section
+            id="yd-shibi"
+            eyebrow="L'assistant"
+            title="Le shibi vous montre avec quoi il a répondu"
+            lead="Posez la question en français. Il exécute, puis il redescend la trace en désignant chaque outil qui a servi — le moteur, le relevé, la période, le calcul. Rien n'est deviné, et rien n'est caché."
+          >
+            <motion.div
+              {...(reducedMotion
+                ? {}
+                : {
+                    variants: fadeInUp,
+                    initial: "hidden" as const,
+                    whileInView: "visible" as const,
+                    viewport: { once: true, amount: 0.15 },
+                  })}
+            >
+              <ShibiShowcase />
             </motion.div>
           </Section>
 

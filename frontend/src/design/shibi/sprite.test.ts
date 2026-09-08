@@ -95,7 +95,33 @@ describe("the shibi's pixels", () => {
   it("is the same grid every time it is asked for one", () => {
     expect(shibiGrid("repos", 0)).toBe(shibiGrid("repos", 0));
     // And a frame number past the end wraps rather than throwing.
-    expect(shibiGrid("repos", 8)).toBe(shibiGrid("repos", 0));
+    const cycle = shibiAnimation("repos").frames.length;
+    expect(shibiGrid("repos", cycle)).toBe(shibiGrid("repos", 0));
+    expect(shibiGrid("repos", cycle * 3 + 2)).toBe(shibiGrid("repos", 2));
+  });
+
+  // A state whose frames are all the same drawing is a still image wearing an
+  // animation's name. Three distinct frames is the floor for reading as motion.
+  it("actually moves, in every state", () => {
+    for (const animation of SHIBI_ANIMATIONS) {
+      const distinct = new Set(
+        animation.frames.map((_, i) => shibiGrid(animation.key, i).join("|")),
+      );
+      expect(distinct.size, animation.key).toBeGreaterThanOrEqual(3);
+    }
+  });
+
+  // The gaze is a single dark pixel inside a lit eye, and it is what makes him
+  // read as looking AT something rather than merely facing it.
+  it("moves his eyes within a single state", () => {
+    const eyeRow = (state: ShibiState, frame: number) =>
+      shibiGrid(state, frame)
+        .slice(16 * SHIBI_SIZE, 20 * SHIBI_SIZE)
+        .join("|");
+    const rows = new Set(
+      shibiAnimation("reflexion").frames.map((_, i) => eyeRow("reflexion", i)),
+    );
+    expect(rows.size).toBeGreaterThan(2);
   });
 
   it("burns a different diode in each state that means something different", () => {

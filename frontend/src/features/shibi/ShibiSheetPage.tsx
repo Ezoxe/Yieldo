@@ -31,9 +31,10 @@ const SPAN: Record<string, BentoSpan> = {
 
 /** The sizes he is actually drawn at in the application, and where. */
 const USED_AT: { zoom: number; where: string }[] = [
-  { zoom: 1, where: "En-tête, et sur la trace de raisonnement" },
-  { zoom: 2, where: "Formulaire de l'assistant" },
-  { zoom: 3, where: "Cette planche" },
+  { zoom: 1, where: "En-tête, tiroir de l'assistant, et sur chaque étape de la trace" },
+  { zoom: 2, where: "Formulaire de l'assistant, et les six lignes ci-contre" },
+  { zoom: 4, where: "Page d'accueil" },
+  { zoom: 6, where: "Le portrait en haut de cette planche" },
 ];
 
 /**

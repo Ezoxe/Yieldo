@@ -74,6 +74,7 @@ describe("LandingPage structure", () => {
     const titles = [...container.querySelectorAll("h2")].map((heading) => heading.textContent);
     expect(titles).toEqual([
       "Le tableau de bord, tel qu'il se lit",
+      "Le shibi vous montre avec quoi il a répondu",
       "Ce qui est en place aujourd'hui",
       "Et c'est exactement le sujet",
       "Quatre étapes, une seule fois",
@@ -264,7 +265,9 @@ describe("LandingPage hero sculpture", () => {
   it("keeps the hero copy alone when the machine cannot draw WebGL", () => {
     const { container } = renderLanding();
     expect(container.querySelector(".yd-landing__hero--copy-only")).not.toBeNull();
-    expect(container.querySelector("canvas")).toBeNull();
+    // Scoped to the hero: the shibi further down the page draws canvases of
+    // his own, and they have nothing to do with whether WebGL is available.
+    expect(container.querySelector(".yd-landing__hero canvas")).toBeNull();
   });
 
   // The sculpture is abstract and the preview is captioned; neither may end up

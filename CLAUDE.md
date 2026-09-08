@@ -101,8 +101,11 @@ first two:
   everything he points at has already run. The only place he is live is
   `ThinkingIndicator`, where a request really is out.
 
-He appears in the header (in place of the assistant's glyph), on the assistant's
-ask form, and on the trace. Réglages -> Apparence turns him off, and
+He appears in the header and in the assistant drawer's head (in place of the
+assistant's glyph in both), on the assistant's ask form, on the trace, and on
+the landing page — where `ShibiShowcase` cycles his six states beside a
+FABRICATED trace that says so in its caption, the way the dashboard preview
+above it does. Réglages -> Apparence turns him off, and
 `/reglages/shibi` is his model sheet — a screen rather than a document, because
 it reads `sprite.ts` at run time and so cannot describe a character the
 application no longer draws.

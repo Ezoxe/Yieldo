@@ -2044,6 +2044,16 @@ export interface ChatAnswer {
   /** Never empty: a question that could not be parsed was still READ, and the
    *  reading is a step. */
   steps: ChatStep[];
+  /** Who produced `text`. `"engines"` is Yieldo'''s own deterministic answer;
+   *  `"modele"` means the parser did not recognise the question and the
+   *  household'''s configured model was asked instead. The screen MUST show the
+   *  difference — the two are not the same kind of claim, and only the first
+   *  is a measurement this application stands behind. */
+  answered_by: "engines" | "modele";
+  /** The model that answered, named as it is named in Réglages → Connexions. */
+  model_name: string | null;
+  /** Why the model did not answer, when it did not. Never swallowed. */
+  model_notice: string | null;
 }
 
 /** One thread, summarised from its own messages by `GET /api/chat/conversations`.

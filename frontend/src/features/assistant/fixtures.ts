@@ -33,6 +33,11 @@ export const ANSWERED: ChatMessage = {
   text: "Combien j'ai dépensé depuis novembre 2025 ?",
   created_at: "2026-09-03T09:00:00Z",
   answer: {
+    // Every fixture below is Yieldo's own deterministic answer; the model
+    // fallback has fixtures of its own where it is exercised.
+    answered_by: "engines",
+    model_name: null,
+    model_notice: null,
     recognised: true,
     query_description:
       "Total des dépenses, catégorie : toutes catégories confondues, période : depuis novembre 2025 (jusqu'à aujourd'hui).",
@@ -86,6 +91,11 @@ export const REFUSED: ChatMessage = {
   text: "Quelle sera la valeur de mon patrimoine dans 5 ans ?",
   created_at: "2026-09-03T09:01:00Z",
   answer: {
+    // Every fixture below is Yieldo's own deterministic answer; the model
+    // fallback has fixtures of its own where it is exercised.
+    answered_by: "engines",
+    model_name: null,
+    model_notice: null,
     recognised: true,
     query_description: "Projection de patrimoine à 60 mois.",
     text: "Aucun capital de départ : vous ne détenez aucune position. Saisissez vos comptes, vos positions et leurs lots sur l'écran Patrimoine.",
@@ -128,6 +138,11 @@ export const REFUSED_GOAL: ChatMessage = {
   text: "Où en est mon objectif Vacances ?",
   created_at: "2026-09-03T09:02:00Z",
   answer: {
+    // Every fixture below is Yieldo's own deterministic answer; the model
+    // fallback has fixtures of its own where it is exercised.
+    answered_by: "engines",
+    model_name: null,
+    model_notice: null,
     recognised: true,
     query_description: "État de l'objectif « Vacances ».",
     text: "Vous n'avez aucun objectif enregistré. Créez-en un depuis l'écran Objectifs.",
@@ -165,6 +180,11 @@ export const UNRECOGNISED: ChatMessage = {
   text: "Quel temps fera-t-il demain ?",
   created_at: "2026-09-03T09:03:00Z",
   answer: {
+    // Every fixture below is Yieldo's own deterministic answer; the model
+    // fallback has fixtures of its own where it is exercised.
+    answered_by: "engines",
+    model_name: null,
+    model_notice: null,
     recognised: false,
     query_description: null,
     text: "Je n'ai pas compris cette question. Voici des formulations que je sais traiter :",

@@ -34,7 +34,7 @@ from app.llm.client import (
     failure_message,
     llm_error,
 )
-from app.llm.tools import BY_NAME, ToolContext, openai_schema
+from app.llm.tools import BY_NAME, READ_TOOLS, ToolContext, openai_schema
 from app.models import AgentRun, AgentStep
 
 # How many turns a run may take before it is stopped. Twelve is enough for a
@@ -94,6 +94,7 @@ def _post(
     messages: list[dict[str, Any]],
     timeout: float,
     transport: httpx.BaseTransport | None,
+    read_only: bool = False,
 ) -> dict[str, Any]:
     """One tool-calling turn. Raises `LlmError` with one of the four named
     causes — never a bare exception, and never a silent empty answer."""
@@ -109,7 +110,7 @@ def _post(
             json={
                 "model": settings.model_name,
                 "messages": messages,
-                "tools": openai_schema(),
+                "tools": openai_schema(read_only=read_only),
                 "tool_choice": "auto",
             },
         )
@@ -177,6 +178,7 @@ def run_agent(
     timeout: float,
     max_steps: int = DEFAULT_MAX_STEPS,
     budget_seconds: float = DEFAULT_BUDGET_SECONDS,
+    read_only: bool = False,
     transport: httpx.BaseTransport | None = None,
 ) -> AgentOutcome:
     """Runs `run.question` to an answer, a step budget, or a named failure.
@@ -205,7 +207,7 @@ def run_agent(
             break
 
         try:
-            message = _post(settings, messages, timeout, transport)
+            message = _post(settings, messages, timeout, transport, read_only=read_only)
         except LlmError as error:
             run.state = "failed"
             run.notice = error.message
@@ -243,14 +245,26 @@ def run_agent(
             name = call.get("function", {}).get("name", "")
             args = _arguments(call)
             tool = BY_NAME.get(name)
+            # It exists, but this run was not offered it. Saying exactly that
+            # is better than silently executing it, and better than "n'existe
+            # pas" — which would send the model looking for a tool that is
+            # there and would be wrong the moment it read the catalogue again.
+            withheld = read_only and tool is not None and tool.writes_proposal
             _record(db, run, position, "tool_call",
                     f"Appel de l'outil « {name} »", name=name, payload=args)
             position += 1
 
-            if tool is None:
+            offered = [item.name for item in READ_TOOLS] if read_only else list(BY_NAME)
+            if withheld:
+                result = (
+                    f"L'outil « {name} » n'est pas disponible ici : cette question a "
+                    "été posée dans le chat, qui lit et ne propose rien. Les outils "
+                    "disponibles sont : " + ", ".join(offered)
+                )
+            elif tool is None:
                 result = (
                     f"L'outil « {name} » n'existe pas. Les outils disponibles sont : "
-                    + ", ".join(BY_NAME)
+                    + ", ".join(offered)
                 )
             else:
                 try:

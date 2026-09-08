@@ -1372,6 +1372,11 @@ const WRITES: Record<string, (body: Record<string, unknown>) => Response> = {
         supported_formulations: null,
         chart: null,
         steps: about.steps,
+        // Yieldo's own answer: the model fallback only fires on a question the
+        // parser does not recognise, and these two are recognised.
+        answered_by: "engines",
+        model_name: null,
+        model_notice: null,
       },
     };
     MOCK_CHATS.push(stored);

@@ -1,0 +1,57 @@
+/* Who answered. Blue, because this is a standing condition qualifying
+   everything in the answer above it — the same thing `--yd-info` says on the
+   ledger-mode control and on a dated price. Never rose: a model answering is
+   not an error, and a model that could not answer is a named condition, not a
+   fault of the household's. */
+.yd-provenance {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--yd-space-sm);
+  margin: var(--yd-space-xs) 0 0;
+  padding: var(--yd-space-sm) var(--yd-space-md);
+  border: 1px solid color-mix(in srgb, var(--yd-info) 38%, transparent);
+  border-radius: var(--yd-radius-sm);
+  background: color-mix(in srgb, var(--yd-info) 9%, transparent);
+}
+
+.yd-provenance[data-source="echec"] {
+  border-color: color-mix(in srgb, var(--yd-warning) 40%, transparent);
+  background: color-mix(in srgb, var(--yd-warning) 9%, transparent);
+}
+
+.yd-provenance__body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.yd-provenance__title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--yd-space-xs);
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: var(--yd-info);
+}
+
+.yd-provenance[data-source="echec"] .yd-provenance__title {
+  color: var(--yd-warning);
+}
+
+.yd-provenance__model {
+  font-family: var(--yd-font-mono);
+  font-size: 0.76rem;
+  font-weight: 500;
+  padding: 1px var(--yd-space-2xs);
+  border-radius: var(--yd-radius-sm);
+  background: color-mix(in srgb, var(--yd-info) 16%, transparent);
+  color: var(--yd-info);
+}
+
+.yd-provenance__note {
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: var(--yd-text-muted);
+}

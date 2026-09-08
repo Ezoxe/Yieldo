@@ -806,8 +806,15 @@ TOOLS: tuple[Tool, ...] = (
 
 BY_NAME: dict[str, Tool] = {tool.name: tool for tool in TOOLS}
 
+# The reads alone. A question typed into the chat reaches the model through
+# this subset and no other: asking "combien j'ai depense en juin" must never be
+# able to leave a proposal behind for somebody to refuse later. The wall is the
+# same one the module docstring describes, moved one notch earlier -- the write
+# tools are not offered rather than being offered and then declined.
+READ_TOOLS: tuple[Tool, ...] = tuple(tool for tool in TOOLS if not tool.writes_proposal)
 
-def openai_schema() -> list[dict[str, Any]]:
+
+def openai_schema(*, read_only: bool = False) -> list[dict[str, Any]]:
     """The catalogue in the shape an OpenAI-compatible endpoint expects."""
     return [
         {
@@ -818,5 +825,5 @@ def openai_schema() -> list[dict[str, Any]]:
                 "parameters": tool.parameters,
             },
         }
-        for tool in TOOLS
+        for tool in (READ_TOOLS if read_only else TOOLS)
     ]

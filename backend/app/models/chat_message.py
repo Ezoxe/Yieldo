@@ -37,6 +37,21 @@ class ChatMessage(Base):
     # question lands, and a thread nobody asked anything in is not a thread.
     conversation_id: Mapped[int] = mapped_column(Integer, index=True, nullable=False)
     text: Mapped[str] = mapped_column(Text, nullable=False)
+    # The model's run, when the parser did not recognise the question and a
+    # model was configured to take it instead.
+    #
+    # This is the ONE thing about a chat message that is not re-executed on
+    # read, and the exception is deliberate. Re-running a language model on
+    # every GET would mean a model call per message per page load, and — worse
+    # — the same question would come back differently every time the history
+    # was reopened, which is the opposite of the staleness contract above. The
+    # run holds what the model actually said, when it said it, and every FIGURE
+    # inside it still came from an engine through a read tool: see
+    # `llm/tools.py`. `SET NULL`, not `CASCADE`: a deleted run must not take
+    # the household's question with it.
+    agent_run_id: Mapped[int | None] = mapped_column(
+        ForeignKey("agent_runs.id", ondelete="SET NULL"), nullable=True, index=True
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(UTC), nullable=False
     )

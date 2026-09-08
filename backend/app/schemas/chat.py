@@ -7,6 +7,7 @@ every read. See that model's own docstring for why.
 """
 
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -69,6 +70,18 @@ class ChatAnswerOut(BaseModel):
     # Never empty: even a question that could not be parsed was READ, and the
     # reading is a step. See `engines/answer.AnswerStep`.
     steps: list[ChatStepOut]
+    #: Who produced `text`. "engines" is Yieldo's own deterministic answer;
+    #: "modele" means the parser did not recognise the question and the
+    #: household's configured model was asked instead. A screen MUST show the
+    #: difference: the two are not the same kind of claim, and only the first
+    #: is a measurement this application stands behind.
+    answered_by: Literal["engines", "modele"] = "engines"
+    #: The model that answered, named as the household named it in Réglages.
+    model_name: str | None = None
+    #: Why the model did not answer, when it did not — one of the four causes
+    #: `llm/client.failure_message` builds, or the step/time budget. Never
+    #: swallowed: a model that failed says so beside the fallback refusal.
+    model_notice: str | None = None
 
 
 class ConversationOut(BaseModel):

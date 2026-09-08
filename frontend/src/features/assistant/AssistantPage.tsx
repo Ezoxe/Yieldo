@@ -16,6 +16,7 @@ import "../../design/Skeleton.css";
 import { api } from "../../lib/api";
 import { messageFor } from "../../lib/refusal";
 import type { ChatMessage } from "../../lib/types";
+import { AnswerProvenance } from "./AnswerProvenance";
 import { ReasoningTrace, ThinkingIndicator } from "./ReasoningTrace";
 import "./AssistantPage.css";
 
@@ -115,7 +116,15 @@ function Exchange({
         </p>
       ) : null}
 
-      {!answer.recognised ? (
+      {answer.answered_by === "modele" ? (
+        /* The parser did not recognise it, but the household's own model did
+           take it — so this is an answer, not a refusal, and the badge under
+           it says who wrote it. The ten formulations are not shown: a reader
+           who got an answer does not need to be told how to rephrase. */
+        <p className="yd-exchange__answer" data-testid={`yd-exchange-answer-${message.id}`}>
+          {answer.text}
+        </p>
+      ) : !answer.recognised ? (
         <div
           className="yd-exchange__unrecognised"
           data-testid={`yd-exchange-unrecognised-${message.id}`}
@@ -136,6 +145,8 @@ function Exchange({
           {answer.text}
         </p>
       )}
+
+      <AnswerProvenance answer={answer} />
 
       {answer.chart !== null ? (
         <div className="yd-exchange__chart" data-testid={`yd-exchange-chart-${message.id}`}>

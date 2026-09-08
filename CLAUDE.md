@@ -76,6 +76,32 @@ measurement. While a question is in flight the front end says only what it can
 see — one query is running — never a simulated progress report through phases
 it cannot observe.
 
+## When the parser gives up
+
+A question `engines/intent` does not recognise is still answered by Yieldo'''s
+own refusal — unless the household has configured a model in Réglages →
+Connexions, in which case `api/chat.ask` hands the question to
+`llm/agent.run_agent(read_only=True)`.
+
+Four rules, and `tests/test_chat_llm_fallback.py` holds all four:
+
+- **Reads only.** The model is offered `llm/tools.READ_TOOLS` and nothing else,
+  so a sentence typed into a chat box can never leave a proposal behind. A
+  write tool named anyway is answered, not run.
+- **The model never calculates.** Every figure it cites came back from a tool,
+  which called an engine. `amount_cents` stays null on a model answer: no
+  number the model wrote reaches a field a screen renders as a measurement.
+- **It is labelled.** `answered_by` travels to the wire and `AnswerProvenance`
+  prints it. « Yieldo a mesuré ceci » and « votre modèle a écrit ceci » are two
+  different claims.
+- **It runs once.** The run is persisted and `ChatMessage.agent_run_id` points
+  at it — the one thing about a chat message that is not re-executed on read,
+  because a completion per message per page load would be both slow and
+  non-deterministic. A GET never calls a model.
+
+A model that fails leaves the parser'''s refusal standing with the cause named
+beside it, never a silent degradation.
+
 ## The shibi
 
 `design/shibi/sprite.ts` is the mascot: a small impersonal cube drawn pixel by

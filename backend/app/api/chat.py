@@ -21,6 +21,24 @@ reserved for a question that DID parse but names a value an engine refuses
 outright (a horizon past fifty years, for instance) -- the same
 `except ValueError: raise HTTPException(422, ...)` idiom every other router
 in this codebase uses.
+
+**And when the parser does not recognise it, the household's own model may
+take the question.** Only then, only on POST, and only with the READ tools:
+`llm/agent.run_agent(read_only=True)` hands the model the same catalogue of
+engine calls the agent screen uses minus every tool that could leave a
+proposal behind, so a figure in its answer is still a figure an engine
+computed. The answer is marked `answered_by="modele"` all the way to the
+screen, because "Yieldo measured this" and "your model said this" are two
+different claims and only the first is one this application stands behind.
+
+The run is PERSISTED and pointed at by `ChatMessage.agent_run_id`, which is
+the one exception to the re-execute-on-read rule above -- see that model's
+docstring. No model is called on a GET: reopening a thread must not cost a
+completion per message, nor answer the same question differently each time.
+
+A household with nothing configured in Réglages → Connexions sees exactly the
+refusal it saw before. A model that fails is named, never swallowed: the
+refusal comes back with the cause beside it.
 """
 
 from datetime import UTC, date, datetime
@@ -33,6 +51,7 @@ from app.api.common import liquid_balance_cents, recurrence_points
 from app.api.goals import observed_months
 from app.api.history import user_history
 from app.api.portfolio import valuation_inputs
+from app.config import settings as app_settings
 from app.db import get_db
 from app.engines import portfolio as portfolio_engine
 from app.engines.answer import (
@@ -45,7 +64,10 @@ from app.engines.answer import (
 )
 from app.engines.goal import GoalInput
 from app.engines.intent import UnrecognisedQuery, parse_intent
-from app.models import Category, ChatMessage, Debt, Goal, User
+from app.llm.agent import run_agent
+from app.llm.client import LlmSettingsInput
+from app.models import AgentRun, AgentStep, Category, ChatMessage, Debt, Goal, LlmSettings, User
+from app.security.crypto import decrypt_secret
 from app.schemas.chat import (
     ChatAnswerOut,
     ConversationOut,
@@ -58,6 +80,21 @@ from app.schemas.chat import (
 from app.security.deps import get_current_user
 
 router = APIRouter(prefix="/chat", tags=["chat"])
+
+# How many turns the model gets on a chat question. Half the agent screen's
+# twelve: that screen is for an investigation a household asked for and waits
+# on, this is one sentence typed into a box. A model that has not concluded in
+# six reads says so, and the formulations the parser understands come back with
+# it.
+CHAT_MAX_STEPS = 6
+
+# The one step every unrecognised question carries, whatever happens next.
+_READING_STEP = ChatStepOut(
+    tool="engines/intent",
+    label="Lecture de la question",
+    source="aucune intention reconnue",
+    screen=None,
+)
 
 # Every read recomputes each stored question's answer, which walks the
 # ledger once per question -- the same reasoning `api/feasibility.py` bounds
@@ -148,9 +185,81 @@ def _steps_out(steps: tuple[AnswerStep, ...]) -> list[ChatStepOut]:
     ]
 
 
-def _compute_answer(text: str, ctx: ChatContext, today: date) -> ChatAnswerOut:
+def _model_steps(steps: list[AgentStep]) -> list[ChatStepOut]:
+    """The model's run, in the shape the trace already reads.
+
+    Only the RESULTS of its tool calls, plus its own reasoning when the
+    endpoint sent any. The call rows are dropped because a call and its result
+    are the same event twice, and the result is the half that says what came
+    back. Nothing is invented here — every line is a row the loop wrote as it
+    happened.
+    """
+    out: list[ChatStepOut] = []
+    for step in steps:
+        if step.kind == "tool_result":
+            out.append(ChatStepOut(
+                tool=step.name or "outil",
+                label="Lecture demandée par le modèle",
+                source=step.summary,
+                screen=None,
+            ))
+        elif step.kind == "thought":
+            out.append(ChatStepOut(
+                tool="modèle", label="Raisonnement du modèle",
+                source=step.summary, screen=None,
+            ))
+        elif step.kind == "failure":
+            out.append(ChatStepOut(
+                tool="modèle", label="Le modèle n'a pas répondu",
+                source=step.summary, screen=None,
+            ))
+    return out
+
+
+def _answer_from_model(
+    parsed: UnrecognisedQuery, run: AgentRun, steps: list[AgentStep], model_name: str | None,
+) -> ChatAnswerOut:
+    """What the household's own model made of a question Yieldo could not parse.
+
+    `recognised` stays False whatever the model said: the PARSER did not
+    recognise the sentence, and that is a fact about Yieldo's engines which the
+    model answering does not change. `amount_cents` stays null for the reason
+    `llm/client.py` gives at length — no figure the model wrote ever reaches a
+    field a screen renders as a measurement.
+    """
+    answered = run.state == "answered" and (run.answer or "").strip() != ""
+    return ChatAnswerOut(
+        recognised=False,
+        query_description=None,
+        text=run.answer.strip() if answered else parsed.message,
+        amount_cents=None,
+        # An answer from the model is not a refusal; a run that ended without
+        # one leaves the parser's refusal standing, and it still is.
+        is_refusal=not answered,
+        # The formulations only when the model did not answer either: a
+        # household that got an answer does not need to be told how to rephrase.
+        supported_formulations=None if answered else list(parsed.supported_formulations),
+        chart=None,
+        steps=[_READING_STEP, *_model_steps(steps)],
+        answered_by="modele" if answered else "engines",
+        model_name=model_name,
+        model_notice=run.notice,
+    )
+
+
+def _compute_answer(
+    text: str,
+    ctx: ChatContext,
+    today: date,
+    *,
+    run: AgentRun | None = None,
+    run_steps: list[AgentStep] | None = None,
+    model_name: str | None = None,
+) -> ChatAnswerOut:
     parsed = parse_intent(text, today)
     if isinstance(parsed, UnrecognisedQuery):
+        if run is not None:
+            return _answer_from_model(parsed, run, run_steps or [], model_name)
         return ChatAnswerOut(
             recognised=False, query_description=None, text=parsed.message,
             amount_cents=None, is_refusal=True,
@@ -159,14 +268,7 @@ def _compute_answer(text: str, ctx: ChatContext, today: date) -> ChatAnswerOut:
             # The sentence was read; that is the one step that ran, and
             # reporting it is what tells "je n'ai pas compris" apart from a
             # request that never reached an engine.
-            steps=[
-                ChatStepOut(
-                    tool="engines/intent",
-                    label="Lecture de la question",
-                    source="aucune intention reconnue",
-                    screen=None,
-                )
-            ],
+            steps=[_READING_STEP],
         )
     try:
         answer = answer_query(parsed, ctx, today)
@@ -214,17 +316,96 @@ def _resolve_conversation(db: Session, user_id: int, requested: int | None) -> i
     return requested
 
 
+def _llm_for(db: Session, user_id: int) -> tuple[LlmSettingsInput, str, float] | None:
+    """This account's model, or None when Réglages → Connexions holds nothing.
+
+    None is not a failure and is not reported as one: a household that has
+    configured no model gets the refusal it has always got, with nothing said
+    about a feature it never turned on.
+    """
+    row = db.query(LlmSettings).filter(LlmSettings.user_id == user_id).first()
+    if row is None:
+        return None
+    timeout = (
+        float(row.timeout_seconds)
+        if row.timeout_seconds is not None
+        else float(app_settings.llm_timeout_seconds)
+    )
+    return (
+        LlmSettingsInput(
+            endpoint_url=row.endpoint_url,
+            model_name=row.model_name,
+            api_key=(
+                None if row.api_key_encrypted is None else decrypt_secret(row.api_key_encrypted)
+            ),
+        ),
+        row.model_name,
+        timeout,
+    )
+
+
+def _ask_the_model(
+    db: Session, user: User, text: str, today: date,
+) -> tuple[AgentRun | None, list[AgentStep], str | None]:
+    """Run the question through the household's model, reads only.
+
+    Returns `(None, [], None)` when the question was one the parser DID
+    recognise, or when no model is configured — in both cases the
+    deterministic path answers alone, exactly as before.
+    """
+    if not isinstance(parse_intent(text, today), UnrecognisedQuery):
+        return None, [], None
+
+    configured = _llm_for(db, user.id)
+    if configured is None:
+        return None, [], None
+    llm, model_name, timeout = configured
+
+    run = AgentRun(user_id=user.id, question=text.strip(), state="running")
+    db.add(run)
+    db.flush()
+    run_agent(
+        db, user, run, llm,
+        today=today,
+        timeout=timeout,
+        max_steps=CHAT_MAX_STEPS,
+        # The wall: a question typed into the chat can read the ledger and can
+        # never leave a proposal behind for somebody to refuse later.
+        read_only=True,
+    )
+    db.flush()
+    steps = (
+        db.query(AgentStep)
+        .filter(AgentStep.run_id == run.id)
+        .order_by(AgentStep.position)
+        .all()
+    )
+    return run, steps, model_name
+
+
 @router.post("", response_model=ChatMessageOut, status_code=status.HTTP_201_CREATED)
 def ask(
     payload: ChatMessageIn, user: User = Depends(get_current_user), db: Session = Depends(get_db)
 ) -> ChatMessageOut:
-    """Parse, execute, answer -- then store the QUESTION, never the answer."""
+    """Parse, execute, answer -- then store the QUESTION, never the answer.
+
+    The one thing stored beside the question is a pointer to the model's run,
+    when there was one. See the module docstring.
+    """
     today = date.today()
     ctx = _build_context(db, user, today)
-    answer = _compute_answer(payload.text, ctx, today)
 
     conversation_id = _resolve_conversation(db, user.id, payload.conversation_id)
     message = ChatMessage(user_id=user.id, conversation_id=conversation_id, text=payload.text)
+
+    run, steps, model_name = _ask_the_model(db, user, payload.text, today)
+    if run is not None:
+        message.agent_run_id = run.id
+
+    answer = _compute_answer(
+        payload.text, ctx, today, run=run, run_steps=steps, model_name=model_name,
+    )
+
     db.add(message)
     db.commit()
     db.refresh(message)
@@ -293,10 +474,38 @@ def history_list(
         # one another household's thread gets. Only a WRITE has to refuse.
         query = query.filter(ChatMessage.conversation_id == conversation_id)
     rows = query.order_by(ChatMessage.id).limit(MAX_HISTORY).all()
+
+    # The runs behind whichever of these questions a model answered, fetched in
+    # one query rather than one per row — and no model is called here at all.
+    run_ids = [row.agent_run_id for row in rows if row.agent_run_id is not None]
+    runs: dict[int, AgentRun] = {}
+    steps_by_run: dict[int, list[AgentStep]] = {}
+    if run_ids:
+        for run in db.query(AgentRun).filter(
+            AgentRun.user_id == user.id, AgentRun.id.in_(run_ids)
+        ):
+            runs[run.id] = run
+        for step in (
+            db.query(AgentStep)
+            .filter(AgentStep.run_id.in_(run_ids))
+            .order_by(AgentStep.run_id, AgentStep.position)
+        ):
+            steps_by_run.setdefault(step.run_id, []).append(step)
+
+    configured = _llm_for(db, user.id)
+    model_name = None if configured is None else configured[1]
+
     return [
-        ChatMessageOut(id=row.id, conversation_id=row.conversation_id, text=row.text,
-                       created_at=row.created_at,
-                       answer=_compute_answer(row.text, ctx, today))
+        ChatMessageOut(
+            id=row.id, conversation_id=row.conversation_id, text=row.text,
+            created_at=row.created_at,
+            answer=_compute_answer(
+                row.text, ctx, today,
+                run=runs.get(row.agent_run_id or -1),
+                run_steps=steps_by_run.get(row.agent_run_id or -1),
+                model_name=model_name,
+            ),
+        )
         for row in rows
     ]
 

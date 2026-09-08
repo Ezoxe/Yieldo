@@ -13,6 +13,7 @@ import { ApiError, api } from "../../lib/api";
 import type { Category, ChatMessage, Conversation } from "../../lib/types";
 import { Shibi } from "../../design/shibi/Shibi";
 import { useShibiVisible } from "../../design/shibi/shibiPreference";
+import { AnswerProvenance } from "./AnswerProvenance";
 import { ReasoningTrace, ThinkingIndicator } from "./ReasoningTrace";
 import "./AssistantDrawer.css";
 
@@ -409,6 +410,8 @@ function Exchange({
         {answer.query_description !== null ? (
           <p className="yd-exchange__query">{answer.query_description}</p>
         ) : null}
+
+        <AnswerProvenance answer={answer} />
 
         {/* What was actually run to get there — the engines, the ledger it
             read, and the screens showing the same data. */}

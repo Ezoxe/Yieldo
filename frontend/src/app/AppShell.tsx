@@ -5,6 +5,8 @@ import { NavLink, Outlet, useLocation } from "react-router";
 import { AISpotlightProvider } from "../design/ai/AISpotlight";
 import { AtmosphericBackground } from "../design/atmosphere/AtmosphericBackground";
 import { useCardSpotlight } from "../design/bento/useCardSpotlight";
+import { Shibi } from "../design/shibi/Shibi";
+import { useShibiVisible } from "../design/shibi/shibiPreference";
 import {
   AlertsIcon,
   AnalysisIcon,
@@ -210,6 +212,8 @@ export function AppShell({ userName }: AppShellProps) {
   }, [hydrateLedgerMode]);
 
   const reducedMotion = useReducedMotion();
+  // Whether the mascot is drawn at all — Réglages → Apparence.
+  const shibi = useShibiVisible();
   // One listener for every card on every screen — see useCardSpotlight.
   useCardSpotlight();
   const location = useLocation();
@@ -336,13 +340,20 @@ export function AppShell({ userName }: AppShellProps) {
               the numbers on screen mean, and it has to be visible wherever
               they are. */}
           <LedgerModeControl />
+          {/* The shibi IS the assistant's face, so it takes the mark's place
+              here rather than sitting beside it — two drawings of the same
+              thing on one button would be one too many. With the mascot
+              switched off in Réglages the button falls back to the glyph the
+              sidebar uses for the same destination. The word "Assistant" is
+              the accessible name either way; nothing is ever named by a
+              picture alone. */}
           <button
             type="button"
-            className="yd-shell__assistant"
+            className={`yd-shell__assistant${shibi ? " yd-shell__assistant--shibi" : ""}`}
             aria-expanded={assistantOpen}
             onClick={() => setAssistantOpen((open) => !open)}
           >
-            <AssistantIcon />
+            {shibi ? <Shibi state={assistantOpen ? "designation" : "repos"} /> : <AssistantIcon />}
             Assistant
           </button>
         </header>

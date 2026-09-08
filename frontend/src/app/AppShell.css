@@ -216,6 +216,15 @@
   display: flex;
   flex-direction: column;
   min-width: 0;
+  /* The pointer halo on a bento cell reaches 90px past the card on every side,
+     and the right-hand column sits within the page padding of the viewport
+     edge — so without this the aura alone put a horizontal scrollbar on every
+     screen in the application.
+
+     `clip`, never `hidden`: `hidden` would make this a scroll container, and
+     the header inside it is `position: sticky` against the viewport. `clip`
+     cuts the overflow and creates nothing to scroll. */
+  overflow-x: clip;
 }
 
 .yd-shell__header {
@@ -392,4 +401,12 @@
   font-weight: 600;
   line-height: 1.5;
   white-space: nowrap;
+}
+
+/* The header button with the mascot in it rather than the glyph. The sprite is
+   32px tall against the icon's ~17, so the button's own padding comes down to
+   keep the header the height it was. */
+.yd-shell__assistant--shibi {
+  padding: 2px 14px 2px 6px;
+  gap: 2px;
 }

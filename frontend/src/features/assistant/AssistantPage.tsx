@@ -9,6 +9,8 @@ import { EmptyState } from "../../design/EmptyState";
 import { AssistantIcon } from "../../design/icons";
 import { PageHead } from "../../design/PageHead";
 import { useReducedMotion } from "../../design/motion/useReducedMotion";
+import { Shibi } from "../../design/shibi/Shibi";
+import { useShibiVisible } from "../../design/shibi/shibiPreference";
 import { entryProps, staggerProps } from "../../design/motion/variants";
 import "../../design/Skeleton.css";
 import { api } from "../../lib/api";
@@ -165,6 +167,7 @@ function Exchange({
  */
 export function AssistantPage() {
   const reduced = useReducedMotion();
+  const shibi = useShibiVisible();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [draft, setDraft] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -284,6 +287,25 @@ export function AssistantPage() {
       <BentoGrid as={motion.div} {...staggerProps(reduced)}>
         <BentoCell as={motion.div} span={SPAN.full} className="yd-panel" {...entryProps(reduced)}>
           <form className="yd-ask" onSubmit={onSubmit}>
+            {/* He answers the screen's own state and nothing else: amber while
+                a query is actually out, rose when the last one came back a
+                refusal, indigo otherwise. No state here is invented — each one
+                is a variable this component already holds. */}
+            {shibi ? (
+              <div className="yd-ask__shibi">
+                <Shibi
+                  scale={2}
+                  state={isAsking ? "reflexion" : error !== null ? "erreur" : "repos"}
+                  label={
+                    isAsking
+                      ? "Le shibi exécute votre question"
+                      : error !== null
+                        ? "Le shibi signale un échec"
+                        : "Le shibi attend votre question"
+                  }
+                />
+              </div>
+            ) : null}
             <label className="yd-ask__label" htmlFor="yd-ask-field">
               Votre question
             </label>

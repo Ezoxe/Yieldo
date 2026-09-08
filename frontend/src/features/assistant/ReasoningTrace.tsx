@@ -1,10 +1,12 @@
 import { AnimatePresence, motion } from "motion/react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router";
 
 import { CheckIcon, ChevronIcon } from "../../design/icons";
 import { useReducedMotion } from "../../design/motion/useReducedMotion";
 import { SIGNATURE_EASE } from "../../design/motion/variants";
+import { Shibi } from "../../design/shibi/Shibi";
+import { useShibiVisible } from "../../design/shibi/shibiPreference";
 import type { ChatStep } from "../../lib/types";
 import "./ReasoningTrace.css";
 
@@ -28,6 +30,16 @@ import "./ReasoningTrace.css";
 /** Milliseconds between two rows arriving. Fast enough not to be a wait, slow
  *  enough that four steps read as four. */
 const STEP_STAGGER = 0.09;
+
+/**
+ * How long the shibi stands beside one step before moving to the next.
+ *
+ * Slower than the reveal on purpose. The rows are staging in at 90ms apiece,
+ * which is a rhythm; this is a reading pace — long enough to look at the tool
+ * he is pointing at, short enough that a six-step trace is over in three
+ * seconds.
+ */
+const PERCH_DWELL = 520;
 
 interface ReasoningTraceProps {
   steps: ChatStep[];
@@ -72,14 +84,49 @@ export function screenName(route: string): string {
 
 export function ReasoningTrace({ steps, fresh = false }: ReasoningTraceProps) {
   const reduced = useReducedMotion();
+  const shibi = useShibiVisible();
   const [open, setOpen] = useState(fresh);
+
+  /**
+   * Which step the shibi is standing on, or null when he has finished walking.
+   *
+   * He walks the trace once, on a fresh answer, pointing at each tool in turn.
+   * This is a REPLAY and never a progress report: `answer.steps` arrives whole,
+   * with the answer, so every tool he points at has already run. That is why
+   * he only ever walks a trace that is already on screen, and why nothing here
+   * prints a duration — see the note at the top of this file.
+   */
+  const [perch, setPerch] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!shibi || !fresh || reduced || !open || steps.length === 0) {
+      setPerch(null);
+      return;
+    }
+    let index = 0;
+    setPerch(0);
+    const id = window.setInterval(() => {
+      index += 1;
+      if (index >= steps.length) {
+        setPerch(null);
+        window.clearInterval(id);
+        return;
+      }
+      setPerch(index);
+    }, PERCH_DWELL);
+    return () => window.clearInterval(id);
+  }, [shibi, fresh, reduced, open, steps.length]);
 
   if (steps.length === 0) return null;
 
   const screens = screensTouched(steps);
 
   return (
-    <div className="yd-trace" data-fresh={fresh ? "" : undefined}>
+    <div
+      className="yd-trace"
+      data-fresh={fresh ? "" : undefined}
+      data-shibi={shibi ? "" : undefined}
+    >
       <button
         type="button"
         className="yd-trace__toggle"
@@ -117,6 +164,7 @@ export function ReasoningTrace({ steps, fresh = false }: ReasoningTraceProps) {
                 // exchange shows it at once, because nothing is happening then.
                 delay={fresh && !reduced ? index * STEP_STAGGER : 0}
                 animate={fresh && !reduced}
+                perched={perch === index}
               />
             ))}
           </motion.ol>
@@ -130,10 +178,12 @@ function TraceStep({
   step,
   delay,
   animate,
+  perched,
 }: {
   step: ChatStep;
   delay: number;
   animate: boolean;
+  perched: boolean;
 }) {
   return (
     <motion.li
@@ -142,6 +192,22 @@ function TraceStep({
       animate={animate ? { opacity: 1, x: 0 } : undefined}
       transition={{ duration: 0.3, ease: SIGNATURE_EASE, delay }}
     >
+      {/* One `layoutId` for the whole list, so Motion carries the shibi from
+          the step he was on to the step he is on rather than making him
+          disappear here and reappear there. Decoration: the row beside him
+          already names the tool out loud, and a second voice saying the same
+          thing is a screen reader repeating itself. */}
+      {perched ? (
+        <motion.span
+          className="yd-trace__perch"
+          layoutId="yd-shibi-perch"
+          transition={{ type: "spring", stiffness: 420, damping: 34 }}
+          aria-hidden="true"
+        >
+          <Shibi state="designation" />
+        </motion.span>
+      ) : null}
+
       {/* The rail: a dot per step, joined by the line drawn in CSS. It is what
           makes four rows read as one sequence instead of four bullets. */}
       <span className="yd-trace__dot" aria-hidden="true">
@@ -175,9 +241,22 @@ function TraceStep({
  */
 export function ThinkingIndicator() {
   const reduced = useReducedMotion();
+  const shibi = useShibiVisible();
 
   return (
-    <div className="yd-thinking" role="status" aria-live="polite">
+    <div
+      className={`yd-thinking${shibi ? " yd-thinking--shibi" : ""}`}
+      role="status"
+      aria-live="polite"
+    >
+      {/* The one place he is genuinely live: a request is out, and the amber
+          diode says exactly that and nothing more. The sentence beside him is
+          the accessible one. */}
+      {shibi ? (
+        <span className="yd-thinking__perch" aria-hidden="true">
+          <Shibi state="reflexion" />
+        </span>
+      ) : null}
       <span className="yd-thinking__rail" aria-hidden="true">
         <span className="yd-thinking__pulse" data-still={reduced ? "" : undefined} />
       </span>

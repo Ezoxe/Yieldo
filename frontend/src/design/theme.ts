@@ -5,6 +5,7 @@ export type DensityPreference = "comfortable" | "compact";
 const STORAGE_KEY = "yieldo.theme";
 const DENSITY_STORAGE_KEY = "yieldo.density";
 const MOTION_DISABLED_STORAGE_KEY = "yieldo.motion-disabled";
+const SHIBI_HIDDEN_STORAGE_KEY = "yieldo.shibi-hidden";
 const NARROW_NBSP = " "; // French thousands separator, non-breaking
 const NBSP = " ";
 const MINUS = "−"; // typographic minus, aligns with digit width
@@ -63,6 +64,25 @@ export function readStoredMotionDisabled(): boolean {
 export function storeMotionDisabled(disabled: boolean): void {
   try {
     localStorage.setItem(MOTION_DISABLED_STORAGE_KEY, disabled ? "true" : "false");
+  } catch {
+    // Persisting a preference is a convenience, not a requirement.
+  }
+}
+
+// The Reglages "Afficher le shibi" switch. Absent means shown: the mascot is
+// part of the application, and a household that has never opened Reglages
+// should meet it.
+export function readStoredShibiHidden(): boolean {
+  try {
+    return localStorage.getItem(SHIBI_HIDDEN_STORAGE_KEY) === "true";
+  } catch {
+    return false;
+  }
+}
+
+export function storeShibiHidden(hidden: boolean): void {
+  try {
+    localStorage.setItem(SHIBI_HIDDEN_STORAGE_KEY, hidden ? "true" : "false");
   } catch {
     // Persisting a preference is a convenience, not a requirement.
   }

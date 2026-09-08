@@ -325,3 +325,36 @@
   animation: none;
   opacity: 1;
 }
+
+/* -- The shibi, standing on the step he is pointing at ---------------------- */
+
+/* The gutter he walks down. Reserved on the list rather than on the step he
+   happens to be on, so the rows do not shift sideways every half second as he
+   moves. Only when the mascot is switched on: with it off the trace keeps its
+   old width to the pixel. */
+.yd-trace[data-shibi] .yd-trace__steps {
+  padding-left: calc(var(--yd-space-sm) + 38px);
+}
+
+.yd-trace__perch {
+  position: absolute;
+  left: -38px;
+  top: -2px;
+  pointer-events: none;
+}
+
+/* The wait itself: the one moment he is live rather than replaying. */
+.yd-thinking {
+  position: relative;
+}
+
+.yd-thinking--shibi {
+  padding-left: 42px;
+}
+
+.yd-thinking__perch {
+  position: absolute;
+  left: 0;
+  top: -3px;
+  pointer-events: none;
+}

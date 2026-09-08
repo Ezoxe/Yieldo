@@ -352,3 +352,12 @@
   flex-wrap: wrap;
   gap: var(--yd-space-xs);
 }
+
+/* The shibi on the ask form: he sits above the field, at the head of the row,
+   because what he reflects is the state of THIS form — waiting, running, or
+   refused — and not the state of the screen as a whole. */
+.yd-ask__shibi {
+  display: flex;
+  align-items: flex-end;
+  margin-bottom: calc(-1 * var(--yd-space-2xs));
+}

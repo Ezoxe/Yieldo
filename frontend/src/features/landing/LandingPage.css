@@ -12,6 +12,9 @@
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+  /* Same reason as .yd-shell__body: the cards' pointer halo reaches past the
+     page padding, and unclipped it scrolls the page sideways. */
+  overflow-x: clip;
 }
 
 /* --- Top bar ------------------------------------------------------------ */

@@ -1,0 +1,9 @@
+/* The sprite is drawn at whole-pixel coordinates and sized in whole pixels, so
+   nothing should ever resample it. `pixelated` is the guard for the one case
+   the component cannot control: a browser zoom, or a stylesheet that gives the
+   canvas a width of its own. */
+.yd-shibi {
+  display: block;
+  image-rendering: pixelated;
+  flex: 0 0 auto;
+}

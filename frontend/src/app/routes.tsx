@@ -24,6 +24,7 @@ import { ProjectionPage } from "../features/projection/ProjectionPage";
 import { RecurrencesPage } from "../features/recurrences/RecurrencesPage";
 import { CategoriesPage } from "../features/categories/CategoriesPage";
 import { SettingsPage } from "../features/settings/SettingsPage";
+import { ShibiSheetPage } from "../features/shibi/ShibiSheetPage";
 import { SimulatorsPage } from "../features/simulators/SimulatorsPage";
 import { TransactionsPage } from "../features/transactions/TransactionsPage";
 import { AppShellRoute, HomeRoute } from "./HomeRoute";
@@ -75,6 +76,11 @@ export const router = createBrowserRouter([
           { path: "categories", element: <CategoriesPage /> },
           { path: "import", element: <ImportPage /> },
           { path: "reglages", element: <SettingsPage /> },
+          // The mascot's model sheet. Deliberately absent from the sidebar:
+          // it is a reference for whoever works on Yieldo next, reached from
+          // the switch in Reglages that turns him off, not a screen a
+          // household visits to read its own figures.
+          { path: "reglages/shibi", element: <ShibiSheetPage /> },
           // Réglages -> Connexions. A route of its own rather than a section
           // of /reglages: every French refusal in `market/client.py` and
           // `llm/client.py` points the reader at "Réglages -> Connexions",

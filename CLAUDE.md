@@ -76,6 +76,37 @@ measurement. While a question is in flight the front end says only what it can
 see — one query is running — never a simulated progress report through phases
 it cannot observe.
 
+## The shibi
+
+`design/shibi/sprite.ts` is the mascot: a small impersonal cube drawn pixel by
+pixel on a 32x32 grid, and the visible face of the assistant. The module is
+pure — given a state and a frame it returns 1024 colours — and `Shibi.tsx` is
+the only thing that owns a canvas and a clock.
+
+Four rules hold it together, and `design/shibi/sprite.test.ts` enforces the
+first two:
+
+- **A closed palette.** Thirteen named colours plus three brightness steps per
+  diode hue. A frame that blended a new colour would still land on the grid and
+  would still be wrong.
+- **Whole pixels, whole scales.** Every coordinate is an integer on the grid,
+  and `Shibi` rounds `scale` to a whole number. At 1.5x half the pixels are two
+  device pixels wide and half are three.
+- **He never says more than the assistant knows.** No mouth and no eyebrows:
+  the state is carried by the diode's hue and the shape of two square eyes. The
+  six states each carry a `note` saying which real situation they stand for,
+  and that note is the contract.
+- **He is a replay, not a progress report.** On the reasoning trace he walks
+  from tool to tool — but `answer.steps` arrives whole with the answer, so
+  everything he points at has already run. The only place he is live is
+  `ThinkingIndicator`, where a request really is out.
+
+He appears in the header (in place of the assistant's glyph), on the assistant's
+ask form, and on the trace. Réglages -> Apparence turns him off, and
+`/reglages/shibi` is his model sheet — a screen rather than a document, because
+it reads `sprite.ts` at run time and so cannot describe a character the
+application no longer draws.
+
 ## Shared UI primitives
 
 - Icons: `frontend/src/design/icons/`. One grid (24x24, 1.75px stroke,

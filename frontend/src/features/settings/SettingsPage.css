@@ -501,3 +501,16 @@
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
+
+/* A note under a switch: what the thing it turns on actually does, and where
+   to read more about it. Muted and small — it is a caption, not a field. */
+.yd-settings__aside {
+  margin: calc(-1 * var(--yd-space-2xs)) 0 0;
+  font-size: 0.82rem;
+  line-height: 1.55;
+  color: var(--yd-text-muted);
+}
+
+.yd-settings__aside a {
+  color: var(--yd-accent);
+}

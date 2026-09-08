@@ -18,6 +18,7 @@ import {
   SignOutIcon,
 } from "../../design/icons";
 import { useMotionPreference } from "../../design/motion/motionPreference";
+import { useShibiPreference } from "../../design/shibi/shibiPreference";
 import { entryProps, staggerProps } from "../../design/motion/variants";
 import { useReducedMotion } from "../../design/motion/useReducedMotion";
 import { PageHead } from "../../design/PageHead";
@@ -62,6 +63,8 @@ export function SettingsPage() {
   const { density, setDensity } = useDensity();
   const motionDisabled = useMotionPreference((state) => state.disabled);
   const setMotionDisabled = useMotionPreference((state) => state.setDisabled);
+  const shibiHidden = useShibiPreference((state) => state.hidden);
+  const setShibiHidden = useShibiPreference((state) => state.setHidden);
   const userName = useSession((state) => state.user?.name ?? "");
   const logout = useSession((state) => state.logout);
   const navigate = useNavigate();
@@ -141,6 +144,29 @@ export function SettingsPage() {
               onChange={(event) => setMotionDisabled(!event.target.checked)}
             />
           </div>
+
+          {/* The mascot, and the sheet that documents him. The switch is held
+              the wrong way round in the store on purpose — absent means shown —
+              so it reads here as the plain question it is. */}
+          <div className="yd-settings__field yd-settings__field--switch">
+            <label htmlFor="settings-shibi">Afficher le shibi</label>
+            <input
+              id="settings-shibi"
+              type="checkbox"
+              role="switch"
+              checked={!shibiHidden}
+              aria-checked={!shibiHidden}
+              onChange={(event) => setShibiHidden(!event.target.checked)}
+            />
+          </div>
+
+          <p className="yd-settings__aside">
+            Le shibi est le visage de l'assistant : il attend dans l'en-tête, il calcule
+            pendant qu'une requête est dehors, et il désigne chaque outil que la réponse
+            a réellement utilisé.{" "}
+            <Link to="/reglages/shibi">Voir sa planche de modèle</Link> — les six états,
+            la planche de sprites et la palette.
+          </p>
         </BentoCell>
 
         {/* Pleine largeur : c'est le panneau le plus dense de l'écran depuis

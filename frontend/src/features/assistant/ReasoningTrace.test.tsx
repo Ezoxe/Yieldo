@@ -1,8 +1,10 @@
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
-import { describe, expect, it } from "vitest";
+import { act } from "react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { useShibiPreference } from "../../design/shibi/shibiPreference";
 import type { ChatStep } from "../../lib/types";
 import { ReasoningTrace, ThinkingIndicator, screenName, screensTouched } from "./ReasoningTrace";
 
@@ -155,5 +157,80 @@ describe("conversationMeta", () => {
         message_count: 1,
       }),
     ).toBe("1 question · 4 septembre");
+  });
+});
+
+/**
+ * The shibi walks the trace: he stands beside each tool in turn, pointing at
+ * it. A replay, never a progress report — `answer.steps` arrives whole with
+ * the answer, so every tool he points at has already run.
+ */
+describe("the shibi on the trace", () => {
+  beforeEach(() => {
+    useShibiPreference.setState({ hidden: false });
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    useShibiPreference.setState({ hidden: false });
+  });
+
+  function renderFresh() {
+    return render(
+      <MemoryRouter>
+        <ReasoningTrace steps={STEPS} fresh />
+      </MemoryRouter>,
+    );
+  }
+
+  it("starts on the first tool the assistant used", () => {
+    const { container } = renderFresh();
+    const steps = [...container.querySelectorAll(".yd-trace__step")];
+    expect(steps[0].querySelector("canvas.yd-shibi")).not.toBeNull();
+    expect(steps[1].querySelector("canvas.yd-shibi")).toBeNull();
+  });
+
+  it("moves on to the next one, and leaves when the trace is done", () => {
+    const { container } = renderFresh();
+    const steps = () => [...container.querySelectorAll(".yd-trace__step")];
+
+    act(() => {
+      vi.advanceTimersByTime(520);
+    });
+    expect(steps()[0].querySelector("canvas.yd-shibi")).toBeNull();
+    expect(steps()[1].querySelector("canvas.yd-shibi")).not.toBeNull();
+
+    // Past the last step he stops standing on anything rather than looping.
+    act(() => {
+      vi.advanceTimersByTime(520 * STEPS.length);
+    });
+    expect(container.querySelector(".yd-trace__perch")).toBeNull();
+  });
+
+  // An exchange from a previous session is not being answered now, and a
+  // mascot walking it would be a re-enactment of something that is over.
+  it("does not walk a trace that arrived before this session", () => {
+    const { container } = render(
+      <MemoryRouter>
+        <ReasoningTrace steps={STEPS} fresh={false} />
+      </MemoryRouter>,
+    );
+    expect(container.querySelector(".yd-trace__perch")).toBeNull();
+  });
+
+  it("stays away entirely when Réglages has turned him off", () => {
+    useShibiPreference.setState({ hidden: true });
+    const { container } = renderFresh();
+    expect(container.querySelector("canvas.yd-shibi")).toBeNull();
+    expect(container.querySelector(".yd-trace")).not.toHaveAttribute("data-shibi");
+  });
+
+  // The one moment he is live rather than replaying: a request is actually out.
+  it("waits with the reader while a query is running", () => {
+    const { container } = render(<ThinkingIndicator />);
+    const shibi = container.querySelector(".yd-thinking__perch canvas.yd-shibi");
+    expect(shibi).not.toBeNull();
+    expect(shibi).toHaveAttribute("data-state", "reflexion");
   });
 });

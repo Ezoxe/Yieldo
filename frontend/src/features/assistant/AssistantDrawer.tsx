@@ -11,6 +11,8 @@ import { SIGNATURE_EASE } from "../../design/motion/variants";
 import { formatCents } from "../../design/theme";
 import { ApiError, api } from "../../lib/api";
 import type { Category, ChatMessage, Conversation } from "../../lib/types";
+import { Shibi } from "../../design/shibi/Shibi";
+import { useShibiVisible } from "../../design/shibi/shibiPreference";
 import { ReasoningTrace, ThinkingIndicator } from "./ReasoningTrace";
 import "./AssistantDrawer.css";
 
@@ -47,6 +49,7 @@ export function AssistantDrawer({ open, onClose }: AssistantDrawerProps) {
   const [historyOpen, setHistoryOpen] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
   const [question, setQuestion] = useState("");
+  const shibi = useShibiVisible();
   const [asking, setAsking] = useState(false);
   // The ids answered in THIS session. Only they play the staggered reveal;
   // history arrives already computed and replaying it would be motion for
@@ -189,11 +192,24 @@ export function AssistantDrawer({ open, onClose }: AssistantDrawerProps) {
       ref={panel}
     >
       <div className="yd-assistant-drawer__head">
-        {/* The app's own badge, not a second drawing of one. The local copy
-            had grown a radial gradient and a coloured drop shadow — both
-            forbidden by CLAUDE.md, and both the reason this mark looked like a
-            rendering fault beside every other panel head in the app. */}
-        <IconBadge icon={AssistantIcon} />
+        {/* The shibi presides over the panel he is the face of. With him
+            switched off in Réglages the head falls back to the app's own
+            badge — not a second drawing of one: the local copy had grown a
+            radial gradient and a coloured drop shadow, both forbidden by
+            CLAUDE.md, and both the reason this mark once looked like a
+            rendering fault beside every other panel head in the app.
+
+            He answers the panel's own state: amber while a question of this
+            panel's is out, rose when the last one came back a refusal, indigo
+            otherwise. Decoration — the `h2` beside him names the panel. */}
+        {shibi ? (
+          <Shibi
+            className="yd-assistant-drawer__shibi"
+            state={asking ? "reflexion" : error !== null ? "erreur" : "repos"}
+          />
+        ) : (
+          <IconBadge icon={AssistantIcon} />
+        )}
         <div className="yd-assistant-drawer__heading">
           <h2>Assistant</h2>
           <p>Calculé sur vos propres relevés. Aucune IA n'intervient.</p>

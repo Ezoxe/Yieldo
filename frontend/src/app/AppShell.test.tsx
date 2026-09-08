@@ -7,6 +7,7 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MemoryRouter, Route, Routes } from "react-router";
 
+import { useShibiPreference } from "../design/shibi/shibiPreference";
 import { AppShell } from "./AppShell";
 import { ThemeProvider } from "./ThemeProvider";
 
@@ -335,5 +336,35 @@ describe("AppShell.css", () => {
     expect(ruleBody(".yd-shell__sidebar--drawer")).toMatch(
       /background:\s*var\(--yd-surface-raised\)\s*;/,
     );
+  });
+});
+
+/**
+ * The mascot takes the glyph's place on the header button — and gives it back
+ * when Réglages turns him off. A call site that let him vanish without a
+ * fallback would leave a button with nothing in it.
+ */
+describe("AppShell and the shibi", () => {
+  beforeEach(() => {
+    mockReducedMotion(false);
+    useShibiPreference.setState({ hidden: false });
+  });
+
+  it("wears him on the way into the assistant", () => {
+    const { container } = renderShell("/");
+    const button = screen.getByRole("button", { name: "Assistant" });
+    expect(button.querySelector("canvas.yd-shibi")).not.toBeNull();
+    // The word is still what names the button; nothing is ever named by a
+    // picture alone.
+    expect(button).toHaveTextContent("Assistant");
+    expect(container.querySelectorAll("canvas.yd-shibi")).toHaveLength(1);
+  });
+
+  it("falls back to the glyph when he is switched off", () => {
+    useShibiPreference.setState({ hidden: true });
+    renderShell("/");
+    const button = screen.getByRole("button", { name: "Assistant" });
+    expect(button.querySelector("canvas.yd-shibi")).toBeNull();
+    expect(button.querySelector("svg.yd-icon")).not.toBeNull();
   });
 });

@@ -469,3 +469,10 @@
     transition: none;
   }
 }
+
+/* The shibi in the drawer's head, where the badge used to be. Same footprint
+   as the IconBadge he replaces (32px), so the head keeps its row height
+   whether the mascot is on or off. */
+.yd-assistant-drawer__shibi {
+  margin-top: -2px;
+}

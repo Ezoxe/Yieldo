@@ -126,19 +126,22 @@ interface ShibiFrame {
   /** Positive squashes it wider and shorter, negative stretches it taller. */
   sq?: number;
   eyes: EyeShape;
-  /** Eyes look this many pixels off centre. */
-  eyeDX?: number;
   /**
-   * Where the pupil sits inside the eye, in whole pixels from its middle.
-   * Both channels are clamped to the eye's own 3x3 box, so a frame can never
-   * push a pupil out of the face it belongs to.
+   * Where he is looking, in whole pixels: [x, y], each -1, 0 or +1.
    *
-   * This is the whole of his gaze. A 3x3 eye with a single dark pixel in it
-   * has nine directions to look in, which turns out to be plenty — and it is
-   * the one thing that makes him read as looking AT something rather than
-   * merely facing it.
+   * There is no pupil. The eye is a block of white, and it looks somewhere by
+   * MOVING — it slides one pixel toward what it is looking at and gives up the
+   * column it left behind, so a right-looking eye is two pixels of white flush
+   * against the right of its socket. A dark dot inside a 3x3 eye was tried and
+   * dropped: at 32px it read as a hole rather than as a pupil, and it gave a
+   * deliberately impersonal cube something close to a stare.
+   *
+   * The trim is what carries the direction. A block that only slid would keep
+   * its width and read as the whole eye being nudged; one that loses its
+   * trailing column reads as the white gathering on the side it is looking
+   * toward.
    */
-  pupil?: readonly [number, number];
+  gaze?: readonly [number, number];
   /**
    * The antenna trailing behind the body, in pixels.
    *
@@ -198,8 +201,7 @@ function frames(
     sq?: number[];
     antennaDY?: number[];
     eyes: EyeShape[] | EyeShape;
-    eyeDX?: number[];
-    pupil?: (readonly [number, number])[];
+    gaze?: (readonly [number, number])[];
     eyeDim?: boolean;
     hue: ShibiHue;
     diode: (0 | 1 | 2)[];
@@ -216,8 +218,7 @@ function frames(
     sq: at(channels.sq, i) ?? 0,
     antennaDY: at(channels.antennaDY, i) ?? 0,
     eyes: Array.isArray(channels.eyes) ? channels.eyes[i] : channels.eyes,
-    eyeDX: at(channels.eyeDX, i) ?? 0,
-    pupil: at(channels.pupil, i),
+    gaze: at(channels.gaze, i),
     eyeDim: channels.eyeDim,
     hue: channels.hue,
     diode: channels.diode[i],
@@ -250,7 +251,7 @@ export const SHIBI_ANIMATIONS: ShibiAnimation[] = [
         "open", "open", "open", "open", "open", "open", "open", "open",
         "open", "open", "open", "half", "blink", "half", "open", "open",
       ],
-      pupil: [
+      gaze: [
         AHEAD, AHEAD, AHEAD, AHEAD, [1, 0], [1, 0], [1, 0], AHEAD,
         AHEAD, AHEAD, AHEAD, AHEAD, AHEAD, AHEAD, [-1, 0], [-1, 0],
       ],
@@ -264,15 +265,16 @@ export const SHIBI_ANIMATIONS: ShibiAnimation[] = [
     hue: "amber",
     fps: 10,
     note:
-      "Une requête est partie. Les yeux se plissent et balayent la ligne, la " +
-      "pupille remonte deux fois — on cherche —, la diode passe à l'ambre et les " +
+      "Une requête est partie. Les yeux se plissent et glissent d'un bord à " +
+      "l'autre — le blanc se rassemble du côté où il regarde —, ils remontent deux " +
+      "fois, la diode passe à l'ambre et les " +
       "trois points se remplissent. Jamais une barre de progression : rien ici ne " +
       "sait combien de temps ça prendra.",
     frames: frames(12, {
       bob: [0, -1, -1, 0, 0, -1, -1, 0, 0, -1, -1, 0],
       antennaDY: [1, 1, 0, 0, 0, 1, 1, 0, 0, 1, 1, 0],
       eyes: "narrow",
-      pupil: [
+      gaze: [
         [-1, 0], [-1, 0], AHEAD, [1, 0], [1, 0], [1, -1],
         AHEAD, [-1, -1], [-1, 0], AHEAD, [1, 0], AHEAD,
       ],
@@ -298,7 +300,7 @@ export const SHIBI_ANIMATIONS: ShibiAnimation[] = [
         "wide", "wide", "wide", "glad", "glad",
         "glad", "glad", "glad", "glad", "glad",
       ],
-      pupil: [AHEAD, AHEAD, [0, -1]],
+      gaze: [AHEAD, AHEAD, [0, -1]],
       ring: [0, 0, 1, 2, 3, 3, 0, 0, 0, 0],
       diode: [2, 2, 2, 2, 1, 1, 1, 1, 1, 1],
       hue: "emerald",
@@ -332,7 +334,7 @@ export const SHIBI_ANIMATIONS: ShibiAnimation[] = [
     fps: 9,
     note:
       "Il montre l'outil dont la réponse s'est servie. Il se penche, le bras sort, " +
-      "le chevron pousse vers la ligne — et la pupille part avec le bras, parce " +
+      "le chevron pousse vers la ligne — et le regard part avec le bras, parce " +
       "qu'un personnage qui montre quelque chose sans le regarder ne montre rien.",
     frames: frames(10, {
       dx: [0, 1, 1, 1, 1, 1, 1, 1, 0, 0],
@@ -340,7 +342,7 @@ export const SHIBI_ANIMATIONS: ShibiAnimation[] = [
       antennaDY: [0, 1, 1, 0, 0, 0, 0, 0, 0, 0],
       arm: [0, 1, 2, 3, 4, 4, 4, 3, 2, 1],
       eyes: "open",
-      pupil: [
+      gaze: [
         AHEAD, [1, 0], [1, 0], [1, 0], [1, 0],
         [1, 0], [1, 0], [1, 0], AHEAD, AHEAD,
       ],
@@ -505,28 +507,31 @@ function paint(f: ShibiFrame): ShibiGrid {
   rrect(g, vx, vy, vw, 7, 1, P.visor);
   rect(g, vx + 1, vy, vw - 2, 1, P.glass);
 
-  // The eyes: two squares and a pupil, and nothing else. Their shape carries
-  // the state; where the pupil sits carries what he is looking at.
+  // The eyes: two blocks of white, and nothing else. Their shape carries the
+  // state, and which way the white has gathered carries the gaze.
   const eyeC = f.eyeDim ? P.eyeDim : P.eye;
-  const ex = f.eyeDX ?? 0;
   const ey = vy + 2;
-  const clamp = (n: number, low: number, high: number) =>
-    Math.min(Math.max(n, low), high);
+  const [gx, gy] = f.gaze ?? [0, 0];
 
-  for (const x of [vx + 2 + ex, vx + vw - 5 + ex]) {
+  /**
+   * A block of white that has slid `gx`/`gy` pixels and given up the column
+   * (or row) it left behind. At gaze [0, 0] this is the whole box.
+   */
+  const look = (x0: number, y0: number, w: number, h: number) => {
+    const left = x0 + Math.max(gx, 0);
+    const right = x0 + w - 1 + Math.min(gx, 0);
+    const top = y0 + Math.max(gy, 0);
+    const bottom = y0 + h - 1 + Math.min(gy, 0);
+    rect(g, left, top, right - left + 1, bottom - top + 1, eyeC);
+  };
+
+  for (const x of [vx + 2, vx + vw - 5]) {
     switch (f.eyes) {
+      // A closed lid is one row of white and has nowhere left to look, so the
+      // gaze does not reach these three shapes.
       case "blink":
       case "closed":
         rect(g, x, ey + 1, 3, 1, eyeC);
-        break;
-      case "half":
-        rect(g, x, ey + 1, 3, 2, eyeC);
-        break;
-      case "narrow":
-        rect(g, x, ey + 1, 3, 2, eyeC);
-        break;
-      case "wide":
-        rect(g, x - 1, ey, 5, 3, eyeC);
         break;
       case "dash":
         rect(g, x, ey + 1, 3, 1, eyeC);
@@ -536,25 +541,17 @@ function paint(f: ShibiFrame): ShibiGrid {
         rect(g, x, ey + 1, 3, 2, eyeC);
         plot(g, x + 1, ey, eyeC);
         break;
+      case "half":
+        look(x, ey + 1, 3, 2);
+        break;
+      case "narrow":
+        look(x, ey + 1, 3, 2);
+        break;
+      case "wide":
+        look(x - 1, ey, 5, 3);
+        break;
       default:
-        rect(g, x, ey, 3, 3, eyeC);
-    }
-
-    // Only the shapes that have an open eye to put one in. A pupil on a closed
-    // lid would be a dot floating on his face.
-    if (f.pupil && (f.eyes === "open" || f.eyes === "narrow" || f.eyes === "wide")) {
-      const [dx0, dy0] = f.pupil;
-      const wide = f.eyes === "wide";
-      const left = wide ? x - 1 : x;
-      const width = wide ? 5 : 3;
-      const top = f.eyes === "narrow" ? ey + 1 : ey;
-      const height = f.eyes === "narrow" ? 2 : 3;
-      plot(
-        g,
-        clamp(left + Math.floor(width / 2) + dx0, left, left + width - 1),
-        clamp(top + Math.floor(height / 2) + dy0, top, top + height - 1),
-        P.visor,
-      );
+        look(x, ey, 3, 3);
     }
   }
 

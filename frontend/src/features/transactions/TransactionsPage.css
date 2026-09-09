@@ -64,7 +64,10 @@
    is a column of label + input, so the mark is positioned over the input
    rather than added as a third row, and the input is padded out of its way. */
 .yd-filterbar__field--search {
-  flex: 1 1 220px;
+  /* Wider than it was: it is now the only search on the screen, and its
+     placeholder names the five things it reaches. A 220px basis clipped that
+     sentence at "catégorie", which is exactly the half that has to be read. */
+  flex: 1 1 320px;
   position: relative;
 }
 

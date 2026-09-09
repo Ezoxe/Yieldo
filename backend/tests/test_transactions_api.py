@@ -178,3 +178,80 @@ def test_deleting_someone_elses_transaction_returns_404(client, imported):
     other_headers = {"Authorization": f"Bearer {other['access_token']}"}
     response = client.delete(f"/api/transactions/{transaction_id}", headers=other_headers)
     assert response.status_code == 404
+
+
+# One box, everything in it. `search` used to read `label_clean` alone, which
+# normalize_label has already stripped of dates and long digit runs -- so the
+# one thing the reader can see on their statement was the one thing they could
+# not search for. These pin every field the single box now reaches.
+
+
+def test_search_matches_a_fragment_the_normalizer_had_erased(client, imported):
+    headers, _ = imported
+    # "CARREFOUR MARKET CB 01/03": normalize_label drops the date fragment, so
+    # this only ever matches against the raw label.
+    body = client.get("/api/transactions?search=01/03", headers=headers).json()
+    assert body["total"] == 1
+    assert body["items"][0]["label_raw"] == "CARREFOUR MARKET CB 01/03"
+
+
+def test_search_matches_an_amount_written_with_a_comma(client, imported):
+    headers, _ = imported
+    body = client.get("/api/transactions?search=13,49", headers=headers).json()
+    assert body["total"] == 1
+    assert body["items"][0]["amount_cents"] == -1349
+
+
+def test_search_matches_an_amount_written_with_a_currency_sign(client, imported):
+    headers, _ = imported
+    body = client.get("/api/transactions?search=2450 €", headers=headers).json()
+    assert body["total"] == 1
+    assert body["items"][0]["amount_cents"] == 245000
+
+
+def test_search_matches_an_expense_typed_without_its_minus(client, imported):
+    headers, _ = imported
+    # The statement shows 68,10 spent; the ledger stores -6810.
+    body = client.get("/api/transactions?search=68,10", headers=headers).json()
+    assert body["total"] == 1
+    assert body["items"][0]["amount_cents"] == -6810
+
+
+def test_search_matches_an_iso_date(client, imported):
+    headers, _ = imported
+    body = client.get("/api/transactions?search=2025-03-05", headers=headers).json()
+    assert body["total"] == 1
+    assert body["items"][0]["date"] == "2025-03-05"
+
+
+def test_search_matches_a_french_date(client, imported):
+    headers, _ = imported
+    body = client.get("/api/transactions?search=03/03/2025", headers=headers).json()
+    assert body["total"] == 1
+    assert body["items"][0]["date"] == "2025-03-03"
+
+
+def test_search_matches_the_account_name(client, imported):
+    headers, _ = imported
+    body = client.get("/api/transactions?search=Courant", headers=headers).json()
+    assert body["total"] == 4
+
+
+def test_search_matches_the_category_name(client, imported):
+    headers, _ = imported
+    categories = client.get("/api/categories", headers=headers).json()
+    target = next(c for c in categories if c["name"] == "Loisirs")
+    netflix = next(
+        item for item in client.get("/api/transactions", headers=headers).json()["items"]
+        if "NETFLIX" in item["label_raw"]
+    )
+    client.patch(f"/api/transactions/{netflix['id']}", headers=headers,
+                 json={"category_id": target["id"]})
+    body = client.get("/api/transactions?search=Loisirs", headers=headers).json()
+    assert body["total"] >= 1
+    assert all(item["category_id"] == target["id"] for item in body["items"])
+
+
+def test_search_still_finds_nothing_when_nothing_matches(client, imported):
+    headers, _ = imported
+    assert client.get("/api/transactions?search=12", headers=headers).json()["total"] == 0

@@ -50,6 +50,49 @@ touching code.
   seen and confirmed the mapping on screen, and any change to it invalidates
   the preview until the analysis is re-run. Never auto-commit a suggestion.
 
+## One box per question
+
+The Transactions screen has ONE search field, and `search` on
+`GET /transactions` is a single OR over the label (raw AND normalised -- the
+normaliser eats digits and dates, so the raw label is the only place a
+statement fragment survives), the amount, the category name, the account name
+and the date. Reading the raw text is `engines/search.parse_query`, pure: a
+number is an amount only when the WHOLE query is that number, a date only when
+the whole query is that date, and everything else stays text. The category
+combobox that used to sit beside the box is gone; a select and two switches
+are not searches and never looked like one.
+
+The header holds the same idea for the whole application. `GET /search` is
+read-only, filtered on `user_id` like every other route, and answers with
+GROUPS -- transactions, comptes, catégories, récurrences, objectifs, dettes --
+every group present even when empty, so the screen can say what it looked in.
+Beside them the dialog lists SCREENS, matched client-side against
+`app/navigation.ts`: that module is the one list both the sidebar and the
+search read, and its `aliases` are the French words a household reaches for
+("abonnements" finds Récurrences). Data, like `design/ai/targets.ts` -- a new
+screen is a new line there, not a new branch.
+
+Two rules on that route. Every figure it returns carries a word naming it
+(« Capital restant dû », « Solde d'ouverture ») except a transaction's own
+amount, which sits under its label and date; a category returns no figure at
+all, because a monthly budget printed under a search hit reads as what you
+spent. And a failure is printed: the screens stay listed and the cause is named
+beside them, never a « rien trouvé » that was really a network error.
+
+A transaction hit lands on `/transactions?q=<libellé>`. The `q` is a HANDOFF,
+not a mirror: the screen applies it, remounts its box with it, and takes it
+back out of the URL -- a URL still claiming `?q=A` after the reader has typed
+B would be a lie about the list under it.
+
+## The reading lives in Réglages
+
+`LedgerModeControl` sits in Réglages → Lecture des chiffres. What stays in the
+header is `LedgerModeBadge`, and only when the mode is not « Réel »: a figure
+mixing a relevé with a declaration and not saying so is a lie told in the right
+font, but a permanent badge reading "Réel" is noise eleven months out of twelve.
+`AppShell` still keys its `Outlet` on the mode, so changing it still refetches
+every screen.
+
 ## The assistant's spotlight
 
 `design/ai/targets.ts` is the list of things the assistant may point at, and

@@ -1,13 +1,14 @@
 from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import func
+from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
 from app.api.history import user_history
 from app.categorization.engine import classify, compile_rules
 from app.categorization.learning import apply_learned_rule, learn_from_correction
 from app.db import get_db
+from app.engines.search import like_pattern, parse_query
 from app.importers.dedup import compute_dedup_hash, normalize_label
 from app.models import Account, Category, CategoryRule, Transaction, User
 from app.schemas.transactions import (
@@ -87,6 +88,60 @@ def _owned_transaction(db: Session, user: User, transaction_id: int) -> Transact
     return transaction
 
 
+def _search_clause(db: Session, user: User, search: str):
+    """Everything one search box can be looking for, as one OR.
+
+    The box is single because the reader has one question, not five. What they
+    typed is matched against the label they can see on their statement, the
+    price, the category, the account and the date -- whichever of those it turns
+    out to be. `engines.search.parse_query` decides which readings are even
+    possible; this only turns them into SQL.
+
+    Category and account are resolved to ids first rather than joined: a join
+    would have to be an outer one (a row may have no category) and would then
+    sit under the two `count()` calls above, which are the figures the empty
+    state diagnoses itself with. Two small lookups keep that count honest.
+    """
+    terms = parse_query(search)
+    clauses = [Transaction.label_raw.ilike(like_pattern(terms.text), escape="\\")]
+
+    normalized = normalize_label(terms.text)
+    if normalized:
+        clauses.append(Transaction.label_clean.contains(normalized))
+
+    category_ids = [
+        row[0] for row in db.query(Category.id)
+        .filter(
+            Category.user_id == user.id,
+            Category.name.ilike(like_pattern(terms.text), escape="\\"),
+        )
+        .all()
+    ]
+    if category_ids:
+        clauses.append(Transaction.category_id.in_(category_ids))
+
+    account_ids = [
+        row[0] for row in db.query(Account.id)
+        .filter(
+            Account.user_id == user.id,
+            Account.name.ilike(like_pattern(terms.text), escape="\\"),
+        )
+        .all()
+    ]
+    if account_ids:
+        clauses.append(Transaction.account_id.in_(account_ids))
+
+    if terms.amount_cents is not None:
+        # On the absolute value: the statement shows 68,10 spent, the ledger
+        # stores -6810, and the household types what the statement showed.
+        clauses.append(func.abs(Transaction.amount_cents) == terms.amount_cents)
+
+    if terms.on_date is not None:
+        clauses.append(Transaction.date == terms.on_date)
+
+    return or_(*clauses)
+
+
 @router.get("", response_model=TransactionPage)
 def list_transactions(
     date_from: date | None = None,
@@ -140,7 +195,7 @@ def list_transactions(
     if max_cents is not None:
         query = query.filter(Transaction.amount_cents <= max_cents)
     if search:
-        query = query.filter(Transaction.label_clean.contains(normalize_label(search)))
+        query = query.filter(_search_clause(db, user, search))
 
     total = query.with_entities(func.count(Transaction.id)).scalar() or 0
     period_total = period_query.with_entities(func.count(Transaction.id)).scalar() or 0

@@ -10,7 +10,7 @@ describe("activeFilterLabels", () => {
   // unexplained shortened list this screen exists to refuse.
   it("names the transfers the default filter is hiding, and how many", () => {
     const labels = activeFilterLabels({
-      search: "", accountName: null, categoryName: null, uncategorizedOnly: false,
+      search: "", accountName: null, uncategorizedOnly: false,
       transfersHidden: true, transferCount: 12,
     });
     expect(labels).toEqual([
@@ -21,14 +21,14 @@ describe("activeFilterLabels", () => {
   it("says nothing about a filter that is hiding nothing", () => {
     expect(
       activeFilterLabels({
-        search: "", accountName: null, categoryName: null, uncategorizedOnly: false,
+        search: "", accountName: null, uncategorizedOnly: false,
         transfersHidden: true, transferCount: 0,
       }),
     ).toEqual([]);
   });
 
   const none = {
-    search: "", accountName: null, categoryName: null, uncategorizedOnly: false,
+    search: "", accountName: null, uncategorizedOnly: false,
     transfersHidden: false, transferCount: 0,
   };
 
@@ -41,14 +41,12 @@ describe("activeFilterLabels", () => {
       activeFilterLabels({
         search: "netflix",
         accountName: "Compte courant",
-        categoryName: "Alimentation",
         uncategorizedOnly: true,
         transfersHidden: false,
         transferCount: 0,
       }),
     ).toEqual([
       "la recherche « netflix »",
-      "la catégorie « Alimentation »",
       "le compte « Compte courant »",
       "« Non catégorisées uniquement »",
     ]);
@@ -160,9 +158,9 @@ beforeEach(() => {
   vi.stubGlobal("fetch", fetchMock);
 });
 
-function renderPage() {
+function renderPage(entry = "/transactions") {
   return render(
-    <MemoryRouter initialEntries={["/transactions"]}>
+    <MemoryRouter initialEntries={[entry]}>
       <TransactionsPage />
     </MemoryRouter>,
   );
@@ -548,4 +546,23 @@ describe("TransactionsPage", () => {
       ),
     );
   });
+
+// The header's super-search hands a term over through the URL. It has to reach
+// the box AND the request, or the reader lands on a list that ignored them.
+describe("TransactionsPage — the term the header hands over", () => {
+  beforeEach(() => {
+    setupFetch();
+  });
+
+  it("starts filtered on it, and shows it in the box", async () => {
+    renderPage("/transactions?q=DECATHLON");
+
+    await waitFor(() =>
+      expect(screen.getByRole("searchbox", { name: "Rechercher" })).toHaveValue("DECATHLON"));
+    await waitFor(() =>
+      expect(
+        fetchMock.mock.calls.some(([url]) => String(url).includes("search=DECATHLON")),
+      ).toBe(true));
+  });
+});
 });

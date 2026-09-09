@@ -30,6 +30,7 @@ from app.api import portfolio as portfolio_routes
 from app.api import projection as projection_routes
 from app.api import recurrences as recurrence_routes
 from app.api import reports as report_routes
+from app.api import search as search_routes
 from app.api import simulators as simulator_routes
 from app.api import transactions as transaction_routes
 from app.api.errors import french_validation_detail
@@ -96,6 +97,7 @@ api.include_router(export_routes.router)
 api.include_router(assistant_llm_routes.router)
 api.include_router(report_routes.router)
 api.include_router(alert_routes.router)
+api.include_router(search_routes.router)
 
 app.include_router(api)
 

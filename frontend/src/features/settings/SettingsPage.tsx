@@ -14,6 +14,7 @@ import {
   ConnectionsIcon,
   KeyIcon,
   LockIcon,
+  PlanIcon,
   SettingsIcon,
   SignOutIcon,
 } from "../../design/icons";
@@ -27,6 +28,7 @@ import { useSession } from "../auth/session";
 import { AccessKeyPanel } from "./AccessKeyPanel";
 import { AccountsPanel } from "./AccountsPanel";
 import { PasswordForm } from "./PasswordForm";
+import { LedgerModeControl } from "../plan/LedgerModeControl";
 import { ProfileForm } from "./ProfileForm";
 import "./SettingsPage.css";
 
@@ -98,6 +100,18 @@ export function SettingsPage() {
         <BentoCell as={motion.div} span={SPAN.full} className="yd-panel" {...entryProps(reduced)}>
           <PanelHead icon={CoinsIcon}>Comptes</PanelHead>
           <AccountsPanel />
+        </BentoCell>
+
+        {/* The reading every figure in the application is in. It used to sit
+            in the header, which spent the most valuable strip of the page on a
+            choice made a few times a year; what stays up there is the
+            LedgerModeBadge, and only when the reading is not the plain one. */}
+        <BentoCell as={motion.div} span={SPAN.half} className="yd-panel" {...entryProps(reduced)}>
+          <PanelHead icon={PlanIcon}>Lecture des chiffres</PanelHead>
+          <p className="yd-settings__hint">
+            Ce que les montants affichés dans toute l'application veulent dire.
+          </p>
+          <LedgerModeControl />
         </BentoCell>
 
         <BentoCell as={motion.div} span={SPAN.half} className="yd-panel" {...entryProps(reduced)}>

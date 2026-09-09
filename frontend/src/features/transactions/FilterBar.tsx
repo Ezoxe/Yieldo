@@ -1,8 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import { SearchIcon } from "../../design/icons";
-import type { Account, Category } from "../../lib/types";
-import { CategoryPicker } from "./CategoryPicker";
+import type { Account } from "../../lib/types";
 import { PeriodSelector } from "./PeriodSelector";
 import type { UsePeriodResult } from "./usePeriod";
 
@@ -11,11 +10,8 @@ const SEARCH_DEBOUNCE_MS = 250;
 interface FilterBarProps {
   period: UsePeriodResult;
   accounts: Account[];
-  categories: Category[];
   accountId: number | null;
   onAccountChange: (accountId: number | null) => void;
-  categoryId: number | null;
-  onCategoryChange: (categoryId: number | null) => void;
   uncategorizedOnly: boolean;
   onUncategorizedOnlyChange: (value: boolean) => void;
   uncategorizedCount: number | null;
@@ -29,16 +25,19 @@ interface FilterBarProps {
    */
   transferCount: number | null;
   onSearchChange: (value: string) => void;
+  /**
+   * What the box starts with. The super-search in the header hands a term to
+   * this screen through the URL, and a box that showed nothing while the list
+   * below it was filtered would be the shortened list this screen refuses.
+   */
+  initialSearch?: string;
 }
 
 export function FilterBar({
   period,
   accounts,
-  categories,
   accountId,
   onAccountChange,
-  categoryId,
-  onCategoryChange,
   uncategorizedOnly,
   onUncategorizedOnlyChange,
   uncategorizedCount,
@@ -46,8 +45,9 @@ export function FilterBar({
   onIncludeTransfersChange,
   transferCount,
   onSearchChange,
+  initialSearch = "",
 }: FilterBarProps) {
-  const [searchInput, setSearchInput] = useState("");
+  const [searchInput, setSearchInput] = useState(initialSearch);
 
   // The latest callback lives in a ref so the debounce effect below only ever
   // depends on `searchInput` -- a fresh onSearchChange identity every render
@@ -63,9 +63,16 @@ export function FilterBar({
   }, [searchInput]);
 
   // Plain content: the BentoCell around it (TransactionsPage's SPAN.filters)
-  // is the surface. The period and the four filters are siblings in one band
-  // rather than two stacked rows -- side by side once there is width for it,
-  // stacked when there is not.
+  // is the surface. The period and the filters are siblings in one band rather
+  // than two stacked rows -- side by side once there is width for it, stacked
+  // when there is not.
+  //
+  // ONE text box. There used to be two side by side -- "Rechercher un
+  // libellé…" and a searchable category combobox -- which asked the reader to
+  // know which of the two held the answer before they had it. The single box
+  // matches the label, the amount, the category, the account and the date; the
+  // account select and the two switches stay, because a list of choices and a
+  // switch are not searches and never looked like one.
   return (
     <div className="yd-filterbar">
       <PeriodSelector period={period} />
@@ -79,7 +86,7 @@ export function FilterBar({
           <SearchIcon />
           <input
             type="search"
-            placeholder="Rechercher un libellé…"
+            placeholder="Rechercher : libellé, montant, catégorie, compte, date…"
             value={searchInput}
             onChange={(event) => setSearchInput(event.target.value)}
           />
@@ -101,18 +108,6 @@ export function FilterBar({
             ))}
           </select>
         </label>
-
-        <div className="yd-filterbar__field">
-          {/* A distinct accessible name from the per-row "Catégorie" select in
-              TransactionRow -- otherwise the two are indistinguishable to
-              anything (tests included) that looks a control up by its label. */}
-          <CategoryPicker
-            value={categoryId}
-            onChange={onCategoryChange}
-            categories={categories}
-            label="Filtrer par catégorie"
-          />
-        </div>
 
         <label className="yd-filterbar__toggle">
           <input

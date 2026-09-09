@@ -7,113 +7,16 @@ import { AtmosphericBackground } from "../design/atmosphere/AtmosphericBackgroun
 import { useCardSpotlight } from "../design/bento/useCardSpotlight";
 import { Shibi } from "../design/shibi/Shibi";
 import { useShibiVisible } from "../design/shibi/shibiPreference";
-import {
-  AlertsIcon,
-  AnalysisIcon,
-  AssistantIcon,
-  BudgetsIcon,
-  CashflowIcon,
-  CategoriesIcon,
-  ConnectionsIcon,
-  DebtsIcon,
-  ExportIcon,
-  FeasibilityIcon,
-  GoalsIcon,
-  ImportIcon,
-  MenuIcon,
-  OverviewIcon,
-  PlanIcon,
-  PortfolioIcon,
-  ProposalsIcon,
-  ProjectionIcon,
-  RecurrencesIcon,
-  SettingsIcon,
-  SimulatorsIcon,
-  StreakIcon,
-  TransactionsIcon,
-  YieldoMark,
-  type IconComponent,
-} from "../design/icons";
+import { AssistantIcon, MenuIcon, YieldoMark } from "../design/icons";
 import { AssistantDrawer } from "../features/assistant/AssistantDrawer";
 import { useProposalCount } from "../features/agent/useProposalCount";
-import { LedgerModeControl } from "../features/plan/LedgerModeControl";
+import { LedgerModeBadge } from "../features/plan/LedgerModeBadge";
+import { GlobalSearch } from "../features/search/GlobalSearch";
 import { useLedgerMode } from "../features/plan/useLedgerMode";
+import { NAV_SECTIONS } from "./navigation";
 import { slideOver } from "../design/motion/variants";
 import { useReducedMotion } from "../design/motion/useReducedMotion";
 import "./AppShell.css";
-
-interface NavItem {
-  to: string;
-  label: string;
-  icon: IconComponent;
-  end?: boolean;
-}
-
-/**
- * The sidebar, in groups.
- *
- * Twenty flat entries is a wall nobody reads top to bottom; the same twenty
- * under five headings is a map. The GROUPS are the only thing added — the
- * order of the entries themselves is unchanged, and `AppShell.test.tsx` pins
- * that order as a list, because an entry silently dropped in a refactor is a
- * screen the operator can no longer reach.
- *
- * A section heading is a `<p>`, never a link: the nav's own accessible list is
- * exactly the twenty destinations.
- */
-interface NavSection {
-  /** null for the first group — a heading over a single entry is noise. */
-  title: string | null;
-  items: NavItem[];
-}
-
-const NAV_SECTIONS: NavSection[] = [
-  {
-    title: null,
-    items: [{ to: "/", label: "Vue d'ensemble", icon: OverviewIcon, end: true }],
-  },
-  {
-    title: "Au quotidien",
-    items: [
-      { to: "/transactions", label: "Transactions", icon: TransactionsIcon },
-      { to: "/budgets", label: "Budgets", icon: BudgetsIcon },
-      { to: "/recurrences", label: "Récurrences", icon: RecurrencesIcon },
-      { to: "/plan", label: "Plan prévisionnel", icon: PlanIcon },
-      { to: "/tresorerie", label: "Trésorerie", icon: CashflowIcon },
-      { to: "/analyse", label: "Analyse", icon: AnalysisIcon },
-    ],
-  },
-  {
-    title: "Objectifs",
-    items: [
-      { to: "/dettes", label: "Dettes", icon: DebtsIcon },
-      { to: "/objectifs", label: "Objectifs", icon: GoalsIcon },
-      { to: "/suivi", label: "Suivi", icon: StreakIcon },
-      { to: "/alertes", label: "Alertes", icon: AlertsIcon },
-    ],
-  },
-  {
-    title: "Horizon",
-    items: [
-      { to: "/patrimoine", label: "Patrimoine", icon: PortfolioIcon },
-      { to: "/projection", label: "Projection", icon: ProjectionIcon },
-      { to: "/faisabilite", label: "Faisabilité", icon: FeasibilityIcon },
-      { to: "/simulateurs", label: "Simulateurs", icon: SimulatorsIcon },
-    ],
-  },
-  {
-    title: "Outils",
-    items: [
-      { to: "/assistant", label: "Assistant", icon: AssistantIcon },
-      { to: "/propositions", label: "Propositions", icon: ProposalsIcon },
-      { to: "/export", label: "Export IA", icon: ExportIcon },
-      { to: "/categories", label: "Catégories", icon: CategoriesIcon },
-      { to: "/import", label: "Import", icon: ImportIcon },
-      { to: "/reglages", label: "Réglages", icon: SettingsIcon, end: true },
-      { to: "/reglages/connexions", label: "Connexions", icon: ConnectionsIcon },
-    ],
-  },
-];
 
 interface SidebarNavProps {
   id?: string;
@@ -334,12 +237,15 @@ export function AppShell({ userName }: AppShellProps) {
             action. */}
         <header className="yd-shell__header">
           <span className="yd-shell__user">{userName}</span>
-          {/* Which reading every figure below is in. It earns its place beside
-              the assistant for the reason the theme select lost it: this is
-              not a preference set once a year, it is a statement about what
-              the numbers on screen mean, and it has to be visible wherever
-              they are. */}
-          <LedgerModeControl />
+          {/* The reading, when it is not the plain one. The three-way control
+              that used to sit here is a choice made a few times a year and now
+              lives in Réglages; what stays is the STATEMENT, and only when
+              there is one to make. See LedgerModeBadge. */}
+          <LedgerModeBadge />
+          {/* One box for the whole application. It takes the slot the mode
+              control had because this is what a header slot is for: something
+              used to get somewhere, on every screen, several times a day. */}
+          <GlobalSearch />
           {/* The shibi IS the assistant's face, so it takes the mark's place
               here rather than sitting beside it — two drawings of the same
               thing on one button would be one too many. With the mascot

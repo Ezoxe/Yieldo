@@ -12,11 +12,6 @@ const accounts = [
     opening_balance_cents: 0, opened_on: null, include_in_net_worth: true, archived: false },
 ];
 
-const categories = [
-  { id: 1, parent_id: null, name: "Alimentation", slug: "alimentation",
-    kind: "expense", color: "#4fd6a8", icon: "cart", monthly_budget_cents: null, is_essential: false },
-];
-
 function makePeriod(overrides: Partial<UsePeriodResult> = {}): UsePeriodResult {
   return {
     preset: "month",
@@ -34,11 +29,8 @@ function baseProps(overrides: Partial<FilterBarProps> = {}): FilterBarProps {
   return {
     period: makePeriod(),
     accounts,
-    categories,
     accountId: null,
     onAccountChange: vi.fn(),
-    categoryId: null,
-    onCategoryChange: vi.fn(),
     uncategorizedOnly: false,
     onUncategorizedOnlyChange: vi.fn(),
     uncategorizedCount: null,
@@ -107,12 +99,37 @@ describe("FilterBar", () => {
     expect(screen.getByText("(7)")).toBeInTheDocument();
   });
 
+  // One box, not two. The category combobox that used to sit beside it was a
+  // second thing that looked like a search and answered a different question.
+  it("offers exactly one place to type", () => {
+    render(<FilterBar {...baseProps()} />);
+
+    expect(screen.getAllByRole("searchbox")).toHaveLength(1);
+    expect(screen.queryByRole("combobox", { name: "Filtrer par catégorie" }))
+      .not.toBeInTheDocument();
+  });
+
+  it("says what the one box reaches", () => {
+    render(<FilterBar {...baseProps()} />);
+
+    expect(screen.getByRole("searchbox", { name: "Rechercher" })).toHaveAttribute(
+      "placeholder",
+      "Rechercher : libellé, montant, catégorie, compte, date…",
+    );
+  });
+
+  it("starts on the term the header handed it", () => {
+    render(<FilterBar {...baseProps({ initialSearch: "netflix" })} />);
+
+    expect(screen.getByRole("searchbox", { name: "Rechercher" })).toHaveValue("netflix");
+  });
+
   describe("debounced search", () => {
     it("waits 250ms of inactivity before reporting the search text", async () => {
       const onSearchChange = vi.fn();
       render(<FilterBar {...baseProps({ onSearchChange })} />);
 
-      fireEvent.change(screen.getByPlaceholderText("Rechercher un libellé…"), {
+      fireEvent.change(screen.getByRole("searchbox", { name: "Rechercher" }), {
         target: { value: "netflix" },
       });
 

@@ -7,6 +7,7 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MemoryRouter, Route, Routes } from "react-router";
 
+import { useLedgerMode } from "../features/plan/useLedgerMode";
 import { useShibiPreference } from "../design/shibi/shibiPreference";
 import { AppShell } from "./AppShell";
 import { ThemeProvider } from "./ThemeProvider";
@@ -167,6 +168,36 @@ describe("AppShell", () => {
 
     expect(screen.getByRole("main")).toHaveTextContent("Écran budgets");
     expect(screen.getByRole("link", { name: "Budgets" })).toHaveAttribute("aria-current", "page");
+  });
+
+  // The header holds what is used to GET somewhere, several times a day. The
+  // three-way reading control that used to sit here sets a value a few times a
+  // year and now lives in Réglages -- see LedgerModeBadge for what stays.
+  describe("the header", () => {
+    it("offers the search, and no longer the reading control", () => {
+      useLedgerMode.setState({ mode: "real", loaded: true });
+      renderShell("/transactions");
+
+      expect(screen.getByRole("button", { name: /Rechercher/ })).toBeInTheDocument();
+      expect(screen.queryByRole("radiogroup", { name: "Mode de lecture" }))
+        .not.toBeInTheDocument();
+      expect(screen.queryByRole("combobox", { name: "Mode de lecture" }))
+        .not.toBeInTheDocument();
+    });
+
+    it("says nothing about the reading while it is simply real", () => {
+      useLedgerMode.setState({ mode: "real", loaded: true });
+      renderShell("/transactions");
+
+      expect(screen.queryByRole("link", { name: /Mode / })).not.toBeInTheDocument();
+    });
+
+    it("names a qualified reading where the figures are", () => {
+      useLedgerMode.setState({ mode: "blended", loaded: true });
+      renderShell("/transactions");
+
+      expect(screen.getByRole("link", { name: /Mode Réel complété/ })).toBeInTheDocument();
+    });
   });
 
   it("renders the routed page content inside main", () => {

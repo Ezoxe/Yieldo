@@ -514,3 +514,12 @@
 .yd-settings__aside a {
   color: var(--yd-accent);
 }
+
+/* One sentence under a panel head, saying what the control below it decides.
+   Not a methodology note -- those go behind an InfoTip -- but the plain sense
+   of the panel, which a heading of three words cannot carry on its own. */
+.yd-settings__hint {
+  margin: 0 0 var(--yd-space-sm);
+  color: var(--yd-text-muted);
+  font-size: 0.82rem;
+}

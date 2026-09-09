@@ -1,6 +1,6 @@
 import { motion } from "motion/react";
 import { Fragment, type ReactNode, useEffect, useRef, useState } from "react";
-import { Link } from "react-router";
+import { Link, useSearchParams } from "react-router";
 
 import { BentoCell, type BentoSpan } from "../../design/bento/BentoCell";
 import { BentoGrid } from "../../design/bento/BentoGrid";
@@ -66,8 +66,8 @@ const GENERIC_ERROR = "Une erreur inattendue est survenue.";
  * Deliberately not a filter rail beside the table: at 1200px, where the 12
  * column grid starts, a four-column rail is 243px wide once the sidebar and
  * the cell's own padding are taken out, which wraps the six period tabs onto
- * four lines and squeezes the category picker below its minimum. Full width
- * lets the period tabs and the four controls share a single 60px band.
+ * four lines and leaves the search box too narrow to read its own placeholder.
+ * Full width lets the period tabs and the three controls share one 60px band.
  */
 const SPAN = {
   filters: { base: 1, md: 6, lg: 12 },
@@ -84,7 +84,6 @@ function messageFor(err: unknown): string {
 export interface ActiveFilters {
   search: string;
   accountName: string | null;
-  categoryName: string | null;
   uncategorizedOnly: boolean;
   /** True when transfers are being HIDDEN — the state that removes rows. */
   transfersHidden: boolean;
@@ -102,7 +101,6 @@ export interface ActiveFilters {
 export function activeFilterLabels(filters: ActiveFilters): string[] {
   const labels: string[] = [];
   if (filters.search) labels.push(`la recherche « ${filters.search} »`);
-  if (filters.categoryName) labels.push(`la catégorie « ${filters.categoryName} »`);
   if (filters.accountName) labels.push(`le compte « ${filters.accountName} »`);
   if (filters.uncategorizedOnly) labels.push("« Non catégorisées uniquement »");
   if (filters.transfersHidden && filters.transferCount > 0) {
@@ -181,17 +179,40 @@ export function TransactionsPage() {
   const [referenceError, setReferenceError] = useState<string | null>(null);
 
   const [accountId, setAccountId] = useState<number | null>(null);
-  const [categoryId, setCategoryId] = useState<number | null>(null);
   const [uncategorizedOnly, setUncategorizedOnly] = useState(false);
   // Off by default: an internal transfer is not spending, and a list that
   // shows it beside real expenses invites the reader to add them up.
   const [includeTransfers, setIncludeTransfers] = useState(false);
-  const [search, setSearch] = useState("");
+  // The term the super-search in the header handed over, if it did.
+  const [urlParams, setUrlParams] = useSearchParams();
+  const [search, setSearch] = useState(() => urlParams.get("q") ?? "");
 
   // Bumped by "Effacer les filtres" to remount FilterBar: the search box holds
   // its own debounced input state, and clearing the page's `search` alone
   // would leave the text sitting in a field that no longer filters anything.
   const [filterResetKey, setFilterResetKey] = useState(0);
+
+  // `?q=` is a HANDOFF, not a mirror of the box. It is read, applied, and then
+  // taken back out of the URL -- three things that all matter:
+  //
+  // - read here rather than only in useState, because the header can hand a
+  //   term over while this screen is already mounted (a hit clicked from
+  //   /transactions itself), and a mount-only seed made that click a no-op;
+  // - the FilterBar is remounted with it, because the box owns its own
+  //   debounced input state and would otherwise keep showing the old term over
+  //   a list filtered by the new one;
+  // - consumed, because a URL still claiming `?q=A` after the reader has typed
+  //   B in the box is a lie about what the list below is. Every other param is
+  //   carried through untouched.
+  useEffect(() => {
+    const handed = urlParams.get("q");
+    if (handed === null) return;
+    setSearch(handed);
+    setFilterResetKey((key) => key + 1);
+    const remaining = new URLSearchParams(urlParams);
+    remaining.delete("q");
+    setUrlParams(remaining, { replace: true });
+  }, [urlParams, setUrlParams]);
 
   // Opening the hand-entry drawer, and the token that makes a saved row show
   // up: the created transaction is not spliced into the list by hand, because
@@ -258,7 +279,6 @@ export function TransactionsPage() {
           date_from: period.from,
           date_to: period.to,
           account_id: accountId,
-          category_id: categoryId,
           uncategorized_only: uncategorizedOnly,
           include_transfers: includeTransfers,
           search,
@@ -282,7 +302,7 @@ export function TransactionsPage() {
     return () => {
       cancelled = true;
     };
-  }, [period.from, period.to, accountId, categoryId, uncategorizedOnly, includeTransfers,
+  }, [period.from, period.to, accountId, uncategorizedOnly, includeTransfers,
       search, reloadToken]);
 
   async function loadMore() {
@@ -293,7 +313,6 @@ export function TransactionsPage() {
         date_from: period.from,
         date_to: period.to,
         account_id: accountId,
-        category_id: categoryId,
         uncategorized_only: uncategorizedOnly,
         include_transfers: includeTransfers,
         search,
@@ -389,7 +408,6 @@ export function TransactionsPage() {
 
   function clearFilters() {
     setAccountId(null);
-    setCategoryId(null);
     setUncategorizedOnly(false);
     // Cleared means "hide nothing": the reader asked to see what is there.
     setIncludeTransfers(true);
@@ -400,7 +418,6 @@ export function TransactionsPage() {
   const filterLabels = activeFilterLabels({
     search,
     accountName: accounts.find((a) => a.id === accountId)?.name ?? null,
-    categoryName: categories.find((c) => c.id === categoryId)?.name ?? null,
     uncategorizedOnly,
     transfersHidden: !includeTransfers,
     transferCount: transferTotal,
@@ -569,11 +586,9 @@ export function TransactionsPage() {
             key={filterResetKey}
             period={period}
             accounts={accounts}
-            categories={categories}
             accountId={accountId}
             onAccountChange={setAccountId}
-            categoryId={categoryId}
-            onCategoryChange={setCategoryId}
+            initialSearch={search}
             includeTransfers={includeTransfers}
             onIncludeTransfersChange={setIncludeTransfers}
             transferCount={transferTotal}

@@ -312,13 +312,67 @@ function summaryFor(params: Params) {
   };
 }
 
+/**
+ * Ce que la barre unique cherche, comme le backend le cherche.
+ *
+ * Miroir de `backend/app/engines/search.py` : un nombre n'est un montant que
+ * si toute la saisie est ce nombre, une date n'est une date que si toute la
+ * saisie est cette date, et le texte sert toujours au libellé. La copie est
+ * assumée -- l'aperçu doit se comporter comme l'application, pas comme une
+ * approximation qui donnerait raison à un écran qui a tort.
+ */
+interface SearchTerms {
+  text: string;
+  amountCents: number | null;
+  onDate: string | null;
+}
+
+function fold(text: string): string {
+  return text.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
+}
+
+function parseSearch(raw: string): SearchTerms {
+  const text = (raw ?? "").trim();
+  if (text === "") return { text: "", amountCents: null, onDate: null };
+
+  const iso = /^(\d{4})-(\d{2})-(\d{2})$/.exec(text);
+  const french = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(text);
+  let onDate: string | null = null;
+  if (iso) onDate = `${iso[1]}-${iso[2]}-${iso[3]}`;
+  else if (french) onDate = `${french[3]}-${french[2]}-${french[1]}`;
+
+  let amountCents: number | null = null;
+  if (onDate === null) {
+    const cleaned = text.replace(/[\s €]|eur/gi, "");
+    if (/^[+-]?\d+(?:[.,]\d{1,2})?$/.test(cleaned)) {
+      const [whole, fraction = ""] = cleaned.replace(",", ".").replace(/^[+-]/, "").split(".");
+      amountCents = Number(whole) * 100 + Number(fraction.padEnd(2, "0") || 0);
+    }
+  }
+  return { text, amountCents, onDate };
+}
+
+function rowMatches(row: Row, terms: SearchTerms): boolean {
+  if (terms.text === "") return true;
+  const needle = fold(terms.text);
+  if (fold(row.label).includes(needle)) return true;
+  const category = CATEGORIES.find((c) => c.id === row.category_id);
+  if (category && fold(category.name).includes(needle)) return true;
+  // Tout l'aperçu tient sur le compte 1.
+  if (fold("Compte courant").includes(needle)) return true;
+  if (terms.amountCents !== null && Math.abs(row.amount_cents) === terms.amountCents) return true;
+  if (terms.onDate !== null && row.date === terms.onDate) return true;
+  return false;
+}
+
 function transactionsFor(params: Params) {
   const from = params.get("date_from");
   const to = params.get("date_to");
   const limit = Number(params.get("limit") ?? 50);
   const offset = Number(params.get("offset") ?? 0);
   const includeTransfers = params.get("include_transfers") === "true";
-  const period = ROWS.filter((r) => inRange(r, from, to));
+  const terms = parseSearch(params.get("search") ?? "");
+  const period = ROWS.filter((r) => inRange(r, from, to)).filter((r) => rowMatches(r, terms));
   // Like the route: counted BEFORE the filter takes them out, or a shortened
   // list is indistinguishable from a shorter period.
   const transferTotal = period.filter((r) => r.transfer === true).length;
@@ -637,12 +691,17 @@ function plan(strategy: string, order: number[]) {
   };
 }
 
+const PREVIEW_GOALS: {
+  id: number; name: string; target_cents: number; saved_cents: number;
+  due_on: string | null; priority: number;
+}[] = [
+  { id: 1, name: "Fonds d'urgence", target_cents: 900_000, saved_cents: 412_000, due_on: "2027-06-30", priority: 1 },
+  { id: 2, name: "Remplacement voiture", target_cents: 1_200_000, saved_cents: 180_000, due_on: null, priority: 2 },
+  { id: 3, name: "Voyage Japon", target_cents: 450_000, saved_cents: 96_000, due_on: "2027-04-01", priority: 3 },
+];
+
 function goalsPayload() {
-  const goals = [
-    { id: 1, name: "Fonds d'urgence", target_cents: 900_000, saved_cents: 412_000, due_on: "2027-06-30", priority: 1 },
-    { id: 2, name: "Remplacement voiture", target_cents: 1_200_000, saved_cents: 180_000, due_on: null, priority: 2 },
-    { id: 3, name: "Voyage Japon", target_cents: 450_000, saved_cents: 96_000, due_on: "2027-04-01", priority: 3 },
-  ];
+  const goals = PREVIEW_GOALS;
   return {
     goals: goals.map((goal, i) => ({
       goal_id: goal.id,
@@ -1004,6 +1063,78 @@ const COLUMN_PROFILES = [
     created_at: "2026-07-04T18:00:00Z" },
 ];
 
+function searchPayload(params: Params) {
+  const terms = parseSearch(params.get("q") ?? "");
+  const limit = Number(params.get("limit") ?? 5);
+  const needle = fold(terms.text);
+  const take = <T,>(rows: T[]) => rows.slice(0, limit);
+  if (terms.text === "") {
+    return {
+      query: "",
+      groups: [
+        { kind: "transaction", label: "Transactions", items: [] },
+        { kind: "account", label: "Comptes", items: [] },
+        { kind: "category", label: "Catégories", items: [] },
+        { kind: "recurrence", label: "Récurrences", items: [] },
+        { kind: "goal", label: "Objectifs", items: [] },
+        { kind: "debt", label: "Dettes", items: [] },
+      ],
+    };
+  }
+  return {
+    query: terms.text,
+    groups: [
+      {
+        kind: "transaction", label: "Transactions",
+        items: take(ROWS.filter((row) => rowMatches(row, terms)).slice().reverse()).map((row) => ({
+          kind: "transaction", id: row.id, label: row.label,
+          detail: CATEGORIES.find((c) => c.id === row.category_id)?.name ?? null,
+          amount_cents: row.amount_cents, date: row.date, route: "/transactions",
+        })),
+      },
+      {
+        kind: "account", label: "Comptes",
+        items: take(ACCOUNTS.filter((a) => fold(a.name).includes(needle))).map((account) => ({
+          kind: "account", id: account.id, label: account.name,
+          detail: "Solde d'ouverture",
+          amount_cents: account.opening_balance_cents, date: null, route: "/reglages",
+        })),
+      },
+      {
+        kind: "category", label: "Catégories",
+        items: take(CATEGORIES.filter((c) => fold(c.name).includes(needle))).map((category) => ({
+          kind: "category", id: category.id, label: category.name, detail: null,
+          amount_cents: null, date: null, route: "/categories",
+        })),
+      },
+      {
+        kind: "recurrence", label: "Récurrences",
+        items: take(DECLARED.filter((d) => fold(d.label).includes(needle)
+          || (terms.amountCents !== null && Math.abs(d.amount_cents) === terms.amountCents)))
+          .map((declared) => ({
+            kind: "recurrence", id: declared.id, label: declared.label,
+            detail: "Montant déclaré",
+            amount_cents: declared.amount_cents, date: null, route: "/recurrences",
+          })),
+      },
+      {
+        kind: "goal", label: "Objectifs",
+        items: take(PREVIEW_GOALS.filter((g) => fold(g.name).includes(needle))).map((goal) => ({
+          kind: "goal", id: goal.id, label: goal.name, detail: "Objectif",
+          amount_cents: goal.target_cents, date: goal.due_on, route: "/objectifs",
+        })),
+      },
+      {
+        kind: "debt", label: "Dettes",
+        items: take(DEBTS.filter((d) => fold(d.name).includes(needle))).map((debt) => ({
+          kind: "debt", id: debt.id, label: debt.name, detail: "Capital restant dû",
+          amount_cents: debt.principal_cents, date: null, route: "/dettes",
+        })),
+      },
+    ],
+  };
+}
+
 const ROUTES: Record<string, (params: Params) => unknown> = {
   "/api/auth/refresh": () => ({ access_token: "apercu", token_type: "bearer", user: MUTABLE_USER }),
   "/api/auth/me": () => MUTABLE_USER,
@@ -1081,6 +1212,7 @@ const ROUTES: Record<string, (params: Params) => unknown> = {
     months_saved: 1,
   }),
   "/api/goals": goalsPayload,
+  "/api/search": searchPayload,
   "/api/chat": () => MOCK_CHATS,
   "/api/chat/conversations": () => mockConversations(),
   // Réglages → Connexions. Un modèle local configuré, avec un plafond relevé :

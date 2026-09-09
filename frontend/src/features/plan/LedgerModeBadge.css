@@ -1,0 +1,26 @@
+/* The info tint: a standing condition qualifying every figure below it. */
+.yd-mode-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--yd-space-2xs);
+  border: 1px solid color-mix(in srgb, var(--yd-info) 36%, transparent);
+  border-radius: var(--yd-radius-pill);
+  background: color-mix(in srgb, var(--yd-info) 12%, transparent);
+  color: var(--yd-info);
+  padding: 4px 11px;
+  font-size: 0.76rem;
+  white-space: nowrap;
+  text-decoration: none;
+}
+
+.yd-mode-badge:hover,
+.yd-mode-badge:focus-visible {
+  border-color: var(--yd-info);
+}
+
+.yd-mode-badge__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}

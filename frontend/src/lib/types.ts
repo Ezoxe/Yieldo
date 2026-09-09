@@ -2417,3 +2417,27 @@ export interface RecurrenceCalendar {
   pointed_count: number;
   notice: string | null;
 }
+
+// GET /search — the one box in the header. Groups rather than one ranked list:
+// a category and a transaction with the same word in them answer two different
+// questions, and the reader already knows which one they asked.
+export interface SearchHit {
+  kind: string;
+  id: number;
+  label: string;
+  detail: string | null;
+  amount_cents: number | null;
+  date: string | null;
+  route: string;
+}
+
+export interface SearchGroup {
+  kind: string;
+  label: string;
+  items: SearchHit[];
+}
+
+export interface SearchResults {
+  query: string;
+  groups: SearchGroup[];
+}

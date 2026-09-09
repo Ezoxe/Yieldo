@@ -1,0 +1,256 @@
+/* The header's one box, and the sheet it opens.
+   No hex anywhere: every colour is a token, so both themes are one file. */
+
+.yd-search {
+  display: contents;
+}
+
+.yd-search__trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--yd-space-xs);
+  min-width: 0;
+  /* A control's resting boundary, not a surface hairline — see
+     design/controlBorders.test.ts, which measures exactly this. */
+  border: 1px solid var(--yd-border-control);
+  border-radius: var(--yd-radius-pill);
+  background: var(--yd-surface-raised);
+  color: var(--yd-text-muted);
+  padding: 5px 8px 5px 11px;
+  font: inherit;
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: color 0.16s ease, border-color 0.16s ease, background 0.16s ease;
+}
+
+.yd-search__trigger:hover,
+.yd-search__trigger:focus-visible {
+  color: var(--yd-text);
+  border-color: var(--yd-accent);
+}
+
+.yd-search__trigger svg {
+  flex: none;
+  width: 18px;
+  height: 18px;
+}
+
+.yd-search__trigger-label {
+  /* The header's widest element on a desktop line, and the first thing to go
+     when there is no room for it — see the media query at the bottom. */
+  white-space: nowrap;
+}
+
+.yd-search__kbd {
+  border: 1px solid var(--yd-border);
+  border-radius: var(--yd-radius-sm);
+  padding: 1px 6px;
+  font-size: 0.68rem;
+  letter-spacing: 0.04em;
+  color: var(--yd-text-muted);
+  background: var(--yd-surface);
+}
+
+.yd-search__scrim {
+  position: fixed;
+  inset: 0;
+  background: var(--yd-scrim);
+  z-index: 60;
+}
+
+.yd-search__panel {
+  position: fixed;
+  top: clamp(48px, 12vh, 140px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(640px, calc(100vw - 2 * var(--yd-space-md)));
+  max-height: min(70vh, 620px);
+  display: flex;
+  flex-direction: column;
+  z-index: 61;
+  border: 1px solid var(--yd-border-strong);
+  border-radius: var(--yd-radius);
+  background: var(--yd-surface-strong);
+  box-shadow: var(--yd-shadow-pop);
+  overflow: hidden;
+}
+
+.yd-search__field {
+  display: flex;
+  align-items: center;
+  gap: var(--yd-space-xs);
+  padding: var(--yd-space-sm) var(--yd-space-md);
+  border-bottom: 1px solid var(--yd-border);
+  color: var(--yd-text-muted);
+}
+
+.yd-search__field svg {
+  flex: none;
+  width: 20px;
+  height: 20px;
+}
+
+.yd-search__field input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: var(--yd-text);
+  font: inherit;
+  font-size: 1rem;
+  padding: 4px 0;
+}
+
+.yd-search__field input:focus {
+  outline: none;
+}
+
+.yd-search__results {
+  overflow-y: auto;
+  padding: var(--yd-space-xs) 0 var(--yd-space-sm);
+}
+
+.yd-search__group + .yd-search__group {
+  border-top: 1px solid var(--yd-border);
+}
+
+.yd-search__group-head {
+  margin: 0;
+  padding: var(--yd-space-sm) var(--yd-space-md) var(--yd-space-2xs);
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--yd-text-muted);
+}
+
+.yd-search__group ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.yd-search__hit {
+  display: flex;
+  align-items: center;
+  gap: var(--yd-space-xs);
+  padding: 8px var(--yd-space-md);
+  color: var(--yd-text);
+  text-decoration: none;
+}
+
+.yd-search__hit:hover,
+.yd-search__hit:focus-visible {
+  background: var(--yd-surface-raised);
+}
+
+.yd-search__hit-mark {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border: 1px solid var(--yd-border);
+  border-radius: var(--yd-radius-sm);
+  background: var(--yd-surface);
+  color: var(--yd-text-muted);
+}
+
+.yd-search__hit-mark svg {
+  width: 16px;
+  height: 16px;
+}
+
+.yd-search__hit-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--yd-space-xs);
+}
+
+.yd-search__hit-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.yd-search__hit-meta {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--yd-space-xs);
+}
+
+.yd-search__hit-detail {
+  flex: none;
+  font-size: 0.76rem;
+  color: var(--yd-text-muted);
+}
+
+.yd-search__hit-amount {
+  flex: none;
+  font-size: 0.82rem;
+}
+
+.yd-search__note,
+.yd-search__error {
+  margin: 0;
+  padding: var(--yd-space-sm) var(--yd-space-md);
+  font-size: 0.82rem;
+  color: var(--yd-text-muted);
+}
+
+.yd-search__error {
+  color: var(--yd-negative);
+}
+
+/* At 375px a label and three figures cannot share a line -- the label is what
+   tells one hit from another, so it keeps the row and the figures drop under
+   it. Left aligned, because a column of amounts is not what is being compared
+   here; the label above each one is. */
+@media (max-width: 599px) {
+  .yd-search__hit {
+    align-items: flex-start;
+  }
+
+  .yd-search__hit-body {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 2px;
+  }
+
+  .yd-search__hit-label {
+    flex: none;
+  }
+
+  .yd-search__hit-meta {
+    flex-wrap: wrap;
+  }
+}
+
+/* A phone header holds the menu, this and the assistant on one 375px line.
+   The word goes, the glyph and the accessible name stay. */
+@media (max-width: 899px) {
+  .yd-search__trigger {
+    padding: 6px;
+  }
+
+  .yd-search__trigger-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  .yd-search__kbd {
+    display: none;
+  }
+}

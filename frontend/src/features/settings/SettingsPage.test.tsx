@@ -80,4 +80,17 @@ describe("SettingsPage", () => {
 
     expect(screen.getByTestId("reduced-motion-probe")).toHaveTextContent("true");
   });
+
+// The reading arrived here from the header: a choice made a few times a year
+// belongs beside the other preferences, not in the strip used all day.
+describe("la lecture des chiffres", () => {
+  it("propose les trois lectures dans son propre panneau", () => {
+    renderSettings();
+
+    expect(screen.getByText("Lecture des chiffres")).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: "Réel" })).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: "Estimé" })).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: "Réel complété" })).toBeInTheDocument();
+  });
+});
 });

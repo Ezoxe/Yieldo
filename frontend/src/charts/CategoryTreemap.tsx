@@ -198,6 +198,11 @@ export function CategoryTreemap({ items }: CategoryTreemapProps) {
     series: [
       {
         type: "treemap",
+        // The breadcrumb prints the path from the root, and the root is the
+        // series. Unnamed, ECharts printed the first tile's name there — a
+        // pill reading « Logement » under a grid where Logement was one tile
+        // among eight, seen on the dashboard at 1440 in both themes.
+        name: "Dépenses",
         roam: false,
         nodeClick: "zoomToNode",
         // The tiles stop short of the bottom edge so the breadcrumb has room

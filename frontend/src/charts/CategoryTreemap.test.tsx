@@ -1,4 +1,5 @@
 import { render, screen } from "@testing-library/react";
+import * as echarts from "echarts";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 
 import { ThemeProvider } from "../app/ThemeProvider";
@@ -112,6 +113,24 @@ describe("CategoryTreemap", () => {
       </ThemeProvider>,
     );
     expect(screen.getByRole("img")).toBeInTheDocument();
+  });
+
+  /**
+   * The breadcrumb under the grid prints the path from the root. With no
+   * series name, ECharts printed the FIRST tile's name there — a pill reading
+   * « Logement » under a treemap where Logement was one tile among eight,
+   * seen on the dashboard at 1440 in both themes.
+   */
+  it("names the root « Dépenses » so the breadcrumb never borrows a tile's name", () => {
+    const items = buildCategoryTreemapItems(breakdown, categories);
+    render(
+      <ThemeProvider>
+        <CategoryTreemap items={items} />
+      </ThemeProvider>,
+    );
+    const instance = echarts.getInstanceByDom(screen.getByRole("img"));
+    const series = instance?.getOption().series as Array<{ name?: string }>;
+    expect(series[0].name).toBe("Dépenses");
   });
 
   it("shows an inviting empty state instead of an empty grid when nothing was spent", () => {

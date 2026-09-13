@@ -87,6 +87,7 @@ export function RecurrenceCalendar({
   }
 
   return (
+    <div className="yd-rcal-scroll">
     <table className="yd-rcal">
       <thead>
         <tr>
@@ -145,5 +146,6 @@ export function RecurrenceCalendar({
         ))}
       </tbody>
     </table>
+    </div>
   );
 }

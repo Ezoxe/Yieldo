@@ -1,3 +1,7 @@
+import { readFileSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
@@ -68,6 +72,27 @@ describe("RecurrenceCalendar", () => {
     expect(
       screen.getByRole("button", { name: /Netflix.*échéance du 18.*À venir.*pointer/ }),
     ).toBeInTheDocument();
+  });
+
+  /**
+   * Seven columns of eighty pixels are 560 px, and a phone is 390. Measured
+   * on the recurrences screen at 390: Friday, Saturday and Sunday were cut
+   * off, with nothing to scroll. The table keeps its seven readable columns
+   * and scrolls inside its own container; the page itself never scrolls
+   * sideways.
+   */
+  it("keeps seven readable columns inside a container that scrolls, not the page", () => {
+    render(<RecurrenceCalendar year={2026} month={9} occurrences={[occurrence()]}
+                               onToggle={vi.fn()} pending={null} />);
+    const table = screen.getByRole("table");
+    expect(table.parentElement).toHaveClass("yd-rcal-scroll");
+
+    const here = path.dirname(fileURLToPath(import.meta.url));
+    const css = readFileSync(path.resolve(here, "./DeclaredRecurrences.css"), "utf8");
+    const scroll = css.match(/\.yd-rcal-scroll\s*\{([^}]*)\}/);
+    expect(scroll?.[1]).toMatch(/overflow-x:\s*auto/);
+    const grid = css.match(/\.yd-rcal\s*\{([^}]*)\}/);
+    expect(grid?.[1]).toMatch(/min-width:\s*34rem/);
   });
 
   it("reports a click with the occurrence it was on", async () => {

@@ -228,8 +228,20 @@
 
 /* The calendar grid --------------------------------------------------------- */
 
+/* Seven columns need about 34rem to stay readable; a phone is 390px. The
+   grid keeps its width and scrolls inside this container, so the weekend is
+   reached by a swipe rather than lost, and the page itself never scrolls
+   sideways. `min-width: 0` lets the container shrink below the table's
+   intrinsic width in the first place. */
+.yd-rcal-scroll {
+  min-width: 0;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
 .yd-rcal {
   width: 100%;
+  min-width: 34rem;
   border-collapse: collapse;
   table-layout: fixed;
 }

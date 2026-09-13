@@ -1,3 +1,12 @@
+/* The screen root: a flex column with the shared gap, like every other screen.
+   Left at `display: block`, the first panel sat flush against PageHead's
+   description — the one screen where it did. */
+.yd-categories {
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-lg);
+}
+
 /* The category tree. Two levels, and the second is indented rather than boxed:
    a nested card inside a card is a second panel, and the relationship here is
    an outline, not a hierarchy of surfaces. */

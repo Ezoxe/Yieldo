@@ -1,3 +1,7 @@
+import { readFileSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -73,6 +77,22 @@ describe("parseBudget", () => {
     expect(parseBudget("douze")).toBeUndefined();
     expect(parseBudget("-12")).toBeUndefined();
     expect(parseBudget("12,345")).toBeUndefined();
+  });
+});
+
+// jsdom does not lay anything out, so the one rule that keeps the shared gap
+// under PageHead is read from the stylesheet on disk, the way contrast.test.ts
+// reads tokens.css. The screen root was `display: block` and the first panel
+// sat flush against the description — the only screen where it did.
+describe("CategoriesPage stylesheet", () => {
+  it("makes the screen root a flex column with the shared gap", () => {
+    const here = path.dirname(fileURLToPath(import.meta.url));
+    const css = readFileSync(path.resolve(here, "./CategoriesPage.css"), "utf8");
+    const root = css.match(/\.yd-categories\s*\{([^}]*)\}/);
+    expect(root).not.toBeNull();
+    expect(root?.[1]).toMatch(/display:\s*flex/);
+    expect(root?.[1]).toMatch(/flex-direction:\s*column/);
+    expect(root?.[1]).toMatch(/gap:\s*var\(--yd-space-lg\)/);
   });
 });
 

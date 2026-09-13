@@ -125,6 +125,15 @@ export function parseIndexSeries(text: string): ParsedSeries {
   return errors.length > 0 ? { points: [], errors } : { points, errors };
 }
 
+/**
+ * The last month the embedded file holds, printed on the button so the reader
+ * knows how far the reference goes. Kept beside the file it describes —
+ * `backend/app/reference/ipc_insee.csv` — and moved with it; the backend's own
+ * test pins the file's shape, and the response of the copy carries the real
+ * value, which is what the screen re-reads after the copy.
+ */
+export const EMBEDDED_INDEX_LAST_MONTH = "2026-08";
+
 interface PriceIndexFormProps {
   points: PriceIndexPoint[];
   onSaved: () => void;
@@ -160,6 +169,24 @@ export function PriceIndexForm({ points, onSaved }: PriceIndexFormProps) {
       return;
     }
     await send(parsed.points);
+  }
+
+  // The IPC that ships with Yieldo, copied into the household's series in one
+  // click: pasting a hundred lines from the INSEE site was the only way to
+  // get a reference index, and nobody did. The file is embedded, never
+  // fetched; the button says how far it reaches.
+  async function useEmbedded() {
+    setSaving(true);
+    try {
+      await api.post<{ points: number; last_month: string }>("/analysis/price-index/insee");
+      setErrors([]);
+      setText("");
+      onSaved();
+    } catch (err) {
+      setErrors([err instanceof ApiError ? err.detail : GENERIC_ERROR]);
+    } finally {
+      setSaving(false);
+    }
   }
 
   async function send(next: { month: string; value: string }[]) {
@@ -236,9 +263,17 @@ export function PriceIndexForm({ points, onSaved }: PriceIndexFormProps) {
           type="button"
           className="yd-index__save"
           disabled={saving}
+          onClick={() => void useEmbedded()}
+        >
+          {`Utiliser l'indice INSEE embarqué (jusqu'à ${EMBEDDED_INDEX_LAST_MONTH})`}
+        </button>
+        <button
+          type="button"
+          className="yd-index__clear"
+          disabled={saving}
           onClick={() => void save()}
         >
-          Enregistrer l'indice
+          Enregistrer la série collée
         </button>
         {points.length > 0 ? (
           <button

@@ -109,3 +109,11 @@ class PriceIndexIn(BaseModel):
     # The WHOLE series. PUT replaces what is stored, so posting it twice is
     # idempotent and an empty list clears it.
     points: list[PriceIndexPointIn]
+
+
+class EmbeddedIndexOut(BaseModel):
+    """What `POST /analysis/price-index/insee` copied: how many points, and
+    the last month the embedded file reaches."""
+
+    points: int
+    last_month: str

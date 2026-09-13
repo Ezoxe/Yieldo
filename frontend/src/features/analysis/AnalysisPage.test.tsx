@@ -525,7 +525,7 @@ describe("AnalysisPage — period", () => {
     await screen.findByLabelText("+20,0 %");
 
     await userEvent.type(screen.getByLabelText(/Série de l'indice/), "2025-01;118,42");
-    await userEvent.click(screen.getByRole("button", { name: /Enregistrer l'indice/ }));
+    await userEvent.click(screen.getByRole("button", { name: /Enregistrer la série collée/ }));
 
     await vi.waitFor(() => {
       const inflationCalls = fetchMock.mock.calls.filter(([url]) =>

@@ -2,6 +2,7 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { api } from "../../lib/api";
 import { parseIndexSeries, PriceIndexForm } from "./PriceIndexForm";
 
 describe("parseIndexSeries", () => {
@@ -109,7 +110,7 @@ describe("PriceIndexForm", () => {
   it("sends the parsed series as month and decimal-string pairs", async () => {
     render(<PriceIndexForm points={[]} onSaved={vi.fn()} />);
     await userEvent.type(screen.getByLabelText(/Série de l'indice/), "2025-01;118,42");
-    await userEvent.click(screen.getByRole("button", { name: /Enregistrer l'indice/ }));
+    await userEvent.click(screen.getByRole("button", { name: /Enregistrer la série collée/ }));
 
     await waitFor(() => {
       const [put] = putCalls();
@@ -123,7 +124,7 @@ describe("PriceIndexForm", () => {
   it("refuses to send a series it could not fully read", async () => {
     render(<PriceIndexForm points={[]} onSaved={vi.fn()} />);
     await userEvent.type(screen.getByLabelText(/Série de l'indice/), "janvier;abc");
-    await userEvent.click(screen.getByRole("button", { name: /Enregistrer l'indice/ }));
+    await userEvent.click(screen.getByRole("button", { name: /Enregistrer la série collée/ }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent(/ligne 1/i);
     expect(putCalls()).toHaveLength(0);
@@ -135,7 +136,7 @@ describe("PriceIndexForm", () => {
       screen.getByLabelText(/Série de l'indice/),
       "2025-01;118,42{Enter}janvier;abc{Enter}2026-01;-5",
     );
-    await userEvent.click(screen.getByRole("button", { name: /Enregistrer l'indice/ }));
+    await userEvent.click(screen.getByRole("button", { name: /Enregistrer la série collée/ }));
 
     const alert = await screen.findByRole("alert");
     const items = within(alert).getAllByRole("listitem");
@@ -151,7 +152,7 @@ describe("PriceIndexForm", () => {
     render(
       <PriceIndexForm points={[{ month: "2025-01", value_hundredths: 11842 }]} onSaved={vi.fn()} />,
     );
-    await userEvent.click(screen.getByRole("button", { name: /Enregistrer l'indice/ }));
+    await userEvent.click(screen.getByRole("button", { name: /Enregistrer la série collée/ }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent(/Aucune ligne à enregistrer/);
     expect(putCalls()).toHaveLength(0);
@@ -203,7 +204,7 @@ describe("PriceIndexForm", () => {
     );
     render(<PriceIndexForm points={[]} onSaved={vi.fn()} />);
     await userEvent.type(screen.getByLabelText(/Série de l'indice/), "2025-01;118,42");
-    await userEvent.click(screen.getByRole("button", { name: /Enregistrer l'indice/ }));
+    await userEvent.click(screen.getByRole("button", { name: /Enregistrer la série collée/ }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent(/apparaît deux fois/);
   });
@@ -221,7 +222,7 @@ describe("PriceIndexForm", () => {
     );
     render(<PriceIndexForm points={[]} onSaved={vi.fn()} />);
     await userEvent.type(screen.getByLabelText(/Série de l'indice/), "2025-01;118,42");
-    await userEvent.click(screen.getByRole("button", { name: /Enregistrer l'indice/ }));
+    await userEvent.click(screen.getByRole("button", { name: /Enregistrer la série collée/ }));
 
     const alert = await screen.findByRole("alert");
     expect(alert).toHaveTextContent("Valeur refusée");
@@ -232,8 +233,26 @@ describe("PriceIndexForm", () => {
     const onSaved = vi.fn();
     render(<PriceIndexForm points={[]} onSaved={onSaved} />);
     await userEvent.type(screen.getByLabelText(/Série de l'indice/), "2025-01;118,42");
-    await userEvent.click(screen.getByRole("button", { name: /Enregistrer l'indice/ }));
+    await userEvent.click(screen.getByRole("button", { name: /Enregistrer la série collée/ }));
 
     await waitFor(() => expect(onSaved).toHaveBeenCalledTimes(1));
+  });
+});
+
+describe("PriceIndexForm — the embedded INSEE index", () => {
+  it("copies the embedded series in one click and says how far it reaches", async () => {
+    const post = vi.spyOn(api, "post").mockResolvedValue({ points: 140, last_month: "2026-08" });
+    const onSaved = vi.fn();
+    render(<PriceIndexForm points={[]} onSaved={onSaved} />);
+    await userEvent.click(
+      screen.getByRole("button", { name: "Utiliser l'indice INSEE embarqué (jusqu'à 2026-08)" }),
+    );
+    expect(post).toHaveBeenCalledWith("/analysis/price-index/insee");
+    expect(onSaved).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps the pasted series as its own way in", () => {
+    render(<PriceIndexForm points={[]} onSaved={vi.fn()} />);
+    expect(screen.getByRole("button", { name: "Enregistrer la série collée" })).toBeInTheDocument();
   });
 });

@@ -36,6 +36,7 @@ import re
 from calendar import monthrange
 from datetime import date
 from decimal import ROUND_HALF_UP, Decimal
+from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
@@ -55,8 +56,10 @@ from app.schemas.analysis import (
     AnomalyOut,
     AnomalyReportOut,
     CategoryInflationOut,
+    EmbeddedIndexOut,
     InflationOut,
     PriceIndexIn,
+    PriceIndexPointIn,
     PriceIndexPointOut,
     SkippedCategoryOut,
 )
@@ -280,6 +283,48 @@ def read_price_index(
         )
         for item in _index_points(db, user.id)
     ]
+
+
+# The IPC that ships with Yieldo. A CSV checked in by hand from INSEE's
+# published series (its header names the series, the base and the date it
+# was taken), so a household gets a reference index without pasting a
+# hundred lines — and without Yieldo ever calling INSEE, which it does not.
+EMBEDDED_INSEE_INDEX = Path(__file__).resolve().parent.parent / "reference" / "ipc_insee.csv"
+
+
+def load_embedded_insee_index() -> list[PriceIndexPointIn]:
+    """The embedded series, in the shape `PUT /price-index` accepts.
+
+    Parsed through the same schema the paste goes through, so a bad line in
+    the file is refused the way a bad paste is. Comment lines start with `#`.
+    """
+    points: list[PriceIndexPointIn] = []
+    with EMBEDDED_INSEE_INDEX.open(encoding="utf-8") as handle:
+        for raw in handle:
+            line = raw.strip()
+            if not line or line.startswith("#") or line == "month;value":
+                continue
+            month, value = line.split(";", 1)
+            points.append(PriceIndexPointIn(month=month, value=Decimal(value)))
+    return points
+
+
+@router.post("/price-index/insee", response_model=EmbeddedIndexOut)
+def copy_embedded_insee_index(
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> EmbeddedIndexOut:
+    """Copy the embedded INSEE series into this household's reference index.
+
+    A copy, not a link: the household's series stays its own and editable,
+    and a later Yieldo carrying a newer file changes nothing until the
+    button is pressed again. The response names the last month the file
+    holds, which the screen prints on the button so the reader knows how
+    far the reference goes.
+    """
+    points = load_embedded_insee_index()
+    replace_price_index(PriceIndexIn(points=points), user=user, db=db)
+    return EmbeddedIndexOut(points=len(points), last_month=points[-1].month)
 
 
 @router.put("/price-index", response_model=list[PriceIndexPointOut])

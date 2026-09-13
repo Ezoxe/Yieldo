@@ -1745,6 +1745,9 @@ export function installMockApi(): void {
 
     // « Ce n'est pas un abonnement » and its undo, so the two buttons can be
     // judged end to end in the preview.
+    if (url.pathname === "/api/analysis/price-index/insee" && method === "POST") {
+      return jsonOk({ points: 140, last_month: "2026-08" });
+    }
     if (url.pathname === "/api/recurrences/dismissals" && method === "POST") {
       const body = JSON.parse(String(init?.body)) as { label_key: string; label: string };
       const existing = DISMISSALS.find((row) => row.label_key === body.label_key);

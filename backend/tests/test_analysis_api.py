@@ -379,3 +379,48 @@ def test_a_price_index_put_never_touches_another_users_series(client, imported):
     theirs = client.get("/api/analysis/price-index", headers=other_headers).json()
     assert [p["month"] for p in mine] == ["2025-01"]
     assert [p["month"] for p in theirs] == ["2025-06"]
+
+
+# --- The INSEE index that ships with Yieldo -----------------------------------
+
+
+def test_the_embedded_insee_series_is_monthly_and_contiguous():
+    """The file is data checked in by hand; this pins its shape so a bad
+    paste — a skipped month, a duplicated one, a value with a comma — is a
+    failing test and not a wrong inflation figure on someone's screen."""
+    from app.api.analysis import load_embedded_insee_index
+
+    points = load_embedded_insee_index()
+    assert points[0].month == "2015-01"
+    months = [point.month for point in points]
+    for previous, current in zip(months, months[1:], strict=False):
+        year, month = map(int, previous.split("-"))
+        month += 1
+        if month == 13:
+            year, month = year + 1, 1
+        assert current == f"{year}-{month:02d}", f"{previous} -> {current}"
+    assert all(point.value > 0 for point in points)
+    assert len(points) >= 140
+
+
+def test_the_embedded_index_can_be_copied_into_the_household_s_series(client, imported):
+    headers, _ = imported
+    body = client.post("/api/analysis/price-index/insee", headers=headers).json()
+    assert body["last_month"] >= "2026-08"
+    assert body["points"] >= 140
+    stored = client.get("/api/analysis/price-index", headers=headers).json()
+    assert stored[0] == {"month": "2015-01", "value_hundredths": 8174}
+    assert stored[-1]["month"] == body["last_month"]
+
+
+def test_copying_the_embedded_index_replaces_what_was_there(client, imported):
+    headers, _ = imported
+    client.put("/api/analysis/price-index", headers=headers, json={
+        "points": [{"month": "2001-01", "value": "50"}]})
+    client.post("/api/analysis/price-index/insee", headers=headers)
+    stored = client.get("/api/analysis/price-index", headers=headers).json()
+    assert all(point["month"] >= "2015-01" for point in stored)
+
+
+def test_the_embedded_index_needs_a_session(client):
+    assert client.post("/api/analysis/price-index/insee").status_code == 401

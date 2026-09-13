@@ -1019,6 +1019,53 @@
   min-width: 0;
 }
 
+/* The fold's line: name, then kind and position count, a chevron on the
+   right drawn in CSS. Closed by default with two accounts or more. */
+.yd-eaccount__fold {
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-sm);
+}
+
+.yd-eaccount__summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--yd-space-2xs) var(--yd-space-sm);
+  cursor: pointer;
+  list-style: none;
+}
+
+.yd-eaccount__summary::-webkit-details-marker {
+  display: none;
+}
+
+.yd-eaccount__summary::after {
+  content: "";
+  margin-left: auto;
+  width: 8px;
+  height: 8px;
+  border-right: 1.5px solid var(--yd-text-muted);
+  border-bottom: 1.5px solid var(--yd-text-muted);
+  transform: rotate(45deg);
+  transition: transform var(--yd-motion-fast) var(--yd-ease);
+}
+
+.yd-eaccount__fold[open] > .yd-eaccount__summary::after {
+  transform: rotate(-135deg);
+}
+
+.yd-eaccount__summary:focus-visible {
+  outline: 2px solid var(--yd-accent);
+  outline-offset: 4px;
+  border-radius: 4px;
+}
+
+.yd-eaccount__count {
+  color: var(--yd-text-muted);
+  font-size: 0.82rem;
+}
+
 .yd-eaccount__head {
   display: flex;
   flex-wrap: wrap;

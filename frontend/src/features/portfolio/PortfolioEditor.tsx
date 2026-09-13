@@ -336,8 +336,19 @@ export function PortfolioEditor({
         key={account.id}
         data-testid={`yd-editor-account-${account.id}`}
       >
+        {/* One fold per account, closed by default unless it is the only
+            one: three accounts with their positions, lots and every
+            « Modifier / Supprimer » open at once ran the screen to 4 200 px.
+            The summary carries what the reader scans for — the name, the
+            kind, how many positions — and the rest is one click away. */}
+        <details className="yd-eaccount__fold" open={accounts.length === 1}>
+          <summary className="yd-eaccount__summary">
+            <span className="yd-eaccount__name">{account.name}</span>
+            <span className="yd-eaccount__count">
+              {`${accountKindLabel(account.kind)} · ${own.length} ${plural(own.length, "position", "positions")}`}
+            </span>
+          </summary>
         <div className="yd-eaccount__head">
-          <h3 className="yd-eaccount__name">{account.name}</h3>
           <p className="yd-eaccount__meta">
             <span data-testid={`yd-editor-account-kind-${account.id}`}>
               {accountKindLabel(account.kind)}
@@ -443,6 +454,7 @@ export function PortfolioEditor({
             <span className="sr-only">{` dans ${account.name}`}</span>
           </button>
         )}
+        </details>
       </section>
     );
   }

@@ -87,6 +87,16 @@ afterEach(() => {
 });
 
 describe("PortfolioEditor", () => {
+  // Three accounts with their positions, lots and every action open at once
+  // ran the screen to 4 200 px. Each account is a fold, closed by default
+  // when there are several, open when it is the only one.
+  it("folds each account when there are several, and opens the only one", () => {
+    renderEditor();
+    const folds = document.querySelectorAll<HTMLDetailsElement>(".yd-eaccount__fold");
+    expect(folds.length).toBeGreaterThan(1);
+    folds.forEach((fold) => expect(fold.open).toBe(false));
+  });
+
   it("names each account by its envelope, not by the wire code", async () => {
     renderEditor();
     const pea = screen.getByTestId("yd-editor-account-4");

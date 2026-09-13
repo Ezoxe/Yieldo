@@ -91,6 +91,16 @@ describe("PlanPage", () => {
     expect(await screen.findByText(/vos relevés ne sont jamais modifiés/i)).toBeInTheDocument();
   });
 
+  it("sends the reader to Réglages to change the mode, not to the header", async () => {
+    routeFetch();
+    renderPage();
+
+    expect(
+      await screen.findByText(/Le mode se change dans Réglages → Lecture des chiffres/),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/dans l'en-tête/)).not.toBeInTheDocument();
+  });
+
   it("lists the declared lines with what each one is", async () => {
     routeFetch();
     renderPage();

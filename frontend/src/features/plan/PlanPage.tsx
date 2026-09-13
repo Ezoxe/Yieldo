@@ -282,7 +282,7 @@ export function PlanPage() {
             ))}
           </div>
           <p className="yd-plan__foot">
-            Le mode se change dans l'en-tête, à côté de l'assistant. Les récurrences détectées, les
+            Le mode se change dans Réglages → Lecture des chiffres. Les récurrences détectées, les
             anomalies et le solde de vos comptes restent toujours réels, quel que soit le mode.
           </p>
         </BentoCell>

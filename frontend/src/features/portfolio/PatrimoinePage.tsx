@@ -5,7 +5,13 @@ import { BentoCell, type BentoSpan } from "../../design/bento/BentoCell";
 import { BentoGrid } from "../../design/bento/BentoGrid";
 import { PanelHead } from "../../design/bento/PanelHead";
 import { EmptyState } from "../../design/EmptyState";
-import { BreakdownIcon, ConnectionsIcon, PlusIcon, PortfolioIcon } from "../../design/icons";
+import {
+  BreakdownIcon,
+  CoinsIcon,
+  ConnectionsIcon,
+  PlusIcon,
+  PortfolioIcon,
+} from "../../design/icons";
 import { PageHead } from "../../design/PageHead";
 import { useReducedMotion } from "../../design/motion/useReducedMotion";
 import { entryProps, staggerProps } from "../../design/motion/variants";
@@ -24,6 +30,7 @@ import { HoldingsPanel } from "./HoldingsPanel";
 import { MarketPanel } from "./MarketPanel";
 import "./PatrimoinePage.css";
 import { PortfolioEditor } from "./PortfolioEditor";
+import { NetWorthPanel } from "./NetWorthPanel";
 import { TotalPanel } from "./TotalPanel";
 import { WeightsPanel } from "./WeightsPanel";
 
@@ -247,6 +254,19 @@ export function PatrimoinePage() {
           </>
         ) : (
           <>
+            {/* First, because it is the one figure the screen never printed:
+                what the household owns minus what it owes. */}
+            <BentoCell
+              as={motion.div}
+              span={SPAN.full}
+              className="yd-panel"
+              data-ai-target="patrimoine-net"
+              {...entryProps(reduced)}
+            >
+              <PanelHead icon={CoinsIcon}>Patrimoine net</PanelHead>
+              <NetWorthPanel enabled />
+            </BentoCell>
+
             <BentoCell
               as={motion.div}
               span={SPAN.total}

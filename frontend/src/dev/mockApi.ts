@@ -1197,6 +1197,21 @@ const ROUTES: Record<string, (params: Params) => unknown> = {
   "/api/recurrences": recurrencesPayload,
   "/api/alerts": () => ALERTS_REPORT,
   "/api/portfolio/valuation": () => PREVIEW_VALUATION,
+  "/api/portfolio/networth": () => ({
+    today: {
+      taken_on: TODAY, assets_cents: 2_390_000, debts_cents: 1_157_000, net_cents: 1_233_000,
+      breakdown: [
+        { key: "positions", amount_cents: 1_150_000 }, { key: "declared", amount_cents: 0 },
+        { key: "cash", amount_cents: 1_240_000 }, { key: "debts", amount_cents: -1_157_000 },
+      ],
+    },
+    history: [
+      { taken_on: "2026-06-03", assets_cents: 2_210_000, debts_cents: 1_248_000, net_cents: 962_000 },
+      { taken_on: "2026-07-03", assets_cents: 2_265_000, debts_cents: 1_218_000, net_cents: 1_047_000 },
+      { taken_on: "2026-08-03", assets_cents: 2_320_000, debts_cents: 1_187_000, net_cents: 1_133_000 },
+      { taken_on: TODAY, assets_cents: 2_390_000, debts_cents: 1_157_000, net_cents: 1_233_000 },
+    ],
+  }),
   "/api/portfolio/accounts": (params) =>
     params.get("archived") === "true" ? [] : INVESTMENT_ACCOUNTS,
   "/api/portfolio/lots": () => PORTFOLIO_LOTS,

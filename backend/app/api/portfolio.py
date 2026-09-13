@@ -51,7 +51,8 @@ unconditionally (see that module), so fetching a price for it would only
 spend quota this valuation call has no need of.
 """
 
-from datetime import UTC, datetime
+import json
+from datetime import UTC, date, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func
@@ -60,23 +61,26 @@ from sqlalchemy.orm import Session
 
 from app.db import get_db
 from app.engines import allocation as allocation_engine
+from app.engines import networth as networth_engine
 from app.engines import portfolio as portfolio_engine
 from app.engines import quantity
+from app.engines.transfer import SAVINGS_ACCOUNT_KINDS
 from app.market import quota
 from app.market.cache import CacheEntry, MarketDataKind
 from app.market.cache import evaluate as cache_evaluate
 from app.market.client import MarketError, Quote
 from app.market.providers import PROVIDERS
-from app.engines.transfer import SAVINGS_ACCOUNT_KINDS
 from app.models import (
     INSTRUMENT_ASSET_CLASSES,
     INVESTMENT_ACCOUNT_KINDS,
     Account,
     AllocationTarget,
     ApiKey,
+    Debt,
     Instrument,
     InvestmentAccount,
     Lot,
+    NetWorthSnapshot,
     Position,
     PricePoint,
     QuotaWindow,
@@ -97,6 +101,10 @@ from app.schemas.portfolio import (
     LotIn,
     LotOut,
     LotPatch,
+    NetWorthOut,
+    NetWorthPointOut,
+    NetWorthReportOut,
+    NetWorthTermOut,
     PortfolioAllocationOut,
     PortfolioValuationOut,
     PositionIn,
@@ -748,6 +756,99 @@ def get_valuation(
             ),
         }),
     })
+
+
+# --- Net worth: the valuation above minus the active debts, and a line of
+# --- the days somebody looked.
+
+
+def _write_net_worth_snapshot_if_missing(
+    db: Session, user_id: int, today: date, measured: networth_engine.NetWorth
+) -> None:
+    """At most one row per user per day, the same way `api/engagement.py`
+    keeps `health_snapshots`: an existence check, then an insert whose
+    unique constraint catches the race between two requests."""
+    existing = (
+        db.query(NetWorthSnapshot)
+        .filter(NetWorthSnapshot.user_id == user_id, NetWorthSnapshot.taken_on == today)
+        .first()
+    )
+    if existing is not None:
+        return
+    db.add(NetWorthSnapshot(
+        user_id=user_id, taken_on=today,
+        assets_cents=measured.assets_cents, debts_cents=measured.debts_cents,
+        breakdown=json.dumps(list(measured.breakdown)),
+    ))
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+
+
+@router.get("/networth", response_model=NetWorthReportOut)
+def get_net_worth(
+    user: User = Depends(get_current_user), db: Session = Depends(get_db)
+) -> NetWorthReportOut:
+    """What the household owns minus what it owes, today, and every day it
+    looked before.
+
+    The assets are exactly what `get_valuation` prints — positions at their
+    quoted price, envelopes at their declared amount, savings accounts at the
+    balance their movements add up to — so the two screens can never
+    disagree about the wealth. The debts are the capital restant dû of the
+    active debts, as the Dettes screen prints them. The engine does the
+    subtraction and names the terms.
+
+    Today's row is written on read, once, so the line the screen draws is
+    the balance sheet as it stood on each day, never a recomputation of a
+    past day with today's prices.
+    """
+    valuation = get_valuation(user=user, db=db)
+    debts_remaining = (
+        db.query(func.coalesce(func.sum(Debt.principal_cents), 0))
+        .filter(Debt.user_id == user.id, Debt.archived.is_(False))
+        .scalar()
+    )
+    positions_cents = (
+        valuation.total.market_value_cents
+        - valuation.declared_total_cents
+        - valuation.cash_total_cents
+    )
+    measured = networth_engine.measure_net_worth(
+        positions_cents=max(positions_cents, 0),
+        declared_cents=valuation.declared_total_cents,
+        cash_cents=valuation.cash_total_cents,
+        debts_remaining_cents=int(debts_remaining),
+    )
+
+    today = date.today()
+    _write_net_worth_snapshot_if_missing(db, user.id, today, measured)
+    rows = (
+        db.query(NetWorthSnapshot)
+        .filter(NetWorthSnapshot.user_id == user.id)
+        .order_by(NetWorthSnapshot.taken_on)
+        .all()
+    )
+    return NetWorthReportOut(
+        today=NetWorthOut(
+            taken_on=today,
+            assets_cents=measured.assets_cents,
+            debts_cents=measured.debts_cents,
+            net_cents=measured.net_cents,
+            breakdown=[
+                NetWorthTermOut(key=key, amount_cents=amount)
+                for key, amount in measured.breakdown
+            ],
+        ),
+        history=[
+            NetWorthPointOut(
+                taken_on=row.taken_on, assets_cents=row.assets_cents,
+                debts_cents=row.debts_cents, net_cents=row.net_cents,
+            )
+            for row in rows
+        ],
+    )
 
 
 # --- Target allocation, drift and the trades that would close it.

@@ -1645,9 +1645,11 @@ TRANSFER_SOURCE_REVISION = "c8e2f1a54d90"
 # The recurrences a household declares, and the due dates it ticks off.
 DECLARED_RECURRENCES_REVISION = "d3f5a71c9b40"
 CHAT_AGENT_RUN_REVISION = "a5e71d0c46b3"
+# The balance sheet a day: assets, debts, and the split of the assets.
+NET_WORTH_SNAPSHOTS_REVISION = "c6d2e9f4a1b7"
 
 
-def test_the_chat_agent_run_migration_is_the_single_head(migration_db):
+def test_the_net_worth_snapshots_migration_is_the_single_head(migration_db):
     """`heads` and `head` must be the same single revision — two heads is a
     database Alembic cannot upgrade without a merge, and nothing else in this
     suite would notice. This assertion moves to the newest migration each time
@@ -1656,8 +1658,9 @@ def test_the_chat_agent_run_migration_is_the_single_head(migration_db):
 
     script = ScriptDirectory.from_config(migration_db.config)
     assert len(script.get_heads()) == 1
-    assert script.get_current_head() == CHAT_AGENT_RUN_REVISION
-    # The revision it replaced as head is still on the path to it.
+    assert script.get_current_head() == NET_WORTH_SNAPSHOTS_REVISION
+    # The revisions it replaced as head are still on the path to it.
+    assert CHAT_AGENT_RUN_REVISION in {rev.revision for rev in script.walk_revisions()}
     assert DECLARED_RECURRENCES_REVISION in {
         rev.revision for rev in script.walk_revisions()
     }

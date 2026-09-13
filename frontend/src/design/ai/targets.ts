@@ -197,6 +197,13 @@ export const AI_TARGETS: AiTarget[] = [
     route: "/objectifs",
     terms: ["objectif", "objectifs"],
   },
+  // Patrimoine
+  {
+    id: "patrimoine-net",
+    label: "Patrimoine net",
+    route: "/patrimoine",
+    terms: ["patrimoine net", "valeur nette", "actif net"],
+  },
 ];
 
 /**

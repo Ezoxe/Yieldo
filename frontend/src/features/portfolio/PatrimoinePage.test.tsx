@@ -29,6 +29,20 @@ const LOTS: Lot[] = [
   },
 ];
 
+/** Assets minus debts, as `GET /portfolio/networth` answers. */
+const NET_WORTH = {
+  today: {
+    taken_on: "2026-09-13", assets_cents: 1_150_000, debts_cents: 0, net_cents: 1_150_000,
+    breakdown: [
+      { key: "positions", amount_cents: 1_150_000 }, { key: "declared", amount_cents: 0 },
+      { key: "cash", amount_cents: 0 }, { key: "debts", amount_cents: 0 },
+    ],
+  },
+  history: [
+    { taken_on: "2026-09-13", assets_cents: 1_150_000, debts_cents: 0, net_cents: 1_150_000 },
+  ],
+};
+
 function mockApi(
   valuation: unknown,
   allocation: unknown,
@@ -45,6 +59,7 @@ function mockApi(
       return Promise.resolve(params?.archived === true ? archivedAccounts : accounts);
     }
     if (path === "/portfolio/lots") return Promise.resolve(lots);
+    if (path === "/portfolio/networth") return Promise.resolve(NET_WORTH);
     throw new Error(`unexpected path ${path}`);
   });
 }

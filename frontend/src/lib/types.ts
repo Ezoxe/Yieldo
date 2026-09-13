@@ -1588,6 +1588,34 @@ export interface CashHolding {
   transaction_count: number;
 }
 
+// GET /portfolio/networth — what the household owns minus what it owes,
+// today, and every day it looked before. `breakdown` carries each term with
+// the sign it enters the total with; `debts_cents` is the positive size.
+export interface NetWorthTerm {
+  key: "positions" | "declared" | "cash" | "debts";
+  amount_cents: number;
+}
+
+export interface NetWorth {
+  taken_on: string;
+  assets_cents: number;
+  debts_cents: number;
+  net_cents: number;
+  breakdown: NetWorthTerm[];
+}
+
+export interface NetWorthPoint {
+  taken_on: string;
+  assets_cents: number;
+  debts_cents: number;
+  net_cents: number;
+}
+
+export interface NetWorthReport {
+  today: NetWorth;
+  history: NetWorthPoint[];
+}
+
 export interface PortfolioValuation {
   reporting_currency: string;
   positions: PositionValuation[];

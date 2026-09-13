@@ -1,0 +1,90 @@
+.yd-networth {
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-sm);
+}
+
+.yd-networth__figure {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.yd-networth__label {
+  display: flex;
+  align-items: center;
+  gap: var(--yd-space-2xs);
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--yd-text-muted);
+}
+
+.yd-networth__amount {
+  margin: 0;
+  font-size: clamp(1.6rem, 2.6vw, 2.1rem);
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  color: var(--yd-text);
+}
+
+.yd-networth__amount--positive {
+  color: var(--yd-positive);
+}
+
+.yd-networth__amount--negative {
+  color: var(--yd-negative-text);
+}
+
+/* Actifs − Dettes on one line, each term named over its figure. */
+.yd-networth__terms {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--yd-space-sm);
+  margin: 0;
+}
+
+.yd-networth__term dt {
+  display: flex;
+  align-items: baseline;
+  gap: var(--yd-space-2xs);
+  font-size: 0.78rem;
+  color: var(--yd-text-muted);
+}
+
+.yd-networth__term dd {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--yd-text);
+}
+
+.yd-networth__term--minus {
+  padding-bottom: 2px;
+  color: var(--yd-text-muted);
+  font-size: 1.1rem;
+}
+
+.yd-networth__link {
+  color: var(--yd-accent);
+  font-size: 0.74rem;
+  text-decoration: none;
+}
+
+.yd-networth__link:hover {
+  text-decoration: underline;
+}
+
+.yd-networth__note,
+.yd-networth__alert {
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  color: var(--yd-text-muted);
+}
+
+.yd-networth__alert {
+  color: var(--yd-negative-text);
+}

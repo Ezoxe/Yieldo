@@ -20,6 +20,7 @@ from app.models.import_batch import ColumnProfile, ImportBatch
 from app.models.instrument import INSTRUMENT_ASSET_CLASSES, Instrument
 from app.models.investment_account import INVESTMENT_ACCOUNT_KINDS, InvestmentAccount
 from app.models.llm_settings import LlmSettings
+from app.models.net_worth_snapshot import NetWorthSnapshot
 from app.models.lot import Lot
 from app.models.plan_line import (
     PLAN_KINDS,
@@ -50,6 +51,7 @@ __all__ = [
     "Challenge",
     "ChatMessage", "ColumnProfile", "Debt", "DeclaredRecurrence",
     "Goal", "HealthSnapshot", "ImportBatch", "Instrument", "InvestmentAccount", "LlmSettings",
+    "NetWorthSnapshot",
     "Lot", "PlanLine", "PlanSettings", "Position", "PriceIndexPoint", "PricePoint", "QuotaWindow",
     "RecurrenceCheckin", "Scenario", "Transaction",
     "User",

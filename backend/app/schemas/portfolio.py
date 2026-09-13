@@ -277,6 +277,40 @@ class PortfolioValuationOut(BaseModel):
     weight_by_currency: list[WeightedGroupOut]
 
 
+# --- Net worth -- `GET /api/portfolio/networth`. Assets minus debts, and the
+# --- snapshots the route wrote on the days somebody looked.
+
+
+class NetWorthTermOut(BaseModel):
+    """One term of the balance sheet, with the sign it enters the total with."""
+
+    key: str
+    amount_cents: int
+
+
+class NetWorthOut(BaseModel):
+    taken_on: date
+    assets_cents: int
+    # Capital restant dû summed over the active debts, as a positive size; the
+    # `debts` term of `breakdown` carries it negative.
+    debts_cents: int
+    net_cents: int
+    breakdown: list[NetWorthTermOut]
+
+
+class NetWorthPointOut(BaseModel):
+    taken_on: date
+    assets_cents: int
+    debts_cents: int
+    net_cents: int
+
+
+class NetWorthReportOut(BaseModel):
+    today: NetWorthOut
+    # Every snapshot this household has, oldest first, today's included.
+    history: list[NetWorthPointOut]
+
+
 # --- Target allocation, drift and the proposed trades -- `PUT/GET
 # --- /api/portfolio/targets` and `GET /api/portfolio/allocation` (Task 10,
 # --- wiring `engines.allocation`, Task 8).

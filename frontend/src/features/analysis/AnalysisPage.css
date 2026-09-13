@@ -28,13 +28,13 @@
   /* Capped like every block of prose here: the content column runs to ~1150px
      at 1440, which at this size is about 175 characters a line. */
   max-width: 96ch;
-  padding: var(--yd-space-sm) var(--yd-space-md);
-  border-radius: var(--yd-radius-sm);
-  border: 1px solid color-mix(in srgb, var(--yd-info) 24%, transparent);
-  background: color-mix(in srgb, var(--yd-info) 8%, transparent);
-  color: var(--yd-text);
   font-size: 0.88rem;
-  line-height: 1.55;
+  color: var(--yd-text-muted);
+}
+
+.yd-analysis__scope p {
+  margin: 0;
+  line-height: 1.5;
 }
 
 /* Basket ----------------------------------------------------------------- */

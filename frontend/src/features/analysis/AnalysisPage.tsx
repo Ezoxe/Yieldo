@@ -23,6 +23,7 @@ import type {
   PriceIndexPoint,
 } from "../../lib/types";
 import { formatRatio } from "../recurrences/RecurrenceRow";
+import { Method } from "../../design/Method";
 import { PeriodSelector } from "../transactions/PeriodSelector";
 import { usePeriod } from "../transactions/usePeriod";
 import { PriceIndexForm } from "./PriceIndexForm";
@@ -777,11 +778,18 @@ export function AnalysisPage() {
           "Tout" — while `preset` says "custom". Claiming there that both panels
           answer on "la période choisie ci-dessus" is false twice over: no
           period has been chosen yet, and the panels do not agree. */}
-      <p className="yd-analysis__scope">
-        {period.from === "" && period.to === ""
-          ? "Aucune période imposée : l'inflation compare les douze derniers mois complets de votre historique — au-delà, la période et celle d'un an plus tôt se chevaucheraient — tandis que les anomalies couvrent tout l'historique. Chaque panneau nomme la période qu'il a réellement utilisée."
-          : "Les deux panneaux répondent sur la période choisie ci-dessus, et chacun nomme celle qu'il a réellement utilisée. L'inflation la compare à la même période un an plus tôt, ce qui lui interdit de dépasser douze mois."}
-      </p>
+      {/* Folded, not removed: the sentence is the screen's honesty about two
+          engines with two default windows, and each panel names its own
+          window beside its figure. A three-line banner between the selector
+          and the figures, read on every visit, was the tour's first note on
+          this screen. */}
+      <Method summary="Sur quelle période chaque panneau répond" className="yd-analysis__scope">
+        <p>
+          {period.from === "" && period.to === ""
+            ? "Aucune période imposée : l'inflation compare les douze derniers mois complets de votre historique — au-delà, la période et celle d'un an plus tôt se chevaucheraient — tandis que les anomalies couvrent tout l'historique. Chaque panneau nomme la période qu'il a réellement utilisée."
+            : "Les deux panneaux répondent sur la période choisie ci-dessus, et chacun nomme celle qu'il a réellement utilisée. L'inflation la compare à la même période un an plus tôt, ce qui lui interdit de dépasser douze mois."}
+        </p>
+      </Method>
 
       {errorEntries.map((entry) => (
         <p role="alert" className="yd-analysis__alert" key={entry.field}>

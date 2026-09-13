@@ -136,9 +136,19 @@ function setupFetch(overrides: Overrides = {}) {
     if (path === "/api/categories") {
       return Promise.resolve(overrides.categories ? overrides.categories() : jsonResponse(categories));
     }
+    if (path === "/api/transactions") {
+      recentLimits.push(url.searchParams.get("limit"));
+      return Promise.resolve(jsonResponse({ items: [], total: 0 }));
+    }
+    if (path === "/api/accounts") {
+      return Promise.resolve(jsonResponse([]));
+    }
     throw new Error(`Unhandled fetch in test: ${path}`);
   });
 }
+
+/** The `limit` each request for the recent operations carried. */
+const recentLimits: (string | null)[] = [];
 
 beforeEach(() => {
   fetchMock.mockReset();
@@ -225,6 +235,16 @@ describe("cumulativeNetCents", () => {
 });
 
 describe("OverviewPage", () => {
+  // Five rows beside a calendar panel left 400px of nothing under them at
+  // 1440 — the only stretched panel on the dashboard. Ten fill the row.
+  it("asks for ten recent operations, enough to fill the panel beside the calendar", async () => {
+    recentLimits.length = 0;
+    setupFetch();
+    renderPage();
+    await screen.findByRole("heading", { name: "Vue d'ensemble" });
+    await waitFor(() => expect(recentLimits).toContain("10"));
+  });
+
   it("loads and shows the four headline stat tiles", async () => {
     setupFetch();
     renderPage();

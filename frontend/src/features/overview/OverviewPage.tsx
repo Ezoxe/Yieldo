@@ -58,10 +58,12 @@ function transactionsHrefFor(period: UsePeriodResult): string {
 
 const GENERIC_ERROR = "Une erreur inattendue est survenue.";
 
-/** How many operations the dashboard's own list shows. Five is what fits
- *  beside the calendar without the panel becoming a second transactions
- *  screen — the link in its head is the way to the real one. */
-const RECENT_COUNT = 5;
+/** How many operations the dashboard's own list shows. Ten: five left
+ *  400px of nothing under them beside the calendar at 1440, the only
+ *  stretched panel on the dashboard, and ten fill the row without the panel
+ *  becoming a second transactions screen — the link in its head is the way
+ *  to the real one. */
+const RECENT_COUNT = 10;
 
 function messageFor(err: unknown): string {
   return err instanceof ApiError ? err.detail : GENERIC_ERROR;

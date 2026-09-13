@@ -2389,6 +2389,17 @@ export const DECLARED_PERIODICITIES = [
 
 export type DeclaredPeriodicity = (typeof DECLARED_PERIODICITIES)[number];
 
+// A label the household said is not a subscription — GET/POST/DELETE
+// /recurrences/dismissals. `label_key` is what the detection groups by;
+// `label` is the raw statement text, readable in Réglages where the row is
+// undone.
+export interface RecurrenceDismissal {
+  id: number;
+  label_key: string;
+  label: string;
+  created_at: string;
+}
+
 export interface DeclaredRecurrence {
   id: number;
   label: string;

@@ -1,0 +1,64 @@
+.yd-dismissed {
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-xs);
+}
+
+.yd-dismissed__count,
+.yd-dismissed__empty {
+  margin: 0;
+  font-size: 0.84rem;
+  color: var(--yd-text-muted);
+}
+
+.yd-dismissed__alert {
+  margin: 0;
+  font-size: 0.84rem;
+  color: var(--yd-negative-text);
+}
+
+.yd-dismissed__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.yd-dismissed__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--yd-space-sm);
+  padding: var(--yd-space-2xs) 0;
+  border-bottom: 1px solid var(--yd-border);
+}
+
+.yd-dismissed__row:last-child {
+  border-bottom: 0;
+}
+
+.yd-dismissed__label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.88rem;
+  color: var(--yd-text);
+}
+
+.yd-dismissed__restore {
+  flex: none;
+  min-height: 32px;
+  padding: 0 var(--yd-space-sm);
+  border: 1px solid var(--yd-border-control);
+  border-radius: var(--yd-radius-sm);
+  background: transparent;
+  color: var(--yd-text);
+  font: inherit;
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+
+.yd-dismissed__restore:disabled {
+  opacity: 0.5;
+  cursor: progress;
+}

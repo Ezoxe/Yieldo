@@ -79,9 +79,19 @@ export function basisNote(cost: ScheduleCost, isVariable: boolean): string | nul
 interface DeclaredRecurrencesProps {
   categories: Category[];
   accounts: Account[];
+  /**
+   * A detection the household asked to declare (« Déclarer » on a detected
+   * recurrence, further down the same screen). Each new value opens the form
+   * on it; `onPrefillConsumed` clears it so closing the form does not reopen
+   * it on the next render.
+   */
+  prefill?: DeclarationDraft | null;
+  onPrefillConsumed?: () => void;
 }
 
-export function DeclaredRecurrences({ categories, accounts }: DeclaredRecurrencesProps) {
+export function DeclaredRecurrences({
+  categories, accounts, prefill = null, onPrefillConsumed,
+}: DeclaredRecurrencesProps) {
   const reduced = useReducedMotion();
   const now = new Date();
   const [year, setYear] = useState(now.getFullYear());
@@ -95,6 +105,15 @@ export function DeclaredRecurrences({ categories, accounts }: DeclaredRecurrence
 
   const [editing, setEditing] = useState<DeclaredRecurrence | null>(null);
   const [formOpen, setFormOpen] = useState(false);
+  const [seed, setSeed] = useState<DeclarationDraft | null>(null);
+
+  useEffect(() => {
+    if (prefill === null) return;
+    setEditing(null);
+    setSeed(prefill);
+    setFormOpen(true);
+    onPrefillConsumed?.();
+  }, [prefill, onPrefillConsumed]);
 
   const load = useCallback(async () => {
     const [from, to] = monthBounds(year, month);
@@ -160,6 +179,7 @@ export function DeclaredRecurrences({ categories, accounts }: DeclaredRecurrence
       }
       setFormOpen(false);
       setEditing(null);
+      setSeed(null);
       await load();
       setError(null);
     } catch (err) {
@@ -366,6 +386,7 @@ export function DeclaredRecurrences({ categories, accounts }: DeclaredRecurrence
         onClose={() => {
           setFormOpen(false);
           setEditing(null);
+          setSeed(null);
         }}
         title={editing ? "Modifier la récurrence" : "Déclarer une récurrence"}
         icon={RecurrencesIcon}
@@ -376,8 +397,9 @@ export function DeclaredRecurrences({ categories, accounts }: DeclaredRecurrence
         }
       >
         <DeclarationForm
-          key={editing?.id ?? "new"}
+          key={editing?.id ?? (seed ? `seed-${seed.label}` : "new")}
           initial={editing}
+          prefill={seed}
           categories={categories}
           accounts={accounts}
           busy={busy}
@@ -385,6 +407,7 @@ export function DeclaredRecurrences({ categories, accounts }: DeclaredRecurrence
           onCancel={() => {
             setFormOpen(false);
             setEditing(null);
+            setSeed(null);
           }}
         />
       </Drawer>

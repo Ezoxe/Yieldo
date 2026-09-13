@@ -1,6 +1,6 @@
 from datetime import date, timedelta
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy.orm import Session
 
 from app.api.common import recurrence_points
@@ -13,6 +13,7 @@ from app.models import (
     Category,
     DeclaredRecurrence,
     RecurrenceCheckin,
+    RecurrenceDismissal,
     Transaction,
     User,
 )
@@ -26,7 +27,13 @@ from app.schemas.declared_recurrences import (
     OccurrenceOut,
     ScheduleCostOut,
 )
-from app.schemas.recurrences import PriceChangeOut, RecurrenceOut, RecurrenceReportOut
+from app.schemas.recurrences import (
+    PriceChangeOut,
+    RecurrenceDismissalIn,
+    RecurrenceDismissalOut,
+    RecurrenceOut,
+    RecurrenceReportOut,
+)
 from app.security.deps import get_current_user
 
 router = APIRouter(prefix="/recurrences", tags=["recurrences"])
@@ -398,5 +405,67 @@ def delete_checkin(
     )
     if row is None:
         raise HTTPException(status_code=404, detail="Cette échéance n'est pas pointée")
+    db.delete(row)
+    db.commit()
+
+
+# --- « Ce n'est pas un abonnement » -------------------------------------------
+
+
+@router.get("/dismissals", response_model=list[RecurrenceDismissalOut])
+def list_dismissals(
+    user: User = Depends(get_current_user), db: Session = Depends(get_db)
+) -> list[RecurrenceDismissal]:
+    """The labels this household has taken out of the detection, so the list
+    in Réglages can show them and give any of them back."""
+    return (
+        db.query(RecurrenceDismissal)
+        .filter(RecurrenceDismissal.user_id == user.id)
+        .order_by(RecurrenceDismissal.created_at, RecurrenceDismissal.id)
+        .all()
+    )
+
+
+@router.post("/dismissals", response_model=RecurrenceDismissalOut)
+def create_dismissal(
+    payload: RecurrenceDismissalIn,
+    response: Response,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> RecurrenceDismissal:
+    """Take a detected label out of the detection. Idempotent: saying it
+    twice is the same act, and answers 200 with the row already there rather
+    than a second row or a refusal."""
+    existing = (
+        db.query(RecurrenceDismissal)
+        .filter(RecurrenceDismissal.user_id == user.id,
+                RecurrenceDismissal.label_key == payload.label_key)
+        .first()
+    )
+    if existing is not None:
+        return existing
+    row = RecurrenceDismissal(user_id=user.id, label_key=payload.label_key, label=payload.label)
+    db.add(row)
+    db.commit()
+    db.refresh(row)
+    response.status_code = status.HTTP_201_CREATED
+    return row
+
+
+@router.delete("/dismissals/{dismissal_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_dismissal(
+    dismissal_id: int,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> None:
+    """Give the label back to the detection."""
+    row = (
+        db.query(RecurrenceDismissal)
+        .filter(RecurrenceDismissal.user_id == user.id, RecurrenceDismissal.id == dismissal_id)
+        .first()
+    )
+    if row is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+                            detail="Détection écartée introuvable")
     db.delete(row)
     db.commit()

@@ -257,3 +257,62 @@ def test_the_operators_own_data_shape_explains_itself_in_french(client, tmp_path
     assert body["recurrences"] != []
     assert all(not r["annualisable"] for r in body["recurrences"])
     assert all(r["observed_span_days"] < 91 for r in body["recurrences"])
+
+
+# --- Dismissals: « ce n'est pas un abonnement » ------------------------------
+
+
+def test_a_dismissed_label_leaves_the_detection_and_comes_back_when_restored(
+    client, imported,
+):
+    """The engine detects a rhythm, never a nature: four weekly trips to the
+    supermarket are a recurrence to it. The household can say « not a
+    subscription » once, and the label stays out of the detection until it
+    says otherwise — the dismissal is a row it can see and undo, never a
+    silent filter."""
+    headers, account_id = imported
+    _seed_monthly(client, headers, account_id, "PRELEVEMENT SEPA NETFLIX",
+                  -1549, date(2026, 1, 10), 6)
+    found = next(r for r in client.get("/api/recurrences", headers=headers).json()["recurrences"]
+                 if "NETFLIX" in r["label"])
+
+    created = client.post("/api/recurrences/dismissals", headers=headers,
+                          json={"label_key": found["label_key"], "label": found["label"]})
+    assert created.status_code == 201
+    row = created.json()
+    assert row["label_key"] == found["label_key"]
+    assert row["label"] == found["label"]
+
+    after = client.get("/api/recurrences", headers=headers).json()
+    assert all("NETFLIX" not in r["label"] for r in after["recurrences"])
+    assert client.get("/api/recurrences/dismissals", headers=headers).json() == [row]
+
+    assert client.delete(f"/api/recurrences/dismissals/{row['id']}",
+                         headers=headers).status_code == 204
+    restored = client.get("/api/recurrences", headers=headers).json()
+    assert any("NETFLIX" in r["label"] for r in restored["recurrences"])
+    assert client.get("/api/recurrences/dismissals", headers=headers).json() == []
+
+
+def test_dismissing_the_same_label_twice_is_one_row(client, imported):
+    headers, _ = imported
+    first = client.post("/api/recurrences/dismissals", headers=headers,
+                        json={"label_key": "prlv netflix", "label": "PRLV NETFLIX"})
+    second = client.post("/api/recurrences/dismissals", headers=headers,
+                         json={"label_key": "prlv netflix", "label": "PRLV NETFLIX"})
+    assert first.status_code == 201
+    assert second.status_code == 200
+    assert second.json()["id"] == first.json()["id"]
+    assert len(client.get("/api/recurrences/dismissals", headers=headers).json()) == 1
+
+
+def test_a_dismissal_is_this_household_s_alone(client, imported):
+    headers, _ = imported
+    row = client.post("/api/recurrences/dismissals", headers=headers,
+                      json={"label_key": "prlv netflix", "label": "PRLV NETFLIX"}).json()
+    bob = client.post("/api/auth/register", json={
+        "name": "Bob", "email": "bob@example.com", "password": "motdepasse123"}).json()
+    bob_headers = {"Authorization": f"Bearer {bob['access_token']}"}
+    assert client.get("/api/recurrences/dismissals", headers=bob_headers).json() == []
+    assert client.delete(f"/api/recurrences/dismissals/{row['id']}",
+                         headers=bob_headers).status_code == 404

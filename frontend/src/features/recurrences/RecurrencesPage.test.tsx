@@ -4,7 +4,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ThemeProvider } from "../../app/ThemeProvider";
 import type { Recurrence, RecurrenceReport } from "../../lib/types";
-import { COUNTED_LIST_LABEL, EXCLUDED_LIST_LABEL, RecurrencesPage } from "./RecurrencesPage";
+import {
+  COUNTED_LIST_LABEL,
+  EXCLUDED_LIST_LABEL,
+  RecurrencesPage,
+  draftFromDetection,
+} from "./RecurrencesPage";
 
 const fetchMock = vi.fn();
 
@@ -382,5 +387,20 @@ describe("RecurrencesPage", () => {
     setupFetch(() => jsonResponse({ detail: "Base indisponible" }, 500));
     renderPage();
     expect(await screen.findByRole("alert")).toHaveTextContent("Base indisponible");
+  });
+});
+
+describe("draftFromDetection", () => {
+  it("starts a declaration from what the engine read, with the next date as anchor", () => {
+    const item = report.recurrences[0];
+    const draft = draftFromDetection(item);
+    expect(draft.label).toBe(item.label);
+    expect(draft.amount_cents).toBe(item.amount_cents);
+    expect(draft.periodicity).toBe(item.periodicity);
+    expect(draft.anchor_on).toBe(item.expected_next_on);
+    expect(draft.category_id).toBe(item.category_id);
+    expect(draft.ends_on).toBeNull();
+    // A spread means the amount wanders: the declaration says so from the start.
+    expect(draft.amount_is_variable).toBe(item.amount_spread_cents > 0);
   });
 });

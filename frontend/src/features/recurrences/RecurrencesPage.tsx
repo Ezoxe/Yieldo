@@ -1,5 +1,5 @@
 import { motion } from "motion/react";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link } from "react-router";
 
 import { BentoCell, type BentoSpan } from "../../design/bento/BentoCell";
@@ -17,6 +17,7 @@ import { formatCents } from "../../design/theme";
 import { ApiError, api } from "../../lib/api";
 import { plural } from "../../lib/plural";
 import type { Account, Category, Recurrence, RecurrenceReport } from "../../lib/types";
+import { type DeclarationDraft } from "./DeclarationForm";
 import { DeclaredRecurrences } from "./DeclaredRecurrences";
 import {
   ANNUALISATION_FLOOR_DAYS,
@@ -141,6 +142,26 @@ function splitRecurrences(recurrences: Recurrence[]): Split {
   };
 }
 
+/**
+ * A declaration started from a detection: the same label, the median amount
+ * with its sign, the rhythm the engine found, and the next expected date as
+ * the anchor. Everything is editable before it is saved; the point is that
+ * the household does not retype what the engine already read.
+ */
+export function draftFromDetection(item: Recurrence): DeclarationDraft {
+  return {
+    label: item.label,
+    amount_cents: item.amount_cents,
+    amount_is_variable: item.amount_spread_cents > 0,
+    periodicity: item.periodicity,
+    anchor_on: item.expected_next_on,
+    ends_on: null,
+    category_id: item.category_id,
+    account_id: null,
+    notes: null,
+  };
+}
+
 export function RecurrencesPage() {
   const reduced = useReducedMotion();
   const [report, setReport] = useState<RecurrenceReport | null>(null);
@@ -151,6 +172,11 @@ export function RecurrencesPage() {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Bumped after a dismissal: the detection is re-asked so the dismissed
+  // label leaves the list the way it left the engine, not by a local splice
+  // that could disagree with the next load.
+  const [reloadToken, setReloadToken] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -175,7 +201,33 @@ export function RecurrencesPage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [reloadToken]);
+
+  // A detection the household asked to declare: handed to the declared half
+  // of the screen, which opens its form on it. Cleared once consumed.
+  const [prefill, setPrefill] = useState<DeclarationDraft | null>(null);
+  const consumePrefill = useCallback(() => setPrefill(null), []);
+  const [dismissing, setDismissing] = useState(false);
+
+  function declareDetection(item: Recurrence) {
+    setPrefill(draftFromDetection(item));
+    setOpened(null);
+    window.scrollTo({ top: 0 });
+  }
+
+  async function dismissDetection(item: Recurrence) {
+    setDismissing(true);
+    try {
+      await api.post("/recurrences/dismissals", { label_key: item.label_key, label: item.label });
+      setOpened(null);
+      setReloadToken((token) => token + 1);
+      setError(null);
+    } catch (err) {
+      setError(messageFor(err));
+    } finally {
+      setDismissing(false);
+    }
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -445,7 +497,13 @@ export function RecurrencesPage() {
       }
     >
       {opened !== null ? (
-        <RecurrenceDetail recurrence={opened} ledgerLastOn={report?.ledger_last_on ?? null} />
+        <RecurrenceDetail
+          recurrence={opened}
+          ledgerLastOn={report?.ledger_last_on ?? null}
+          onDeclare={declareDetection}
+          onDismiss={(item) => void dismissDetection(item)}
+          dismissing={dismissing}
+        />
       ) : null}
     </Drawer>
   );
@@ -469,7 +527,12 @@ export function RecurrencesPage() {
       {/* The declared half comes first, and deliberately: it is the one the
           household controls. What it states is true; what the engine below
           finds is a claim Yieldo makes about the past and can be wrong about. */}
-      <DeclaredRecurrences categories={categories} accounts={accounts} />
+      <DeclaredRecurrences
+        categories={categories}
+        accounts={accounts}
+        prefill={prefill}
+        onPrefillConsumed={consumePrefill}
+      />
 
       <div className="yd-recurrences__detected">
         <h2>Ce que Yieldo a repéré tout seul</h2>

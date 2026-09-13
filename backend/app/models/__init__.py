@@ -33,6 +33,7 @@ from app.models.position import Position
 from app.models.price_index import PriceIndexPoint
 from app.models.price_point import PricePoint
 from app.models.quota_window import QuotaWindow
+from app.models.recurrence_dismissal import RecurrenceDismissal
 from app.models.rule import RULE_ORIGINS, RULE_PRIORITIES, CategoryRule
 from app.models.scenario import SCENARIO_KINDS, Scenario
 from app.models.transaction import TRANSACTION_CATEGORY_SOURCES, Transaction
@@ -53,6 +54,6 @@ __all__ = [
     "Goal", "HealthSnapshot", "ImportBatch", "Instrument", "InvestmentAccount", "LlmSettings",
     "NetWorthSnapshot",
     "Lot", "PlanLine", "PlanSettings", "Position", "PriceIndexPoint", "PricePoint", "QuotaWindow",
-    "RecurrenceCheckin", "Scenario", "Transaction",
+    "RecurrenceCheckin", "RecurrenceDismissal", "Scenario", "Transaction",
     "User",
 ]

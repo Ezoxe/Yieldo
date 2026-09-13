@@ -1,6 +1,6 @@
-from datetime import date
+from datetime import date, datetime
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class PriceChangeOut(BaseModel):
@@ -68,3 +68,18 @@ class RecurrenceReportOut(BaseModel):
     # le 9 janvier 2026, dernière date de votre historique" -- rather than
     # asserting a cancellation the data does not support.
     ledger_last_on: date | None
+
+
+class RecurrenceDismissalIn(BaseModel):
+    """« Ce n'est pas un abonnement » — the key the detection grouped by, and
+    the raw label so the list in Réglages can be read and the row undone."""
+
+    label_key: str = Field(min_length=1, max_length=500)
+    label: str = Field(min_length=1, max_length=500)
+
+
+class RecurrenceDismissalOut(BaseModel):
+    id: int
+    label_key: str
+    label: str
+    created_at: datetime

@@ -42,6 +42,12 @@ type Errors = Partial<Record<FieldName, string>>;
 interface DeclarationFormProps {
   /** The declaration being corrected, or null for a new one. */
   initial: DeclaredRecurrence | null;
+  /**
+   * What a NEW declaration starts from — a detection the household is
+   * turning into a declaration in one click. Read only when `initial` is
+   * null: correcting an existing row never takes values from elsewhere.
+   */
+  prefill?: DeclarationDraft | null;
   categories: Category[];
   accounts: Account[];
   busy: boolean;
@@ -59,6 +65,7 @@ function todayIso(): string {
 
 export function DeclarationForm({
   initial,
+  prefill = null,
   categories,
   accounts,
   busy,
@@ -66,23 +73,26 @@ export function DeclarationForm({
   onCancel,
 }: DeclarationFormProps) {
   const id = useId();
-  const [label, setLabel] = useState(initial?.label ?? "");
+  // One seed for every field: the row being corrected, else the detection
+  // being declared, else nothing.
+  const seed: DeclarationDraft | DeclaredRecurrence | null = initial ?? prefill;
+  const [label, setLabel] = useState(seed?.label ?? "");
   // The magnitude only. The sign is `direction`, below.
   const [amount, setAmount] = useState(
-    initial ? centsToInput(Math.abs(initial.amount_cents)) : "",
+    seed ? centsToInput(Math.abs(seed.amount_cents)) : "",
   );
   const [direction, setDirection] = useState<"charge" | "income">(
-    initial && initial.amount_cents > 0 ? "income" : "charge",
+    seed && seed.amount_cents > 0 ? "income" : "charge",
   );
-  const [variable, setVariable] = useState(initial?.amount_is_variable ?? false);
+  const [variable, setVariable] = useState(seed?.amount_is_variable ?? false);
   const [periodicity, setPeriodicity] = useState<DeclaredPeriodicity>(
-    initial?.periodicity ?? "monthly",
+    seed?.periodicity ?? "monthly",
   );
-  const [anchor, setAnchor] = useState(initial?.anchor_on ?? todayIso());
-  const [ends, setEnds] = useState(initial?.ends_on ?? "");
-  const [categoryId, setCategoryId] = useState(initial?.category_id ?? null);
-  const [accountId, setAccountId] = useState(initial?.account_id ?? null);
-  const [notes, setNotes] = useState(initial?.notes ?? "");
+  const [anchor, setAnchor] = useState(seed?.anchor_on ?? todayIso());
+  const [ends, setEnds] = useState(seed?.ends_on ?? "");
+  const [categoryId, setCategoryId] = useState(seed?.category_id ?? null);
+  const [accountId, setAccountId] = useState(seed?.account_id ?? null);
+  const [notes, setNotes] = useState(seed?.notes ?? "");
   const [errors, setErrors] = useState<Errors>({});
 
   function handleSubmit(event: FormEvent) {

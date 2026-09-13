@@ -1,5 +1,5 @@
 import { frenchDate } from "../../design/EmptyState";
-import { ChevronIcon } from "../../design/icons";
+import { ChevronIcon, PlusIcon } from "../../design/icons";
 import { formatCents } from "../../design/theme";
 import { plural } from "../../lib/plural";
 import type { Periodicity, Recurrence, RecurrenceStatus } from "../../lib/types";
@@ -262,6 +262,15 @@ interface RecurrenceDetailProps {
    * recurrences to render either.
    */
   ledgerLastOn: string | null;
+  /**
+   * The two things a household can do with a detection. « Déclarer » turns
+   * it into a declaration it controls, prefilled from what was detected;
+   * « Ce n'est pas un abonnement » takes the label out of the detection.
+   * Both optional so the detail can still be rendered where neither applies.
+   */
+  onDeclare?: (recurrence: Recurrence) => void;
+  onDismiss?: (recurrence: Recurrence) => void;
+  dismissing?: boolean;
 }
 
 /**
@@ -270,7 +279,9 @@ interface RecurrenceDetailProps {
  * Nothing here is new and nothing was dropped: this is the seven paragraphs
  * that used to sit under every row, moved somewhere a reader goes on purpose.
  */
-export function RecurrenceDetail({ recurrence, ledgerLastOn }: RecurrenceDetailProps) {
+export function RecurrenceDetail({
+  recurrence, ledgerLastOn, onDeclare, onDismiss, dismissing = false,
+}: RecurrenceDetailProps) {
   const change = recurrence.price_change;
   const spread = describeSpread(recurrence.amount_cents, recurrence.amount_spread_cents);
   const reason = exclusionReason(recurrence);
@@ -335,6 +346,36 @@ export function RecurrenceDetail({ recurrence, ledgerLastOn }: RecurrenceDetailP
       ) : null}
 
       {reason !== null ? <p className="yd-recurrence__excluded">{reason}</p> : null}
+
+      {onDeclare !== undefined || onDismiss !== undefined ? (
+        <div className="yd-recurrence-detail__actions">
+          {onDeclare !== undefined ? (
+            <button
+              type="button"
+              className="yd-recurrence-detail__action yd-recurrence-detail__action--primary"
+              onClick={() => onDeclare(recurrence)}
+            >
+              <PlusIcon />
+              Déclarer cette récurrence
+            </button>
+          ) : null}
+          {onDismiss !== undefined ? (
+            <button
+              type="button"
+              className="yd-recurrence-detail__action"
+              disabled={dismissing}
+              onClick={() => onDismiss(recurrence)}
+            >
+              Ce n'est pas un abonnement
+            </button>
+          ) : null}
+          <p className="yd-recurrence-detail__actions-note">
+            Déclarer reprend le libellé, le montant médian, le rythme et la prochaine échéance
+            repérés ; vous pouvez tout corriger avant d'enregistrer. Écarter retire ce libellé de
+            la détection ; Réglages permet de le rétablir.
+          </p>
+        </div>
+      ) : null}
     </div>
   );
 }

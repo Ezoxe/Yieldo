@@ -15,6 +15,7 @@ import {
   KeyIcon,
   LockIcon,
   PlanIcon,
+  RecurrencesIcon,
   SettingsIcon,
   SignOutIcon,
 } from "../../design/icons";
@@ -29,6 +30,7 @@ import { AccessKeyPanel } from "./AccessKeyPanel";
 import { AccountsPanel } from "./AccountsPanel";
 import { PasswordForm } from "./PasswordForm";
 import { LedgerModeControl } from "../plan/LedgerModeControl";
+import { DismissedDetectionsPanel } from "./DismissedDetectionsPanel";
 import { ProfileForm } from "./ProfileForm";
 import "./SettingsPage.css";
 
@@ -194,6 +196,11 @@ export function SettingsPage() {
             Accès par API
           </PanelHead>
           <AccessKeyPanel />
+        </BentoCell>
+
+        <BentoCell as={motion.div} span={SPAN.half} className="yd-panel" {...entryProps(reduced)}>
+          <PanelHead icon={RecurrencesIcon}>Détections écartées</PanelHead>
+          <DismissedDetectionsPanel />
         </BentoCell>
 
         <BentoCell as={motion.div} span={SPAN.half} className="yd-panel" {...entryProps(reduced)}>

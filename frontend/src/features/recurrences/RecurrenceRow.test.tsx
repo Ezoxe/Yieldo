@@ -292,3 +292,45 @@ describe("RecurrenceRow", () => {
     expect(screen.getByText(/\+1\s182,00/)).toBeInTheDocument();
   });
 });
+
+/**
+ * The two things a household can do with a detection, at the foot of the
+ * panel — and only when the screen hands them in, so the panel can still be
+ * shown where neither applies.
+ */
+describe("RecurrenceDetail — declare or dismiss", () => {
+  it("offers to declare the detection and to say it is not one", async () => {
+    const onDeclare = vi.fn();
+    const onDismiss = vi.fn();
+    render(
+      <RecurrenceDetail
+        recurrence={base}
+        ledgerLastOn={LEDGER_LAST_ON}
+        onDeclare={onDeclare}
+        onDismiss={onDismiss}
+      />,
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Déclarer cette récurrence" }));
+    expect(onDeclare).toHaveBeenCalledWith(base);
+    await userEvent.click(screen.getByRole("button", { name: "Ce n'est pas un abonnement" }));
+    expect(onDismiss).toHaveBeenCalledWith(base);
+  });
+
+  it("offers nothing when the screen hands nothing in", () => {
+    renderDetail(base);
+    expect(screen.queryByRole("button", { name: /Déclarer/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /abonnement/ })).not.toBeInTheDocument();
+  });
+
+  it("holds the dismiss button while the request is out", () => {
+    render(
+      <RecurrenceDetail
+        recurrence={base}
+        ledgerLastOn={LEDGER_LAST_ON}
+        onDismiss={vi.fn()}
+        dismissing
+      />,
+    );
+    expect(screen.getByRole("button", { name: "Ce n'est pas un abonnement" })).toBeDisabled();
+  });
+});

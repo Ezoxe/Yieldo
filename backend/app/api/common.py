@@ -47,7 +47,14 @@ from app.engines.plan import (
 from app.engines.plan import PlanLine as PlanLinePoint
 from app.engines.recurrence import RecurringTx
 from app.importers.dedup import normalize_label
-from app.models import Account, Category, PlanLine, PlanSettings, Transaction
+from app.models import (
+    Account,
+    Category,
+    PlanLine,
+    PlanSettings,
+    RecurrenceDismissal,
+    Transaction,
+)
 from app.schemas.history import HistoryOut
 
 # What "the money you could actually spend next month" is made of. A PEA or a
@@ -242,6 +249,18 @@ def recurrence_points(db: Session, user_id: int) -> list[RecurringTx]:
         .order_by(Transaction.date)
         .all()
     )
+    # What the household said is not a subscription, by the same key the
+    # engine groups by. Filtered here rather than on the report: a dismissed
+    # label must leave every reading of the detection — the alerts, the
+    # assistant's tools — not only the screen that offered the button.
+    dismissed = {
+        key
+        for (key,) in db.query(RecurrenceDismissal.label_key)
+        .filter(RecurrenceDismissal.user_id == user_id)
+        .all()
+    }
+    if dismissed:
+        rows = [row for row in rows if normalize_label(row.label_raw) not in dismissed]
     return [
         RecurringTx(
             on=row.date,

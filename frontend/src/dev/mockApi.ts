@@ -1146,6 +1146,13 @@ function searchPayload(params: Params) {
   };
 }
 
+// What the household said is not a subscription. Mutable: the preview's
+// « Ce n'est pas un abonnement » appends here and « Rétablir » removes.
+const DISMISSALS: { id: number; label_key: string; label: string; created_at: string }[] = [
+  { id: 1, label_key: "cb carrefour market", label: "CB CARREFOUR MARKET",
+    created_at: "2026-09-10T10:00:00Z" },
+];
+
 const ROUTES: Record<string, (params: Params) => unknown> = {
   "/api/auth/refresh": () => ({ access_token: "apercu", token_type: "bearer", user: MUTABLE_USER }),
   "/api/auth/me": () => MUTABLE_USER,
@@ -1221,6 +1228,7 @@ const ROUTES: Record<string, (params: Params) => unknown> = {
   "/api/export/templates": () => EXPORT_TEMPLATES,
   "/api/imports": () => IMPORT_BATCHES,
   "/api/alerts/count": () => ({ count: ALERTS_REPORT.alerts.length }),
+  "/api/recurrences/dismissals": () => DISMISSALS,
   "/api/imports/profiles": () => COLUMN_PROFILES,
   "/api/feasibility/context": feasibilityContext,
   "/api/feasibility/scenarios": () => [],
@@ -1707,6 +1715,28 @@ export function installMockApi(): void {
           scope === null ? [] : MOCK_CHATS.filter((row) => String(row.conversation_id) !== scope);
         return new Response(null, { status: 204 });
       }
+    }
+
+    // « Ce n'est pas un abonnement » and its undo, so the two buttons can be
+    // judged end to end in the preview.
+    if (url.pathname === "/api/recurrences/dismissals" && method === "POST") {
+      const body = JSON.parse(String(init?.body)) as { label_key: string; label: string };
+      const existing = DISMISSALS.find((row) => row.label_key === body.label_key);
+      if (existing !== undefined) return jsonOk(existing);
+      const row = {
+        id: DISMISSALS.length + 1, label_key: body.label_key, label: body.label,
+        created_at: new Date().toISOString(),
+      };
+      DISMISSALS.push(row);
+      return new Response(JSON.stringify(row), {
+        status: 201, headers: { "Content-Type": "application/json" },
+      });
+    }
+    const dismissal = /^\/api\/recurrences\/dismissals\/(\d+)$/.exec(url.pathname);
+    if (dismissal !== null && method === "DELETE") {
+      const index = DISMISSALS.findIndex((row) => row.id === Number(dismissal[1]));
+      if (index >= 0) DISMISSALS.splice(index, 1);
+      return new Response(null, { status: 204 });
     }
 
     const decision = /^\/api\/agent\/proposals\/(\d+)\/(apply|refuse)$/.exec(url.pathname);

@@ -118,7 +118,20 @@ describe("TransactionRow", () => {
   // information at all. It gets its own line under the label now.
   it("gives the category a line of its own on a phone", () => {
     const phone = css.slice(css.indexOf("@media (max-width: 599px)"));
-    expect(phone).toMatch(/grid-template-areas:\s*"date\s+label\s+amount"\s+"\.\s+category\s+action"/);
+    expect(phone).toMatch(/grid-template-areas:\s*"label\s+amount"\s+"category\s+action"/);
+  });
+
+  // The rows are grouped under a day header that already prints the date in
+  // full. Seen at 390: every row repeated it in a 4.3rem column of its own,
+  // and « CB PIZZERIA DA MARCO » lost its last word to it.
+  it("leaves the date to the day header on a phone", () => {
+    const phone = css.slice(css.indexOf("@media (max-width: 599px)"));
+    const date = phone.match(/\.yd-transactions__cell--date\s*\{([^}]*)\}/);
+    // Hidden from sight, not from the accessible table: absolutely positioned
+    // it takes no grid track, and a screen reader still hears the date.
+    expect(date?.[1]).toMatch(/position:\s*absolute/);
+    expect(date?.[1]).toMatch(/clip-path:\s*inset\(50%\)/);
+    expect(date?.[1]).not.toMatch(/display:\s*none/);
   });
 
   // A row is wrong in ways no recategorisation reaches -- a date typed a month

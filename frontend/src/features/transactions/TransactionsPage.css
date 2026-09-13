@@ -633,10 +633,10 @@
   .yd-transactions__head tr,
   .yd-transactions__row {
     display: grid;
-    grid-template-columns: 4.3rem minmax(0, 1fr) 4.9rem;
+    grid-template-columns: minmax(0, 1fr) 4.9rem;
     grid-template-areas:
-      "date label   amount"
-      ".    category action";
+      "label    amount"
+      "category action";
     align-items: baseline;
     column-gap: var(--yd-space-xs);
     padding: var(--yd-space-2xs) var(--yd-space-xs);
@@ -679,10 +679,24 @@
     border-bottom: 1px solid var(--yd-border);
   }
 
-  .yd-transactions__head th:nth-child(1),
+  /* The day header over the group already prints the date in full; a 4.3rem
+     column repeating it on every row was what truncated « CB PIZZERIA DA
+     MARCO ». The column header goes; the cell is only hidden from sight —
+     absolutely positioned, it takes no grid track, and a screen reader still
+     hears the date on each row. */
+  .yd-transactions__head th:nth-child(1) {
+    display: none;
+  }
+
   .yd-transactions__cell--date {
-    grid-area: date;
-    font-size: 0.7rem;
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
   }
 
   /* Whatever the date and the amount leave. `break-word`, not `anywhere`: a

@@ -281,11 +281,6 @@
   }
 }
 
-.yd-shell__user {
-  color: var(--yd-text-muted);
-  font-size: 0.9rem;
-}
-
 /* The one place the application's content width is decided. Eleven screens
    used to carry their own `max-width: 1280px`, which left a third of a 1920
    display empty and could only be widened eleven times over. */
@@ -358,10 +353,6 @@
     padding-left: 62px;
     padding-right: var(--yd-space-md);
     gap: var(--yd-space-xs);
-  }
-
-  .yd-shell__user {
-    display: none;
   }
 
   .yd-shell__assistant {

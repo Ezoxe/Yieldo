@@ -1,0 +1,175 @@
+/* The account menu in the header: a round initial beside the name, and a
+   popover under it. Same pill grammar as the assistant button next to it,
+   in the neutral tone rather than the accent — it is a place to go, not the
+   one control on the strip that does something. */
+.yd-user-menu {
+  position: relative;
+}
+
+.yd-user-menu__trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 12px 3px 3px;
+  border: 1px solid var(--yd-border);
+  border-radius: var(--yd-radius-pill);
+  background: transparent;
+  color: var(--yd-text-muted);
+  font: inherit;
+  font-size: 0.86rem;
+  cursor: pointer;
+  transition:
+    background-color var(--yd-motion-fast) var(--yd-ease),
+    border-color var(--yd-motion-fast) var(--yd-ease),
+    color var(--yd-motion-fast) var(--yd-ease);
+}
+
+.yd-user-menu__trigger:hover,
+.yd-user-menu__trigger[aria-expanded="true"] {
+  border-color: var(--yd-border-strong);
+  background: color-mix(in srgb, var(--yd-text) 6%, transparent);
+  color: var(--yd-text);
+}
+
+.yd-user-menu__trigger:focus-visible {
+  outline: 2px solid var(--yd-accent);
+  outline-offset: 2px;
+}
+
+.yd-user-menu__initial {
+  display: inline-grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--yd-accent) 18%, transparent);
+  color: var(--yd-accent);
+  font-size: 0.8rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+/* The popover: raised surface, pop shadow, anchored under the trigger's
+   right edge so it never runs off a narrow header. */
+.yd-user-menu__panel {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 30;
+  min-width: 220px;
+  padding: 6px;
+  border: 1px solid var(--yd-border);
+  border-radius: var(--yd-radius-sm);
+  background: var(--yd-surface-strong);
+  box-shadow: var(--yd-shadow-pop);
+}
+
+.yd-user-menu__who {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 8px 10px 10px;
+  border-bottom: 1px solid var(--yd-border);
+  color: var(--yd-text);
+  font-size: 0.86rem;
+  font-weight: 600;
+}
+
+.yd-user-menu__who svg {
+  width: 16px;
+  height: 16px;
+  color: var(--yd-text-muted);
+}
+
+.yd-user-menu__item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: calc(var(--yd-radius-sm) - 4px);
+  background: transparent;
+  color: var(--yd-text);
+  font: inherit;
+  font-size: 0.86rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.yd-user-menu__item svg {
+  width: 16px;
+  height: 16px;
+  color: var(--yd-text-muted);
+}
+
+.yd-user-menu__item:hover,
+.yd-user-menu__item:focus-visible {
+  background: color-mix(in srgb, var(--yd-accent) 10%, transparent);
+  outline: none;
+}
+
+.yd-user-menu__group {
+  margin: 4px 0;
+  padding: 4px 0;
+  border-top: 1px solid var(--yd-border);
+  border-bottom: 1px solid var(--yd-border);
+}
+
+.yd-user-menu__group-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 6px 10px 2px;
+  color: var(--yd-text-muted);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.yd-user-menu__group-title svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* A radio row shows its state with a dot on the left, in the accent when
+   checked and as a hairline ring otherwise — never by colour alone. */
+.yd-user-menu__item--radio::before {
+  content: "";
+  flex: none;
+  width: 8px;
+  height: 8px;
+  margin: 0 4px;
+  border-radius: 50%;
+  border: 1px solid var(--yd-text-muted);
+}
+
+.yd-user-menu__item--radio[aria-checked="true"]::before {
+  border-color: var(--yd-accent);
+  background: var(--yd-accent);
+}
+
+.yd-user-menu__item--radio[aria-checked="true"] {
+  font-weight: 600;
+}
+
+.yd-user-menu__item--exit {
+  color: var(--yd-negative-text);
+}
+
+.yd-user-menu__item--exit svg {
+  color: currentColor;
+}
+
+@media (max-width: 720px) {
+  .yd-user-menu__name {
+    display: none;
+  }
+
+  .yd-user-menu__trigger {
+    padding-right: 3px;
+  }
+}

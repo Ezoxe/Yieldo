@@ -14,6 +14,7 @@ import { LedgerModeBadge } from "../features/plan/LedgerModeBadge";
 import { GlobalSearch } from "../features/search/GlobalSearch";
 import { useLedgerMode } from "../features/plan/useLedgerMode";
 import { NAV_SECTIONS } from "./navigation";
+import { UserMenu } from "./UserMenu";
 import { slideOver } from "../design/motion/variants";
 import { useReducedMotion } from "../design/motion/useReducedMotion";
 import "./AppShell.css";
@@ -229,14 +230,13 @@ export function AppShell({ userName }: AppShellProps) {
       {/* Focus must not wander behind the scrim while the drawer is open. */}
       <div className="yd-shell__body" inert={drawerOpen || undefined}>
         {/* The header carries the reader's name and the one control that DOES
-            something. The theme select used to sit here and no longer does:
-            it is a preference, set once and rarely again, and it already has a
-            home in Réglages → Apparence beside the density and animation
-            switches. A permanent slot in the header for a yearly decision was
-            spending the most valuable strip of the page on the least frequent
-            action. */}
+            something. The name is a menu button: Réglages, the theme and the
+            exit sit behind it. The theme SELECT used to sit here as a permanent
+            slot and no longer does — a preference set a few times a year does
+            not earn the most valuable strip of the page — but a row inside a
+            menu that is closed eleven months out of twelve costs nothing. */}
         <header className="yd-shell__header">
-          <span className="yd-shell__user">{userName}</span>
+          <UserMenu userName={userName} />
           {/* The reading, when it is not the plain one. The three-way control
               that used to sit here is a choice made a few times a year and now
               lives in Réglages; what stays is the STATEMENT, and only when

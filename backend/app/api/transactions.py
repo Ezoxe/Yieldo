@@ -1,6 +1,9 @@
+import csv
+import io
+from dataclasses import dataclass
 from datetime import date
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
@@ -142,8 +145,23 @@ def _search_clause(db: Session, user: User, search: str):
     return or_(*clauses)
 
 
-@router.get("", response_model=TransactionPage)
-def list_transactions(
+@dataclass(frozen=True)
+class ListFilters:
+    """What the list and the export both read. One dataclass so the CSV can
+    never honour a filter the screen does not, or the reverse."""
+
+    date_from: date | None = None
+    date_to: date | None = None
+    category_id: int | None = None
+    account_id: int | None = None
+    search: str | None = None
+    uncategorized_only: bool = False
+    include_transfers: bool = False
+    min_cents: int | None = None
+    max_cents: int | None = None
+
+
+def list_filters(
     date_from: date | None = None,
     date_to: date | None = None,
     category_id: int | None = None,
@@ -153,19 +171,27 @@ def list_transactions(
     include_transfers: bool = False,
     min_cents: int | None = None,
     max_cents: int | None = None,
-    limit: int = Query(default=50, ge=1, le=500),
-    offset: int = Query(default=0, ge=0),
-    user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-) -> TransactionPage:
+) -> ListFilters:
+    """The query parameters of the list, as a FastAPI dependency shared with
+    the export."""
+    return ListFilters(
+        date_from=date_from, date_to=date_to, category_id=category_id,
+        account_id=account_id, search=search, uncategorized_only=uncategorized_only,
+        include_transfers=include_transfers, min_cents=min_cents, max_cents=max_cents,
+    )
+
+
+def _filtered(db: Session, user: User, filters: ListFilters):
+    """The three queries the list is built from: the filtered rows, the whole
+    period, and the transfers the toggle is hiding."""
     # No default range here, deliberately: absent dates already mean the whole
     # ledger on this route, and that is what they now mean on /analytics too.
     query = db.query(Transaction).filter(Transaction.user_id == user.id)
 
-    if date_from is not None:
-        query = query.filter(Transaction.date >= date_from)
-    if date_to is not None:
-        query = query.filter(Transaction.date <= date_to)
+    if filters.date_from is not None:
+        query = query.filter(Transaction.date >= filters.date_from)
+    if filters.date_to is not None:
+        query = query.filter(Transaction.date <= filters.date_to)
 
     # Branched off before the other filters are applied: this is the count of
     # the period alone, which is what tells an empty list apart from a list
@@ -178,24 +204,85 @@ def list_transactions(
         period_query.with_entities(func.count(Transaction.id))
         .filter(Transaction.is_transfer.is_(True)).scalar() or 0
     )
-    if not include_transfers:
+    if not filters.include_transfers:
         # Off by default, so the list matches the figures every other screen
         # prints: money moved between your own accounts is not spending, and a
         # list that shows it beside real expenses invites the reader to add
         # them up.
         query = query.filter(Transaction.is_transfer.is_(False))
-    if category_id is not None:
-        query = query.filter(Transaction.category_id == category_id)
-    if account_id is not None:
-        query = query.filter(Transaction.account_id == account_id)
-    if uncategorized_only:
+    if filters.category_id is not None:
+        query = query.filter(Transaction.category_id == filters.category_id)
+    if filters.account_id is not None:
+        query = query.filter(Transaction.account_id == filters.account_id)
+    if filters.uncategorized_only:
         query = query.filter(Transaction.category_id.is_(None))
-    if min_cents is not None:
-        query = query.filter(Transaction.amount_cents >= min_cents)
-    if max_cents is not None:
-        query = query.filter(Transaction.amount_cents <= max_cents)
-    if search:
-        query = query.filter(_search_clause(db, user, search))
+    if filters.min_cents is not None:
+        query = query.filter(Transaction.amount_cents >= filters.min_cents)
+    if filters.max_cents is not None:
+        query = query.filter(Transaction.amount_cents <= filters.max_cents)
+    if filters.search:
+        query = query.filter(_search_clause(db, user, filters.search))
+    return query, period_query, transfer_total
+
+
+@router.get("/export.csv")
+def export_transactions(
+    filters: ListFilters = Depends(list_filters),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> Response:
+    """The ledger as the screen shows it, as a CSV a spreadsheet opens.
+
+    Same filters as the list, through the same dependency, so what is
+    exported is what is on screen and nothing else. UTF-8 with a BOM and `;`
+    between cells, which is what a French Excel expects on a double-click;
+    amounts in euros with two decimals and a comma, the way every screen
+    prints them -- the raw cents are this application's convention, not the
+    reader's. The categories and accounts are named, not numbered.
+    """
+    query, _, _ = _filtered(db, user, filters)
+    rows = query.order_by(Transaction.date.desc(), Transaction.id.desc()).all()
+    categories = {
+        row.id: row.name
+        for row in db.query(Category).filter(Category.user_id == user.id).all()
+    }
+    accounts = {
+        row.id: row.name
+        for row in db.query(Account).filter(Account.user_id == user.id).all()
+    }
+
+    buffer = io.StringIO()
+    writer = csv.writer(buffer, delimiter=";", lineterminator="\r\n")
+    writer.writerow(["Date", "Libellé", "Montant", "Catégorie", "Compte", "Notes"])
+    for row in rows:
+        sign = "-" if row.amount_cents < 0 else ""
+        cents = abs(row.amount_cents)
+        writer.writerow([
+            row.date.isoformat(),
+            row.label_raw,
+            f"{sign}{cents // 100},{cents % 100:02d}",
+            categories.get(row.category_id, "") if row.category_id is not None else "",
+            accounts.get(row.account_id, ""),
+            row.notes or "",
+        ])
+    content = "\ufeff" + buffer.getvalue()
+    stamp = date.today().isoformat()
+    return Response(
+        content=content.encode("utf-8"),
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="yieldo-transactions-{stamp}.csv"'},
+    )
+
+
+@router.get("", response_model=TransactionPage)
+def list_transactions(
+    filters: ListFilters = Depends(list_filters),
+    limit: int = Query(default=50, ge=1, le=500),
+    offset: int = Query(default=0, ge=0),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> TransactionPage:
+    query, period_query, transfer_total = _filtered(db, user, filters)
 
     total = query.with_entities(func.count(Transaction.id)).scalar() or 0
     period_total = period_query.with_entities(func.count(Transaction.id)).scalar() or 0

@@ -149,6 +149,18 @@ function setupFetch(overrides: FetchOverrides = {}) {
       const body = init?.body ? JSON.parse(init.body as string) : {};
       return Promise.resolve(overrides.patch ? overrides.patch(id, body) : jsonResponse({ ...txCarrefour, id, category_id: body.category_id, category_source: "manual", learned_rule_id: null, backfilled: 0 }));
     }
+    if (path === "/api/transactions/export.csv") {
+      exportUrls.push(url.search);
+      return Promise.resolve(
+        new Response("Date;Libellé", {
+          status: 200,
+          headers: {
+            "Content-Type": "text/csv; charset=utf-8",
+            "Content-Disposition": 'attachment; filename="yieldo-transactions-2026-09-13.csv"',
+          },
+        }),
+      );
+    }
     throw new Error(`Unhandled fetch in test: ${method} ${path}`);
   });
 }
@@ -157,6 +169,9 @@ beforeEach(() => {
   fetchMock.mockReset();
   vi.stubGlobal("fetch", fetchMock);
 });
+
+/** The query string each CSV export carried. */
+const exportUrls: string[] = [];
 
 function renderPage(entry = "/transactions") {
   return render(
@@ -565,4 +580,26 @@ describe("TransactionsPage — the term the header hands over", () => {
       ).toBe(true));
   });
 });
+});
+
+describe("TransactionsPage — the ledger exports as CSV", () => {
+  it("asks for the export with the filters on screen and hands the file to the browser", async () => {
+    exportUrls.length = 0;
+    const createObjectURL = vi.fn(() => "blob:yieldo");
+    const revokeObjectURL = vi.fn();
+    vi.stubGlobal("URL", Object.assign(URL, { createObjectURL, revokeObjectURL }));
+    const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
+    setupFetch();
+    renderPage();
+    await screen.findByText("CARREFOUR MARKET CB 01/03");
+
+    await userEvent.click(screen.getByRole("button", { name: "Exporter CSV" }));
+
+    await waitFor(() => expect(exportUrls).toHaveLength(1));
+    expect(exportUrls[0]).toContain("date_from=");
+    expect(exportUrls[0]).not.toContain("limit=");
+    expect(createObjectURL).toHaveBeenCalledTimes(1);
+    expect(click).toHaveBeenCalledTimes(1);
+    click.mockRestore();
+  });
 });

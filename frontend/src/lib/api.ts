@@ -81,12 +81,12 @@ async function refreshSession(): Promise<boolean> {
   return true;
 }
 
-async function request<T>(
+async function send(
   method: string,
   path: string,
   options: { params?: Record<string, QueryValue>; body?: unknown; form?: FormData } = {},
   isRetry = false,
-): Promise<T> {
+): Promise<Response> {
   const headers: Record<string, string> = {};
   if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
   if (options.body !== undefined) headers["Content-Type"] = "application/json";
@@ -100,12 +100,46 @@ async function request<T>(
 
   if (response.status === 401 && !isRetry && !path.startsWith("/auth/")) {
     // One refresh attempt, then give up: retrying a failed refresh would loop.
-    if (await refreshSession()) return request<T>(method, path, options, true);
+    if (await refreshSession()) return send(method, path, options, true);
     onSessionLost?.();
   }
 
   if (!response.ok) throw new ApiError(response.status, await readError(response));
-  return parse<T>(response);
+  return response;
+}
+
+async function request<T>(
+  method: string,
+  path: string,
+  options: { params?: Record<string, QueryValue>; body?: unknown; form?: FormData } = {},
+): Promise<T> {
+  return parse<T>(await send(method, path, options));
+}
+
+/**
+ * A file the backend writes, fetched with the session and handed to the
+ * browser as a download. A plain `<a download>` cannot carry the bearer
+ * token, so the bytes come through the same pipeline as every other request
+ * (token, one silent refresh) and leave through a blob URL. The file name is
+ * the backend's own, read off Content-Disposition.
+ */
+export async function downloadFile(
+  path: string,
+  params?: Record<string, QueryValue>,
+  fallbackName = "export",
+): Promise<void> {
+  const response = await send("GET", path, { params });
+  const disposition = response.headers.get("Content-Disposition") ?? "";
+  const named = /filename="([^"]+)"/.exec(disposition);
+  const blob = await response.blob();
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = named?.[1] ?? fallbackName;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(url);
 }
 
 export const api = {

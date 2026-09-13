@@ -892,3 +892,35 @@
     transition: none;
   }
 }
+
+/* Beside « Ajouter une opération » in the head: the same shape, the quiet
+   tone — a way out for the data, not the screen's main action. */
+.yd-transactions__export {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--yd-space-2xs);
+  min-height: 36px;
+  padding: 0 var(--yd-space-sm);
+  border: 1px solid var(--yd-border-control);
+  border-radius: var(--yd-radius-sm);
+  background: transparent;
+  color: var(--yd-text-muted);
+  font: inherit;
+  font-size: 0.86rem;
+  cursor: pointer;
+}
+
+.yd-transactions__export svg {
+  width: 16px;
+  height: 16px;
+}
+
+.yd-transactions__export:hover:not(:disabled) {
+  color: var(--yd-text);
+  border-color: color-mix(in srgb, var(--yd-accent) 45%, transparent);
+}
+
+.yd-transactions__export:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

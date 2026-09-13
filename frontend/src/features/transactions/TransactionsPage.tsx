@@ -8,7 +8,7 @@ import { EmptyState, historySentence } from "../../design/EmptyState";
 import { ListSkeleton } from "../../design/ListSkeleton";
 import { entryProps, staggerProps } from "../../design/motion/variants";
 import { useReducedMotion } from "../../design/motion/useReducedMotion";
-import { ApiError, api } from "../../lib/api";
+import { ApiError, api, downloadFile } from "../../lib/api";
 import { plural } from "../../lib/plural";
 import type {
   Account,
@@ -22,7 +22,7 @@ import { FilterBar } from "./FilterBar";
 import { TransactionRow } from "./TransactionRow";
 import "./TransactionsPage.css";
 import { usePeriod } from "./usePeriod";
-import { PlusIcon, TransactionsIcon } from "../../design/icons";
+import { DownloadIcon, PlusIcon, TransactionsIcon } from "../../design/icons";
 import { PageHead } from "../../design/PageHead";
 import { TransactionForm } from "./TransactionForm";
 
@@ -220,6 +220,25 @@ export function TransactionsPage() {
   // whether it belongs in it at all depends on the period and every filter
   // currently applied. Refetching is the only answer that cannot lie.
   const [adding, setAdding] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  async function exportCsv() {
+    setExporting(true);
+    setLoadError(null);
+    try {
+      await downloadFile("/transactions/export.csv", {
+        date_from: period.from,
+        date_to: period.to,
+        account_id: accountId,
+        uncategorized_only: uncategorizedOnly,
+        include_transfers: includeTransfers,
+        search,
+      }, "yieldo-transactions.csv");
+    } catch (err) {
+      setLoadError(err instanceof ApiError ? err.detail : "Une erreur inattendue est survenue.");
+    } finally {
+      setExporting(false);
+    }
+  }
   // The row being corrected. It is kept after the drawer closes so the closing
   // animation does not play against a form that has already emptied itself;
   // `adding` and this are what tell the two modes apart.
@@ -476,6 +495,19 @@ export function TransactionsPage() {
         icon={TransactionsIcon}
         title="Transactions"
         actions={
+          <>
+            {/* The ledger, portable: the same filters as the list on screen,
+                as a CSV a spreadsheet opens. The bytes come through the
+                session, so this is a button and not a link. */}
+            <button
+              type="button"
+              className="yd-transactions__export"
+              disabled={exporting || items.length === 0}
+              onClick={() => void exportCsv()}
+            >
+              <DownloadIcon />
+              {exporting ? "Export en cours…" : "Exporter CSV"}
+            </button>
           <button
             type="button"
             className="yd-transactions__add"
@@ -485,6 +517,7 @@ export function TransactionsPage() {
             <PlusIcon />
             Ajouter une opération
           </button>
+          </>
         }
         shortLead={
           <p>

@@ -255,3 +255,49 @@ def test_search_matches_the_category_name(client, imported):
 def test_search_still_finds_nothing_when_nothing_matches(client, imported):
     headers, _ = imported
     assert client.get("/api/transactions?search=12", headers=headers).json()["total"] == 0
+
+
+# --- GET /transactions/export.csv: the ledger, portable -------------------------
+
+
+def test_export_writes_the_filtered_ledger_as_a_french_csv(client, imported):
+    headers, _ = imported
+    listed = client.get("/api/transactions", headers=headers).json()
+    response = client.get("/api/transactions/export.csv", headers=headers)
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("text/csv")
+    assert "attachment" in response.headers["content-disposition"]
+    assert response.headers["content-disposition"].endswith('.csv"')
+
+    body = response.content
+    # A BOM, so a spreadsheet opened by double-click reads the accents.
+    assert body.startswith("\ufeff".encode())
+    lines = body.decode("utf-8-sig").splitlines()
+    assert lines[0] == "Date;Libellé;Montant;Catégorie;Compte;Notes"
+    assert len(lines) == 1 + listed["total"]
+    first = lines[1].split(";")
+    newest = listed["items"][0]
+    assert first[0] == newest["date"]
+    assert first[1] == newest["label_raw"]
+    # Euros with two decimals and a comma, the way the screen prints them,
+    # never the raw cents.
+    cents = newest["amount_cents"]
+    sign = "-" if cents < 0 else ""
+    assert first[2] == f"{sign}{abs(cents) // 100},{abs(cents) % 100:02d}"
+
+
+def test_export_honours_the_same_filters_as_the_list(client, imported):
+    headers, _ = imported
+    listed = client.get("/api/transactions?date_from=2025-03-02&date_to=2025-03-31",
+                        headers=headers).json()
+    response = client.get(
+        "/api/transactions/export.csv?date_from=2025-03-02&date_to=2025-03-31",
+        headers=headers,
+    )
+    lines = response.content.decode("utf-8-sig").splitlines()
+    assert len(lines) == 1 + listed["total"]
+    assert listed["total"] > 0
+
+
+def test_export_needs_a_session(client, imported):
+    assert client.get("/api/transactions/export.csv").status_code == 401

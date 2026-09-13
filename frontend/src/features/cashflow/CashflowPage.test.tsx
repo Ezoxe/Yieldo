@@ -277,6 +277,17 @@ async function openRunwayMethod() {
 }
 
 describe("CashflowPage", () => {
+  // The head said « douze mois » over a chart of however many the engine
+  // sent — six, on the preview. The title counts what it shows.
+  it("titles the forecast with the number of months it actually shows", async () => {
+    setupFetch();
+    renderPage();
+    const count = forecast.months.length;
+    expect(
+      await screen.findByRole("heading", { name: `Prévision sur ${count} mois` }),
+    ).toBeInTheDocument();
+  });
+
   it("shows both runway scenarios", async () => {
     setupFetch();
     renderPage();

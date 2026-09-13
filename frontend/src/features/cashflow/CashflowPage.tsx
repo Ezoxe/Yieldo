@@ -456,7 +456,12 @@ export function CashflowPage() {
               )
             }
           >
-            Prévision sur douze mois
+            {/* Counted from the months received, never a fixed « douze »: the
+                engine projects what the history allows, and the preview
+                showed six under a title promising twelve. */}
+            {forecast === null || forecast.months.length === 0
+              ? "Prévision"
+              : `Prévision sur ${forecast.months.length} mois`}
           </PanelHead>
           {forecast === null ? null : forecast.insufficient_reason !== null ? (
             <>

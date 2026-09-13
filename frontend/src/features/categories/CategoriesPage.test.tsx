@@ -97,6 +97,13 @@ describe("CategoriesPage stylesheet", () => {
 });
 
 describe("CategoriesPage", () => {
+  it("shows a skeleton of the tree while it loads, never an empty panel", () => {
+    fetchMock.mockImplementation(() => new Promise(() => {}));
+    render(<CategoriesPage />);
+    expect(screen.getByRole("status", { name: "Chargement des catégories" })).toBeInTheDocument();
+  });
+
+
   it("shows the tree with each ceiling, or says there is none", async () => {
     render(<CategoriesPage />);
 

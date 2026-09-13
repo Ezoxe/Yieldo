@@ -1,0 +1,19 @@
+.yd-list-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-xs);
+}
+
+.yd-list-skeleton__row {
+  height: 2.2rem;
+}
+
+/* Alternate widths so the stand-in reads as rows of unequal text, not as a
+   stack of identical bars. */
+.yd-list-skeleton__row:nth-child(3n + 2) {
+  width: 92%;
+}
+
+.yd-list-skeleton__row:nth-child(3n) {
+  width: 96%;
+}

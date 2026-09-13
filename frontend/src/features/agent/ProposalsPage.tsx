@@ -4,6 +4,7 @@ import { BentoCell, type BentoSpan } from "../../design/bento/BentoCell";
 import { BentoGrid } from "../../design/bento/BentoGrid";
 import { PanelHead } from "../../design/bento/PanelHead";
 import { EmptyState } from "../../design/EmptyState";
+import { ListSkeleton } from "../../design/ListSkeleton";
 import { AssistantIcon, CheckIcon, CloseIcon, ProposalsIcon, TrashIcon } from "../../design/icons";
 import { PageHead } from "../../design/PageHead";
 import { ApiError, api } from "../../lib/api";
@@ -243,9 +244,7 @@ export function ProposalsPage() {
           </PanelHead>
 
           {isLoading ? (
-            <p className="yd-proposals__waiting" role="status">
-              Chargement…
-            </p>
+            <ListSkeleton rows={2} label="Chargement des propositions" />
           ) : pending.length === 0 ? (
             <EmptyState
               title="Rien à valider"

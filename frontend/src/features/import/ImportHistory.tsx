@@ -5,6 +5,7 @@ import { plural } from "../../lib/plural";
 import type { ImportBatch } from "../../lib/types";
 import { ImportIcon } from "../../design/icons";
 import { PanelHead } from "../../design/bento/PanelHead";
+import { ListSkeleton } from "../../design/ListSkeleton";
 
 const GENERIC_ERROR = "Une erreur inattendue est survenue.";
 
@@ -158,7 +159,7 @@ export function ImportHistory() {
       ) : null}
 
       {batches === null && error === null ? (
-        <p className="yd-import__hint">Chargement de l'historique…</p>
+        <ListSkeleton rows={3} label="Chargement de l'historique" />
       ) : null}
 
       {batches !== null && batches.length === 0 ? (

@@ -4,6 +4,7 @@ import { BentoCell, type BentoSpan } from "../../design/bento/BentoCell";
 import { BentoGrid } from "../../design/bento/BentoGrid";
 import { PanelHead } from "../../design/bento/PanelHead";
 import { EmptyState, frenchDate } from "../../design/EmptyState";
+import { ListSkeleton } from "../../design/ListSkeleton";
 import { PlanIcon, PlusIcon, RecurrencesIcon, TrashIcon } from "../../design/icons";
 import { InfoTip } from "../../design/InfoTip";
 import { PageHead } from "../../design/PageHead";
@@ -474,9 +475,7 @@ export function PlanPage() {
             Vos lignes
           </PanelHead>
           {isLoading ? (
-            <p className="yd-plan__waiting" role="status">
-              Chargement du plan…
-            </p>
+            <ListSkeleton rows={3} label="Chargement du plan" />
           ) : lines.length === 0 ? (
             <EmptyState
               title="Aucune ligne déclarée"

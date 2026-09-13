@@ -5,6 +5,7 @@ import { BentoCell, type BentoSpan } from "../../design/bento/BentoCell";
 import { BentoGrid } from "../../design/bento/BentoGrid";
 import { PanelHead } from "../../design/bento/PanelHead";
 import { EmptyState } from "../../design/EmptyState";
+import { ListSkeleton } from "../../design/ListSkeleton";
 import { CategoriesIcon, PlusIcon } from "../../design/icons";
 import { entryProps, staggerProps } from "../../design/motion/variants";
 import { useReducedMotion } from "../../design/motion/useReducedMotion";
@@ -361,7 +362,9 @@ export function CategoriesPage() {
       <BentoGrid as={motion.div} {...staggerProps(reduced)}>
         <BentoCell as={motion.div} span={SPAN.tree} className="yd-panel" {...entryProps(reduced)}>
           <PanelHead icon={CategoriesIcon}>Votre arborescence</PanelHead>
-          {categories !== null && categories.length === 0 ? (
+          {categories === null ? (
+            <ListSkeleton rows={8} label="Chargement des catégories" />
+          ) : categories.length === 0 ? (
             <EmptyState
               title="Aucune catégorie."
               detail="Les catégories par défaut sont créées avec votre compte ; si la liste est vide, ajoutez-en une à droite."

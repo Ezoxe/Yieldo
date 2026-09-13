@@ -5,6 +5,7 @@ import { Link, useSearchParams } from "react-router";
 import { BentoCell, type BentoSpan } from "../../design/bento/BentoCell";
 import { BentoGrid } from "../../design/bento/BentoGrid";
 import { EmptyState, historySentence } from "../../design/EmptyState";
+import { ListSkeleton } from "../../design/ListSkeleton";
 import { entryProps, staggerProps } from "../../design/motion/variants";
 import { useReducedMotion } from "../../design/motion/useReducedMotion";
 import { ApiError, api } from "../../lib/api";
@@ -608,7 +609,9 @@ export function TransactionsPage() {
           className="yd-transactions__list"
           {...entryProps(reducedMotion)}
         >
-          {emptyState !== null ? (
+          {isLoading && items.length === 0 ? (
+            <ListSkeleton rows={8} label="Chargement des opérations" />
+          ) : emptyState !== null ? (
             <div className="yd-transactions__empty">{emptyState}</div>
           ) : (
             <>

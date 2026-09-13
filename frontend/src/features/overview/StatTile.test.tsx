@@ -1,3 +1,7 @@
+import { readFileSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -26,6 +30,23 @@ beforeEach(() => {
 });
 
 import { StatTile } from "./StatTile";
+
+/**
+ * The sparkline is painted behind the figure and bled to the cell's edges —
+ * at 1440 a band under a tall tile. Seen at 390: the tile is short, the
+ * band reached the middle of the tile, and the rose line ran straight
+ * through « −1 318,00 € ». Under 640 px it becomes a strip below the figure.
+ */
+describe("StatTile stylesheet", () => {
+  it("puts the sparkline under the figure on a phone, not behind it", () => {
+    const here = path.dirname(fileURLToPath(import.meta.url));
+    const css = readFileSync(path.resolve(here, "./StatTile.css"), "utf8");
+    const phone = css.match(/@media \(max-width: 640px\)\s*\{([\s\S]*?)\n\}/);
+    expect(phone).not.toBeNull();
+    const rule = phone?.[1].match(/\.yd-stat-tile__sparkline\s*\{([^}]*)\}/);
+    expect(rule?.[1]).toMatch(/position:\s*static/);
+  });
+});
 
 describe("StatTile", () => {
   it("shows the label and the formatted value", () => {

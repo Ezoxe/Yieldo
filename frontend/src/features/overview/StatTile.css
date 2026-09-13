@@ -131,3 +131,19 @@
   --yd-sparkline-line: color-mix(in srgb, var(--yd-info) 55%, transparent);
   --yd-sparkline-fill: color-mix(in srgb, var(--yd-info) 26%, transparent);
 }
+
+/* A phone's tile is short, and a band that is 46% of it reaches the figure:
+   seen at 390, the rose line ran straight through « −1 318,00 € ». Below
+   640px the sparkline is a strip UNDER the figure, in the flow, full width of
+   the cell. */
+@media (max-width: 640px) {
+  .yd-stat-tile__sparkline {
+    position: static;
+    z-index: auto;
+    display: block;
+    width: calc(100% + var(--yd-space-lg) * 2);
+    margin: var(--yd-space-xs) calc(var(--yd-space-lg) * -1) calc(var(--yd-space-lg) * -1);
+    height: 28px;
+    min-height: 0;
+  }
+}

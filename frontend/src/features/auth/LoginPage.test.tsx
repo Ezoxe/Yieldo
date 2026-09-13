@@ -21,6 +21,14 @@ function renderPage() {
 }
 
 describe("LoginPage", () => {
+  // The card floated alone with no mark and no way back: a reader could
+  // not tell which application was asking, nor leave without the browser.
+  it("carries the brand and a way back to the landing page", () => {
+    renderPage();
+    expect(screen.getByRole("link", { name: "Yieldo" })).toHaveAttribute("href", "/");
+    expect(screen.getByRole("link", { name: "Accueil" })).toHaveAttribute("href", "/");
+  });
+
   it("labels both fields in French", () => {
     renderPage();
     expect(screen.getByLabelText("Adresse email")).toBeInTheDocument();

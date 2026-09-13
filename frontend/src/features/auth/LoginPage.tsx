@@ -8,6 +8,7 @@ import { useReducedMotion } from "../../design/motion/useReducedMotion";
 import { GlassCard } from "../../design/glass/GlassCard";
 import { ApiError } from "../../lib/api";
 import "./AuthPage.css";
+import { AuthBrand } from "./AuthBrand";
 import { useSession } from "./session";
 
 export function LoginPage() {
@@ -47,6 +48,7 @@ export function LoginPage() {
           initial={reducedMotion ? false : "hidden"}
           animate="visible"
         >
+          <AuthBrand />
           <GlassCard as="section" tone="raised" className="yd-auth__card">
             <h1>Connexion</h1>
 

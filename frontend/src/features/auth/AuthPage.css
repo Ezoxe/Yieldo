@@ -13,6 +13,46 @@
 .yd-auth__wrap {
   width: 100%;
   max-width: 380px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* The mark over the card, and the way back to the landing page on the same
+   line. Same size and weight as the sidebar's brand, so it is recognisably the
+   same application on both sides of the door. */
+.yd-auth__brand {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 4px;
+}
+
+.yd-auth__brand-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--yd-text);
+  font-size: 1.05rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  text-decoration: none;
+}
+
+.yd-auth__brand-link svg {
+  width: 24px;
+  height: 24px;
+}
+
+.yd-auth__home {
+  color: var(--yd-text-muted);
+  font-size: 0.85rem;
+  text-decoration: none;
+}
+
+.yd-auth__home:hover,
+.yd-auth__brand-link:hover {
+  color: var(--yd-accent);
 }
 
 .yd-auth__card {

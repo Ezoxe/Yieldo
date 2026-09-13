@@ -8,6 +8,7 @@ import { useReducedMotion } from "../../design/motion/useReducedMotion";
 import { GlassCard } from "../../design/glass/GlassCard";
 import { ApiError } from "../../lib/api";
 import "./AuthPage.css";
+import { AuthBrand } from "./AuthBrand";
 import { useSession } from "./session";
 
 type Strength = 0 | 1 | 2 | 3;
@@ -75,6 +76,7 @@ export function RegisterPage() {
           initial={reducedMotion ? false : "hidden"}
           animate="visible"
         >
+          <AuthBrand />
           <GlassCard as="section" tone="raised" className="yd-auth__card">
             <h1>Créer un compte</h1>
 

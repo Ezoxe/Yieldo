@@ -282,22 +282,32 @@
    tuned against --yd-bg, and a raised surface is lighter than the page. So the
    red moves to the border, where the threshold is 3:1 for non-text, and the
    word "Supprimer" carries the meaning. Colour was never the only signal here. */
+/* Tertiary: a hairline and muted text, like every other quiet control on a
+   row. Seen at 1440, three red-outlined buttons in bold were the loudest thing
+   on the screen for the one action nobody takes twice a year. The negative
+   tone is held back for the pointer, and the confirmation that follows is
+   where the weight belongs. */
 .yd-import-history__rollback {
   margin-left: auto;
-  border: 1px solid var(--yd-negative);
+  border: 1px solid var(--yd-border-control);
   border-radius: var(--yd-radius-sm);
-  padding: var(--yd-space-2xs) var(--yd-space-md);
+  padding: var(--yd-space-2xs) var(--yd-space-sm);
   background: transparent;
-  color: var(--yd-text);
+  color: var(--yd-text-muted);
   font: inherit;
-  font-weight: 600;
+  font-size: 0.84rem;
   cursor: pointer;
   white-space: nowrap;
-  transition: background-color var(--yd-motion-fast) var(--yd-ease);
+  transition:
+    background-color var(--yd-motion-fast) var(--yd-ease),
+    border-color var(--yd-motion-fast) var(--yd-ease),
+    color var(--yd-motion-fast) var(--yd-ease);
 }
 
 .yd-import-history__rollback:hover {
-  background: color-mix(in srgb, var(--yd-negative) 14%, transparent);
+  border-color: var(--yd-negative);
+  color: var(--yd-negative-text);
+  background: color-mix(in srgb, var(--yd-negative) 10%, transparent);
 }
 
 /* The confirmation takes the whole row rather than sitting beside the counts:

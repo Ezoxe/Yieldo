@@ -1,3 +1,7 @@
+import { readFileSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -164,5 +168,24 @@ describe("ImportHistory", () => {
     render(<ImportHistory />);
 
     expect(await screen.findByRole("alert")).toHaveTextContent("Historique indisponible.");
+  });
+});
+
+/**
+ * Seen at 1440: three rows, three red-outlined « Supprimer cet import »
+ * buttons, the loudest thing on the screen for the one action nobody takes
+ * twice a year. The word stays, the confirmation stays; the weight goes —
+ * quiet until the pointer is on it, red only then.
+ */
+describe("ImportHistory — the rollback is a tertiary action", () => {
+  it("draws the button quiet, with the negative tone held back for hover", () => {
+    const here = path.dirname(fileURLToPath(import.meta.url));
+    const css = readFileSync(path.resolve(here, "./ImportPage.css"), "utf8");
+    const rest = css.match(/\.yd-import-history__rollback\s*\{([^}]*)\}/);
+    expect(rest?.[1]).toMatch(/border:\s*1px solid var\(--yd-border-control\)/);
+    expect(rest?.[1]).toMatch(/color:\s*var\(--yd-text-muted\)/);
+    expect(rest?.[1]).not.toMatch(/font-weight:\s*600/);
+    const hover = css.match(/\.yd-import-history__rollback:hover\s*\{([^}]*)\}/);
+    expect(hover?.[1]).toMatch(/var\(--yd-negative\)/);
   });
 });

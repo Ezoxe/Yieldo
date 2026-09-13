@@ -366,6 +366,11 @@ export function GoalsPage() {
 
         <p className="yd-goal__figures">
           <span className="yd-num">{formatCents(goal.saved_cents)}</span>
+          {goal.measured ? (
+            <span className="yd-goal__measured" title="Solde du compte d'épargne, mesuré sur vos relevés">
+              mesuré
+            </span>
+          ) : null}
           <span className="yd-goal__figures-sep">{" sur "}</span>
           <span className="yd-num">{formatCents(goal.target_cents)}</span>
           <span className="yd-goal__ratio">{ratioLabel(goal.progress_ratio)}</span>

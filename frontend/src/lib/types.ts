@@ -837,6 +837,10 @@ export interface GoalProgress {
   name: string;
   target_cents: number;
   saved_cents: number;
+  /** The savings account this goal IS, when it is one; `saved_cents` is then
+   *  its balance and `measured` is true. */
+  account_id: number | null;
+  measured: boolean;
   /** Floored at 0. `progress_ratio` is not clamped and reads above 1 when the
    *  goal is overfunded. */
   remaining_cents: number;
@@ -882,6 +886,7 @@ export interface GoalIn {
   saved_cents: number;
   due_on: string | null;
   priority: number;
+  account_id?: number | null;
 }
 
 // -- Faisabilité d'achat -----------------------------------------------------

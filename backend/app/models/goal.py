@@ -1,6 +1,6 @@
 from datetime import date
 
-from sqlalchemy import Boolean, Date, ForeignKey, Integer, String, text
+from sqlalchemy import Boolean, Date, ForeignKey, Integer, String, UniqueConstraint, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db import Base
@@ -23,6 +23,9 @@ class Goal(Base):
     """
 
     __tablename__ = "goals"
+    __table_args__ = (
+        UniqueConstraint("user_id", "account_id", name="uq_goal_user_account"),
+    )
 
     user_id: Mapped[int] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False
@@ -40,4 +43,15 @@ class Goal(Base):
     )
     archived: Mapped[bool] = mapped_column(
         Boolean, default=False, server_default=text("0"), nullable=False
+    )
+    # The savings account this goal IS, when it is one. Set, `saved_cents` is
+    # the account's balance -- opening balance plus every movement -- and the
+    # declared column is only what the balance last read; the route refuses to
+    # write it. The model's own note says Yieldo cannot tell which euros in an
+    # account belong to which goal; when a whole account is one goal (a
+    # Livret A that is the emergency fund), it can, and this is that case.
+    # At most one goal per account (`uq_goal_user_account`), or two goals
+    # would both claim the same euros.
+    account_id: Mapped[int | None] = mapped_column(
+        ForeignKey("accounts.id", ondelete="SET NULL"), nullable=True
     )

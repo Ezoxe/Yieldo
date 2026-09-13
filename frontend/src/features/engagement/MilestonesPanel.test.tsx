@@ -22,6 +22,8 @@ const REFUSED: GoalProgress = {
   name: "Fonds d'urgence",
   target_cents: 300_000,
   saved_cents: 90_000,
+  account_id: null,
+  measured: false,
   remaining_cents: 210_000,
   progress_ratio: 0.3,
   milestones: [

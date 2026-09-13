@@ -34,7 +34,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.api.common import anomaly_points, liquid_balance_cents, recurrence_points, tx_points
-from app.api.goals import observed_months
+from app.api.goals import measure_goal, observed_months
 from app.api.history import user_history
 from app.db import get_db
 from app.engines.aggregate import aggregate_by_category, bucket_bounds, bucket_key
@@ -116,10 +116,11 @@ def _streak_out(db: Session, user_id: int, today: date) -> StreakOut:
 # ---------------------------------------------------------------------------
 
 
-def _goal_progress_out(item: GoalProgress) -> GoalProgressOut:
+def _goal_progress_out(item: GoalProgress, account_id: int | None) -> GoalProgressOut:
     return GoalProgressOut(
         goal_id=item.goal_id, name=item.name, target_cents=item.target_cents,
         saved_cents=item.saved_cents, remaining_cents=item.remaining_cents,
+        account_id=account_id, measured=account_id is not None,
         progress_ratio=item.progress_ratio,
         milestones=[
             MilestoneOut(percent=m.percent, threshold_cents=m.threshold_cents,
@@ -143,6 +144,11 @@ def _goals_out(db: Session, user: User, today: date) -> list[GoalProgressOut]:
         .order_by(Goal.priority, Goal.id)
         .all()
     )
+    # A goal backed by an account reads its balance, here as on the goals
+    # screen: the milestones in Suivi must be the ones Objectifs prints.
+    for row in rows:
+        measure_goal(db, row)
+    db.commit()
     months = observed_months(db, user.id)
     capacity = measure_savings_capacity(months)
     progress = evaluate_goals(
@@ -152,7 +158,8 @@ def _goals_out(db: Session, user: User, today: date) -> list[GoalProgressOut]:
         None if capacity is None else capacity.median_cents,
         today,
     )
-    return [_goal_progress_out(item) for item in progress]
+    by_id = {row.id: row for row in rows}
+    return [_goal_progress_out(item, by_id[item.goal_id].account_id) for item in progress]
 
 
 # ---------------------------------------------------------------------------

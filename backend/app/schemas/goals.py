@@ -20,6 +20,8 @@ class GoalIn(BaseModel):
     target_cents: int = Field(gt=0)
     saved_cents: int = Field(default=0, ge=0)
     due_on: date | None = None
+    # A savings account this goal is. Set, `saved_cents` is measured from it.
+    account_id: int | None = None
     # Lower is more urgent; goals are funded one at a time in this order.
     priority: int = Field(default=100, ge=1, le=999)
 
@@ -31,6 +33,9 @@ class GoalPatch(BaseModel):
     due_on: date | None = None
     priority: int | None = Field(default=None, ge=1, le=999)
     archived: bool | None = None
+    # Nullable on purpose: `null` detaches the account and the last measured
+    # balance stays as the declared amount.
+    account_id: int | None = None
 
     # `due_on` is the one nullable column on `models.Goal` -- clearing a
     # deadline is a legitimate edit, so it is deliberately excluded here.
@@ -47,6 +52,10 @@ class GoalOut(BaseModel):
     due_on: date | None
     priority: int
     archived: bool
+    account_id: int | None
+    # True when `saved_cents` is the account's balance rather than a figure
+    # the household typed -- the screen prints the word beside the amount.
+    measured: bool
 
 
 class MilestoneOut(BaseModel):
@@ -70,6 +79,8 @@ class GoalProgressOut(BaseModel):
     name: str
     target_cents: int
     saved_cents: int
+    account_id: int | None
+    measured: bool
     # Floored at 0. `progress_ratio` is NOT clamped, so an overfunded goal
     # still reads above 1.0.
     remaining_cents: int

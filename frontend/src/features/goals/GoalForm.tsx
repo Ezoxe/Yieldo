@@ -1,14 +1,21 @@
-import { useId, useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useId, useState, type FormEvent, type ReactNode } from "react";
 
 import { centsToInput, parseCents } from "../../design/theme";
 import { ApiError, api } from "../../lib/api";
-import type { GoalIn, GoalProgress } from "../../lib/types";
+import type { Account, GoalIn, GoalProgress } from "../../lib/types";
 
 const GENERIC_ERROR = "Une erreur inattendue est survenue.";
 
 /** `schemas.GoalIn.priority`: `ge=1, le=999`. */
 const MIN_PRIORITY = 1;
 const MAX_PRIORITY = 999;
+
+/**
+ * The account kinds a goal may be backed by — mirrored from
+ * `engines/transfer.SAVINGS_ACCOUNT_KINDS`, the set that already decides what
+ * « mettre de côté » means. A current account is the money one lives on.
+ */
+const SAVINGS_KINDS = new Set(["savings", "pea", "life_insurance", "per", "brokerage", "crypto"]);
 
 interface GoalFormProps {
   /**
@@ -49,6 +56,29 @@ export function GoalForm({ goal, onSaved, onCancel }: GoalFormProps) {
   const [saved, setSaved] = useState(goal ? centsToInput(goal.saved_cents) : "0");
   const [dueOn, setDueOn] = useState(goal?.due_on ?? "");
   const [priority, setPriority] = useState("");
+  // The savings account this goal IS, or "" for a declared goal. The list is
+  // the household's savings accounts, fetched here rather than handed in: the
+  // form is the only thing on the screen that needs it.
+  const [accountId, setAccountId] = useState<string>(
+    goal?.account_id === null || goal?.account_id === undefined ? "" : String(goal.account_id),
+  );
+  const [accounts, setAccounts] = useState<Account[] | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    api
+      .get<Account[]>("/accounts")
+      .then((rows) => {
+        if (!cancelled) setAccounts(rows.filter((row) => SAVINGS_KINDS.has(row.kind)));
+      })
+      .catch(() => {
+        // The select simply stays absent: a goal can still be declared.
+        if (!cancelled) setAccounts([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  const backed = accountId !== "";
   const [fieldErrors, setFieldErrors] = useState<Partial<Record<FieldName, string>>>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -119,11 +149,15 @@ export function GoalForm({ goal, onSaved, onCancel }: GoalFormProps) {
     const payload: Partial<GoalIn> = {
       name: trimmed,
       target_cents: targetCents as number,
-      saved_cents: savedCents as number,
       // Explicitly null, never "": the wire type is `date | None` and an empty
       // string is a 422. Clearing a deadline is a legitimate edit.
       due_on: dueOn.length > 0 ? dueOn : null,
+      // Null detaches; the backend keeps the last measured balance as declared.
+      account_id: backed ? Number(accountId) : null,
     };
+    // A backed goal's amount is the account's balance: the backend refuses a
+    // typed one, so none is sent.
+    if (!backed) payload.saved_cents = savedCents as number;
     // Omitted when blank so a PATCH leaves the rank it cannot show untouched,
     // and a POST falls through to the backend's own default.
     if (priorityValue !== null) payload.priority = priorityValue;
@@ -212,19 +246,43 @@ export function GoalForm({ goal, onSaved, onCancel }: GoalFormProps) {
         />
       ))}
 
-      {field("saved", "Déjà mis de côté (€)", (props) => (
-        <input
-          {...props}
-          type="text"
-          inputMode="decimal"
-          value={saved}
-          onChange={(event) => {
-            setSaved(event.target.value);
-            clearField("saved");
-          }}
-          placeholder="0,00"
-        />
-      ))}
+      {accounts !== null && accounts.length > 0 ? (
+        <div className="yd-goal-form__field">
+          <label htmlFor={`${baseId}-account`}>Compte d'épargne (facultatif)</label>
+          <select
+            id={`${baseId}-account`}
+            value={accountId}
+            onChange={(event) => setAccountId(event.target.value)}
+          >
+            <option value="">Aucun — je déclare le montant</option>
+            {accounts.map((account) => (
+              <option key={account.id} value={account.id}>
+                {account.name}
+              </option>
+            ))}
+          </select>
+          <p className="yd-goal-form__hint">
+            Un compte qui est cet objectif à lui seul — un Livret A qui est le fonds d'urgence.
+            Le montant mis de côté devient alors le solde du compte, mesuré sur vos relevés.
+          </p>
+        </div>
+      ) : null}
+
+      {backed
+        ? null
+        : field("saved", "Déjà mis de côté (€)", (props) => (
+            <input
+              {...props}
+              type="text"
+              inputMode="decimal"
+              value={saved}
+              onChange={(event) => {
+                setSaved(event.target.value);
+                clearField("saved");
+              }}
+              placeholder="0,00"
+            />
+          ))}
 
       {field("due", "Échéance (facultative)", (props) => (
         <input

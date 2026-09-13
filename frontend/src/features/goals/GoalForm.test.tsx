@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -12,6 +12,8 @@ const EXISTING: GoalProgress = {
   name: "Vacances",
   target_cents: 150_000,
   saved_cents: 25_050,
+  account_id: null,
+  measured: false,
   remaining_cents: 124_950,
   progress_ratio: 0.167,
   milestones: [],
@@ -33,11 +35,27 @@ function jsonResponse(body: unknown, status = 200) {
   });
 }
 
+/** The one write the form sent — the accounts GET it fires on mount is not it. */
+function writeCall(): [string, RequestInit] {
+  const call = fetchMock.mock.calls.find((c) => (c[1]?.method ?? "GET") !== "GET");
+  if (call === undefined) throw new Error("no write was sent");
+  return call as [string, RequestInit];
+}
+
 beforeEach(() => {
   fetchMock.mockReset();
-  fetchMock.mockResolvedValue(jsonResponse({}, 201));
+  fetchMock.mockImplementation((input: string | URL, init?: RequestInit) => {
+    const url = new URL(String(input), "http://localhost");
+    if (url.pathname === "/api/accounts" && (init?.method ?? "GET") === "GET") {
+      return Promise.resolve(jsonResponse(accountsForTest));
+    }
+    return Promise.resolve(jsonResponse({}, 201));
+  });
   vi.stubGlobal("fetch", fetchMock);
 });
+
+/** The household's accounts, as the form's select reads them. Overridden per test. */
+let accountsForTest: unknown[] = [];
 
 describe("GoalForm", () => {
   it("sends euros as integer cents, never through a float", async () => {
@@ -52,7 +70,7 @@ describe("GoalForm", () => {
     await user.click(screen.getByRole("button", { name: /Enregistrer/ }));
 
     await waitFor(() => {
-      const body = JSON.parse(String(fetchMock.mock.calls[0][1].body));
+      const body = JSON.parse(String(writeCall()[1].body));
       expect(body.target_cents).toBe(870);
       expect(body.saved_cents).toBe(870);
       expect(body.name).toBe("Fonds d'urgence");
@@ -80,7 +98,8 @@ describe("GoalForm", () => {
     expect(target).toHaveAttribute("aria-invalid", "true");
     expect(target).toHaveAttribute("aria-describedby");
     expect(await screen.findByRole("alert")).toHaveTextContent(/strictement positif/);
-    expect(fetchMock).not.toHaveBeenCalled();
+    // Only the accounts GET the form fires on mount — no write.
+    expect(fetchMock.mock.calls.filter((c) => (c[1]?.method ?? "GET") !== "GET")).toHaveLength(0);
   });
 
   it("reports an unreadable amount at the field rather than saving it as nothing", async () => {
@@ -92,7 +111,8 @@ describe("GoalForm", () => {
     await user.click(screen.getByRole("button", { name: /Enregistrer/ }));
 
     expect(await screen.findByText(/Montant illisible/)).toBeInTheDocument();
-    expect(fetchMock).not.toHaveBeenCalled();
+    // Only the accounts GET the form fires on mount — no write.
+    expect(fetchMock.mock.calls.filter((c) => (c[1]?.method ?? "GET") !== "GET")).toHaveLength(0);
   });
 
   it("sends no deadline as null rather than as an empty string", async () => {
@@ -106,7 +126,7 @@ describe("GoalForm", () => {
     await user.click(screen.getByRole("button", { name: /Enregistrer/ }));
 
     await waitFor(() => {
-      const body = JSON.parse(String(fetchMock.mock.calls[0][1].body));
+      const body = JSON.parse(String(writeCall()[1].body));
       expect(body.due_on).toBeNull();
       expect(body.target_cents).toBe(150_000);
     });
@@ -130,7 +150,7 @@ describe("GoalForm", () => {
     await user.click(screen.getByRole("button", { name: /Enregistrer/ }));
 
     await waitFor(() => {
-      const [url, init] = fetchMock.mock.calls[0];
+      const [url, init] = writeCall();
       expect(String(url)).toContain("/api/goals/7");
       expect(init.method).toBe("PATCH");
       const body = JSON.parse(String(init.body));
@@ -146,5 +166,41 @@ describe("GoalForm", () => {
 
     await user.click(screen.getByRole("button", { name: /Enregistrer/ }));
     expect(await screen.findByRole("alert")).toHaveTextContent("Objectif introuvable");
+  });
+});
+
+describe("GoalForm — a goal that is an account", () => {
+  it("offers the savings accounts, and hides the declared amount once one is chosen", async () => {
+    accountsForTest = [
+      { id: 3, name: "Livret A", kind: "savings", currency: "EUR", opening_balance_cents: 0,
+        opened_on: null, include_in_net_worth: true, archived: false },
+      { id: 4, name: "Courant", kind: "checking", currency: "EUR", opening_balance_cents: 0,
+        opened_on: null, include_in_net_worth: true, archived: false },
+    ];
+    const user = userEvent.setup();
+    render(<GoalForm onSaved={vi.fn()} onCancel={vi.fn()} />);
+
+    const select = await screen.findByLabelText(/Compte d'épargne/);
+    expect(within(select).queryByRole("option", { name: "Courant" })).not.toBeInTheDocument();
+    await user.selectOptions(select, "3");
+    expect(screen.queryByLabelText(/Déjà mis de côté/)).not.toBeInTheDocument();
+
+    await user.type(screen.getByLabelText(/Intitulé/), "Fonds d'urgence");
+    await user.type(screen.getByLabelText(/Montant visé/), "6 000");
+    await user.click(screen.getByRole("button", { name: /Enregistrer/ }));
+
+    await waitFor(() => {
+      const body = JSON.parse(String(writeCall()[1].body));
+      expect(body.account_id).toBe(3);
+      expect(body).not.toHaveProperty("saved_cents");
+    });
+    accountsForTest = [];
+  });
+
+  it("offers nothing when the household has no savings account", () => {
+    accountsForTest = [];
+    render(<GoalForm onSaved={vi.fn()} onCancel={vi.fn()} />);
+    expect(screen.queryByLabelText(/Compte d'épargne/)).not.toBeInTheDocument();
+    expect(screen.getByLabelText(/Déjà mis de côté/)).toBeInTheDocument();
   });
 });

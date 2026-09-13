@@ -566,6 +566,28 @@
   gap: var(--yd-space-2xs);
 }
 
+.yd-goal-form__hint {
+  margin: 0;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: var(--yd-text-muted);
+}
+
+/* « mesuré » beside the amount of a goal that is an account: a pill, not a
+   sentence, in the info tone — a standing condition, not a verdict. */
+.yd-goal__measured {
+  margin-left: var(--yd-space-2xs);
+  padding: 0 var(--yd-space-2xs);
+  border: 1px solid color-mix(in srgb, var(--yd-info) 45%, transparent);
+  border-radius: var(--yd-radius-pill);
+  color: var(--yd-info);
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  vertical-align: middle;
+}
+
 .yd-goal-form__field label {
   font-size: 0.84rem;
   color: var(--yd-text-muted);

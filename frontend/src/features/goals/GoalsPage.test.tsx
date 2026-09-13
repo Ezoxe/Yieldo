@@ -54,6 +54,8 @@ const PROGRESS: GoalProgress = {
   name: "Fonds d'urgence",
   target_cents: 600_000,
   saved_cents: 120_000,
+  account_id: null,
+  measured: false,
   remaining_cents: 480_000,
   progress_ratio: 0.2,
   milestones: [
@@ -324,6 +326,8 @@ describe("GoalsPage — the goal cards", () => {
     const over: GoalProgress = {
       ...PROGRESS,
       saved_cents: 900_000,
+      account_id: null,
+      measured: false,
       remaining_cents: 0,
       progress_ratio: 1.5,
       milestones: PROGRESS.milestones.map((m) => ({

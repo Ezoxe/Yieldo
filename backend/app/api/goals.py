@@ -19,6 +19,7 @@ admit a partial month as complete.
 from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.api.common import recurrence_points
@@ -32,7 +33,8 @@ from app.engines.capacity import (
     measure_savings_capacity,
 )
 from app.engines.goal import GoalInput, evaluate_goals
-from app.models import Goal, User
+from app.engines.transfer import SAVINGS_ACCOUNT_KINDS
+from app.models import Account, Goal, Transaction, User
 from app.schemas.cashflow import MeasuredRateOut
 from app.schemas.goals import (
     GoalIn,
@@ -79,6 +81,73 @@ def rate_out(rate: MeasuredRate | None) -> MeasuredRateOut | None:
                            high_cents=rate.high_cents)
 
 
+def _balance_cents(db: Session, user_id: int, account_id: int) -> int:
+    """Opening balance plus every movement -- the account as its own
+    statements add it up, the same sum `api/common.liquid_balance_cents` and
+    the portfolio's cash section use."""
+    account = db.get(Account, account_id)
+    movements = (
+        db.query(func.coalesce(func.sum(Transaction.amount_cents), 0))
+        .filter(Transaction.user_id == user_id, Transaction.account_id == account_id)
+        .scalar()
+    )
+    return int(account.opening_balance_cents if account is not None else 0) + int(movements)
+
+
+def measure_goal(db: Session, goal: Goal) -> None:
+    """Refresh a backed goal's `saved_cents` from its account, in memory.
+
+    Written to the row too, so the declared column always holds the LAST
+    balance read: detaching the account then leaves the household with the
+    figure it last saw, not a zero."""
+    if goal.account_id is not None:
+        goal.saved_cents = _balance_cents(db, goal.user_id, goal.account_id)
+
+
+def _goal_out(goal: Goal) -> GoalOut:
+    return GoalOut(
+        id=goal.id, name=goal.name, target_cents=goal.target_cents,
+        saved_cents=goal.saved_cents, due_on=goal.due_on, priority=goal.priority,
+        archived=goal.archived, account_id=goal.account_id,
+        measured=goal.account_id is not None,
+    )
+
+
+def _check_account(db: Session, user: User, account_id: int, goal_id: int | None) -> Account:
+    """The account a goal may be: this household's, a savings kind, and not
+    already another goal's. Each refusal names the account."""
+    account = (
+        db.query(Account)
+        .filter(Account.user_id == user.id, Account.id == account_id)
+        .first()
+    )
+    if account is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Compte introuvable")
+    if account.kind not in SAVINGS_ACCOUNT_KINDS:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                f"« {account.name} » est un compte courant : un objectif ne peut être adossé "
+                "qu'à un compte d'épargne, dont le solde est l'argent mis de côté."
+            ),
+        )
+    taken = (
+        db.query(Goal)
+        .filter(Goal.user_id == user.id, Goal.account_id == account_id,
+                Goal.archived.is_(False))
+        .first()
+    )
+    if taken is not None and taken.id != goal_id:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                f"« {account.name} » porte déjà l'objectif « {taken.name} » : un compte ne "
+                "peut être qu'un seul objectif, sinon les mêmes euros compteraient deux fois."
+            ),
+        )
+    return account
+
+
 @router.get("", response_model=GoalReportOut)
 def list_goals(user: User = Depends(get_current_user),
                db: Session = Depends(get_db)) -> GoalReportOut:
@@ -88,6 +157,9 @@ def list_goals(user: User = Depends(get_current_user),
         .order_by(Goal.priority, Goal.id)
         .all()
     )
+    for row in rows:
+        measure_goal(db, row)
+    db.commit()
     months = observed_months(db, user.id)
     capacity = measure_savings_capacity(months)
     progress = evaluate_goals(
@@ -100,11 +172,14 @@ def list_goals(user: User = Depends(get_current_user),
         None if capacity is None else capacity.median_cents,
         date.today(),
     )
+    by_id = {row.id: row for row in rows}
     return GoalReportOut(
         goals=[
             GoalProgressOut(
                 goal_id=item.goal_id, name=item.name, target_cents=item.target_cents,
                 saved_cents=item.saved_cents, remaining_cents=item.remaining_cents,
+                account_id=by_id[item.goal_id].account_id,
+                measured=by_id[item.goal_id].account_id is not None,
                 progress_ratio=item.progress_ratio,
                 milestones=[
                     MilestoneOut(percent=m.percent, threshold_cents=m.threshold_cents,
@@ -129,23 +204,45 @@ def list_goals(user: User = Depends(get_current_user),
 
 @router.post("", response_model=GoalOut, status_code=status.HTTP_201_CREATED)
 def create_goal(payload: GoalIn, user: User = Depends(get_current_user),
-                db: Session = Depends(get_db)) -> Goal:
+                db: Session = Depends(get_db)) -> GoalOut:
+    if payload.account_id is not None:
+        _check_account(db, user, payload.account_id, None)
     goal = Goal(user_id=user.id, **payload.model_dump())
+    measure_goal(db, goal)
     db.add(goal)
     db.commit()
     db.refresh(goal)
-    return goal
+    return _goal_out(goal)
 
 
 @router.patch("/{goal_id}", response_model=GoalOut)
 def patch_goal(goal_id: int, payload: GoalPatch, user: User = Depends(get_current_user),
-               db: Session = Depends(get_db)) -> Goal:
+               db: Session = Depends(get_db)) -> GoalOut:
     goal = _owned(db, user, goal_id)
-    for field, value in payload.model_dump(exclude_unset=True).items():
+    changes = payload.model_dump(exclude_unset=True)
+    # A backed goal's amount is read from its account, never typed: refusing
+    # the write is what keeps « mesuré » true. Detaching the account in the
+    # same request lifts the refusal -- the household is going back to
+    # declaring.
+    backed_after = changes.get("account_id", goal.account_id)
+    if "saved_cents" in changes and backed_after is not None:
+        account = db.get(Account, backed_after)
+        name = account.name if account is not None else "ce compte"
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                f"Ce montant est mesuré sur « {name} » et ne se saisit pas : détachez le "
+                "compte pour déclarer un montant vous-même."
+            ),
+        )
+    if changes.get("account_id") is not None:
+        _check_account(db, user, changes["account_id"], goal.id)
+    for field, value in changes.items():
         setattr(goal, field, value)
+    measure_goal(db, goal)
     db.commit()
     db.refresh(goal)
-    return goal
+    return _goal_out(goal)
 
 
 @router.delete("/{goal_id}", status_code=status.HTTP_204_NO_CONTENT)

@@ -755,6 +755,8 @@ function goalsPayload(): GoalReport {
       months_to_completion: 12 + i * 9,
       projected_completion_on: `2027-0${1 + i}-01`,
       projection_unavailable_reason: null,
+      account_id: null,
+      measured: false,
       due_on: goal.due_on,
       months_until_due: goal.due_on === null ? null : 9 + i * 3,
       // Fonds d'urgence lands in January 2027 for a June deadline: on track.

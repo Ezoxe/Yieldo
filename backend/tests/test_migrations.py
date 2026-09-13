@@ -197,9 +197,13 @@ def test_downgrade_then_upgrade_again_is_clean_and_loses_no_rows(migration_db):
 PHASE_2B_REVISION = "d1a4c9e77b02"
 PHASE_2B_PREVIOUS = "c3f81a20d5e4"
 PHASE_2B_TABLES = {"debts", "goals", "scenarios"}
+# `goals` gained `account_id` in GOAL_ACCOUNT_REVISION (bottom of this file),
+# so it is compared against today's models at THAT revision, the way
+# `investment_accounts` is for phase 3 -- see PHASE_3_TABLES_ALTERED_LATER.
+PHASE_2B_TABLES_ALTERED_LATER = {"goals"}
 
 
-@pytest.mark.parametrize("table", sorted(PHASE_2B_TABLES))
+@pytest.mark.parametrize("table", sorted(PHASE_2B_TABLES - PHASE_2B_TABLES_ALTERED_LATER))
 def test_the_phase_2b_migration_matches_base_metadata_exactly(migration_db, table):
     """Same independent-source-of-truth comparison as the phase 2C and phase 3
     tests below, added here because no such comparison existed for this
@@ -1649,9 +1653,50 @@ CHAT_AGENT_RUN_REVISION = "a5e71d0c46b3"
 NET_WORTH_SNAPSHOTS_REVISION = "c6d2e9f4a1b7"
 # « Ce n'est pas un abonnement » — the labels taken out of the detection.
 RECURRENCE_DISMISSALS_REVISION = "d8f3b2c7e5a1"
+# A goal that IS a savings account: `goals.account_id`.
+GOAL_ACCOUNT_REVISION = "e4a7c1d9b2f6"
 
 
-def test_the_recurrence_dismissals_migration_is_the_single_head(migration_db):
+def test_the_goal_account_migration_matches_base_metadata_exactly(migration_db):
+    """`goals` after the column landed, column for column and index for index
+    against today's `models/goal.py` -- the comparison the phase 2B test can no
+    longer make at its own revision."""
+    command.upgrade(migration_db.config, GOAL_ACCOUNT_REVISION)
+    conn = _connect(migration_db)
+    migrated_columns = _table_columns(conn, "goals")
+    migrated_indexes = _index_names(conn, "goals")
+    conn.close()
+
+    reference_columns, reference_indexes = _reference_schema("goals")
+    assert migrated_columns == reference_columns
+    assert migrated_indexes == reference_indexes
+
+
+def test_the_goal_account_migration_keeps_every_existing_goal_declared(migration_db):
+    """The real `upgrade()` against a populated database: a goal that existed
+    before the column stays a declared goal with its amount, and the batch
+    rebuild SQLite needs for a foreign key loses no row."""
+    command.upgrade(migration_db.config, RECURRENCE_DISMISSALS_REVISION)
+    conn = _connect(migration_db)
+    conn.execute(
+        "INSERT INTO users (id, email, name, password_hash, role, is_active, created_at) "
+        "VALUES (1, 'a@b.fr', 'Max', 'x', 'user', 1, '2026-01-01T00:00:00')"
+    )
+    conn.execute(
+        "INSERT INTO goals (id, user_id, name, target_cents, saved_cents, priority, archived) "
+        "VALUES (1, 1, 'Fonds', 600000, 100000, 1, 0)"
+    )
+    conn.commit()
+    conn.close()
+
+    command.upgrade(migration_db.config, GOAL_ACCOUNT_REVISION)
+    conn = _connect(migration_db)
+    row = conn.execute("SELECT saved_cents, account_id FROM goals WHERE id = 1").fetchone()
+    conn.close()
+    assert tuple(row) == (100000, None)
+
+
+def test_the_goal_account_migration_is_the_single_head(migration_db):
     """`heads` and `head` must be the same single revision — two heads is a
     database Alembic cannot upgrade without a merge, and nothing else in this
     suite would notice. This assertion moves to the newest migration each time
@@ -1660,9 +1705,10 @@ def test_the_recurrence_dismissals_migration_is_the_single_head(migration_db):
 
     script = ScriptDirectory.from_config(migration_db.config)
     assert len(script.get_heads()) == 1
-    assert script.get_current_head() == RECURRENCE_DISMISSALS_REVISION
+    assert script.get_current_head() == GOAL_ACCOUNT_REVISION
     # The revisions it replaced as head are still on the path to it.
     on_path = {rev.revision for rev in script.walk_revisions()}
+    assert RECURRENCE_DISMISSALS_REVISION in on_path
     assert NET_WORTH_SNAPSHOTS_REVISION in on_path
     assert CHAT_AGENT_RUN_REVISION in on_path
     assert DECLARED_RECURRENCES_REVISION in {

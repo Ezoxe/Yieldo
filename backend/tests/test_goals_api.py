@@ -322,3 +322,89 @@ def test_a_goal_queued_behind_an_unreachable_one_says_which_one(client, db):
     # The blocker's own horizon is named, so "50 ans" legitimately appears --
     # what must NOT appear is the sentence blaming this goal's own size.
     assert "ne serait pas atteint" not in casque["projection_unavailable_reason"]
+
+
+# --- A goal backed by an account is measured, not declared --------------------
+
+
+def _savings_account(client, headers, name="Livret A", opening=0, **overrides) -> int:
+    payload = {"name": name, "kind": "savings", "opening_balance_cents": opening}
+    payload.update(overrides)
+    return client.post("/api/accounts", headers=headers, json=payload).json()["id"]
+
+
+def test_a_goal_on_an_account_reads_the_account_s_balance(client):
+    headers = _register(client)
+    account_id = _savings_account(client, headers, opening=250_000)
+    client.post("/api/transactions", headers=headers, json={
+        "account_id": account_id, "date": "2026-08-05", "amount_cents": 30_000,
+        "label_raw": "VIR EPARGNE"})
+
+    created = _create(client, headers, saved_cents=0, account_id=account_id)
+    assert created.status_code == 201
+    body = created.json()
+    assert body["account_id"] == account_id
+    assert body["saved_cents"] == 280_000
+    assert body["measured"] is True
+
+    report = client.get("/api/goals", headers=headers).json()
+    goal = report["goals"][0]
+    assert goal["saved_cents"] == 280_000
+    assert goal["measured"] is True
+    assert goal["account_id"] == account_id
+
+
+def test_a_goal_without_an_account_stays_declared(client):
+    headers = _register(client)
+    body = _create(client, headers, saved_cents=100_000).json()
+    assert body["account_id"] is None
+    assert body["measured"] is False
+    assert body["saved_cents"] == 100_000
+
+
+def test_a_measured_goal_refuses_a_declared_amount(client):
+    headers = _register(client)
+    account_id = _savings_account(client, headers, opening=50_000)
+    goal = _create(client, headers, account_id=account_id).json()
+    refused = client.patch(f"/api/goals/{goal['id']}", headers=headers,
+                           json={"saved_cents": 999})
+    assert refused.status_code == 422
+    assert "mesuré" in refused.json()["detail"]
+    assert "Livret A" in refused.json()["detail"]
+
+
+def test_detaching_the_account_keeps_the_last_measured_amount_as_declared(client):
+    headers = _register(client)
+    account_id = _savings_account(client, headers, opening=50_000)
+    goal = _create(client, headers, account_id=account_id).json()
+    detached = client.patch(f"/api/goals/{goal['id']}", headers=headers,
+                            json={"account_id": None}).json()
+    assert detached["account_id"] is None
+    assert detached["measured"] is False
+    assert detached["saved_cents"] == 50_000
+
+
+def test_one_account_backs_at_most_one_goal(client):
+    headers = _register(client)
+    account_id = _savings_account(client, headers)
+    assert _create(client, headers, account_id=account_id).status_code == 201
+    second = _create(client, headers, name="Voyage", account_id=account_id)
+    assert second.status_code == 409
+    assert "Livret A" in second.json()["detail"]
+
+
+def test_a_goal_cannot_borrow_another_household_s_account(client):
+    max_headers = _register(client)
+    bob = _register(client, "bob@example.fr")
+    bob_account = _savings_account(client, bob)
+    refused = _create(client, max_headers, account_id=bob_account)
+    assert refused.status_code == 404
+
+
+def test_a_current_account_cannot_back_a_goal(client):
+    headers = _register(client)
+    checking = client.post("/api/accounts", headers=headers, json={
+        "name": "Courant", "kind": "checking", "opening_balance_cents": 0}).json()["id"]
+    refused = _create(client, headers, account_id=checking)
+    assert refused.status_code == 422
+    assert "épargne" in refused.json()["detail"]

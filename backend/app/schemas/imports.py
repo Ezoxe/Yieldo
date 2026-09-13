@@ -35,6 +35,10 @@ class PreviewOut(BaseModel):
     suggested_mapping: dict[str, str]
     rows: list[PreviewRowOut]
     summary: dict
+    # True for a format that carries its own column roles (OFX, QIF): the
+    # mapping is then a fact, not a proposal, and the wizard skips the step
+    # that asks the household to confirm it. False for a CSV, always.
+    mapping_fixed: bool = False
 
 
 class CommitIn(BaseModel):
@@ -74,3 +78,12 @@ class ProfileOut(BaseModel):
     dialect: dict
     mapping: dict[str, str]
     created_at: datetime
+
+
+class LastImportOut(BaseModel):
+    """`GET /imports/last` -- the most recent batch, for « Dernier import il y a
+    N jours » on the dashboard. 204 when there is none."""
+
+    imported_at: datetime
+    filename: str
+    rows_imported: int

@@ -4,12 +4,14 @@ import secrets
 import time
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Response, UploadFile, status
 from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.db import get_db
 from app.importers.dialect import CsvDialect
+from app.importers.ofx import OfxError, parse_ofx
+from app.importers.qif import QifError, parse_qif
 from app.importers.service import (
     MappingError,
     UnknownCategoryError,
@@ -17,8 +19,16 @@ from app.importers.service import (
     commit_import,
     rollback_import,
 )
+from app.importers.statement import FIXED_DIALECT, FIXED_MAPPING, to_csv
 from app.models import Account, ColumnProfile, ImportBatch, User
-from app.schemas.imports import BatchOut, CommitIn, PreviewOut, ProfileIn, ProfileOut
+from app.schemas.imports import (
+    BatchOut,
+    CommitIn,
+    LastImportOut,
+    PreviewOut,
+    ProfileIn,
+    ProfileOut,
+)
 from app.security.deps import get_current_user
 
 logger = logging.getLogger(__name__)
@@ -28,6 +38,9 @@ router = APIRouter(prefix="/imports", tags=["imports"])
 MAX_UPLOAD_BYTES = 20 * 1024 * 1024
 UPLOAD_CHUNK_BYTES = 64 * 1024
 ALLOWED_SUFFIXES = {".csv", ".txt", ".tsv"}
+# Formats that carry their own column roles. Converted to the fixed-dialect
+# table of `importers/statement.py` at upload, then imported exactly as a CSV.
+STATEMENT_SUFFIXES = {".ofx": parse_ofx, ".qif": parse_qif}
 # A pending upload not committed within this window is considered abandoned.
 PENDING_MAX_AGE_SECONDS = 24 * 60 * 60
 
@@ -129,9 +142,11 @@ async def analyze(
     _require_account(db, user, account_id)
 
     suffix = Path(file.filename or "").suffix.lower()
-    if suffix not in ALLOWED_SUFFIXES:
-        raise HTTPException(status_code=400,
-                            detail="Format non pris en charge : déposez un fichier CSV.")
+    if suffix not in ALLOWED_SUFFIXES and suffix not in STATEMENT_SUFFIXES:
+        raise HTTPException(
+            status_code=400,
+            detail="Format non pris en charge : déposez un fichier CSV, OFX ou QIF.",
+        )
 
     # Read in chunks and stop at the cap. Reading the whole body first and checking
     # its length afterwards lets an authenticated client exhaust memory before the
@@ -151,6 +166,23 @@ async def analyze(
     parsed_dialect = CsvDialect(**json.loads(dialect)) if dialect else None
     parsed_mapping = _int_keys(json.loads(mapping)) if mapping else None
 
+    # An OFX or QIF is turned into the fixed table before anything else reads
+    # it: from here on, `raw` IS a CSV -- previewed, deduplicated, committed
+    # and archived as one. The dialect and mapping are the fixed ones, and a
+    # client's own are ignored: there is nothing in these formats to override.
+    mapping_fixed = suffix in STATEMENT_SUFFIXES
+    if mapping_fixed:
+        text = raw.decode("utf-8", errors="replace")
+        if suffix == ".ofx":
+            # OFX 1.x announces cp1252 in its header more often than not.
+            text = raw.decode("cp1252", errors="replace") if b"CHARSET:1252" in raw else text
+        try:
+            raw = to_csv(STATEMENT_SUFFIXES[suffix](text))
+        except (OfxError, QifError) as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        parsed_dialect = FIXED_DIALECT
+        parsed_mapping = dict(FIXED_MAPPING)
+
     preview = build_preview(db, user.id, account_id, raw, parsed_dialect, parsed_mapping)
 
     token = secrets.token_urlsafe(24)
@@ -165,6 +197,7 @@ async def analyze(
         suggested_mapping={str(k): v for k, v in preview.suggested_mapping.items()},
         rows=[r.__dict__ for r in preview.rows],
         summary=preview.summary,
+        mapping_fixed=mapping_fixed,
     )
 
 
@@ -210,6 +243,25 @@ def commit(payload: CommitIn, user: User = Depends(get_current_user),
     db.commit()
     db.refresh(batch)
     return batch
+
+
+@router.get("/last", response_model=LastImportOut, responses={204: {"description": "Aucun import"}})
+def last_import(
+    user: User = Depends(get_current_user), db: Session = Depends(get_db)
+) -> LastImportOut | Response:
+    """The most recent batch, for the dashboard's « Dernier import il y a N
+    jours ». A 204 rather than an empty object when there is none: the
+    screen then says there is no import, not that it was imported never."""
+    row = (
+        db.query(ImportBatch)
+        .filter(ImportBatch.user_id == user.id)
+        .order_by(ImportBatch.created_at.desc(), ImportBatch.id.desc())
+        .first()
+    )
+    if row is None:
+        return Response(status_code=status.HTTP_204_NO_CONTENT)
+    return LastImportOut(imported_at=row.created_at, filename=row.filename,
+                         rows_imported=row.rows_imported)
 
 
 @router.get("", response_model=list[BatchOut])

@@ -269,7 +269,10 @@ export function useImportWizard(): UseImportWizardResult {
       setKeepDuplicates([]);
       setBatch(null);
       setIsPreviewStale(false);
-      setStep("mapping");
+      // An OFX or a QIF carries its own column roles: there is nothing to
+      // confirm on « Colonnes », so the household lands on the preview, with
+      // the step shown as done rather than skipped.
+      setStep(analyzed.mapping_fixed ? "preview" : "mapping");
     } catch (err) {
       setErrors([messageFor(err)]);
     } finally {

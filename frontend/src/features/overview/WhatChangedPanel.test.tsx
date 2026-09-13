@@ -7,12 +7,9 @@ import { agoSentence, daysSince, WhatChangedPanel } from "./WhatChangedPanel";
 
 const NOW = new Date("2026-09-13T10:00:00Z");
 
-const batches = [
-  { id: 1, account_id: 1, filename: "boursorama-2026-07.csv", rows_total: 38, rows_imported: 38,
-    rows_duplicate: 0, rows_failed: 0, created_at: "2026-08-02T10:41:00Z" },
-  { id: 2, account_id: 1, filename: "boursorama-2026-08.csv", rows_total: 42, rows_imported: 40,
-    rows_duplicate: 2, rows_failed: 0, created_at: "2026-09-01T11:12:00Z" },
-];
+const latest = {
+  imported_at: "2026-09-01T11:12:00Z", filename: "boursorama-2026-08.csv", rows_imported: 40,
+};
 
 const report = {
   alerts: [
@@ -29,8 +26,8 @@ function stub(overrides: { alerts?: unknown; imports?: unknown } = {}) {
       const value = overrides.alerts ?? report;
       return value instanceof Error ? Promise.reject(value) : Promise.resolve(value);
     }
-    if (path === "/imports") {
-      const value = overrides.imports ?? batches;
+    if (path === "/imports/last") {
+      const value = "imports" in overrides ? overrides.imports : latest;
       return value instanceof Error ? Promise.reject(value) : Promise.resolve(value);
     }
     throw new Error(`unexpected path ${path}`);
@@ -82,7 +79,8 @@ describe("WhatChangedPanel", () => {
   });
 
   it("invites the first import when there is none", async () => {
-    stub({ imports: [] });
+    // A 204: the api wrapper resolves to undefined.
+    stub({ imports: undefined });
     renderPanel();
     expect(await screen.findByText(/Aucun relevé importé pour l'instant/)).toBeInTheDocument();
   });

@@ -6,7 +6,7 @@ import "./ImportPage.css";
 // Mirrors the backend's ALLOWED_SUFFIXES (backend/app/api/imports.py) so an
 // obviously wrong file is rejected on the spot, without a round trip. The
 // backend re-checks regardless -- this is only an earlier, friendlier no.
-const ALLOWED_EXTENSIONS = [".csv", ".txt", ".tsv"];
+const ALLOWED_EXTENSIONS = [".csv", ".txt", ".tsv", ".ofx", ".qif"];
 
 interface DropZoneProps {
   onFileSelected: (file: File) => void;
@@ -28,7 +28,9 @@ export function DropZone({ onFileSelected, disabled = false, fileName = null }: 
     const file = files?.[0];
     if (!file) return;
     if (!hasAllowedExtension(file.name)) {
-      setLocalError(`Format non pris en charge : « ${file.name} » n'est pas un fichier CSV.`);
+      setLocalError(
+        `Format non pris en charge : « ${file.name} » n'est ni un CSV, ni un OFX, ni un QIF.`,
+      );
       return;
     }
     setLocalError(null);
@@ -66,7 +68,7 @@ export function DropZone({ onFileSelected, disabled = false, fileName = null }: 
       interactive
       role="button"
       tabIndex={disabled ? -1 : 0}
-      aria-label="Déposez votre fichier CSV"
+      aria-label="Déposez votre relevé (CSV, OFX ou QIF)"
       aria-disabled={disabled || undefined}
       data-over={isOver || undefined}
       className="yd-dropzone"
@@ -79,7 +81,7 @@ export function DropZone({ onFileSelected, disabled = false, fileName = null }: 
       <input
         ref={inputRef}
         type="file"
-        accept=".csv,.txt,.tsv,text/csv"
+        accept=".csv,.txt,.tsv,.ofx,.qif,text/csv,application/x-ofx"
         className="sr-only"
         onChange={(event) => handleFiles(event.target.files)}
         disabled={disabled}
@@ -88,7 +90,7 @@ export function DropZone({ onFileSelected, disabled = false, fileName = null }: 
         {fileName ? fileName : "Déposez votre fichier ici"}
       </p>
       <p className="yd-dropzone__hint">
-        ou cliquez pour parcourir vos fichiers — CSV, 20 Mo maximum.
+        ou cliquez pour parcourir vos fichiers — CSV, OFX ou QIF, 20 Mo maximum.
       </p>
 
       {localError ? (

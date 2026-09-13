@@ -6,7 +6,7 @@ import { AlertsIcon } from "../../design/icons";
 import { formatCents } from "../../design/theme";
 import { api } from "../../lib/api";
 import { plural } from "../../lib/plural";
-import type { AlertReport, ImportBatch } from "../../lib/types";
+import type { AlertReport, LastImport } from "../../lib/types";
 import "./WhatChangedPanel.css";
 
 /** Whole days between an ISO timestamp and `now`, floored. */
@@ -42,7 +42,9 @@ interface WhatChangedPanelProps {
  */
 export function WhatChangedPanel({ now = new Date() }: WhatChangedPanelProps) {
   const [alerts, setAlerts] = useState<AlertReport | null | "failed">(null);
-  const [batches, setBatches] = useState<ImportBatch[] | null | "failed">(null);
+  // `null` while loading, `"none"` when the household never imported (the
+  // route answers 204), `"failed"` when it could not be asked.
+  const [latest, setLatest] = useState<LastImport | null | "none" | "failed">(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -55,33 +57,28 @@ export function WhatChangedPanel({ now = new Date() }: WhatChangedPanelProps) {
         if (!cancelled) setAlerts("failed");
       });
     api
-      .get<ImportBatch[]>("/imports")
+      .get<LastImport | undefined>("/imports/last")
       .then((body) => {
-        if (!cancelled) setBatches(body);
+        if (!cancelled) setLatest(body === undefined ? "none" : body);
       })
       .catch(() => {
-        if (!cancelled) setBatches("failed");
+        if (!cancelled) setLatest("failed");
       });
     return () => {
       cancelled = true;
     };
   }, []);
 
-  const latest =
-    batches === null || batches === "failed" || batches.length === 0
-      ? null
-      : batches.reduce((a, b) => (a.created_at >= b.created_at ? a : b));
-
   return (
     <>
       <PanelHead icon={AlertsIcon}>Ce qui a changé</PanelHead>
       <ul className="yd-changed" data-testid="yd-changed">
         <li className="yd-changed__row">
-          {batches === null ? (
+          {latest === null ? (
             <span className="yd-skeleton yd-changed__skeleton" aria-hidden="true" />
-          ) : batches === "failed" ? (
+          ) : latest === "failed" ? (
             <span className="yd-changed__failed">L'historique des imports n'a pas pu être lu.</span>
-          ) : latest === null ? (
+          ) : latest === "none" ? (
             <span>
               Aucun relevé importé pour l'instant.{" "}
               <Link to="/import" className="yd-changed__link">
@@ -90,7 +87,7 @@ export function WhatChangedPanel({ now = new Date() }: WhatChangedPanelProps) {
             </span>
           ) : (
             <span>
-              {`Dernier import ${agoSentence(daysSince(latest.created_at, now))} — ${latest.filename}, ${latest.rows_imported} ${plural(latest.rows_imported, "opération", "opérations")}.`}{" "}
+              {`Dernier import ${agoSentence(daysSince(latest.imported_at, now))} — ${latest.filename}, ${latest.rows_imported} ${plural(latest.rows_imported, "opération", "opérations")}.`}{" "}
               <Link to="/import" className="yd-changed__link">
                 Importer
               </Link>

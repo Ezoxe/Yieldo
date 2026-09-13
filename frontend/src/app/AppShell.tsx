@@ -1,13 +1,13 @@
 import { AnimatePresence, motion } from "motion/react";
 import { Fragment, useEffect, useId, useState } from "react";
-import { NavLink, Outlet, useLocation } from "react-router";
+import { Link, NavLink, Outlet, useLocation } from "react-router";
 
 import { AISpotlightProvider } from "../design/ai/AISpotlight";
 import { AtmosphericBackground } from "../design/atmosphere/AtmosphericBackground";
 import { useCardSpotlight } from "../design/bento/useCardSpotlight";
 import { Shibi } from "../design/shibi/Shibi";
 import { useShibiVisible } from "../design/shibi/shibiPreference";
-import { AssistantIcon, MenuIcon, YieldoMark } from "../design/icons";
+import { AssistantIcon, ImportIcon, MenuIcon, YieldoMark } from "../design/icons";
 import { AssistantDrawer } from "../features/assistant/AssistantDrawer";
 import { useProposalCount } from "../features/agent/useProposalCount";
 import { useAlertCount } from "../features/alerts/useAlertCount";
@@ -263,6 +263,14 @@ export function AppShell({ userName }: AppShellProps) {
               control had because this is what a header slot is for: something
               used to get somewhere, on every screen, several times a day. */}
           <GlobalSearch />
+          {/* The one action every screen may lead to: a statement in hand
+              should not need the sidebar's twenty entries to find its door.
+              The sidebar keeps its own « Import » entry; this is a shortcut,
+              and it says the same word so the two are one destination. */}
+          <Link to="/import" className="yd-shell__import">
+            <ImportIcon />
+            <span className="yd-shell__import-label">Importer</span>
+          </Link>
           {/* The shibi IS the assistant's face, so it takes the mark's place
               here rather than sitting beside it — two drawings of the same
               thing on one button would be one too many. With the mascot

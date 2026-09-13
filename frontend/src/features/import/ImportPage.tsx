@@ -571,7 +571,11 @@ function PreviewStep({
           },
           disabled: !canCommit || isBusy,
         }}
-        secondary={{ label: "Retour au tagging", onClick: actions.backToMapping, disabled: isBusy }}
+        secondary={
+          preview.mapping_fixed
+            ? { label: "Changer de fichier", onClick: actions.reset, disabled: isBusy }
+            : { label: "Retour au tagging", onClick: actions.backToMapping, disabled: isBusy }
+        }
       />
     </>
   );

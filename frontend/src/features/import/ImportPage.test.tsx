@@ -32,6 +32,7 @@ const previewBody = {
   headers: ["dateOp", "label", "amount"],
   sample_rows: [["01/03/2025", "CARREFOUR", "-47,32"]],
   suggested_mapping: { "0": "date", "1": "label", "2": "amount" },
+  mapping_fixed: false,
   rows: [
     {
       row_number: 1, date: "2025-03-01", amount_cents: -4732, label_raw: "CARREFOUR",
@@ -536,5 +537,33 @@ describe("ImportPage — telling the user what a re-indexing dialect change disc
     expect(actionBarOf(screen.getByRole("button", { name: "Valider l'import" }))).toHaveTextContent(
       "3 lignes à importer",
     );
+  });
+});
+
+describe("ImportPage — a statement that carries its own columns", () => {
+  it("lands an OFX straight on the preview, with « Colonnes » shown as done", async () => {
+    setupFetch({
+      analyze: () => jsonResponse({
+        ...previewBody, original_filename: "releve.ofx", mapping_fixed: true,
+        headers: ["date", "libelle", "montant", "reference"],
+        suggested_mapping: { "0": "date", "1": "label", "2": "amount", "3": "reference" },
+      }),
+    });
+    render(<ImportPage />);
+    await userEvent.selectOptions(
+      await screen.findByLabelText("Compte"),
+      await screen.findByRole("option", { name: "Compte courant" }),
+    );
+    const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+    await userEvent.upload(fileInput, new File(["<OFX>"], "releve.ofx", { type: "application/x-ofx" }));
+
+    expect(await screen.findByText("Aperçu des lignes")).toBeInTheDocument();
+    expect(screen.queryByText("Taggez vos colonnes")).not.toBeInTheDocument();
+    const crumbs = screen.getAllByRole("listitem").filter((li) => li.className === "yd-import__crumb");
+    expect(crumbs[1]).toHaveTextContent("Colonnes");
+    expect(crumbs[1]).toHaveAttribute("data-done", "true");
+    // No tagging to go back to: the way back is another file.
+    expect(screen.getByRole("button", { name: "Changer de fichier" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Retour au tagging" })).not.toBeInTheDocument();
   });
 });

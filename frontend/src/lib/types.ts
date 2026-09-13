@@ -211,6 +211,9 @@ export interface ImportPreview {
   suggested_mapping: Record<string, string>;
   rows: PreviewRow[];
   summary: ImportSummary;
+  /** True for OFX and QIF: the format carries its column roles, the mapping
+   *  is a fact and the « Colonnes » step has nothing to ask. */
+  mapping_fixed: boolean;
 }
 
 export interface ImportBatch {
@@ -222,6 +225,13 @@ export interface ImportBatch {
   rows_duplicate: number;
   rows_failed: number;
   created_at: string;
+}
+
+// GET /imports/last — the most recent batch, or a 204 (read as undefined).
+export interface LastImport {
+  imported_at: string;
+  filename: string;
+  rows_imported: number;
 }
 
 export interface ColumnProfile {

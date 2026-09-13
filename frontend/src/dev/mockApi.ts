@@ -1255,6 +1255,10 @@ const ROUTES: Record<string, (params: Params) => unknown> = {
   "/api/export/options": () => EXPORT_OPTIONS,
   "/api/export/templates": () => EXPORT_TEMPLATES,
   "/api/imports": () => IMPORT_BATCHES,
+  "/api/imports/last": () => ({
+    imported_at: IMPORT_BATCHES[0].created_at, filename: IMPORT_BATCHES[0].filename,
+    rows_imported: IMPORT_BATCHES[0].rows_imported,
+  }),
   "/api/alerts/count": () => ({ count: ALERTS_REPORT.alerts.length }),
   "/api/recurrences/dismissals": () => DISMISSALS,
   "/api/imports/profiles": () => COLUMN_PROFILES,

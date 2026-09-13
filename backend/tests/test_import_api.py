@@ -389,3 +389,78 @@ def test_saving_two_profiles_with_the_same_name_is_rejected(client, auth):
     payload = {"name": "Boursorama", "dialect": {}, "mapping": {"0": "date"}}
     client.post("/api/imports/profiles", headers=auth, json=payload)
     assert client.post("/api/imports/profiles", headers=auth, json=payload).status_code == 409
+
+
+# --- OFX and QIF: the columns are known, the wizard has nothing to ask --------
+
+
+def _commit_preview(client, auth, account_id, body):
+    return client.post("/api/imports/commit", headers=auth, json={
+        "upload_token": body["upload_token"], "account_id": account_id,
+        "dialect": body["dialect"], "mapping": body["suggested_mapping"],
+        "original_filename": body["original_filename"],
+        "overrides": {}, "keep_duplicates": [],
+    })
+
+
+def test_an_ofx_file_is_previewed_with_its_mapping_fixed(client, auth, account_id):
+    with (FIXTURES / "releve.ofx").open("rb") as handle:
+        response = client.post("/api/imports/analyze", headers=auth,
+                               files={"file": ("releve.ofx", handle, "application/x-ofx")},
+                               data={"account_id": str(account_id)})
+    assert response.status_code == 200
+    body = response.json()
+    assert body["mapping_fixed"] is True
+    assert body["original_filename"] == "releve.ofx"
+    assert body["headers"] == ["date", "libelle", "montant", "reference"]
+    assert body["suggested_mapping"] == {"0": "date", "1": "label", "2": "amount", "3": "reference"}
+    assert body["summary"]["importable"] == 3
+    assert body["summary"]["failed"] == 0
+    assert body["rows"][0]["label_raw"] == "CB CARREFOUR MARKET CARTE 03/08"
+    assert body["rows"][0]["amount_cents"] == -4_590
+
+    committed = _commit_preview(client, auth, account_id, body)
+    assert committed.status_code == 201
+    assert committed.json()["rows_imported"] == 3
+    assert committed.json()["filename"] == "releve.ofx"
+
+
+def test_a_qif_file_lands_the_same_rows(client, auth, account_id):
+    with (FIXTURES / "releve.qif").open("rb") as handle:
+        response = client.post("/api/imports/analyze", headers=auth,
+                               files={"file": ("releve.qif", handle, "application/octet-stream")},
+                               data={"account_id": str(account_id)})
+    assert response.status_code == 200
+    body = response.json()
+    assert body["mapping_fixed"] is True
+    assert [row["amount_cents"] for row in body["rows"]] == [-4_590, 298_000, -154_950]
+
+
+def test_a_csv_still_says_its_mapping_is_a_proposal(client, auth, account_id):
+    with (FIXTURES / "boursorama.csv").open("rb") as handle:
+        body = client.post("/api/imports/analyze", headers=auth,
+                           files={"file": ("boursorama.csv", handle, "text/csv")},
+                           data={"account_id": str(account_id)}).json()
+    assert body["mapping_fixed"] is False
+
+
+def test_a_broken_ofx_is_refused_in_french(client, auth, account_id):
+    response = client.post("/api/imports/analyze", headers=auth,
+                           files={"file": ("vide.ofx", b"<OFX></OFX>", "application/x-ofx")},
+                           data={"account_id": str(account_id)})
+    assert response.status_code == 400
+    assert "aucune opération" in response.json()["detail"]
+
+
+def test_the_last_import_is_the_most_recent_batch(client, auth, account_id):
+    assert client.get("/api/imports/last", headers=auth).status_code == 204
+    with (FIXTURES / "releve.ofx").open("rb") as handle:
+        body = client.post("/api/imports/analyze", headers=auth,
+                           files={"file": ("releve.ofx", handle, "application/x-ofx")},
+                           data={"account_id": str(account_id)}).json()
+    _commit_preview(client, auth, account_id, body)
+    last = client.get("/api/imports/last", headers=auth)
+    assert last.status_code == 200
+    assert last.json()["filename"] == "releve.ofx"
+    assert last.json()["rows_imported"] == 3
+    assert last.json()["imported_at"]

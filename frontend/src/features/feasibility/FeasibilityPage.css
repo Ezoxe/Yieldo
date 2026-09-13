@@ -255,8 +255,19 @@
 .yd-purchase__field {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
+  /* `start`, not the grid default of `stretch`: two fields share a row, and
+     when one grows an error line the other's rows would otherwise be
+     stretched to match — seen at 1440 as an input twice its height. */
+  align-content: start;
   gap: var(--yd-space-2xs);
   min-width: 0;
+}
+
+.yd-purchase__hint {
+  margin: 0;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: var(--yd-text-muted);
 }
 
 .yd-purchase__field label {

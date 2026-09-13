@@ -1,3 +1,7 @@
+import { readFileSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
@@ -72,6 +76,31 @@ function sent(onSubmit: ReturnType<typeof vi.fn>): FeasibilityRequest {
 }
 
 describe("PurchaseForm", () => {
+  /**
+   * Seen at 1440: « 40 000,00 » printed inside an empty field reads as a
+   * value already typed, and the reader submitted an empty form. The example
+   * is a hint under the field, and the field is empty and says so.
+   */
+  it("shows the example under the field, never inside it", () => {
+    renderForm();
+    const price = screen.getByLabelText(/Prix du bien/);
+    expect(price).not.toHaveAttribute("placeholder");
+    expect(price).toHaveValue("");
+    expect(price).toHaveAccessibleDescription(/Par exemple 40 000,00/);
+  });
+
+  /**
+   * Seen at 1440: an error under « Prix du bien » made the neighbouring
+   * « Échéance » input twice as tall. A field's rows must not stretch to the
+   * height of the row they share with a field that has more to say.
+   */
+  it("does not let one field's error stretch its neighbour", () => {
+    const here = path.dirname(fileURLToPath(import.meta.url));
+    const css = readFileSync(path.resolve(here, "./FeasibilityPage.css"), "utf8");
+    const field = css.match(/\.yd-purchase__field\s*\{([^}]*)\}/);
+    expect(field?.[1]).toMatch(/align-content:\s*start/);
+  });
+
   it("asks the operator's own question in integer cents", async () => {
     const user = userEvent.setup();
     const onSubmit = renderForm();

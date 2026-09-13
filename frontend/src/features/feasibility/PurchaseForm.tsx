@@ -337,6 +337,8 @@ export function PurchaseForm({
     onSubmit(result.request);
   }
 
+  const hintId = (field: FieldName) => `${baseId}-${field}-hint`;
+
   function field(
     which: FieldName,
     label: string,
@@ -345,45 +347,64 @@ export function PurchaseForm({
       "aria-invalid": boolean;
       "aria-describedby": string | undefined;
     }) => ReactNode,
+    hint?: string,
   ) {
     const message = errors[which];
+    // The error, then the hint: a reader hears what went wrong before the
+    // example that shows the shape expected.
+    const describedBy = [
+      message !== undefined ? errorId(which) : null,
+      hint !== undefined ? hintId(which) : null,
+    ].filter((id): id is string => id !== null);
     return (
       <div className="yd-purchase__field">
         <label htmlFor={fieldId(which)}>{label}</label>
         {input({
           id: fieldId(which),
           "aria-invalid": message !== undefined,
-          "aria-describedby": message !== undefined ? errorId(which) : undefined,
+          "aria-describedby": describedBy.length > 0 ? describedBy.join(" ") : undefined,
         })}
         {message !== undefined ? (
           <p id={errorId(which)} role="alert" className="yd-purchase__error">
             {message}
           </p>
         ) : null}
+        {hint !== undefined ? (
+          <p id={hintId(which)} className="yd-purchase__hint">
+            {hint}
+          </p>
+        ) : null}
       </div>
     );
   }
 
+  // The example sits UNDER the field, never inside it as a placeholder: seen
+  // at 1440, « 40 000,00 » printed in an empty box read as a value already
+  // typed, and the form was submitted empty.
   function amountField(
     which: FieldName,
     label: string,
     value: string,
     set: (text: string) => void,
-    placeholder: string,
+    example: string,
   ) {
-    return field(which, label, (props) => (
-      <input
-        {...props}
-        type="text"
-        inputMode="decimal"
-        value={value}
-        onChange={(event) => {
-          set(event.target.value);
-          clearField(which);
-        }}
-        placeholder={placeholder}
-      />
-    ));
+    return field(
+      which,
+      label,
+      (props) => (
+        <input
+          {...props}
+          type="text"
+          inputMode="decimal"
+          value={value}
+          onChange={(event) => {
+            set(event.target.value);
+            clearField(which);
+          }}
+        />
+      ),
+      `Par exemple ${example}`,
+    );
   }
 
   function countField(

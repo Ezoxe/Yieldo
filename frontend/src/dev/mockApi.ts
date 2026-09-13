@@ -27,7 +27,7 @@ import {
  */
 
 import { CONNECTIONS as MARKET_CONNECTIONS, LLM_LOCAL } from "../features/connections/fixtures";
-import type { LlmSettings } from "../lib/types";
+import type { GoalProgress, GoalReport, LlmSettings } from "../lib/types";
 
 const FLAG = "yd-apercu";
 
@@ -700,10 +700,15 @@ const PREVIEW_GOALS: {
   { id: 3, name: "Voyage Japon", target_cents: 450_000, saved_cents: 96_000, due_on: "2027-04-01", priority: 3 },
 ];
 
-function goalsPayload() {
+// `satisfies` against the wire type: the stub used to omit `due_on`,
+// `on_track` and `projection_unavailable_reason`, and the goals screen printed
+// « Échéance le NaN Invalid Date » for every goal in the preview — a defect
+// of this file that read as a defect of the screen. A field the type gains is
+// now a compile error here, not a NaN on screen.
+function goalsPayload(): GoalReport {
   const goals = PREVIEW_GOALS;
   return {
-    goals: goals.map((goal, i) => ({
+    goals: goals.map((goal, i): GoalProgress => ({
       goal_id: goal.id,
       name: goal.name,
       target_cents: goal.target_cents,
@@ -724,7 +729,13 @@ function goalsPayload() {
       funding_starts_in_months: i * 9,
       months_to_completion: 12 + i * 9,
       projected_completion_on: `2027-0${1 + i}-01`,
-      reason: null,
+      projection_unavailable_reason: null,
+      due_on: goal.due_on,
+      months_until_due: goal.due_on === null ? null : 9 + i * 3,
+      // Fonds d'urgence lands in January 2027 for a June deadline: on track.
+      // Voyage Japon lands in March 2027 for an April deadline: on track too,
+      // and the middle goal has no deadline at all — the three states.
+      on_track: goal.due_on === null ? null : true,
     })),
     capacity: rate(11, 42_000),
     months_observed: 11,

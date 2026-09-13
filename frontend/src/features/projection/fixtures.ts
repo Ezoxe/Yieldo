@@ -148,7 +148,10 @@ const POINTS = [
   [-640_000, 500_000, 1_420_000],
 ].map(([low, median, high], index) => ({
   month: index + 1,
-  on: `2026-${String(index + 10).padStart(2, "0")}-30`,
+  // Six month-ends from October 2026: the previous arithmetic wrote
+  // `2026-13-30` for the fourth point, which the chart printed as
+  // « Invalid Date » on the axis of the preview.
+  on: index < 3 ? `2026-${index + 10}-30` : `2027-0${index - 2}-${index === 4 ? "28" : "30"}`,
   percentiles_cents: { "10": low, "50": median, "90": high },
 }));
 

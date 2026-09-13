@@ -1,0 +1,80 @@
+.yd-changed {
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-2xs);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.yd-changed__row {
+  padding: var(--yd-space-2xs) 0;
+  border-bottom: 1px solid var(--yd-border);
+  font-size: 0.86rem;
+  line-height: 1.5;
+  color: var(--yd-text);
+}
+
+.yd-changed__row:last-child {
+  border-bottom: 0;
+}
+
+.yd-changed__skeleton {
+  display: block;
+  height: 1.1rem;
+  width: 70%;
+}
+
+.yd-changed__failed {
+  color: var(--yd-negative-text);
+}
+
+.yd-changed__link {
+  color: var(--yd-accent);
+  text-decoration: none;
+}
+
+.yd-changed__link:hover,
+.yd-changed__title:hover {
+  text-decoration: underline;
+}
+
+.yd-changed__alert {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--yd-space-xs);
+}
+
+.yd-changed__title {
+  color: var(--yd-text);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.yd-changed__amount {
+  margin-left: auto;
+  color: var(--yd-text-muted);
+}
+
+/* The severity pill, in words — colour never carries it alone. */
+.yd-changed__severity {
+  padding: 0 var(--yd-space-2xs);
+  border-radius: var(--yd-radius-pill);
+  border: 1px solid var(--yd-border);
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--yd-text-muted);
+}
+
+.yd-changed__severity--critical {
+  border-color: color-mix(in srgb, var(--yd-negative) 45%, transparent);
+  color: var(--yd-negative-text);
+}
+
+.yd-changed__severity--warning {
+  border-color: color-mix(in srgb, var(--yd-warning) 45%, transparent);
+  color: var(--yd-warning);
+}

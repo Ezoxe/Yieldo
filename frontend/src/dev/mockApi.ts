@@ -1220,6 +1220,7 @@ const ROUTES: Record<string, (params: Params) => unknown> = {
   "/api/export/options": () => EXPORT_OPTIONS,
   "/api/export/templates": () => EXPORT_TEMPLATES,
   "/api/imports": () => IMPORT_BATCHES,
+  "/api/alerts/count": () => ({ count: ALERTS_REPORT.alerts.length }),
   "/api/imports/profiles": () => COLUMN_PROFILES,
   "/api/feasibility/context": feasibilityContext,
   "/api/feasibility/scenarios": () => [],

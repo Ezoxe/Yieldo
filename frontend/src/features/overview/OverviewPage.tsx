@@ -33,6 +33,7 @@ import type {
 import { HeroTrend } from "./HeroTrend";
 import { RecentTransactions } from "./RecentTransactions";
 import { SetAsidePanel } from "./SetAsidePanel";
+import { WhatChangedPanel } from "./WhatChangedPanel";
 import { StatTile } from "./StatTile";
 import "./OverviewPage.css";
 import { PeriodSelector } from "../transactions/PeriodSelector";
@@ -135,6 +136,8 @@ const SPAN = {
   // break "produced − set aside = left" into three storeys that no longer read
   // as a subtraction.
   setAside: { base: 1, md: 6, lg: 12 },
+  // Full width too: a list of one-line sentences, read before the charts.
+  changed: { base: 1, md: 6, lg: 12 },
   treemap: { base: 1, md: 6, lg: 5 },
   waterfall: { base: 1, md: 6, lg: 7 },
   // Full width, and not the 5 columns the plan sketched: this is a 53-week
@@ -221,6 +224,11 @@ function DashboardSkeleton() {
       <BentoCell span={SPAN.setAside} className="yd-panel">
         <Skeleton variant="title" />
         <Skeleton variant="chart-short" />
+      </BentoCell>
+
+      <BentoCell span={SPAN.changed} className="yd-panel">
+        <Skeleton variant="title" />
+        <Skeleton variant="caption" />
       </BentoCell>
 
       <BentoCell span={SPAN.treemap} className="yd-panel">
@@ -606,6 +614,18 @@ export function OverviewPage() {
             <SetAsidePanel summary={summary} />
           </BentoCell>
         ) : null}
+
+        {/* Before the breakdown: what the reader should know before trusting
+            the figures above — how old the ledger is, and what is in force. */}
+        <BentoCell
+          as={motion.div}
+          span={SPAN.changed}
+          className="yd-panel"
+          data-ai-target="panel-ce-qui-a-change"
+          {...entryProps(reduced)}
+        >
+          <WhatChangedPanel />
+        </BentoCell>
 
         <BentoCell
           as={motion.div}

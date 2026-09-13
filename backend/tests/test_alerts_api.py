@@ -346,3 +346,40 @@ def test_alert_settings_are_per_user(client, tmp_path, monkeypatch, db):
 def test_the_alerts_endpoint_requires_a_session(client):
     assert client.get("/api/alerts").status_code == 401
     assert client.put("/api/alerts/settings", json={"balance_floor_cents": 0}).status_code == 401
+
+
+# --- GET /api/alerts/count: the number the sidebar badge prints ---------------
+
+
+def test_the_count_is_zero_for_a_household_with_nothing_measured(client, tmp_path, monkeypatch):
+    headers, _ = _register(client, tmp_path, monkeypatch)
+    assert client.get("/api/alerts/count", headers=headers).json() == {"count": 0}
+
+
+def test_the_count_is_the_number_of_alerts_the_report_raises(client, tmp_path, monkeypatch):
+    """Same evaluation as the report, counted: a badge saying « 1 en cours »
+    must be the same one alert the screen then lists, or the badge lies."""
+    headers, account_id = _register(client, tmp_path, monkeypatch)
+    rows = ["date;libelle;montant"]
+    year, month = 2025, 1
+    for index in range(11):
+        rows.append(_row(date(year, month, 5), "PRELEVEMENT SEPA LOYER", -78000))
+        rows.append(
+            _row(date(year, month, 12), f"CARTE X1234 COURSES {_MONTH_NAMES[index % 12]}",
+                 -30000 - index * 1500)
+        )
+        month += 1
+        if month > 12:
+            month, year = 1, year + 1
+    _commit(client, headers, account_id, rows)
+    client.put("/api/alerts/settings", headers=headers,
+               json={"balance_floor_cents": 500_000_00})
+
+    report = client.get("/api/alerts", headers=headers).json()
+    count = client.get("/api/alerts/count", headers=headers).json()
+    assert count == {"count": len(report["alerts"])}
+    assert count["count"] >= 1
+
+
+def test_the_count_needs_a_session(client):
+    assert client.get("/api/alerts/count").status_code == 401

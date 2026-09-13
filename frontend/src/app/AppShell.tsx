@@ -10,6 +10,7 @@ import { useShibiVisible } from "../design/shibi/shibiPreference";
 import { AssistantIcon, MenuIcon, YieldoMark } from "../design/icons";
 import { AssistantDrawer } from "../features/assistant/AssistantDrawer";
 import { useProposalCount } from "../features/agent/useProposalCount";
+import { useAlertCount } from "../features/alerts/useAlertCount";
 import { LedgerModeBadge } from "../features/plan/LedgerModeBadge";
 import { GlobalSearch } from "../features/search/GlobalSearch";
 import { useLedgerMode } from "../features/plan/useLedgerMode";
@@ -19,6 +20,16 @@ import { UserMenu } from "./UserMenu";
 import { slideOver } from "../design/motion/variants";
 import { useReducedMotion } from "../design/motion/useReducedMotion";
 import "./AppShell.css";
+
+/**
+ * What a badge's number counts, per route. A proposal waits for a decision;
+ * an alert is in force until its cause goes. The default is the proposals'
+ * word, which is what the badge said before alerts had one.
+ */
+const BADGE_WORD: Record<string, string> = {
+  "/propositions": "en attente",
+  "/alertes": "en cours",
+};
 
 interface SidebarNavProps {
   id?: string;
@@ -81,7 +92,7 @@ function SidebarNav({
                       {item.label}
                       {(badges?.[item.to] ?? 0) > 0 ? (
                         <span className="yd-shell__nav-badge">
-                          {badges?.[item.to]} en attente
+                          {badges?.[item.to]} {BADGE_WORD[item.to] ?? "en attente"}
                         </span>
                       ) : null}
                     </>
@@ -130,9 +141,14 @@ export function AppShell({ userName }: AppShellProps) {
   // rendered — there is nothing to poll for in between.
   const pendingProposals = useProposalCount((state) => state.pending);
   const refreshProposals = useProposalCount((state) => state.refresh);
+  // The alerts too: an import or a saved budget on any screen can raise or
+  // clear one, and both are actions taken on a screen this shell rendered.
+  const alertCount = useAlertCount((state) => state.count);
+  const refreshAlerts = useAlertCount((state) => state.refresh);
   useEffect(() => {
     void refreshProposals();
-  }, [refreshProposals, location.pathname]);
+    void refreshAlerts();
+  }, [refreshProposals, refreshAlerts, location.pathname]);
 
   const closeDrawer = () => setDrawerOpen(false);
 
@@ -173,7 +189,7 @@ export function AppShell({ userName }: AppShellProps) {
         className="yd-shell__sidebar yd-shell__sidebar--static"
         indicatorId={`${navId}-static`}
         animated={!reducedMotion}
-        badges={{ "/propositions": pendingProposals }}
+        badges={{ "/propositions": pendingProposals, "/alertes": alertCount }}
       />
 
       <AnimatePresence>
@@ -193,7 +209,7 @@ export function AppShell({ userName }: AppShellProps) {
                   onNavigate={closeDrawer}
                   indicatorId={`${navId}-drawer`}
                   animated={false}
-                  badges={{ "/propositions": pendingProposals }}
+                  badges={{ "/propositions": pendingProposals, "/alertes": alertCount }}
                 />
               </div>
             </Fragment>
@@ -220,7 +236,7 @@ export function AppShell({ userName }: AppShellProps) {
                   onNavigate={closeDrawer}
                   indicatorId={`${navId}-drawer`}
                   animated
-                  badges={{ "/propositions": pendingProposals }}
+                  badges={{ "/propositions": pendingProposals, "/alertes": alertCount }}
                 />
               </motion.div>
             </Fragment>

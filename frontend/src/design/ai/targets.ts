@@ -197,6 +197,12 @@ export const AI_TARGETS: AiTarget[] = [
     route: "/objectifs",
     terms: ["objectif", "objectifs"],
   },
+  {
+    id: "panel-ce-qui-a-change",
+    label: "Ce qui a changé",
+    route: "/",
+    terms: ["ce qui a change", "dernier import", "alertes en cours"],
+  },
   // Patrimoine
   {
     id: "patrimoine-net",

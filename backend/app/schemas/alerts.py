@@ -73,3 +73,9 @@ class AlertReportOut(BaseModel):
     # data behind every figure is -- the contract `api/recurrences.py` and
     # `api/cashflow.py` already established for their own stale-ledger case.
     ledger_last_on: date | None
+
+
+class AlertCountOut(BaseModel):
+    """`GET /alerts/count` -- the number of alerts in force, for the badge."""
+
+    count: int

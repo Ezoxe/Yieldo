@@ -143,6 +143,12 @@ function setupFetch(overrides: Overrides = {}) {
     if (path === "/api/accounts") {
       return Promise.resolve(jsonResponse([]));
     }
+    if (path === "/api/alerts") {
+      return Promise.resolve(jsonResponse({ alerts: [], conditions: [], coverage: {}, settings: {} }));
+    }
+    if (path === "/api/imports") {
+      return Promise.resolve(jsonResponse([]));
+    }
     throw new Error(`Unhandled fetch in test: ${path}`);
   });
 }

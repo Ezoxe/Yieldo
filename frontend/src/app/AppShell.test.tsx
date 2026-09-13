@@ -2,12 +2,13 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { render, screen, within } from "@testing-library/react";
+import { act, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MemoryRouter, Route, Routes } from "react-router";
 
 import { useLedgerMode } from "../features/plan/useLedgerMode";
+import { useAlertCount } from "../features/alerts/useAlertCount";
 import { useShibiPreference } from "../design/shibi/shibiPreference";
 import { AppShell } from "./AppShell";
 import { ThemeProvider } from "./ThemeProvider";
@@ -86,6 +87,18 @@ describe("AppShell", () => {
     expect(sidebar().getByRole("link", { name: "Transactions" })).not.toHaveAttribute(
       "aria-current",
     );
+  });
+
+  // An alert existed only on the screen that listed it. The store is set
+  // directly: what the badge prints for a given count is this component's
+  // contract, how the count is fetched is the store's own test.
+  it("prints the alerts in force beside « Alertes », in the link's own name", () => {
+    useAlertCount.setState({ count: 2 });
+    renderShell("/");
+    const link = sidebar().getByRole("link", { name: "Alertes 2 en cours" });
+    expect(link).toBeInTheDocument();
+    act(() => useAlertCount.setState({ count: 0 }));
+    expect(sidebar().queryByText(/en cours/)).not.toBeInTheDocument();
   });
 
   it("repeats the four everyday screens in a tab bar for the phone", () => {

@@ -74,6 +74,7 @@ from app.engines.forecast import (
 from app.engines.recurrence import Recurrence, detect_recurrences
 from app.models import AlertSettings, Category, Transaction, User
 from app.schemas.alerts import (
+    AlertCountOut,
     AlertOut,
     AlertReportOut,
     AlertSettingsIn,
@@ -288,6 +289,18 @@ def list_alerts(
 ) -> AlertReportOut:
     report, settings_row = _build(db, user, date.today())
     return _out(report, settings_row)
+
+
+@router.get("/count", response_model=AlertCountOut)
+def count_alerts(
+    user: User = Depends(get_current_user), db: Session = Depends(get_db)
+) -> AlertCountOut:
+    """How many alerts are in force, for the badge beside « Alertes » in the
+    sidebar. The same evaluation as the report, so the number the badge
+    prints is the number of cards the screen then shows — a cheaper query
+    that counted something else would be a badge that lies."""
+    report, _ = _build(db, user, date.today())
+    return AlertCountOut(count=len(report.alerts))
 
 
 @router.put("/settings", response_model=AlertSettingsOut)

@@ -13,6 +13,7 @@ import { useProposalCount } from "../features/agent/useProposalCount";
 import { LedgerModeBadge } from "../features/plan/LedgerModeBadge";
 import { GlobalSearch } from "../features/search/GlobalSearch";
 import { useLedgerMode } from "../features/plan/useLedgerMode";
+import { BottomTabs } from "./BottomTabs";
 import { NAV_SECTIONS } from "./navigation";
 import { UserMenu } from "./UserMenu";
 import { slideOver } from "../design/motion/variants";
@@ -287,6 +288,10 @@ export function AppShell({ userName }: AppShellProps) {
             </motion.div>
           )}
         </main>
+        {/* Inside the body, so it is inert with the rest of the content while
+            the drawer is open — a tab bar that stayed live under the scrim
+            would let a thumb change screens behind it. */}
+        <BottomTabs onMore={() => setDrawerOpen(true)} moreOpen={drawerOpen} />
       </div>
 
       <AssistantDrawer open={assistantOpen} onClose={() => setAssistantOpen(false)} />

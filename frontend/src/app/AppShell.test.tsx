@@ -54,15 +54,24 @@ function renderShell(initialPath: string) {
   );
 }
 
+/**
+ * The sidebar's own links. The phone tab bar (BottomTabs) repeats four of
+ * them under « Navigation rapide », so a bare `getByRole("link")` on
+ * « Transactions » would find two; the sidebar is the one these tests pin.
+ */
+function sidebar() {
+  return within(screen.getAllByRole("navigation", { name: "Navigation principale" })[0]);
+}
+
 describe("AppShell", () => {
   it("marks only the active nav link with aria-current", () => {
     renderShell("/transactions");
 
-    expect(screen.getByRole("link", { name: "Transactions" })).toHaveAttribute(
+    expect(sidebar().getByRole("link", { name: "Transactions" })).toHaveAttribute(
       "aria-current",
       "page",
     );
-    expect(screen.getByRole("link", { name: "Vue d'ensemble" })).not.toHaveAttribute(
+    expect(sidebar().getByRole("link", { name: "Vue d'ensemble" })).not.toHaveAttribute(
       "aria-current",
     );
   });
@@ -70,12 +79,22 @@ describe("AppShell", () => {
   it("marks the overview link active on the index route without matching other routes", () => {
     renderShell("/");
 
-    expect(screen.getByRole("link", { name: "Vue d'ensemble" })).toHaveAttribute(
+    expect(sidebar().getByRole("link", { name: "Vue d'ensemble" })).toHaveAttribute(
       "aria-current",
       "page",
     );
-    expect(screen.getByRole("link", { name: "Transactions" })).not.toHaveAttribute(
+    expect(sidebar().getByRole("link", { name: "Transactions" })).not.toHaveAttribute(
       "aria-current",
+    );
+  });
+
+  it("repeats the four everyday screens in a tab bar for the phone", () => {
+    renderShell("/budgets");
+    const tabs = within(screen.getByRole("navigation", { name: "Navigation rapide" }));
+    expect(tabs.getByRole("link", { name: "Budgets" })).toHaveAttribute("aria-current", "page");
+    expect(tabs.getByRole("button", { name: "Plus" })).toHaveAttribute(
+      "aria-controls",
+      "yd-sidebar-drawer",
     );
   });
 
@@ -164,10 +183,10 @@ describe("AppShell", () => {
     const user = userEvent.setup();
     renderShell("/");
 
-    await user.click(screen.getByRole("link", { name: "Budgets" }));
+    await user.click(sidebar().getByRole("link", { name: "Budgets" }));
 
     expect(screen.getByRole("main")).toHaveTextContent("Écran budgets");
-    expect(screen.getByRole("link", { name: "Budgets" })).toHaveAttribute("aria-current", "page");
+    expect(sidebar().getByRole("link", { name: "Budgets" })).toHaveAttribute("aria-current", "page");
   });
 
   // The header holds what is used to GET somewhere, several times a day. The

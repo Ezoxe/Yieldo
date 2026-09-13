@@ -111,6 +111,33 @@
   color: var(--yd-text-muted);
 }
 
+/* The phone's « Filtres » button: only rendered under 640px (FilterBar reads
+   the same query), styled like the period tabs beside it. */
+.yd-filterbar__fold {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--yd-space-2xs);
+  padding: 6px 12px;
+  border: 1px solid var(--yd-border);
+  border-radius: var(--yd-radius-pill);
+  background: transparent;
+  color: var(--yd-text);
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.yd-filterbar__fold[aria-expanded="true"] {
+  border-color: color-mix(in srgb, var(--yd-accent) 34%, transparent);
+  background: color-mix(in srgb, var(--yd-accent) 10%, transparent);
+  color: var(--yd-accent);
+}
+
+.yd-filterbar__fold svg {
+  width: 16px;
+  height: 16px;
+}
+
 /* CategoryPicker ------------------------------------------------------------ */
 
 .yd-category-picker {

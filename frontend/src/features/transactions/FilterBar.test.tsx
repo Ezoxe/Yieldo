@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { FilterBar } from "./FilterBar";
 import type { UsePeriodResult } from "./usePeriod";
@@ -158,5 +158,71 @@ describe("FilterBar", () => {
     expect(
       screen.getByRole("switch", { name: "Inclure les virements internes" }),
     ).toBeInTheDocument();
+  });
+
+  /**
+   * Seen at 390: the filter band took the first 250px of the screen before a
+   * single row. The period and the one box stay in sight; the account select
+   * and the two switches fold behind a button that says how many of them
+   * are doing something to the list — a folded filter the reader forgot is
+   * the shortened list this screen refuses.
+   */
+  describe("on a phone", () => {
+    const realMatchMedia = window.matchMedia;
+
+    function phone() {
+      Object.defineProperty(window, "matchMedia", {
+        writable: true,
+        configurable: true,
+        value: (query: string) => ({
+          matches: query.includes("max-width: 639px"),
+          media: query,
+          onchange: null,
+          addEventListener: () => {},
+          removeEventListener: () => {},
+          addListener: () => {},
+          removeListener: () => {},
+          dispatchEvent: () => false,
+        }),
+      });
+    }
+
+    afterEach(() => {
+      Object.defineProperty(window, "matchMedia", {
+        writable: true,
+        configurable: true,
+        value: realMatchMedia,
+      });
+    });
+
+    it("folds the account and the switches behind « Filtres », keeping the box", () => {
+      phone();
+      render(<FilterBar {...baseProps()} />);
+
+      expect(screen.getByRole("searchbox")).toBeInTheDocument();
+      const fold = screen.getByRole("button", { name: "Filtres" });
+      expect(fold).toHaveAttribute("aria-expanded", "false");
+      expect(screen.queryByRole("switch", { name: /Non catégorisées/ })).not.toBeInTheDocument();
+    });
+
+    it("counts the filters that are doing something", () => {
+      phone();
+      render(<FilterBar {...baseProps({ accountId: 1, uncategorizedOnly: true })} />);
+      expect(screen.getByRole("button", { name: "Filtres (2 actifs)" })).toBeInTheDocument();
+    });
+
+    it("unfolds on demand", async () => {
+      phone();
+      render(<FilterBar {...baseProps()} />);
+      await userEvent.click(screen.getByRole("button", { name: "Filtres" }));
+      expect(screen.getByRole("switch", { name: /Non catégorisées/ })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Filtres" })).toHaveAttribute("aria-expanded", "true");
+    });
+  });
+
+  it("never folds anything where there is room", () => {
+    render(<FilterBar {...baseProps()} />);
+    expect(screen.queryByRole("button", { name: /Filtres/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("switch", { name: /Non catégorisées/ })).toBeInTheDocument();
   });
 });

@@ -302,8 +302,13 @@
 }
 
 @media (max-width: 899px) {
+  /* The drawer is opened from the tab bar's « Plus » (BottomTabs) wherever
+     the sidebar is hidden. The fixed hamburger in the top-left corner used to
+     be that door and stays in the markup for the tests and the accessible
+     name, but one way in is enough; the header keeps the inset it was
+     measured for, so nothing else moves. */
   .yd-shell__menu-toggle {
-    display: inline-flex;
+    display: none;
   }
 
   .yd-shell__sidebar--static {

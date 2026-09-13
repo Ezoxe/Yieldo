@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 
-import { SearchIcon } from "../../design/icons";
+import { FilterIcon, SearchIcon } from "../../design/icons";
 import type { Account } from "../../lib/types";
+import { useMediaQuery } from "../../lib/useMediaQuery";
 import { PeriodSelector } from "./PeriodSelector";
 import type { UsePeriodResult } from "./usePeriod";
 
@@ -49,6 +50,20 @@ export function FilterBar({
 }: FilterBarProps) {
   const [searchInput, setSearchInput] = useState(initialSearch);
 
+  // Seen at 390: the filter band took the first 250px of the screen before a
+  // single row. On a phone the period and the one box stay in sight, and the
+  // account select and the two switches fold behind a button. The button
+  // counts the folded filters that are doing something to the list, because
+  // a folded filter the reader forgot is the shortened list this screen
+  // refuses to show quietly. `includeTransfers` counts when ON: off is the
+  // default and the list matches the figures every other screen prints.
+  const phone = useMediaQuery("(max-width: 639px)");
+  const [unfolded, setUnfolded] = useState(false);
+  const foldId = useId();
+  const activeCount =
+    (accountId !== null ? 1 : 0) + (uncategorizedOnly ? 1 : 0) + (includeTransfers ? 1 : 0);
+  const foldOpen = !phone || unfolded;
+
   // The latest callback lives in a ref so the debounce effect below only ever
   // depends on `searchInput` -- a fresh onSearchChange identity every render
   // (TransactionsPage defines it inline) must not restart the 250ms timer.
@@ -92,6 +107,27 @@ export function FilterBar({
           />
         </label>
 
+        {phone ? (
+          <button
+            type="button"
+            className="yd-filterbar__fold"
+            aria-expanded={unfolded}
+            aria-controls={foldId}
+            onClick={() => setUnfolded((open) => !open)}
+          >
+            <FilterIcon />
+            {activeCount === 0
+              ? "Filtres"
+              : `Filtres (${activeCount} ${activeCount === 1 ? "actif" : "actifs"})`}
+          </button>
+        ) : null}
+      </div>
+
+      <div
+        id={foldId}
+        className={`yd-filterbar__row yd-filterbar__row--folding${foldOpen ? "" : " yd-filterbar__row--closed"}`}
+        hidden={!foldOpen}
+      >
         <label className="yd-filterbar__field">
           <span className="sr-only">Compte</span>
           <select

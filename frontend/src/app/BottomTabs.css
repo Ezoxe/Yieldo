@@ -1,0 +1,69 @@
+/* Five tabs pinned to the bottom of a phone. Absent on any screen wide enough
+   for the sidebar — the shell hides its sidebar at 899px, and the bar appears
+   at exactly that width so there is never a moment with both or neither. */
+.yd-tabs {
+  display: none;
+}
+
+@media (max-width: 899px) {
+  .yd-tabs {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    position: fixed;
+    inset: auto 0 0 0;
+    z-index: 25;
+    padding: 6px 4px calc(6px + env(safe-area-inset-bottom, 0px));
+    background: var(--yd-surface);
+    backdrop-filter: blur(var(--yd-glass-blur)) saturate(var(--yd-glass-saturate));
+    -webkit-backdrop-filter: blur(var(--yd-glass-blur)) saturate(var(--yd-glass-saturate));
+    border-top: 1px solid var(--yd-border);
+  }
+
+  /* The content must end above the bar, not under it. The last panel of a
+     screen was otherwise hidden behind the tabs on every phone. */
+  .yd-shell__main {
+    padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+.yd-tabs__tab {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  min-height: 48px;
+  padding: 6px 2px;
+  border: 0;
+  border-radius: var(--yd-radius-sm);
+  background: transparent;
+  color: var(--yd-text-muted);
+  font: inherit;
+  font-size: 0.66rem;
+  font-weight: 500;
+  line-height: 1.1;
+  text-decoration: none;
+  text-align: center;
+  cursor: pointer;
+}
+
+.yd-tabs__tab svg {
+  width: 22px;
+  height: 22px;
+}
+
+.yd-tabs__tab span {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.yd-tabs__tab[aria-current="page"],
+.yd-tabs__tab--more[aria-expanded="true"] {
+  color: var(--yd-accent);
+}
+
+.yd-tabs__tab:focus-visible {
+  outline: 2px solid var(--yd-accent);
+  outline-offset: -2px;
+}

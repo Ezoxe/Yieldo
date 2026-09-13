@@ -1,5 +1,5 @@
 import { motion } from "motion/react";
-import { type CSSProperties, type ReactNode, useCallback, useEffect, useRef, useState } from "react";
+import { type CSSProperties, type ReactNode, useCallback, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router";
 
 import { BentoCell, type BentoSpan } from "../../design/bento/BentoCell";
@@ -12,6 +12,7 @@ import "../../design/Skeleton.css";
 import { formatCents, parseCents } from "../../design/theme";
 import { ApiError, api } from "../../lib/api";
 import { plural } from "../../lib/plural";
+import { useApiQuery, useInvalidate } from "../../lib/useApiQuery";
 import type { BudgetReport } from "../../lib/types";
 import {
   AlertsIcon,
@@ -351,47 +352,24 @@ export function BudgetsPage() {
   const reduced = useReducedMotion();
   const askedMonth = params.get("mois");
 
-  const [report, setReport] = useState<BudgetReport | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [reloadToken, setReloadToken] = useState(0);
-
-  // The month this screen is already showing (or already asking for). A change
-  // of month is a navigation and earns the skeleton; a save re-asks for the
-  // month already on screen and must NOT, because swapping the grid for the
+  // No `month` at all on the first visit: the backend then resolves it to the
+  // month of the user's *latest* transaction, not to today's. The operator's
+  // statements stop months before today, and opening this screen on a
+  // permanently empty month is the defect this avoids.
+  //
+  // The report is cached under its month (see `useApiQuery`). A change of
+  // month is a navigation and earns the skeleton — `isPending`, nothing held
+  // for that key yet — while a save re-asks for the month already on screen
+  // through `invalidate`, which keeps the previous report painted until the
+  // new one lands. That distinction is load-bearing: swapping the grid for the
   // skeleton unmounts every `BudgetInput` on it and throws away what the
-  // operator has typed into the ones he has not saved yet. Setting three
+  // operator has typed into the ones he has not saved yet, and setting three
   // budgets in a row is this screen's core interaction.
-  const shownMonth = useRef<string | null | undefined>(undefined);
-
-  useEffect(() => {
-    let cancelled = false;
-    const isNavigation = shownMonth.current !== askedMonth;
-    shownMonth.current = askedMonth;
-    async function load() {
-      if (isNavigation) setIsLoading(true);
-      try {
-        // No `month` at all on the first visit: the backend then resolves it to
-        // the month of the user's *latest* transaction, not to today's. The
-        // operator's statements stop months before today, and opening this
-        // screen on a permanently empty month is the defect this avoids.
-        const body = await api.get<BudgetReport>("/budgets", { month: askedMonth ?? undefined });
-        if (cancelled) return;
-        setReport(body);
-        setError(null);
-      } catch (err) {
-        if (cancelled) return;
-        setReport(null);
-        setError(messageFor(err));
-      } finally {
-        if (!cancelled) setIsLoading(false);
-      }
-    }
-    void load();
-    return () => {
-      cancelled = true;
-    };
-  }, [askedMonth, reloadToken]);
+  const query = useApiQuery<BudgetReport>("/budgets", { month: askedMonth ?? undefined });
+  const invalidate = useInvalidate();
+  const report = query.data ?? null;
+  const isLoading = query.isPending;
+  const error = query.error === null ? null : messageFor(query.error);
 
   // Which way the last month change went, so the content slides in from the
   // side the reader came from. A ref, not state: it is read during the render
@@ -541,7 +519,7 @@ export function BudgetsPage() {
                   categoryId={entry.category_id}
                   name={entry.name}
                   spentCents={entry.spent_cents}
-                  onSaved={() => setReloadToken((token) => token + 1)}
+                  onSaved={() => void invalidate("/budgets")}
                 />
               ))}
             </ul>

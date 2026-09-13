@@ -1,3 +1,4 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, within, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
@@ -96,12 +97,18 @@ beforeEach(() => {
 });
 
 function renderPage(entry = "/budgets") {
+  // A fresh client per render: the screen caches its report under the month
+  // (see lib/useApiQuery), and a client shared between tests would let one
+  // test's month answer the next test's request.
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
-    <MemoryRouter initialEntries={[entry]}>
-      <ThemeProvider>
-        <BudgetsPage />
-      </ThemeProvider>
-    </MemoryRouter>,
+    <QueryClientProvider client={client}>
+      <MemoryRouter initialEntries={[entry]}>
+        <ThemeProvider>
+          <BudgetsPage />
+        </ThemeProvider>
+      </MemoryRouter>
+    </QueryClientProvider>,
   );
 }
 

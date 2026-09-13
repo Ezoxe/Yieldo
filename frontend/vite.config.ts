@@ -13,5 +13,17 @@ export default defineConfig({
     port: Number(process.env.PORT) || 5173,
     proxy: { "/api": { target: "http://localhost:8000", changeOrigin: true } },
   },
-  build: { outDir: "dist", sourcemap: false },
+  build: {
+    outDir: "dist",
+    sourcemap: false,
+    rollupOptions: {
+      output: {
+        // The charting library is the one dependency every screen with a
+        // chart shares and none of the others need: its own chunk is fetched
+        // once, on the first chart, and cached across every route-level chunk
+        // that would otherwise each carry a slice of it.
+        manualChunks: { echarts: ["echarts"] },
+      },
+    },
+  },
 });

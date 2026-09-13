@@ -1,0 +1,61 @@
+/* The stand-in for a screen whose chunk is still on its way. Same rhythm as
+   PageHead over a bento grid, so the real screen lands on the same outline
+   and nothing jumps. */
+.yd-page-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-lg);
+}
+
+.yd-page-skeleton__head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--yd-space-sm);
+}
+
+.yd-page-skeleton__mark {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--yd-radius-sm);
+}
+
+.yd-page-skeleton__titles {
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-xs);
+  flex: 1;
+  max-width: 34rem;
+}
+
+.yd-page-skeleton__title {
+  height: 1.6rem;
+  width: 40%;
+}
+
+.yd-page-skeleton__lead {
+  height: 0.95rem;
+  width: 85%;
+}
+
+.yd-page-skeleton__panels {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--yd-space-md);
+}
+
+.yd-page-skeleton__panel {
+  height: 220px;
+  border-radius: var(--yd-radius);
+}
+
+.yd-page-skeleton__panel--wide {
+  grid-column: 1 / -1;
+  height: 280px;
+}
+
+@media (max-width: 639px) {
+  .yd-page-skeleton__panels {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

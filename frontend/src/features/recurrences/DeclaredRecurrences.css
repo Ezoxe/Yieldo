@@ -184,6 +184,9 @@
 }
 
 .yd-declared__row-actions button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--yd-space-2xs);
   padding: var(--yd-space-3xs, 0.2rem) var(--yd-space-xs);
   border: 1px solid transparent;
   border-radius: var(--yd-radius-sm);
@@ -193,6 +196,11 @@
   font-size: 0.78rem;
   white-space: nowrap;
   cursor: pointer;
+}
+
+.yd-declared__row-actions button svg {
+  width: 14px;
+  height: 14px;
 }
 
 .yd-declared__row:hover .yd-declared__row-actions button,

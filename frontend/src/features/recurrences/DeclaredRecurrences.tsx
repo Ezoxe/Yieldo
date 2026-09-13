@@ -9,9 +9,11 @@ import {
   AlertsIcon,
   CalendarIcon,
   ChevronIcon,
+  EditIcon,
   ListIcon,
   PlusIcon,
   RecurrencesIcon,
+  TrashIcon,
 } from "../../design/icons";
 import { useReducedMotion } from "../../design/motion/useReducedMotion";
 import { entryProps, staggerProps } from "../../design/motion/variants";
@@ -325,6 +327,10 @@ export function DeclaredRecurrences({ categories, accounts }: DeclaredRecurrence
                     >
                       {formatCents(cost?.amount_cents ?? declaration.amount_cents)}
                     </span>
+                    {/* The declaration's name lives in the accessible name,
+                        not in the visible label — same pattern as the goals
+                        and debts cards. Six rows of « Modifier Loyer ·
+                        Supprimer Loyer » read as six sentences. */}
                     <div className="yd-declared__row-actions">
                       <button
                         type="button"
@@ -333,14 +339,18 @@ export function DeclaredRecurrences({ categories, accounts }: DeclaredRecurrence
                           setFormOpen(true);
                         }}
                       >
-                        {`Modifier ${declaration.label}`}
+                        <span className="sr-only">{`Modifier ${declaration.label}`}</span>
+                        <EditIcon />
+                        <span aria-hidden="true">Modifier</span>
                       </button>
                       <button
                         type="button"
                         className="yd-declared__row-delete"
                         onClick={() => void handleDelete(declaration)}
                       >
-                        {`Supprimer ${declaration.label}`}
+                        <span className="sr-only">{`Supprimer ${declaration.label}`}</span>
+                        <TrashIcon />
+                        <span aria-hidden="true">Supprimer</span>
                       </button>
                     </div>
                   </li>

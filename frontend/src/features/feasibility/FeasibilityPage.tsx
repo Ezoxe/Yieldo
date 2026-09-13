@@ -7,6 +7,7 @@ import { BentoGrid } from "../../design/bento/BentoGrid";
 import { PanelHead } from "../../design/bento/PanelHead";
 import { EmptyState, historySentence } from "../../design/EmptyState";
 import { CoinsIcon, FeasibilityIcon, InfoIcon, ListIcon, SimulatorsIcon, TrendUpIcon } from "../../design/icons";
+import { Method } from "../../design/Method";
 import { PageHead } from "../../design/PageHead";
 import { useReducedMotion } from "../../design/motion/useReducedMotion";
 import { entryProps, staggerProps } from "../../design/motion/variants";
@@ -81,7 +82,12 @@ function MeasureTile({
           </p>
         </>
       )}
-      <p className="yd-measure__detail">{detail}</p>
+      {/* The figure, its band, and only then — folded — what it is and what
+          hangs on it. Three tiles of prose above the question was the first
+          thing the screen said; it is now one click away on each tile. */}
+      <Method className="yd-measure__detail">
+        <p>{detail}</p>
+      </Method>
     </div>
   );
 }

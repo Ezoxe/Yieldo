@@ -1,0 +1,62 @@
+/* A folded paragraph of method under a figure. The summary reads as a quiet
+   link with a chevron drawn in CSS, the body keeps the screen's own text
+   styles — it holds whatever the screen put there. */
+.yd-method {
+  margin: 0;
+}
+
+.yd-method__summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 0;
+  color: var(--yd-text-muted);
+  font-size: 0.8rem;
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+
+.yd-method__summary::-webkit-details-marker {
+  display: none;
+}
+
+.yd-method__summary::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: rotate(-45deg) translateY(1px);
+  transition: transform var(--yd-motion-fast) var(--yd-ease);
+}
+
+.yd-method[open] > .yd-method__summary::before {
+  transform: rotate(45deg) translateY(-1px);
+}
+
+.yd-method__summary:hover {
+  color: var(--yd-text);
+}
+
+.yd-method__summary:focus-visible {
+  outline: 2px solid var(--yd-accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.yd-method__body {
+  padding-top: var(--yd-space-2xs);
+}
+
+.yd-method__body > :first-child {
+  margin-top: 0;
+}
+
+.yd-method__body > :last-child {
+  margin-bottom: 0;
+}
+
+:root[data-motion="off"] .yd-method__summary::before {
+  transition: none;
+}

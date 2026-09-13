@@ -10,6 +10,7 @@ import { useReducedMotion } from "../../design/motion/useReducedMotion";
 import { entryProps, staggerProps } from "../../design/motion/variants";
 import { centsToInput, formatCents, parseCents } from "../../design/theme";
 import "../../design/Skeleton.css";
+import { Method } from "../../design/Method";
 import { api } from "../../lib/api";
 import { plural } from "../../lib/plural";
 import { messageFor } from "../../lib/refusal";
@@ -71,20 +72,28 @@ function AlertCard({ alert }: { alert: Alert }) {
           {on !== null ? <span className="yd-alert__on">{on}</span> : null}
         </p>
       ) : null}
+      {/* Three claims, still three labelled blocks. The first is the alert's
+          substance and stays in sight; the window and the way out fold under
+          it — two alerts used to fill a whole column with the same three
+          paragraphs each. */}
       <dl className="yd-alert__claims">
         <div className="yd-alert__claim">
           <dt>Ce qui a été mesuré</dt>
           <dd className="yd-alert__measured">{alert.measured}</dd>
         </div>
-        <div className="yd-alert__claim">
-          <dt>Sur quelle période</dt>
-          <dd className="yd-alert__period">{alert.period}</dd>
-        </div>
-        <div className="yd-alert__claim">
-          <dt>Ce qui la lèverait</dt>
-          <dd className="yd-alert__clears">{alert.clears_when}</dd>
-        </div>
       </dl>
+      <Method summary="Sur quelle période, et ce qui la lèverait">
+        <dl className="yd-alert__claims">
+          <div className="yd-alert__claim">
+            <dt>Sur quelle période</dt>
+            <dd className="yd-alert__period">{alert.period}</dd>
+          </div>
+          <div className="yd-alert__claim">
+            <dt>Ce qui la lèverait</dt>
+            <dd className="yd-alert__clears">{alert.clears_when}</dd>
+          </div>
+        </dl>
+      </Method>
     </li>
   );
 }

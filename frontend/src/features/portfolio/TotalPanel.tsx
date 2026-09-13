@@ -1,6 +1,7 @@
 import { formatCents } from "../../design/theme";
 import { plural } from "../../lib/plural";
 import type { CashHolding, DeclaredHolding, PortfolioTotal } from "../../lib/types";
+import { Method } from "../../design/Method";
 
 /**
  * What the portfolio is worth, and — inseparably — what it could not value.
@@ -163,10 +164,12 @@ export function TotalPanel({
         </div>
       </div>
 
-      <p className="yd-patrimoine__note">
-        Latente : rien n'a été vendu, aucun impôt n'est calculé ici. Le prix de revient est la
-        somme de vos lots d'acquisition, jamais une estimation.
-      </p>
+      <Method>
+        <p className="yd-patrimoine__note">
+          Latente : rien n'a été vendu, aucun impôt n'est calculé ici. Le prix de revient est la
+          somme de vos lots d'acquisition, jamais une estimation.
+        </p>
+      </Method>
     </div>
   );
 }

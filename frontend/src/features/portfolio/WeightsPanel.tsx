@@ -1,6 +1,7 @@
 import { formatCents } from "../../design/theme";
 import type { WeightedGroup } from "../../lib/types";
 import { assetClassLabel } from "./HoldingsPanel";
+import { Method } from "../../design/Method";
 
 /** A ratio in 0..1 as a French percentage, through integer basis points —
  *  `formatRateBps` already owns that formatting for every rate in this app, so
@@ -70,11 +71,13 @@ export function WeightsPanel({
         ))}
       </ul>
 
-      <p className="yd-patrimoine__note" data-testid={`yd-weights-basis-${dimension}`}>
-        {incomplete
-          ? "Ces parts sont calculées sur ce qui a pu être valorisé, pas sur tout ce que vous détenez : une position sans prix est absente du dénominateur, elle n'y compte pas pour zéro."
-          : "Ces parts sont calculées sur ce qui a pu être valorisé — ici, la totalité de vos positions."}
-      </p>
+      <Method>
+        <p className="yd-patrimoine__note" data-testid={`yd-weights-basis-${dimension}`}>
+          {incomplete
+            ? "Ces parts sont calculées sur ce qui a pu être valorisé, pas sur tout ce que vous détenez : une position sans prix est absente du dénominateur, elle n'y compte pas pour zéro."
+            : "Ces parts sont calculées sur ce qui a pu être valorisé — ici, la totalité de vos positions."}
+        </p>
+      </Method>
     </div>
   );
 }

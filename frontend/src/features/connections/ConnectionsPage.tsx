@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { BentoCell, type BentoSpan } from "../../design/bento/BentoCell";
 import { BentoGrid } from "../../design/bento/BentoGrid";
 import { PanelHead } from "../../design/bento/PanelHead";
+import { Method } from "../../design/Method";
 import { AssistantIcon, ConnectionsIcon } from "../../design/icons";
 import { PageHead } from "../../design/PageHead";
 import { useReducedMotion } from "../../design/motion/useReducedMotion";
@@ -29,7 +30,6 @@ import "./ConnectionsPage.css";
 const SPAN = {
   market: { base: 1, md: 6, lg: 7 },
   model: { base: 1, md: 6, lg: 5 },
-  full: { base: 1, md: 6, lg: 12 },
 } satisfies Record<string, BentoSpan>;
 
 /** The sentence this whole screen is built around, and the reason a key field
@@ -151,12 +151,17 @@ function ProviderCard({ connection, outcome, busy, onSave, onDelete }: ProviderC
               onChange={(event) => setValue(event.target.value)}
             />
           </label>
-          <p className="yd-conn__hint" id={hintId}>
-            {WRITE_ONLY}
-          </p>
           {PROVIDER_SIGNUP[connection.provider] !== undefined ? (
             <p className="yd-conn__hint">{PROVIDER_SIGNUP[connection.provider]}</p>
           ) : null}
+          {/* Folded: the sentence every card repeated in full under its field.
+              Still the field's description — aria-describedby reaches into a
+              closed fold — so a screen reader hears it on focus either way. */}
+          <Method summary="Pourquoi la clé ne se relit pas" className="yd-conn__method">
+            <p className="yd-conn__hint" id={hintId}>
+              {WRITE_ONLY}
+            </p>
+          </Method>
           <div className="yd-conn__actions">
             <button
               type="submit"
@@ -447,6 +452,29 @@ export function ConnectionsPage() {
                   />
                 ))}
               </ul>
+              {/* The three steps of a save, folded under the list rather than
+                  spread over a panel of their own: a whole card of prose about
+                  what a button does, seen once, is read once. */}
+              <Method summary="Ce qui se passe quand vous enregistrez une clé">
+                <ol className="yd-connections__steps">
+                    <li>
+                      Yieldo fait <strong>un appel réel</strong> au fournisseur avec la clé que vous venez
+                      de saisir. C'est le seul moyen de savoir si elle fonctionne&nbsp;; une clé acceptée
+                      sans vérification serait un mensonge poli.
+                    </li>
+                    <li>
+                      Cet appel est décompté du quota, qu'il réussisse ou non&nbsp;: une clé refusée a
+                      quand même coûté une requête au fournisseur. Si le quota est déjà à son plafond de
+                      prudence, Yieldo refuse <em>avant</em> d'appeler et vous le dit.
+                    </li>
+                    <li>
+                      Si elle fonctionne, la clé est chiffrée puis enregistrée. Si elle ne fonctionne pas,
+                      rien n'est enregistré et la phrase affichée est celle du fournisseur — clé refusée,
+                      quota épuisé, service injoignable, symbole inconnu&nbsp;: quatre causes distinctes,
+                      quatre remèdes distincts.
+                    </li>
+              </ol>
+              </Method>
             </>
           )}
         </BentoCell>
@@ -546,10 +574,15 @@ export function ConnectionsPage() {
                   onChange={(event) => setModelKey(event.target.value)}
                 />
               </label>
-              <p className="yd-conn__hint" id="yd-llm-key-hint">
-                {WRITE_ONLY} Laissé vide, ce champ ne touche pas à la clé déjà enregistrée&nbsp;:
-                un endpoint local n'en demande aucune.
+              <p className="yd-conn__hint">
+                Laissé vide, ce champ ne touche pas à la clé déjà enregistrée&nbsp;: un endpoint
+                local n'en demande aucune.
               </p>
+              <Method summary="Pourquoi la clé ne se relit pas" className="yd-conn__method">
+                <p className="yd-conn__hint" id="yd-llm-key-hint">
+                  {WRITE_ONLY}
+                </p>
+              </Method>
 
               <div className="yd-conn__actions">
                 <button
@@ -584,27 +617,6 @@ export function ConnectionsPage() {
           )}
         </BentoCell>
 
-        <BentoCell as={motion.div} span={SPAN.full} className="yd-panel" {...entryProps(reduced)}>
-          <PanelHead icon={ConnectionsIcon}>Ce qui se passe quand vous enregistrez une clé</PanelHead>
-          <ol className="yd-connections__steps">
-            <li>
-              Yieldo fait <strong>un appel réel</strong> au fournisseur avec la clé que vous venez
-              de saisir. C'est le seul moyen de savoir si elle fonctionne&nbsp;; une clé acceptée
-              sans vérification serait un mensonge poli.
-            </li>
-            <li>
-              Cet appel est décompté du quota, qu'il réussisse ou non&nbsp;: une clé refusée a
-              quand même coûté une requête au fournisseur. Si le quota est déjà à son plafond de
-              prudence, Yieldo refuse <em>avant</em> d'appeler et vous le dit.
-            </li>
-            <li>
-              Si elle fonctionne, la clé est chiffrée puis enregistrée. Si elle ne fonctionne pas,
-              rien n'est enregistré et la phrase affichée est celle du fournisseur — clé refusée,
-              quota épuisé, service injoignable, symbole inconnu&nbsp;: quatre causes distinctes,
-              quatre remèdes distincts.
-            </li>
-          </ol>
-        </BentoCell>
       </BentoGrid>
     </section>
   );

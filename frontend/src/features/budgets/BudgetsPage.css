@@ -189,12 +189,100 @@
 }
 
 .yd-budget__figures {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   margin-left: auto;
   font-family: var(--yd-font-mono);
   font-variant-numeric: tabular-nums;
   font-size: 0.86rem;
   white-space: nowrap;
   color: var(--yd-text);
+}
+
+/* The ceiling as a button: the figure, a pencil that appears on hover, and
+   no border until then — it reads as the figure it was, and tells on hover
+   that it can be changed. */
+.yd-budget__ceiling {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin: -2px -4px;
+  padding: 2px 4px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.yd-budget__ceiling svg {
+  width: 12px;
+  height: 12px;
+  color: var(--yd-text-muted);
+  opacity: 0;
+  transition: opacity var(--yd-motion-fast) var(--yd-ease);
+}
+
+.yd-budget__ceiling:hover,
+.yd-budget__ceiling:focus-visible {
+  border-color: var(--yd-border-control);
+  outline: none;
+}
+
+.yd-budget__ceiling:hover svg,
+.yd-budget__ceiling:focus-visible svg {
+  opacity: 1;
+}
+
+.yd-budget__ceiling-edit {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+
+.yd-budget__ceiling-field {
+  width: 7.5ch;
+  padding: 2px 6px;
+  border: 1px solid var(--yd-accent);
+  border-radius: 6px;
+  background: var(--yd-surface-raised);
+  color: var(--yd-text);
+  font: inherit;
+  text-align: right;
+}
+
+.yd-budget__ceiling-error {
+  max-width: 22ch;
+  font-family: var(--yd-font);
+  font-size: 0.74rem;
+  line-height: 1.35;
+  white-space: normal;
+  text-align: right;
+  color: var(--yd-negative-text);
+}
+
+/* Six months as a strip of bars beside the name, the ceiling as a hairline
+   through them and the months above it in the negative tone. */
+.yd-budget-spark {
+  flex: none;
+  overflow: visible;
+}
+
+.yd-budget-spark__bar {
+  fill: color-mix(in srgb, var(--yd-text) 28%, transparent);
+}
+
+.yd-budget-spark__bar--over {
+  fill: color-mix(in srgb, var(--yd-negative) 70%, transparent);
+}
+
+.yd-budget-spark__ceiling {
+  stroke: var(--yd-text-muted);
+  stroke-width: 1;
+  stroke-dasharray: 2 2;
 }
 
 /* Below ~480px the head no longer fits a name, an "Essentiel" chip and two

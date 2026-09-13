@@ -474,8 +474,33 @@ function budgetsFor(params: Params) {
       { category_id: 8, name: "Divers", color: "#94a3b8", spent_cents: -18400 },
     ],
     total_budget_cents: lines.reduce((s, l) => s + l.budget_cents, 0),
-    total_spent_cents: lines.reduce((s, l) => s + l.spent_cents, 0),
+    total_spent_cents: rows.reduce((s, r) => s + r.amount_cents, 0),
+    budgeted_spent_cents: lines.reduce((s, l) => s + l.spent_cents, 0),
     history: HISTORY,
+  };
+}
+
+/** The last N months of every budgeted line, from the same rows. */
+function budgetHistoryFor(params: Params) {
+  const month = params.get("month") ?? "2026-08";
+  const count = Number(params.get("months") ?? 6);
+  const keys = MONTHS.slice(0, MONTHS.indexOf(month) + 1).slice(-count);
+  return {
+    months: keys,
+    lines: CATEGORIES.filter((c) => c.budget !== null).map((c) => ({
+      category_id: c.id,
+      name: c.name,
+      color: c.color,
+      budget_cents: c.budget as number,
+      points: keys.map((key) => {
+        const start = `${key}-01`;
+        const end = `${key}-${String(daysInMonth(key)).padStart(2, "0")}`;
+        const spent = ROWS.filter(
+          (r) => inRange(r, start, end) && r.amount_cents < 0 && r.category_id === c.id,
+        ).reduce((sum, r) => sum + r.amount_cents, 0);
+        return { month: key, spent_cents: spent };
+      }),
+    })),
   };
 }
 
@@ -1201,6 +1226,7 @@ const ROUTES: Record<string, (params: Params) => unknown> = {
   "/api/analytics/calendar": calendarFor,
   "/api/transactions": transactionsFor,
   "/api/budgets": budgetsFor,
+  "/api/budgets/history": budgetHistoryFor,
   "/api/recurrences": recurrencesPayload,
   "/api/alerts": () => ALERTS_REPORT,
   "/api/portfolio/valuation": () => PREVIEW_VALUATION,

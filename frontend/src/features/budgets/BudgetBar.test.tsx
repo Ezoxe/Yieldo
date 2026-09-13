@@ -1,8 +1,9 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
-import type { BudgetLine } from "../../lib/types";
+import { api } from "../../lib/api";
+import type { BudgetHistoryLine, BudgetLine } from "../../lib/types";
 import { BudgetBar, consumedPercent, fillPercent } from "./BudgetBar";
 import { suggestedCeiling } from "./BudgetsPage";
 
@@ -139,5 +140,79 @@ describe("suggestedCeiling", () => {
   it("never proposes a ceiling of zero", () => {
     expect(suggestedCeiling(-320)).toBe("10");
     expect(suggestedCeiling(0)).toBe("10");
+  });
+});
+
+afterEach(() => vi.restoreAllMocks());
+
+/**
+ * The ceiling used to be a figure the reader could only change from another
+ * screen. It is now a button on the row that opens a field in place; Enter
+ * or a lost focus saves, Escape gives up, and the screen re-asks for its
+ * report through `onSaved` so the bar and the totals move together.
+ */
+describe("BudgetBar — the ceiling edited in place", () => {
+  it("opens the ceiling as a field, saves in cents, and reports the save", async () => {
+    const patch = vi.spyOn(api, "patch").mockResolvedValue({});
+    const onSaved = vi.fn();
+    render(<BudgetBar line={line} onSaved={onSaved} />);
+
+    await userEvent.click(screen.getByRole("button", { name: "Modifier le plafond de Courses" }));
+    const field = screen.getByRole("textbox", { name: "Plafond mensuel pour Courses" });
+    await userEvent.clear(field);
+    await userEvent.type(field, "480,50{Enter}");
+
+    expect(patch).toHaveBeenCalledWith(`/categories/${line.category_id}`, {
+      monthly_budget_cents: 48_050,
+    });
+    expect(onSaved).toHaveBeenCalledTimes(1);
+  });
+
+  it("refuses an unreadable amount at the field, without calling the API", async () => {
+    const patch = vi.spyOn(api, "patch");
+    render(<BudgetBar line={line} onSaved={vi.fn()} />);
+    await userEvent.click(screen.getByRole("button", { name: /Modifier le plafond/ }));
+    const field = screen.getByRole("textbox", { name: /Plafond mensuel/ });
+    await userEvent.clear(field);
+    await userEvent.type(field, "quatre cents{Enter}");
+    expect(screen.getByRole("alert")).toHaveTextContent(/Montant invalide/);
+    expect(patch).not.toHaveBeenCalled();
+  });
+
+  it("gives up on Escape and shows the figure again", async () => {
+    render(<BudgetBar line={line} onSaved={vi.fn()} />);
+    await userEvent.click(screen.getByRole("button", { name: /Modifier le plafond/ }));
+    await userEvent.keyboard("{Escape}");
+    expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Modifier le plafond/ })).toBeInTheDocument();
+  });
+
+  it("stays a plain figure when the screen gives it nothing to save through", () => {
+    render(<BudgetBar line={line} />);
+    expect(screen.queryByRole("button", { name: /Modifier le plafond/ })).not.toBeInTheDocument();
+  });
+});
+
+describe("BudgetBar — six months under the line", () => {
+  const history: BudgetHistoryLine = {
+    category_id: line.category_id, name: line.name, color: line.color, budget_cents: 45_000,
+    points: [
+      { month: "2026-03", spent_cents: -38_000 }, { month: "2026-04", spent_cents: -52_000 },
+      { month: "2026-05", spent_cents: -41_000 }, { month: "2026-06", spent_cents: -44_000 },
+      { month: "2026-07", spent_cents: -47_000 }, { month: "2026-08", spent_cents: -30_000 },
+    ],
+  };
+
+  it("draws one bar per month and says in words how many months crossed the ceiling", () => {
+    render(<BudgetBar line={line} history={history} />);
+    const spark = screen.getByRole("img", { name: /6 derniers mois/ });
+    expect(spark).toHaveAccessibleName(/2 mois au-dessus du plafond/);
+    expect(spark.querySelectorAll("rect.yd-budget-spark__bar")).toHaveLength(6);
+    expect(spark.querySelectorAll("rect.yd-budget-spark__bar--over")).toHaveLength(2);
+  });
+
+  it("draws nothing without a history", () => {
+    render(<BudgetBar line={line} />);
+    expect(screen.queryByRole("img", { name: /derniers mois/ })).not.toBeInTheDocument();
   });
 });

@@ -125,3 +125,50 @@ def test_a_budget_crossed_on_the_screen_is_the_budget_the_alert_fires_on(client)
     alerts = client.get("/api/alerts", headers=headers).json()["alerts"]
     assert any(alert["kind"] == "budget_crossed" and "Alimentation" in alert["title"]
                for alert in alerts), [a["title"] for a in alerts]
+
+
+# --- Comparable totals, and six months per line --------------------------------
+
+
+def test_the_report_publishes_the_spend_on_the_budgeted_lines_alone(client):
+    """`total_spent_cents` is the WHOLE month, budgeted or not; beside
+    `total_budget_cents` it compared two different things (the audit's note
+    of 2026-09-06). `budgeted_spent_cents` is the same perimeter as the
+    budget, so the two figures printed side by side finally compare."""
+    headers = _register(client)
+    account_id, cats = _setup(client, headers)
+    client.patch(f"/api/categories/{cats['alimentation']}", headers=headers,
+                 json={"monthly_budget_cents": 42_000})
+
+    _spend(client, headers, account_id, cats["alimentation-courses"], -30_000, "CB CARREFOUR")
+    _spend(client, headers, account_id, cats["transport-carburant"], -6_000, "CB TOTAL")
+
+    body = client.get("/api/budgets?month=2026-08", headers=headers).json()
+    assert body["total_budget_cents"] == 42_000
+    assert body["total_spent_cents"] == -36_000
+    assert body["budgeted_spent_cents"] == -30_000
+
+
+def test_the_history_gives_each_budgeted_line_its_last_months(client):
+    headers = _register(client)
+    account_id, cats = _setup(client, headers)
+    client.patch(f"/api/categories/{cats['alimentation']}", headers=headers,
+                 json={"monthly_budget_cents": 42_000})
+    for month, cents in (("2026-06", -25_000), ("2026-07", -41_000), ("2026-08", -30_000)):
+        client.post("/api/transactions", headers=headers, json={
+            "account_id": account_id, "date": f"{month}-12", "amount_cents": cents,
+            "label_raw": "CB CARREFOUR", "category_id": cats["alimentation-courses"]})
+
+    body = client.get("/api/budgets/history?month=2026-08&months=3", headers=headers).json()
+    assert body["months"] == ["2026-06", "2026-07", "2026-08"]
+    line = next(row for row in body["lines"] if row["name"] == "Alimentation")
+    assert line["category_id"] == cats["alimentation"]
+    assert line["budget_cents"] == 42_000
+    assert [p["spent_cents"] for p in line["points"]] == [-25_000, -41_000, -30_000]
+    assert [p["month"] for p in line["points"]] == ["2026-06", "2026-07", "2026-08"]
+
+
+def test_the_history_refuses_a_window_it_cannot_honour(client):
+    headers = _register(client)
+    assert client.get("/api/budgets/history?months=0", headers=headers).status_code == 422
+    assert client.get("/api/budgets/history?months=25", headers=headers).status_code == 422

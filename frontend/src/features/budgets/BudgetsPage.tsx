@@ -13,7 +13,7 @@ import { formatCents, parseCents } from "../../design/theme";
 import { ApiError, api } from "../../lib/api";
 import { plural } from "../../lib/plural";
 import { useApiQuery, useInvalidate } from "../../lib/useApiQuery";
-import type { BudgetReport } from "../../lib/types";
+import type { BudgetHistory, BudgetReport } from "../../lib/types";
 import {
   AlertsIcon,
   BreakdownIcon,
@@ -154,6 +154,17 @@ export function verdictSentence(over: number, atRisk: number, budgetedCents: num
     parts.push(`${atRisk} ${plural(atRisk, "en passe de l'être", "en passe de l'être")}`);
   }
   return `${budget} · ${parts.join(", ")}`;
+}
+
+/**
+ * « Budgété 670,00 € · Dépensé sur ces lignes 1 023,00 € » — the two figures
+ * on the SAME perimeter. The report also carries `total_spent_cents`, the
+ * whole month; printed beside the budget it compared two different things
+ * under one name (the audit's note of 2026-09-06), so that one feeds the
+ * donut and never this line.
+ */
+export function comparableTotals(budgetCents: number, budgetedSpentCents: number): string {
+  return `Budgété ${formatCents(budgetCents)} · Dépensé sur ces lignes ${formatCents(Math.abs(budgetedSpentCents))}`;
 }
 
 const GENERIC_ERROR = "Une erreur inattendue est survenue.";
@@ -366,10 +377,24 @@ export function BudgetsPage() {
   // operator has typed into the ones he has not saved yet, and setting three
   // budgets in a row is this screen's core interaction.
   const query = useApiQuery<BudgetReport>("/budgets", { month: askedMonth ?? undefined });
+  // The last six months of every budgeted line, for the strip under each bar.
+  // Its own request and its own cache key: a history that failed to load
+  // leaves the bars readable, and a saved ceiling invalidates both.
+  const historyQuery = useApiQuery<BudgetHistory>("/budgets/history", {
+    month: askedMonth ?? undefined,
+    months: 6,
+  });
   const invalidate = useInvalidate();
   const report = query.data ?? null;
   const isLoading = query.isPending;
   const error = query.error === null ? null : messageFor(query.error);
+  const historyByCategory = new Map(
+    (historyQuery.data?.lines ?? []).map((line) => [line.category_id, line] as const),
+  );
+  const afterSave = () => {
+    void invalidate("/budgets");
+    void invalidate("/budgets/history");
+  };
 
   // Which way the last month change went, so the content slides in from the
   // side the reader came from. A ref, not state: it is read during the render
@@ -483,7 +508,12 @@ export function BudgetsPage() {
 
         <BentoCell as={motion.div} span={SPAN.lines}
           data-ai-target="panel-budgets" className="yd-panel" {...entryProps(reduced)}>
-          <PanelHead icon={BudgetsIcon}>Budgets par catégorie</PanelHead>
+          <PanelHead
+            icon={BudgetsIcon}
+            subtitle={comparableTotals(report.total_budget_cents, report.budgeted_spent_cents)}
+          >
+            Budgets par catégorie
+          </PanelHead>
           {report.lines.length === 0 ? (
             // Named, not placed: `SPAN.unbudgeted` is `{ base: 1, md: 6 }`, so
             // "Sans budget" is only to the right of this panel from 1200px up.
@@ -494,7 +524,12 @@ export function BudgetsPage() {
           ) : (
             <div className="yd-budgets__list">
               {report.lines.map((line) => (
-                <BudgetBar key={line.category_id} line={line} />
+                <BudgetBar
+                  key={line.category_id}
+                  line={line}
+                  onSaved={afterSave}
+                  history={historyByCategory.get(line.category_id)}
+                />
               ))}
             </div>
           )}
@@ -519,7 +554,7 @@ export function BudgetsPage() {
                   categoryId={entry.category_id}
                   name={entry.name}
                   spentCents={entry.spent_cents}
-                  onSaved={() => void invalidate("/budgets")}
+                  onSaved={afterSave}
                 />
               ))}
             </ul>

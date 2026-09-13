@@ -34,11 +34,13 @@ const report = {
   ],
   total_budget_cents: 42000,
   total_spent_cents: -58500,
+  budgeted_spent_cents: -52000,
   history: { date_from: "2025-01-24", date_to: "2026-01-09", transaction_count: 197 },
 };
 
 const emptyReport = {
   ...report, lines: [], unbudgeted: [], total_budget_cents: 0, total_spent_cents: 0,
+  budgeted_spent_cents: 0,
 };
 
 const categories = [
@@ -61,6 +63,9 @@ function setupFetch(
     const url = new URL(typeof input === "string" ? input : String(input), "http://localhost");
     if (url.pathname === "/api/budgets") {
       return Promise.resolve(overrides.budgets ? overrides.budgets() : jsonResponse(report));
+    }
+    if (url.pathname === "/api/budgets/history") {
+      return Promise.resolve(jsonResponse({ months: [], lines: [] }));
     }
     if (url.pathname === "/api/categories") {
       return Promise.resolve(overrides.categories ? overrides.categories() : jsonResponse(categories));

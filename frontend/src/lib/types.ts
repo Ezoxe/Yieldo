@@ -323,6 +323,28 @@ export interface UnbudgetedCategory {
   spent_cents: number;
 }
 
+// GET /budgets/history — each budgeted line's spend, month by month, rolled
+// up the way the report rolls it (children into the parent carrying the
+// budget). `budget_cents` is today's ceiling for every month: budgets carry
+// no history of their own.
+export interface BudgetHistoryPoint {
+  month: string;
+  spent_cents: number;
+}
+
+export interface BudgetHistoryLine {
+  category_id: number;
+  name: string;
+  color: string;
+  budget_cents: number;
+  points: BudgetHistoryPoint[];
+}
+
+export interface BudgetHistory {
+  months: string[];
+  lines: BudgetHistoryLine[];
+}
+
 export interface BudgetReport {
   month: string;
   month_start: string;
@@ -333,7 +355,11 @@ export interface BudgetReport {
   lines: BudgetLine[];
   unbudgeted: UnbudgetedCategory[];
   total_budget_cents: number;
+  // The WHOLE month's spend, budgeted or not: what the donut shows.
   total_spent_cents: number;
+  // The spend on the budgeted lines alone — the same perimeter as
+  // `total_budget_cents`, so the two compare.
+  budgeted_spent_cents: number;
   history: History | null;
 }
 

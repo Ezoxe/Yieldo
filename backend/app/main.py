@@ -25,6 +25,11 @@ from app.api import export as export_routes
 from app.api import feasibility as feasibility_routes
 from app.api import goals as goal_routes
 from app.api import imports as import_routes
+from app.api import invest_model as invest_model_routes
+from app.api import invest_oversight as invest_oversight_routes
+from app.api import invest_policy as invest_policy_routes
+from app.api import invest_run as invest_run_routes
+from app.api import invest_venues as invest_venue_routes
 from app.api import plan as plan_routes
 from app.api import portfolio as portfolio_routes
 from app.api import projection as projection_routes
@@ -98,6 +103,15 @@ api.include_router(assistant_llm_routes.router)
 api.include_router(report_routes.router)
 api.include_router(alert_routes.router)
 api.include_router(search_routes.router)
+# Investissement. Registered after the finance routers, and ordered so the
+# oversight prefix (/invest/oversight) is matched before the broader
+# /invest router's own paths -- FastAPI matches in registration order, and a
+# supervisor hitting /invest/oversight/etat must never reach a /invest route.
+api.include_router(invest_venue_routes.router)
+api.include_router(invest_policy_routes.router)
+api.include_router(invest_model_routes.router)
+api.include_router(invest_oversight_routes.router)
+api.include_router(invest_run_routes.router)
 
 app.include_router(api)
 

@@ -13,7 +13,6 @@ import pytest
 from app.decision.contract import Decision, DecisionError, DecisionFailureCause
 from app.decision.replay import ReplayProvider
 from app.decision.strategy import BUY, HOLD
-from app.engines.quantity import parse as parse_quantity
 from app.models import (
     TradeAuditEvent,
     TradeDecision,

@@ -1655,6 +1655,9 @@ NET_WORTH_SNAPSHOTS_REVISION = "c6d2e9f4a1b7"
 RECURRENCE_DISMISSALS_REVISION = "d8f3b2c7e5a1"
 # A goal that IS a savings account: `goals.account_id`.
 GOAL_ACCOUNT_REVISION = "e4a7c1d9b2f6"
+# The Investissement environment: brokers, the mandate, decisions, orders and
+# the audit chain. Eight new tables, nothing existing touched.
+INVESTMENT_REVISION = "a1b2c3d4e5f6"
 
 
 def test_the_goal_account_migration_matches_base_metadata_exactly(migration_db):
@@ -1696,7 +1699,7 @@ def test_the_goal_account_migration_keeps_every_existing_goal_declared(migration
     assert tuple(row) == (100000, None)
 
 
-def test_the_goal_account_migration_is_the_single_head(migration_db):
+def test_the_investment_migration_is_the_single_head(migration_db):
     """`heads` and `head` must be the same single revision — two heads is a
     database Alembic cannot upgrade without a merge, and nothing else in this
     suite would notice. This assertion moves to the newest migration each time
@@ -1705,7 +1708,8 @@ def test_the_goal_account_migration_is_the_single_head(migration_db):
 
     script = ScriptDirectory.from_config(migration_db.config)
     assert len(script.get_heads()) == 1
-    assert script.get_current_head() == GOAL_ACCOUNT_REVISION
+    assert script.get_current_head() == INVESTMENT_REVISION
+    assert GOAL_ACCOUNT_REVISION in {rev.revision for rev in script.walk_revisions()}
     # The revisions it replaced as head are still on the path to it.
     on_path = {rev.revision for rev in script.walk_revisions()}
     assert RECURRENCE_DISMISSALS_REVISION in on_path
@@ -1780,3 +1784,135 @@ def test_the_declared_columns_land_on_a_populated_table(migration_db):
     # An envelope that existed before the column declares nothing, which is the
     # only honest value: it never said what it holds.
     assert row == [(None, None)]
+
+
+# --------------------------------------------------------------------------
+# INVESTMENT_REVISION — the Investissement environment
+# --------------------------------------------------------------------------
+
+INVESTMENT_TABLES = (
+    "trading_venues",
+    "trading_policies",
+    "decision_settings",
+    "trading_accounts",
+    "trading_positions",
+    "trade_decisions",
+    "trade_orders",
+    "trade_audit_events",
+)
+
+
+@pytest.mark.parametrize("table", INVESTMENT_TABLES)
+def test_the_investment_migration_matches_base_metadata_exactly(migration_db, table):
+    """Every new table, column for column and index for index against today's
+    models. A migration that drifts from its model is a deployed instance whose
+    schema differs from every test in this suite."""
+    command.upgrade(migration_db.config, INVESTMENT_REVISION)
+    conn = _connect(migration_db)
+    migrated_columns = _table_columns(conn, table)
+    migrated_indexes = _index_names(conn, table)
+    conn.close()
+
+    reference_columns, reference_indexes = _reference_schema(table)
+    assert migrated_columns == reference_columns
+    assert migrated_indexes == reference_indexes
+
+
+def test_the_investment_migration_touches_no_existing_table(migration_db):
+    """Additive, in as many words: a household that never opens Investissement
+    carries eight empty tables and nothing else changed."""
+    command.upgrade(migration_db.config, GOAL_ACCOUNT_REVISION)
+    conn = _connect(migration_db)
+    before = {
+        row[0]: row[1]
+        for row in conn.execute("SELECT name, sql FROM sqlite_master WHERE type = 'table'")
+    }
+    conn.close()
+
+    command.upgrade(migration_db.config, INVESTMENT_REVISION)
+    conn = _connect(migration_db)
+    after = {
+        row[0]: row[1]
+        for row in conn.execute("SELECT name, sql FROM sqlite_master WHERE type = 'table'")
+    }
+    conn.close()
+
+    for name, sql in before.items():
+        if name == "alembic_version":
+            continue
+        assert after[name] == sql, f"{name} a été modifiée"
+    assert set(after) - set(before) == set(INVESTMENT_TABLES)
+
+
+def test_a_mandate_created_by_the_migration_authorises_nothing(migration_db):
+    """The defaults are the restrictive ones. A row inserted with only its
+    `user_id` must come out authorising no instrument, risking nothing, and
+    watching rather than trading — a permissive default here would be a live
+    mandate created by an upgrade."""
+    command.upgrade(migration_db.config, INVESTMENT_REVISION)
+    conn = _connect(migration_db)
+    conn.execute(
+        "INSERT INTO users (id, email, name, password_hash, role, is_active, created_at) "
+        "VALUES (1, 'a@b.fr', 'Max', 'x', 'user', 1, '2026-01-01T00:00:00')"
+    )
+    conn.execute(
+        "INSERT INTO trading_policies (user_id, created_at, updated_at) "
+        "VALUES (1, '2026-01-01T00:00:00', '2026-01-01T00:00:00')"
+    )
+    conn.commit()
+    row = conn.execute(
+        "SELECT allowed_symbols, autonomy, max_position_cents, max_exposure_cents, "
+        "max_orders_per_day, allow_short, allow_leverage, halted "
+        "FROM trading_policies WHERE user_id = 1"
+    ).fetchone()
+    conn.close()
+    assert tuple(row) == ("", "observer", 0, 0, 0, 0, 0, 0)
+
+
+def test_the_audit_chain_survives_the_upgrade_it_was_written_by(migration_db):
+    """A row written through the real schema and verified by the real chain
+    walker: the migration's column types must be the ones `trading/audit.py`
+    reads back, or an operator's journal reports itself broken on day one."""
+    command.upgrade(migration_db.config, INVESTMENT_REVISION)
+    conn = _connect(migration_db)
+    conn.execute(
+        "INSERT INTO users (id, email, name, password_hash, role, is_active, created_at) "
+        "VALUES (1, 'a@b.fr', 'Max', 'x', 'user', 1, '2026-01-01T00:00:00')"
+    )
+    conn.commit()
+    conn.close()
+
+    from app.models import User
+    from app.trading import audit as trading_audit
+
+    engine = create_engine(f"sqlite:///{migration_db.db_path}")
+    from sqlalchemy.orm import sessionmaker
+
+    session = sessionmaker(bind=engine)()
+    user = session.get(User, 1)
+    trading_audit.append(session, user, kind="armed", payload={"minutes": 30}, actor="session")
+    trading_audit.append(session, user, kind="halted", payload={"why": "x"}, actor="agent")
+    session.commit()
+
+    report = trading_audit.verify_chain(session, user)
+    session.close()
+    engine.dispose()
+    assert report.intact is True
+    assert report.events == 2
+
+
+def test_the_investment_migration_downgrades_cleanly(migration_db):
+    """Down and up again: an operator who rolls back and forward must not meet
+    a half-dropped table."""
+    command.upgrade(migration_db.config, INVESTMENT_REVISION)
+    command.downgrade(migration_db.config, GOAL_ACCOUNT_REVISION)
+    conn = _connect(migration_db)
+    names = {row[0] for row in conn.execute("SELECT name FROM sqlite_master WHERE type = 'table'")}
+    conn.close()
+    assert not (names & set(INVESTMENT_TABLES))
+
+    command.upgrade(migration_db.config, INVESTMENT_REVISION)
+    conn = _connect(migration_db)
+    names = {row[0] for row in conn.execute("SELECT name FROM sqlite_master WHERE type = 'table'")}
+    conn.close()
+    assert set(INVESTMENT_TABLES) <= names

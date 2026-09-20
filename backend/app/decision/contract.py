@@ -298,3 +298,28 @@ def parse_answer(question: Question, raw: str, provider: str) -> dict[str, Any]:
             f"la probabilité {answer} sort de 0-100",
         )
     return {"choice": None, "score_value": None, "probability_bps": answer * 100}
+
+
+def question_from_payload(payload: dict[str, Any]) -> Question:
+    """Rebuild a question from the JSON stored beside the decision it produced.
+
+    The oversight replay asks the question that WAS asked, not the one the
+    catalogue holds today. A threshold moved or an option reworded since would
+    otherwise turn every old decision into a false mismatch, and a replay that
+    cries drift on every row is a replay nobody reads.
+    """
+    kind = payload.get("kind")
+    key = str(payload.get("key") or "")
+    if kind == "choice":
+        return ChoiceQuestion(
+            key=key, prompt=str(payload.get("prompt") or ""),
+            options=tuple(payload.get("options") or ()),
+        )
+    if kind == "score":
+        return ScoreQuestion(
+            key=key, prompt=str(payload.get("prompt") or ""),
+            minimum=int(payload.get("minimum", 0)), maximum=int(payload.get("maximum", 10)),
+        )
+    if kind == "probability":
+        return ProbabilityQuestion(key=key, statement=str(payload.get("statement") or ""))
+    raise ValueError(f"Type de question inconnu : {kind!r}")

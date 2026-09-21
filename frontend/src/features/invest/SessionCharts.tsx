@@ -37,6 +37,18 @@ function stepLabels(day: InvestSessionDetail, count: number): string[] {
 
 const GRID = { left: 8, right: 20, top: 32, bottom: 8, containLabel: true };
 
+/* A euro axis hugging its data: a flat day at 10 000 € must not be drawn on
+   a 4 000–16 000 € scale, and a 3 % move must still look like one. Half a
+   percent of the value on either side, at least a fifth of the range. */
+const EURO_AXIS = {
+  type: "value" as const,
+  min: ({ min, max }: { min: number; max: number }) =>
+    Math.floor(min - Math.max((max - min) * 0.2, min * 0.005)),
+  max: ({ min, max }: { min: number; max: number }) =>
+    Math.ceil(max + Math.max((max - min) * 0.2, max * 0.005)),
+  axisLabel: { formatter: (v: number) => `${v} €` },
+};
+
 export function capitalOption(day: InvestSessionDetail, theme: Resolved): EChartsOption {
   const tokens = chartTokens(theme);
   const points = day.points;
@@ -56,7 +68,7 @@ export function capitalOption(day: InvestSessionDetail, theme: Resolved): EChart
       },
     },
     xAxis: { type: "category", boundaryGap: false, data: stepLabels(day, points.length) },
-    yAxis: { type: "value", scale: true, axisLabel: { formatter: (v: number) => `${v} €` } },
+    yAxis: EURO_AXIS,
     series: [
       {
         name: "Capital", type: "line", ...LINE_SMOOTHING, showSymbol: false,
@@ -118,7 +130,7 @@ export function marketOption(
       },
     },
     xAxis: { type: "category", boundaryGap: false, data: stepLabels(day, closes.length) },
-    yAxis: { type: "value", scale: true, axisLabel: { formatter: (v: number) => `${v} €` } },
+    yAxis: EURO_AXIS,
     series: [
       {
         name: symbol, type: "line", ...LINE_SMOOTHING, showSymbol: false,

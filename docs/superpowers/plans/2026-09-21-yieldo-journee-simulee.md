@@ -41,7 +41,7 @@ batch mode), pytest; React 19 + ECharts wrappers, vitest.
 - Migration `d8e9f0a1b2c3_trading_sessions.py`, `down_revision = c7d8e9f0a1b2`.
 - Tests: `test_migrations.py` (single head, table matches metadata, columns
   land NULL on a populated `trade_decisions`, downgrade), `vocabulary.test.ts`.
-- [ ] tests red → green → commit `feat(invest): a trading day has a table`.
+- [x] tests red → green → commit `feat(invest): a trading day has a table`.
 
 ### Task 2: `engines/session_report.py`
 - `Point(step, equity_cents, cash_cents, exposure_cents, orders)`,
@@ -53,7 +53,7 @@ batch mode), pytest; React 19 + ECharts wrappers, vitest.
 - Tests `tests/test_session_report.py`: return and drawdown on a known
   curve; winners/losers from filled sells; agreement from rules choices;
   means ignore None; empty input is all zeros.
-- [ ] commit `feat(invest): the balance sheet of a trading day`.
+- [x] commit `feat(invest): the balance sheet of a trading day`.
 
 ### Task 3: `trading/session.py` runner
 - `start_session(db, user, *, steps, seed, cash_cents, provider_name, model)`
@@ -69,7 +69,7 @@ batch mode), pytest; React 19 + ECharts wrappers, vitest.
   `finished` with totals; a `stop_requested` set after 3 steps ends
   `stopped` with 3 points; a provider raising `DecisionError` ends `failed`
   naming the cause.
-- [ ] commit `feat(invest): a trading day runs step by step in the background`.
+- [x] commit `feat(invest): a trading day runs step by step in the background`.
 
 ### Task 4: Routes `api/invest_session.py`
 - `POST /invest/sessions` (202; 409 if one is running or the pipeline is
@@ -81,7 +81,7 @@ batch mode), pytest; React 19 + ECharts wrappers, vitest.
 - Schemas in `schemas/invest.py`; router mounted in `main.py`.
 - Tests `tests/test_invest_session_api.py` (BackgroundTasks run inline
   under TestClient, so a 4-step day finishes within the request).
-- [ ] commit `feat(invest): /invest/sessions — start, watch, stop, read a day`.
+- [x] commit `feat(invest): /invest/sessions — start, watch, stop, read a day`.
 
 ### Task 5: Screen « La journée »
 - `navigation.ts` entry, `routes.tsx`, `lib/types.ts` types.
@@ -93,7 +93,7 @@ batch mode), pytest; React 19 + ECharts wrappers, vitest.
 - Tests: `SessionCharts.test.tsx` (series lengths, markers, colours from
   tokens), `SessionPage.test.tsx` (form posts, progress, balance sheet,
   previous days, replay seed prefill).
-- [ ] commit `feat(invest): the « La journée » screen`.
+- [x] commit `feat(invest): the « La journée » screen`.
 
 ### Task 6: Browser judgement, both widths and themes
 - Run a real day against Laya (78 steps); fix what the browser shows; push.

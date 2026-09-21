@@ -7,7 +7,8 @@ import {
   RULE_LABELS,
   labelFor,
 } from "./vocabulary";
-import type { InvestDecisionDetail, InvestQuestion } from "../../lib/types";
+import type { InvestAnswer, InvestDecisionDetail, InvestQuestion } from "../../lib/types";
+import { MassBars } from "./MassBars";
 import "./invest.css";
 
 interface DecisionDetailProps {
@@ -61,6 +62,55 @@ function featureValue(
 
 function questionText(question: InvestQuestion): string {
   return question.prompt ?? question.statement ?? question.key;
+}
+
+/**
+ * The model's whole distribution under its answer, when the provider gave
+ * one. A choice and a score carry it as `mass_bps`; a probability IS a
+ * two-sided mass, drawn as such so the three questions read alike.
+ */
+function massOf(answer: InvestAnswer) {
+  if (answer.mass_bps && Object.keys(answer.mass_bps).length > 0) {
+    const chosen = answer.choice
+      ?? (answer.score_value !== null && answer.score_value !== undefined
+        ? String(answer.score_value)
+        : null);
+    return <MassBars mass={answer.mass_bps} chosen={chosen} />;
+  }
+  if (answer.probability_bps !== null && answer.probability_bps !== undefined) {
+    const yes = answer.probability_bps;
+    return (
+      <MassBars
+        mass={{ true: yes, false: 10_000 - yes }}
+        chosen={yes >= 5_000 ? "true" : "false"}
+        labels={{ true: "Se poursuit", false: "S'inverse" }}
+      />
+    );
+  }
+  return null;
+}
+
+/** What the built-in rules answered on the same context, and whether they
+ *  agreed. Amber for a disagreement — a reading, not an alarm. */
+function rulesPill(answer: InvestAnswer, rules: InvestAnswer | undefined) {
+  if (!rules) return null;
+  const said = rules.choice
+    ?? (rules.score_value !== null && rules.score_value !== undefined
+      ? `${rules.score_value} / 10`
+      : rules.probability_bps !== null && rules.probability_bps !== undefined
+        ? formatProbability(rules.probability_bps)
+        : null);
+  if (said === null) return null;
+  const agreed = rules.choice !== null && rules.choice !== undefined
+    ? rules.choice === answer.choice
+    : rules.score_value !== null && rules.score_value !== undefined
+      ? rules.score_value === answer.score_value
+      : rules.probability_bps === answer.probability_bps;
+  return (
+    <span className={`yd-pill yd-pill--${agreed ? "positive" : "warning"}`}>
+      Les règles auraient dit&nbsp;: {said}
+    </span>
+  );
 }
 
 /**
@@ -151,25 +201,34 @@ export function DecisionDetail({ detail }: DecisionDetailProps) {
                 </p>
               ) : null}
               {answer ? (
-                <p className="yd-detail__answer">
-                  {answer.choice !== null && answer.choice !== undefined ? (
-                    <span className="yd-pill yd-pill--accent">{answer.choice}</span>
-                  ) : null}
-                  {answer.score_value !== null && answer.score_value !== undefined ? (
-                    <span className="yd-num">
-                      {answer.score_value}&nbsp;/&nbsp;{question.maximum ?? 10}
-                    </span>
-                  ) : null}
-                  {answer.probability_bps !== null && answer.probability_bps !== undefined ? (
-                    <span className="yd-num">{formatProbability(answer.probability_bps)}</span>
-                  ) : null}
-                  <span className="yd-feed__time">{formatLatency(answer.latency_ms)}</span>
-                  {answer.confidence_bps !== null && answer.confidence_bps !== undefined ? (
-                    <span className="yd-feed__time">
-                      confiance annoncée {formatProbability(answer.confidence_bps)}
-                    </span>
-                  ) : null}
-                </p>
+                <>
+                  <p className="yd-detail__answer">
+                    {answer.choice !== null && answer.choice !== undefined ? (
+                      <span className="yd-pill yd-pill--accent">{answer.choice}</span>
+                    ) : null}
+                    {answer.score_value !== null && answer.score_value !== undefined ? (
+                      <span className="yd-num">
+                        {answer.score_value}&nbsp;/&nbsp;{question.maximum ?? 10}
+                      </span>
+                    ) : null}
+                    {answer.probability_bps !== null && answer.probability_bps !== undefined ? (
+                      <span className="yd-num">{formatProbability(answer.probability_bps)}</span>
+                    ) : null}
+                    <span className="yd-feed__time">{formatLatency(answer.latency_ms)}</span>
+                    {answer.confidence_bps !== null && answer.confidence_bps !== undefined ? (
+                      <span className="yd-feed__time">
+                        confiance annoncée {formatProbability(answer.confidence_bps)}
+                      </span>
+                    ) : null}
+                    {answer.act_bps !== null && answer.act_bps !== undefined ? (
+                      <span className="yd-feed__time">
+                        agir {formatProbability(answer.act_bps)}
+                      </span>
+                    ) : null}
+                    {rulesPill(answer, detail.second_opinion?.[question.key])}
+                  </p>
+                  {massOf(answer)}
+                </>
               ) : (
                 <p className="yd-note">
                   Question non posée&nbsp;: le modèle avait déjà répondu « ne rien faire ».

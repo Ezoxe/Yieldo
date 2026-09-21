@@ -449,7 +449,7 @@ export function ControlRoomPage() {
           )}
         </BentoCell>
 
-        <BentoCell span={{ base: 1, md: 6, lg: 5 }}>
+        <BentoCell span={{ base: 1, md: 6, lg: 7 }}>
           <PanelHead
             icon={DecisionsIcon}
             subtitle={
@@ -515,7 +515,7 @@ export function ControlRoomPage() {
           )}
         </BentoCell>
 
-        <BentoCell span={{ base: 1, md: 6, lg: 7 }}>
+        <BentoCell span={{ base: 1, md: 6, lg: 12 }}>
           <PanelHead
             icon={OversightIcon}
             subtitle="Les plus récentes"

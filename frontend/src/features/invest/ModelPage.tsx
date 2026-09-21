@@ -186,10 +186,18 @@ export function ModelPage() {
                   <span>Délai accordé (ms)</span>
                   <input className="yd-input yd-num" inputMode="numeric" value={timeout}
                          onChange={(event) => setTimeoutMs(event.target.value)} />
-                  <small>
-                    En millisecondes, pas en secondes&nbsp;: une décision qui n'arrive pas en
-                    deux secondes porte sur un marché qui a bougé. Elle est écartée.
-                  </small>
+                  {provider === "laya" ? (
+                    <small>
+                      En millisecondes. Laya sur CPU met environ une seconde par question&nbsp;;
+                      sur une machine plus lente, montez à 5 000 plutôt que de voir des
+                      décisions écartées pour lenteur.
+                    </small>
+                  ) : (
+                    <small>
+                      En millisecondes, pas en secondes&nbsp;: une décision qui n'arrive pas en
+                      deux secondes porte sur un marché qui a bougé. Elle est écartée.
+                    </small>
+                  )}
                 </label>
               </div>
             ) : null}

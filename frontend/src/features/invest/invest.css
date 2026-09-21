@@ -53,6 +53,11 @@
 .yd-table .yd-feed__message {
   white-space: normal;
   max-width: 36ch;
+  /* A hint in a table is read whole: the two-line clamp of the feed would
+     cut « 50 % signifie que ni les acheteurs ni les vendeurs n'ont pris… ». */
+  display: block;
+  -webkit-line-clamp: unset;
+  line-clamp: unset;
 }
 
 /* Five columns beside a form: names and sources wrap too; only figures and

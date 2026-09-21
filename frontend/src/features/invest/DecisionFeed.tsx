@@ -36,6 +36,8 @@ function summaryOf(decision: InvestDecision): string {
 interface DecisionFeedProps {
   decisions: InvestDecision[];
   limit?: number;
+  /** A decision to show unfolded on first render — a handoff from a link. */
+  initialOpenId?: number | null;
 }
 
 /**
@@ -50,8 +52,8 @@ interface DecisionFeedProps {
  * list route deliberately does not return the context, the questions and the
  * verdict, because forty of those is a payload nobody reads.
  */
-export function DecisionFeed({ decisions, limit }: DecisionFeedProps) {
-  const [openId, setOpenId] = useState<number | null>(null);
+export function DecisionFeed({ decisions, limit, initialOpenId = null }: DecisionFeedProps) {
+  const [openId, setOpenId] = useState<number | null>(initialOpenId);
   const shown = limit ? decisions.slice(0, limit) : decisions;
 
   if (shown.length === 0) {

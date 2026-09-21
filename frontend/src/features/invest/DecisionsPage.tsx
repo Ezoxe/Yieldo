@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useSearchParams } from "react-router";
 
 import { PageHead } from "../../design/PageHead";
 import { PageSkeleton } from "../../design/PageSkeleton";
@@ -39,6 +40,19 @@ export function DecisionsPage() {
   const [outcome, setOutcome] = useState<DecisionOutcome | "">("");
   const [symbol, setSymbol] = useState("");
   const [shown, setShown] = useState(PAGE);
+  // `?id=` is a HANDOFF from a link elsewhere (a disagreement on the Salle
+  // de contrôle): the decision opens unfolded, and the parameter is dropped
+  // so a reload or a filter change does not keep reopening it.
+  const [params, setParams] = useSearchParams();
+  const [openId] = useState<number | null>(() => {
+    const raw = params.get("id");
+    return raw && /^\d+$/.test(raw) ? Number(raw) : null;
+  });
+  if (params.has("id")) {
+    const next = new URLSearchParams(params);
+    next.delete("id");
+    setParams(next, { replace: true });
+  }
 
   const decisions = useApiQuery<InvestDecision[]>("/invest/decisions", {
     limit: 200,
@@ -106,7 +120,7 @@ export function DecisionsPage() {
             filtres, {Math.min(shown, decisions.data.length)}{" "}
             {plural(Math.min(shown, decisions.data.length), "affichée", "affichées")}.
           </p>
-          <DecisionFeed decisions={decisions.data} limit={shown} />
+          <DecisionFeed decisions={decisions.data} limit={shown} initialOpenId={openId} />
           {decisions.data.length > shown ? (
             <div className="yd-invest-actions">
               <button

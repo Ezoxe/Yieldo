@@ -333,3 +333,31 @@ describe("un bac à sable vide", () => {
     expect(screen.queryByText(/bac à sable est vide/)).not.toBeInTheDocument();
   });
 });
+
+
+describe("Salle de contrôle — le modèle contre les règles", () => {
+  it("scores the model against the built-in rules and lists the disagreements", async () => {
+    setupFetch();
+    renderPage();
+    await screen.findByText("Le modèle contre les règles");
+    expect(pageText()).toContain("75 %");
+    expect(pageText()).toContain("12 décisions comparées");
+    expect(pageText()).toContain("9 accords sur 12");
+    const list = screen.getByRole("list", { name: "Désaccords récents" });
+    const rows = within(list).getAllByRole("listitem");
+    expect(rows).toHaveLength(2);
+    expect(rows[0]).toHaveTextContent("BTC-EUR");
+    expect(rows[0]).toHaveTextContent("acheter");
+    expect(rows[0]).toHaveTextContent("ne rien faire");
+    expect(within(rows[0]).getByRole("link")).toHaveAttribute("href", "/invest/decisions?id=41");
+  });
+
+  it("explains an empty comparison rather than showing a zero", async () => {
+    setupFetch({ second_opinion: { compared: 0, agreed: 0, agreement_bps: 0, disagreements: [] } });
+    renderPage();
+    await screen.findByText("Le modèle contre les règles");
+    expect(pageText()).toContain("Aucune décision comparée");
+    expect(pageText()).toContain("moteur déterministe intégré");
+    expect(pageText()).not.toContain("0 décision comparée");
+  });
+});

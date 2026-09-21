@@ -29,7 +29,9 @@ import {
   formatBps,
   formatCents,
   formatLatency,
+  formatProbability,
   formatQuantity,
+  formatTime,
   quantityIsShortened,
   remainingMinutes,
 } from "./format";
@@ -444,6 +446,72 @@ export function ControlRoomPage() {
               Le score de Brier sera calculé quand assez de décisions probabilisées auront été
               suivies d'un tour suivant.
             </p>
+          )}
+        </BentoCell>
+
+        <BentoCell span={{ base: 1, md: 6, lg: 5 }}>
+          <PanelHead
+            icon={DecisionsIcon}
+            subtitle={
+              data.second_opinion.compared > 0
+                ? `${data.second_opinion.compared} ${plural(data.second_opinion.compared, "décision comparée", "décisions comparées")}`
+                : "Aucune décision comparée"
+            }
+            actions={
+              <InfoTip label="Comment la comparaison est faite">
+                À chaque décision d'un modèle, Yieldo pose les mêmes questions au moteur
+                déterministe intégré, sur les mêmes indicateurs, et range sa réponse à côté —
+                sans jamais l'exécuter. L'accord se juge sur le sens seulement : c'est la
+                réponse qui coûte de l'argent. Un modèle qui rejoint quatre règles de
+                momentum neuf fois sur dix n'a pas encore prouvé qu'il vaut sa latence.
+              </InfoTip>
+            }
+          >
+            Le modèle contre les règles
+          </PanelHead>
+          {data.second_opinion.compared === 0 ? (
+            <EmptyState
+              icon={DecisionsIcon}
+              title="Aucune décision comparée."
+              detail="Le second avis n'est tenu que lorsqu'un modèle autre que le moteur déterministe intégré est configuré : les règles ne se comparent pas à elles-mêmes."
+            />
+          ) : (
+            <>
+              <div className="yd-figures">
+                <div className="yd-figure">
+                  <span className="yd-figure__label">Accord sur le sens</span>
+                  <span className="yd-figure__value yd-num">
+                    {formatProbability(data.second_opinion.agreement_bps)}
+                  </span>
+                  <span className="yd-figure__note">
+                    {data.second_opinion.agreed}{" "}
+                    {plural(data.second_opinion.agreed, "accord", "accords")} sur{" "}
+                    {data.second_opinion.compared}
+                  </span>
+                </div>
+              </div>
+              {data.second_opinion.disagreements.length ? (
+                <ul className="yd-opinions" aria-label="Désaccords récents">
+                  {data.second_opinion.disagreements.map((row) => (
+                    <li key={row.decision_id} className="yd-feed__item">
+                      <Link
+                        to={`/invest/decisions?id=${row.decision_id}`}
+                        className="yd-feed__summary yd-feed__summary--link"
+                      >
+                        <span className="yd-feed__symbol">{row.symbol}</span>
+                        <span className="yd-feed__message">
+                          Le modèle&nbsp;: <strong>{row.model_choice}</strong> · les
+                          règles&nbsp;: <strong>{row.rules_choice}</strong>
+                        </span>
+                        <span className="yd-feed__time">{formatTime(row.created_at)}</span>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="yd-note">Aucun désaccord sur la fenêtre.</p>
+              )}
+            </>
           )}
         </BentoCell>
 

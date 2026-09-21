@@ -274,7 +274,8 @@
 
 /* -- The decision feed ----------------------------------------------------- */
 
-.yd-feed {
+.yd-feed,
+.yd-opinions {
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -713,4 +714,20 @@
   margin: 0;
   font-size: 0.95rem;
   font-weight: 600;
+}
+
+/* A feed row that is a link (a disagreement leading to its decision), not a
+   disclosure button: same grid, the same hover, no chevron. */
+.yd-feed__summary--link {
+  color: inherit;
+  text-decoration: none;
+}
+
+.yd-feed__summary--link:hover {
+  background: var(--yd-surface-strong);
+}
+
+.yd-feed__summary--link:focus-visible {
+  outline: 2px solid var(--yd-accent);
+  outline-offset: -2px;
 }

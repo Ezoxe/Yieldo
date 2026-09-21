@@ -333,9 +333,8 @@ def _permission_breach(
     ):
         return RiskBreach(
             "sell_exceeds_position",
-            f"La vente porte sur {intent.quantity} unité(s) alors que "
-            f"{state.position_quantity} seulement sont détenues, et le mandat interdit "
-            "la vente à découvert.",
+            f"La vente porte sur {intent.quantity} alors que la position n'est que de "
+            f"{state.position_quantity}, et le mandat interdit la vente à découvert.",
         )
     # **Not exempt for a sale, unlike the two ceilings in `_standing_breach`.**
     # Those two exist to stop a household taking on MORE risk while it is

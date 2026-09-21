@@ -10,6 +10,7 @@ import { BrokersIcon, SandboxIcon } from "../../design/icons";
 import { ApiError, api } from "../../lib/api";
 import { useApiQuery, useInvalidate } from "../../lib/useApiQuery";
 import type { InvestMode, InvestVenue, InvestVenueCheck } from "../../lib/types";
+import { plural } from "../../lib/plural";
 import { formatDateTime } from "./format";
 import { MODE_LABELS, PRICE_SOURCE_LABELS, VENUE_LABELS, labelFor } from "./vocabulary";
 import "./invest.css";
@@ -121,7 +122,7 @@ export function BrokersPage() {
 
       <BentoGrid>
         <BentoCell span={{ base: 1, md: 6, lg: 7 }}>
-          <PanelHead icon={BrokersIcon} subtitle={`${venues.data?.length ?? 0} connexion(s)`}>
+          <PanelHead icon={BrokersIcon} subtitle={`${venues.data?.length ?? 0} ${plural(venues.data?.length ?? 0, "connexion", "connexions")}`}>
             Connexions enregistrées
           </PanelHead>
           {(venues.data?.length ?? 0) === 0 ? (

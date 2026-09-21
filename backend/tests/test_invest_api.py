@@ -329,7 +329,9 @@ def test_a_run_returns_one_decision_per_whitelisted_instrument(client, session):
     body = client.post("/api/invest/run", headers=headers).json()
     assert body["examined"] == 2
     assert len(body["decisions"]) == 2
-    assert "instrument(s) examiné(s)" in body["summary"]
+    # The sentence agrees: no « instrument(s) », the count decides the form.
+    assert body["summary"].startswith("2 instruments examinés : ")
+    assert "(s)" not in body["summary"]
 
 
 def test_a_decision_detail_shows_exactly_what_the_model_was_given(client, session):

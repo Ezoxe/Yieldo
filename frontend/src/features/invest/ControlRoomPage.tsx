@@ -21,6 +21,7 @@ import { parseCents } from "../../design/theme";
 import { ApiError, api } from "../../lib/api";
 import { useApiQuery, useInvalidate } from "../../lib/useApiQuery";
 import type { InvestDecision, InvestOverview, InvestRun } from "../../lib/types";
+import { plural } from "../../lib/plural";
 import { CalibrationPlot } from "./CalibrationPlot";
 import { DecisionFeed } from "./DecisionFeed";
 import { PipelineFunnel } from "./PipelineFunnel";
@@ -185,7 +186,8 @@ export function ControlRoomPage() {
 
       {data.armed && armedMinutes !== null ? (
         <div className="yd-note yd-note--positive" role="status">
-          <strong>Exécution réelle armée</strong> — il reste environ {armedMinutes} minute(s)
+          <strong>Exécution réelle armée</strong> — il reste environ {armedMinutes}{" "}
+          {plural(armedMinutes, "minute", "minutes")}
           avant le désarmement automatique.
         </div>
       ) : null}
@@ -330,7 +332,7 @@ export function ControlRoomPage() {
         <BentoCell span={{ base: 1, md: 6, lg: 8 }}>
           <PanelHead
             icon={DecisionsIcon}
-            subtitle={`${data.examined} instrument(s) examiné(s)`}
+            subtitle={`${data.examined} ${plural(data.examined, "instrument examiné", "instruments examinés")}`}
             actions={
               <InfoTip label="Comment lire l'entonnoir">
                 Chaque instrument passe par les mêmes étapes&nbsp;: d'abord les règles qui
@@ -358,7 +360,7 @@ export function ControlRoomPage() {
         </BentoCell>
 
         <BentoCell span={{ base: 1, md: 6, lg: 12 }}>
-          <PanelHead icon={BrokersIcon} subtitle={`${data.positions.length} ligne(s)`}>
+          <PanelHead icon={BrokersIcon} subtitle={`${data.positions.length} ${plural(data.positions.length, "ligne", "lignes")}`}>
             Les positions
           </PanelHead>
           {data.positions.length === 0 ? (
@@ -422,7 +424,7 @@ export function ControlRoomPage() {
         <BentoCell span={{ base: 1, md: 6, lg: 5 }}>
           <PanelHead
             icon={DecisionModelIcon}
-            subtitle={`${data.calibration.observations} décision(s) probabilisée(s)`}
+            subtitle={`${data.calibration.observations} ${plural(data.calibration.observations, "décision probabilisée", "décisions probabilisées")}`}
             actions={
               <InfoTip label="Ce que mesure la calibration">
                 Un modèle qui dit « 65 % » devrait avoir raison environ soixante-cinq fois sur

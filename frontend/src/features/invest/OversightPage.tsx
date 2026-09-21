@@ -9,6 +9,7 @@ import { DecisionsIcon, OversightIcon } from "../../design/icons";
 import { ApiError, api } from "../../lib/api";
 import { useApiQuery } from "../../lib/useApiQuery";
 import type { InvestJournal, InvestReplay } from "../../lib/types";
+import { plural } from "../../lib/plural";
 import { formatDateTime } from "./format";
 import { ACTOR_LABELS, JOURNAL_KIND_LABELS, labelFor } from "./vocabulary";
 import "./invest.css";
@@ -168,7 +169,7 @@ export function OversightPage() {
 
         <BentoCell span={{ base: 1, md: 6, lg: 7 }}>
           <PanelHead icon={OversightIcon}
-                     subtitle={`${chain?.events ?? 0} entrée(s), ${chain?.intact ? "chaîne intacte" : "chaîne rompue"}`}>
+                     subtitle={`${chain?.events ?? 0} ${plural(chain?.events ?? 0, "entrée", "entrées")}, ${chain?.intact ? "chaîne intacte" : "chaîne rompue"}`}>
             Le journal
           </PanelHead>
           <div className="yd-scroll-x">

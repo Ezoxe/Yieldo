@@ -26,6 +26,8 @@ basis points, computed through a local `decimal.Context`.
 from dataclasses import dataclass
 from decimal import ROUND_HALF_UP, Context, Decimal
 
+from app.french import counted
+
 _CONTEXT = Context(prec=100, rounding=ROUND_HALF_UP)
 
 BPS_WHOLE = 10_000
@@ -105,7 +107,8 @@ def _brier_bps(observations: tuple[Observation, ...]) -> int:
 def _verdict(observations: int, brier_bps: int) -> str:
     if observations < 20:
         return (
-            f"{observations} décision(s) probabilisée(s) seulement : trop peu pour juger la "
+            f"{counted(observations, 'décision probabilisée', 'décisions probabilisées')} "
+            "seulement : trop peu pour juger la "
             "calibration. Laissez tourner le bac à sable plus longtemps."
         )
     if brier_bps >= COIN_FLIP_BRIER_BPS:

@@ -1,5 +1,6 @@
 import { formatBps, formatProbability } from "./format";
 import type { InvestCalibrationBucket } from "../../lib/types";
+import { plural } from "../../lib/plural";
 import "./invest.css";
 
 interface CalibrationPlotProps {
@@ -80,7 +81,8 @@ export function CalibrationPlot({ buckets }: CalibrationPlotProps) {
             >
               <title>
                 {`Annoncé ${formatProbability(bucket.stated_bps)}, observé `
-                  + `${formatProbability(bucket.observed_bps)}, sur ${bucket.count} décision(s)`}
+                  + `${formatProbability(bucket.observed_bps)}, sur ${bucket.count} `
+                  + plural(bucket.count, "décision", "décisions")}
               </title>
             </circle>
           );

@@ -5,6 +5,7 @@ import { PageSkeleton } from "../../design/PageSkeleton";
 import { DecisionsIcon } from "../../design/icons";
 import { useApiQuery } from "../../lib/useApiQuery";
 import type { DecisionOutcome, InvestDecision } from "../../lib/types";
+import { plural } from "../../lib/plural";
 import { DecisionFeed } from "./DecisionFeed";
 import { OUTCOME_LABELS } from "./vocabulary";
 import "./invest.css";
@@ -100,8 +101,10 @@ export function DecisionsPage() {
       ) : (
         <>
           <p className="yd-note">
-            {decisions.data.length} décision(s) retenue(s) par ces filtres,{" "}
-            {Math.min(shown, decisions.data.length)} affichée(s).
+            {decisions.data.length}{" "}
+            {plural(decisions.data.length, "décision retenue", "décisions retenues")} par ces
+            filtres, {Math.min(shown, decisions.data.length)}{" "}
+            {plural(Math.min(shown, decisions.data.length), "affichée", "affichées")}.
           </p>
           <DecisionFeed decisions={decisions.data} limit={shown} />
           {decisions.data.length > shown ? (

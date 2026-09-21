@@ -154,6 +154,15 @@ describe("Salle de contrôle", () => {
     expect(pageText()).toContain("2,43 %");
   });
 
+  it("agrees its counts in French, never a parenthesised « (s) »", async () => {
+    setupFetch();
+    renderPage();
+    await screen.findByText("Où sont partis les instruments");
+    expect(pageText()).toContain("20 instruments examinés");
+    expect(pageText()).toContain("52 décisions probabilisées");
+    expect(pageText()).not.toMatch(/\(s\)/);
+  });
+
   it("shows the funnel with every stage named", async () => {
     setupFetch();
     renderPage();
@@ -245,15 +254,15 @@ describe("Salle de contrôle", () => {
         json({
           run_id: "r1", mode: "paper", examined: 2, skipped: 0, held: 1, refused: 0,
           ordered: 1, failed: 0,
-          summary: "2 instrument(s) examiné(s) : 0 écarté(s) avant le modèle, 1 sans action, "
-                   + "0 refusé(s) par le mandat, 1 ordre(s) transmis, 0 en échec.",
+          summary: "2 instruments examinés : 0 écarté avant le modèle, 1 sans action, "
+                   + "0 refusé par le mandat, 1 ordre transmis, 0 en échec.",
           decisions: [],
         }),
     });
     const user = userEvent.setup();
     renderPage();
     await user.click(await screen.findByRole("button", { name: "Lancer un tour" }));
-    expect(await screen.findByText(/1 ordre\(s\) transmis/)).toBeInTheDocument();
+    expect(await screen.findByText(/1 ordre transmis/)).toBeInTheDocument();
   });
 
   it("lists the decisions, including the one that produced no order", async () => {

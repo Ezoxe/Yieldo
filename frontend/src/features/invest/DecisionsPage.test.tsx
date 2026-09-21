@@ -75,19 +75,19 @@ describe("DecisionsPage", () => {
     // Sixty cycles over five instruments made a page twelve thousand pixels
     // tall, measured in a browser. A feed is a screenful or two.
     renderPage();
-    expect(await screen.findByText(/120 décision\(s\) retenue\(s\)/)).toBeInTheDocument();
+    expect(await screen.findByText(/120 décisions retenues/)).toBeInTheDocument();
     expect(screen.getAllByRole("listitem")).toHaveLength(50);
   });
 
   it("says how many it is showing of how many it found", async () => {
     renderPage();
-    expect(await screen.findByText(/50 affichée\(s\)/)).toBeInTheDocument();
+    expect(await screen.findByText(/50 affichées/)).toBeInTheDocument();
   });
 
   it("shows more when asked, and stops offering once there is no more", async () => {
     const user = userEvent.setup();
     renderPage();
-    await screen.findByText(/120 décision\(s\)/);
+    await screen.findByText(/120 décisions/);
 
     await user.click(screen.getByRole("button", { name: /Afficher 50 de plus/ }));
     expect(screen.getAllByRole("listitem")).toHaveLength(100);
@@ -100,23 +100,23 @@ describe("DecisionsPage", () => {
   it("goes back to the first page when a filter changes", async () => {
     const user = userEvent.setup();
     renderPage();
-    await screen.findByText(/120 décision\(s\)/);
+    await screen.findByText(/120 décisions/);
     await user.click(screen.getByRole("button", { name: /Afficher 50 de plus/ }));
     expect(screen.getAllByRole("listitem")).toHaveLength(100);
 
     await user.selectOptions(screen.getByLabelText("Issue"), "ordered");
     // A filter that kept the previous page depth would show a hundred rows of
     // a forty-row result, or a scroll position from another list.
-    await screen.findByText(/40 décision\(s\)/);
+    await screen.findByText(/40 décisions/);
     expect(screen.getAllByRole("listitem")).toHaveLength(40);
   });
 
   it("filters on the outcome, upper-cases the instrument", async () => {
     const user = userEvent.setup();
     renderPage();
-    await screen.findByText(/120 décision\(s\)/);
+    await screen.findByText(/120 décisions/);
     await user.type(screen.getByLabelText("Instrument"), "aapl");
-    await screen.findByText(/60 décision\(s\)/);
+    await screen.findByText(/60 décisions/);
     const asked = fetchMock.mock.calls.map(([input]) => String(input));
     expect(asked.some((url) => url.includes("symbol=AAPL"))).toBe(true);
   });

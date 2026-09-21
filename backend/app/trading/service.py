@@ -67,6 +67,7 @@ from app.engines.trading_risk import (
     evaluate_order,
     with_quantity,
 )
+from app.french import counted
 from app.models import (
     TradeDecision,
     TradeOrder,
@@ -452,9 +453,12 @@ def run_cycle(
         venue_row.sandbox_step += 1
 
     report.summary = (
-        f"{report.examined} instrument(s) examiné(s) : {report.skipped} écarté(s) avant le "
-        f"modèle, {report.held} sans action, {report.refused} refusé(s) par le mandat, "
-        f"{report.ordered} ordre(s) transmis, {report.failed} en échec."
+        f"{counted(report.examined, 'instrument examiné', 'instruments examinés')} : "
+        f"{counted(report.skipped, 'écarté', 'écartés')} avant le modèle, "
+        f"{report.held} sans action, "
+        f"{counted(report.refused, 'refusé', 'refusés')} par le mandat, "
+        f"{counted(report.ordered, 'ordre transmis', 'ordres transmis')}, "
+        f"{report.failed} en échec."
     )
     return report
 

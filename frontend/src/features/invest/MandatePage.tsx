@@ -11,6 +11,7 @@ import { parseCents } from "../../design/theme";
 import { ApiError, api } from "../../lib/api";
 import { useApiQuery, useInvalidate } from "../../lib/useApiQuery";
 import type { InvestAutonomy, InvestPolicy } from "../../lib/types";
+import { plural } from "../../lib/plural";
 import { formatBps, formatCents, remainingMinutes } from "./format";
 import { AUTONOMY_EXPLAINED, AUTONOMY_LABELS } from "./vocabulary";
 import "./invest.css";
@@ -414,7 +415,8 @@ export function MandatePage() {
           {current.armed && armedMinutes !== null ? (
             <>
               <p className="yd-note yd-note--positive">
-                L'exécution réelle est armée&nbsp;; il reste environ {armedMinutes} minute(s).
+                L'exécution réelle est armée&nbsp;; il reste environ {armedMinutes}{" "}
+                {plural(armedMinutes, "minute", "minutes")}.
               </p>
               <div className="yd-invest-actions">
                 <button type="button" className="yd-button" onClick={() => void disarm()}>
@@ -452,7 +454,7 @@ export function MandatePage() {
                   onClick={() => void arm()}
                   disabled={confirmation.trim() !== ARM_PHRASE || current.halted}
                 >
-                  Armer pour {minutes || 30} minute(s)
+                  Armer pour {Number(minutes) || 30} {plural(Number(minutes) || 30, "minute", "minutes")}
                 </button>
               </div>
             </>

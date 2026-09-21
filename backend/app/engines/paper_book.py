@@ -209,8 +209,8 @@ def apply_fill(
 
     if fill.quantity.value > position.quantity.value:
         raise ValueError(
-            f"La vente porte sur {fill.quantity} unité(s) pour {position.quantity} "
-            "détenue(s) : une position négative ne peut pas être enregistrée ici."
+            f"La vente porte sur {fill.quantity} pour {position.quantity} en position : "
+            "une position négative ne peut pas être enregistrée ici."
         )
     basis = value_cents(fill.quantity, position.average_price_cents)
     new_quantity = Quantity(

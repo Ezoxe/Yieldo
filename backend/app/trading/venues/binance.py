@@ -29,6 +29,7 @@ from decimal import ROUND_HALF_UP, Context, Decimal
 from app.engines.paper_book import Quote
 from app.engines.quantity import Quantity
 from app.engines.quantity import parse as parse_quantity
+from app.french import counted
 from app.trading.venues._shared import format_quantity, parse_json, to_cents
 from app.trading.venues.base import (
     VenueFailureCause,
@@ -99,7 +100,7 @@ class BinanceVenue:
         ]
         return (
             f"Compte Binance {where} joignable, négociation autorisée, "
-            f"{len(balances)} avoir(s) non nul(s)."
+            f"{counted(len(balances), 'avoir non nul', 'avoirs non nuls')}."
         )
 
     def closes(self, symbol: str, count: int) -> tuple[int, ...]:

@@ -132,6 +132,16 @@ class DecisionModelCheckOut(BaseModel):
     valid: bool
     message: str
     latency_ms: int | None
+    # The test answer itself, when the model gave one: what it chose, and —
+    # from a provider that exposes it — its whole distribution and its act
+    # probability, in basis points. The screen draws the mass so a coin toss
+    # looks like one on the first answer.
+    choice: str | None = None
+    mass_bps: dict[str, int] | None = None
+    act_bps: int | None = None
+    # The server's health card, from a provider that has one (Laya): the
+    # checkpoint, the machine, the percentiles. None for the others.
+    health: dict[str, Any] | None = None
 
 
 # --------------------------------------------------------------------------

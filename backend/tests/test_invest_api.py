@@ -303,6 +303,80 @@ def test_the_same_broker_cannot_be_connected_twice_in_one_mode(client, session):
 # Running, and what a run leaves behind
 # --------------------------------------------------------------------------
 
+# --------------------------------------------------------------------------
+# Modèle de décision: Laya, its health card and the test answer's mass
+# --------------------------------------------------------------------------
+
+LAYA_CHOICE = {
+    "model": "laya-typed-decisions", "latency_ms": 245, "input_tokens": 42,
+    "answers": {"q": {
+        "type": "choice", "choice": "ne rien faire", "confidence": 0.0039,
+        "probabilities": {"acheter": 0.3497, "vendre": 0.2907, "ne rien faire": 0.3596},
+        "act_probability": 1.0,
+    }},
+}
+LAYA_HEALTH = {
+    "status": "ok", "checkpoint": "laya-typed-decisions", "device": "cpu", "threads": 10,
+    "context_tokens": 1024, "warmup_ms": 129, "predictions": 1,
+    "latency_p50_ms": 245, "latency_p95_ms": 245,
+}
+
+
+@pytest.fixture
+def laya_server(monkeypatch):
+    """A Laya server on the wire, answering the shape measured on 2026-09-21."""
+    import json as _json
+
+    import httpx
+
+    def post(url, *, json=None, headers=None, timeout=None):
+        return httpx.Response(
+            200, text=_json.dumps(LAYA_CHOICE), request=httpx.Request("POST", url)
+        )
+
+    def get(url, *, headers=None, timeout=None):
+        return httpx.Response(200, text=_json.dumps(LAYA_HEALTH), request=httpx.Request("GET", url))
+
+    monkeypatch.setattr(httpx, "post", post)
+    monkeypatch.setattr(httpx, "get", get)
+
+
+def test_saving_laya_returns_its_health_card_and_the_mass(client, session, laya_server):
+    headers, _ = session
+    body = client.put(
+        "/api/invest/model", headers=headers,
+        json={"provider": "laya", "endpoint_url": "http://192.168.1.172:8100"},
+    ).json()
+    assert body["valid"] is True
+    assert body["choice"] == "ne rien faire"
+    assert body["mass_bps"] == {"acheter": 3_497, "vendre": 2_907, "ne rien faire": 3_596}
+    assert body["act_bps"] == 10_000
+    assert body["health"]["checkpoint"] == "laya-typed-decisions"
+    assert body["health"]["latency_p50_ms"] == 245
+    assert "laya-typed-decisions" in body["message"]
+
+    stored = client.get("/api/invest/model", headers=headers).json()
+    assert stored["provider"] == "laya"
+    assert stored["endpoint_url"] == "http://192.168.1.172:8100"
+    assert stored["has_key"] is False
+
+
+def test_laya_without_an_address_is_refused_naming_the_address(client, session):
+    headers, _ = session
+    response = client.put("/api/invest/model", headers=headers, json={"provider": "laya"})
+    assert response.status_code == 422
+    assert "adresse" in response.json()["detail"]
+    assert "8100" in response.json()["detail"]
+
+
+def test_the_deterministic_model_has_no_health_card(client, session):
+    headers, _ = session
+    body = choose_deterministic_model(client, headers)
+    assert body["valid"] is True
+    assert body["health"] is None
+    assert body["mass_bps"] is None
+
+
 def test_a_run_without_a_model_refuses_and_names_the_screen(client, session):
     headers, _ = session
     connect_sandbox(client, headers)

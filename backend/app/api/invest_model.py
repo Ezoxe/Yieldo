@@ -81,13 +81,19 @@ def write_model(
         raise HTTPException(
             status_code=404,
             detail="Fournisseur de décision inconnu. Les choix sont : modèle auto-hébergé, "
-                   "Jev, ou le moteur déterministe intégré.",
+                   "Jev, Laya, ou le moteur déterministe intégré.",
         )
     if payload.provider == "local" and not payload.endpoint_url:
         raise HTTPException(
             status_code=422,
             detail="Un modèle auto-hébergé a besoin de l'adresse de son point d'accès "
                    "(par exemple http://192.168.1.20:8000/v1).",
+        )
+    if payload.provider == "laya" and not payload.endpoint_url:
+        raise HTTPException(
+            status_code=422,
+            detail="Laya a besoin de l'adresse de son serveur "
+                   "(par exemple http://192.168.1.172:8100).",
         )
 
     row = db.query(DecisionSettings).filter(DecisionSettings.user_id == user.id).first()
@@ -110,6 +116,8 @@ def write_model(
     try:
         provider = build_provider(row)
         decision = provider.decide(DIRECTION, PROBE_CONTEXT)
+        # A provider with a health card (Laya) shows it beside the answer.
+        health = provider.probe() if hasattr(provider, "probe") else None
     except DecisionError as exc:
         db.rollback()
         return DecisionModelCheckOut(valid=False, message=exc.message, latency_ms=None)
@@ -120,14 +128,17 @@ def write_model(
                  "endpoint": row.endpoint_url},
     )
     db.commit()
+    checkpoint = f" ({health['checkpoint']})" if health and health.get("checkpoint") else ""
     return DecisionModelCheckOut(
         valid=True,
         message=(
-            f"Le modèle a répondu « {decision.choice} » en {decision.latency_ms} ms, dans "
-            "le type attendu. La question posée est celle du pilotage, sur un instrument "
+            f"Le modèle{checkpoint} a répondu « {decision.choice} » en {decision.latency_ms} ms, "
+            "dans le type attendu. La question posée est celle du pilotage, sur un instrument "
             "de test."
         ),
         latency_ms=decision.latency_ms,
+        choice=decision.choice, mass_bps=decision.mass_bps, act_bps=decision.act_bps,
+        health=health,
     )
 
 

@@ -101,6 +101,10 @@ const oversight = screen(
   () => import("../features/invest/OversightPage"),
   (m) => m.OversightPage,
 );
+const tradingDay = screen(
+  () => import("../features/invest/SessionPage"),
+  (m) => m.SessionPage,
+);
 
 // Development-only instrument, not a shipped screen: /design-systeme renders
 // every visual primitive on one page so they can be judged in a browser. It is
@@ -184,6 +188,7 @@ export const router = createBrowserRouter([
           { path: "invest/courtiers", element: brokers },
           { path: "invest/connexions", element: connections },
           { path: "invest/supervision", element: oversight },
+          { path: "invest/journee", element: tradingDay },
           ...devRoutes,
         ],
       },

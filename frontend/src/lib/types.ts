@@ -2783,6 +2783,111 @@ export interface InvestSecondOpinion {
   disagreements: InvestDisagreement[];
 }
 
+/** A simulated trading day: consecutive sandbox steps against one model. */
+export type InvestSessionStatus = "running" | "finished" | "stopped" | "failed";
+
+export interface InvestSessionPoint {
+  step: number;
+  equity_cents: number;
+  cash_cents: number;
+  exposure_cents: number;
+  orders: number;
+}
+
+export interface InvestSession {
+  id: number;
+  mode: InvestMode;
+  seed: number;
+  steps: number;
+  interval_minutes: number;
+  completed_steps: number;
+  status: InvestSessionStatus;
+  stop_requested: boolean;
+  message: string | null;
+  provider: string;
+  model: string;
+  initial_cash_cents: number;
+  final_equity_cents: number | null;
+  realised_pnl_cents: number;
+  unrealised_pnl_cents: number;
+  max_drawdown_bps: number;
+  orders: number;
+  decisions: number;
+  started_at: string;
+  finished_at: string | null;
+}
+
+export interface InvestSessionDecision {
+  id: number;
+  step: number;
+  symbol: string;
+  outcome: DecisionOutcome;
+  rule: string | null;
+  message: string | null;
+  choice: string | null;
+  score_value: number | null;
+  probability_bps: number | null;
+  mass_bps: Record<string, number> | null;
+  confidence_bps: number | null;
+  act_bps: number | null;
+  latency_ms: number;
+  reference_price_cents: number | null;
+  rules_choice: string | null;
+  created_at: string;
+}
+
+export interface InvestSessionOrder {
+  id: number;
+  step: number | null;
+  symbol: string;
+  side: "buy" | "sell";
+  status: string;
+  quantity: string;
+  notional_cents: number;
+  average_price_cents: number | null;
+  realised_pnl_cents: number;
+  created_at: string;
+}
+
+export interface InvestMassPoint {
+  step: number;
+  buy_bps: number;
+  sell_bps: number;
+  hold_bps: number;
+}
+
+export interface InvestSessionReport {
+  final_equity_cents: number;
+  return_bps: number;
+  max_drawdown_bps: number;
+  decisions: number;
+  held: number;
+  refused: number;
+  ordered: number;
+  failed: number;
+  orders: number;
+  filled: number;
+  winning: number;
+  losing: number;
+  realised_pnl_cents: number;
+  compared: number;
+  agreement_bps: number;
+  mean_confidence_bps: number | null;
+  mean_act_bps: number | null;
+  latency_p50_ms: number | null;
+  mass_series: Record<string, InvestMassPoint[]>;
+}
+
+export interface InvestSessionDetail extends Omit<InvestSession, "decisions" | "orders"> {
+  points: InvestSessionPoint[];
+  /** One series per instrument, one close (cents) per completed step. */
+  closes: Record<string, number[]>;
+  symbols: string[];
+  decisions: InvestSessionDecision[];
+  orders: InvestSessionOrder[];
+  report: InvestSessionReport;
+}
+
 export interface InvestOverview {
   mode: InvestMode;
   autonomy: InvestAutonomy;

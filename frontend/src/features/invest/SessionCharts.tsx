@@ -1,0 +1,201 @@
+import type { EChartsOption } from "echarts";
+
+import { useTheme } from "../../app/ThemeProvider";
+import { Chart } from "../../charts/Chart";
+import { LINE_SMOOTHING, areaFade, chartTokens, type Resolved } from "../../charts/theme";
+import type { InvestSessionDecision, InvestSessionDetail } from "../../lib/types";
+import { formatCents, formatProbability } from "./format";
+
+/**
+ * The three charts of a simulated day, as pure option builders plus thin
+ * components around `charts/Chart`.
+ *
+ * Every figure the builders draw is converted from cents or basis points at
+ * the very edge — `cents / 100`, `bps / 100` — and only for the chart
+ * library, which cannot plot an integer number of cents on a euro axis. The
+ * tooltips format from the original integers through `format.ts`.
+ *
+ * The x axis is the day's own clock: step k is `started_at + (k − 1) ×
+ * interval`, printed as « 09:05 », so a session read back reads like one.
+ */
+
+function clock(started: string, intervalMinutes: number, step: number): string {
+  const at = new Date(new Date(started).getTime() + (step - 1) * intervalMinutes * 60_000);
+  return at.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", timeZone: "UTC" });
+}
+
+function stepLabels(day: InvestSessionDetail, count: number): string[] {
+  return Array.from({ length: count }, (_, index) =>
+    clock(day.started_at, day.interval_minutes, index + 1));
+}
+
+const GRID = { left: 8, right: 20, top: 32, bottom: 8, containLabel: true };
+
+export function capitalOption(day: InvestSessionDetail, theme: Resolved): EChartsOption {
+  const tokens = chartTokens(theme);
+  const points = day.points;
+  return {
+    grid: GRID,
+    tooltip: {
+      trigger: "axis",
+      formatter: (params) => {
+        const rows = (Array.isArray(params) ? params : [params]) as Array<{ dataIndex?: number }>;
+        const point = points[rows[0]?.dataIndex ?? 0];
+        if (!point) return "";
+        return `<strong>${clock(day.started_at, day.interval_minutes, point.step)}</strong>`
+          + `<br/>Capital : ${formatCents(point.equity_cents)}`
+          + `<br/>Liquidités : ${formatCents(point.cash_cents)}`
+          + `<br/>Exposition : ${formatCents(point.exposure_cents)}`
+          + (point.orders ? `<br/>${point.orders} ordre${point.orders > 1 ? "s" : ""}` : "");
+      },
+    },
+    xAxis: { type: "category", boundaryGap: false, data: stepLabels(day, points.length) },
+    yAxis: { type: "value", scale: true, axisLabel: { formatter: (v: number) => `${v} €` } },
+    series: [
+      {
+        name: "Capital", type: "line", ...LINE_SMOOTHING, showSymbol: false,
+        data: points.map((p) => p.equity_cents / 100),
+        lineStyle: { color: tokens.accent, width: 2 },
+        itemStyle: { color: tokens.accent },
+        areaStyle: areaFade(tokens.accent),
+      },
+      {
+        name: "Liquidités", type: "line", ...LINE_SMOOTHING, showSymbol: false,
+        data: points.map((p) => p.cash_cents / 100),
+        lineStyle: { color: tokens.muted, width: 1.5, type: "dashed" },
+        itemStyle: { color: tokens.muted },
+      },
+    ],
+  };
+}
+
+export function marketOption(
+  day: InvestSessionDetail, symbol: string, theme: Resolved,
+): EChartsOption {
+  const tokens = chartTokens(theme);
+  const closes = day.closes[symbol] ?? [];
+  const decisionsAt = new Map<number, InvestSessionDecision>();
+  for (const decision of day.decisions) {
+    if (decision.symbol === symbol) decisionsAt.set(decision.step, decision);
+  }
+  const marks = day.orders
+    .filter((order) => order.symbol === symbol && order.step !== null && order.status === "filled")
+    .map((order) => ({
+      name: order.side === "buy" ? "Achat" : "Vente",
+      coord: [(order.step as number) - 1, (order.average_price_cents ?? 0) / 100],
+      value: order.side === "buy" ? "A" : "V",
+      itemStyle: { color: order.side === "buy" ? tokens.positive : tokens.negative },
+    }));
+
+  return {
+    grid: GRID,
+    tooltip: {
+      trigger: "axis",
+      formatter: (params) => {
+        const rows = (Array.isArray(params) ? params : [params]) as Array<{ dataIndex?: number }>;
+        const index = rows[0]?.dataIndex ?? 0;
+        const step = index + 1;
+        const decision = decisionsAt.get(step);
+        let text = `<strong>${clock(day.started_at, day.interval_minutes, step)}</strong>`
+          + `<br/>Cours : ${formatCents(closes[index] ?? 0)}`;
+        if (decision) {
+          text += `<br/>Le modèle : ${decision.choice ?? "—"}`;
+          if (decision.mass_bps) {
+            text += ` (${Object.entries(decision.mass_bps)
+              .map(([k, v]) => `${k} ${formatProbability(v)}`).join(" · ")})`;
+          }
+          if (decision.score_value !== null) text += `<br/>Conviction : ${decision.score_value}/10`;
+          if (decision.rules_choice) text += `<br/>Les règles : ${decision.rules_choice}`;
+          if (decision.message) text += `<br/>${decision.message}`;
+        }
+        return text;
+      },
+    },
+    xAxis: { type: "category", boundaryGap: false, data: stepLabels(day, closes.length) },
+    yAxis: { type: "value", scale: true, axisLabel: { formatter: (v: number) => `${v} €` } },
+    series: [
+      {
+        name: symbol, type: "line", ...LINE_SMOOTHING, showSymbol: false,
+        data: closes.map((c) => c / 100),
+        lineStyle: { color: tokens.info, width: 2 },
+        itemStyle: { color: tokens.info },
+        markPoint: {
+          symbol: "pin", symbolSize: 34,
+          label: { color: tokens.surfaceStrong, fontWeight: 700 },
+          data: marks,
+        },
+      },
+    ],
+  };
+}
+
+export function massOption(
+  day: InvestSessionDetail, symbol: string, theme: Resolved,
+): EChartsOption {
+  const tokens = chartTokens(theme);
+  const series = day.report.mass_series[symbol] ?? [];
+  const byStep = new Map(series.map((point) => [point.step, point]));
+  const steps = day.completed_steps;
+  const pick = (key: "buy_bps" | "sell_bps" | "hold_bps") =>
+    Array.from({ length: steps }, (_, index) => {
+      const point = byStep.get(index + 1);
+      return point ? point[key] / 100 : null;
+    });
+  const bar = (name: string, color: string, data: Array<number | null>) => ({
+    name, type: "bar" as const, stack: "masse", barCategoryGap: "35%", data,
+    itemStyle: { color },
+  });
+  return {
+    grid: GRID,
+    tooltip: {
+      trigger: "axis",
+      valueFormatter: (value) => (typeof value === "number" ? `${Math.round(value)} %` : "—"),
+    },
+    xAxis: { type: "category", data: stepLabels(day, steps) },
+    yAxis: { type: "value", max: 100, axisLabel: { formatter: (v: number) => `${v} %` } },
+    series: [
+      bar("Acheter", tokens.positive, pick("buy_bps")),
+      bar("Vendre", tokens.negative, pick("sell_bps")),
+      bar("Ne rien faire", tokens.muted, pick("hold_bps")),
+    ],
+  };
+}
+
+interface DayChartProps {
+  day: InvestSessionDetail;
+  symbol?: string;
+  height?: number;
+}
+
+export function CapitalChart({ day, height = 240 }: DayChartProps) {
+  const { resolved } = useTheme();
+  return (
+    <Chart
+      option={capitalOption(day, resolved)}
+      height={height}
+      ariaLabel="Capital et liquidités au fil de la journée"
+    />
+  );
+}
+
+export function MarketChart({ day, symbol = "", height = 220 }: DayChartProps) {
+  const { resolved } = useTheme();
+  return (
+    <Chart
+      option={marketOption(day, symbol, resolved)}
+      height={height}
+      ariaLabel={`Cours de ${symbol} au fil de la journée, avec les achats et les ventes`}
+    />
+  );
+}
+
+export function MassChart({ day, symbol = "", height = 180 }: DayChartProps) {
+  const { resolved } = useTheme();
+  return (
+    <Chart
+      option={massOption(day, symbol, resolved)}
+      height={height}
+      ariaLabel={`Masse de probabilité du modèle sur ${symbol}, pas par pas`}
+    />
+  );
+}

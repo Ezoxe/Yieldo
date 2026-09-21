@@ -31,7 +31,7 @@ export const API_QUERY_STALE_MS = 30_000;
 export function useApiQuery<T>(
   path: string,
   params?: Record<string, QueryValue>,
-  options: { enabled?: boolean } = {},
+  options: { enabled?: boolean; refetchInterval?: number | false } = {},
 ): UseQueryResult<T, ApiError> {
   const mode = useLedgerMode((state) => state.mode);
   return useQuery<T, ApiError>({
@@ -40,6 +40,9 @@ export function useApiQuery<T>(
     staleTime: API_QUERY_STALE_MS,
     retry: false,
     enabled: options.enabled ?? true,
+    // A screen watching something that moves on the server (a simulated
+    // day filling in) asks again on a clock; everything else asks once.
+    refetchInterval: options.refetchInterval ?? false,
   });
 }
 

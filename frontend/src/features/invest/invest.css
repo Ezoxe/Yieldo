@@ -736,3 +736,93 @@
   outline: 2px solid var(--yd-accent);
   outline-offset: -2px;
 }
+
+/* -- La journée simulée ---------------------------------------------------- */
+
+.yd-session__launch {
+  padding: 14px 16px;
+  border: 1px solid var(--yd-border);
+  border-radius: var(--yd-radius-md, 12px);
+  background: var(--yd-surface);
+}
+
+.yd-session__progress {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.yd-session__bar {
+  position: relative;
+  display: block;
+  block-size: 10px;
+  border-radius: 5px;
+  background: var(--yd-surface-strong);
+  overflow: hidden;
+}
+
+.yd-session__bar > span {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 0;
+  border-radius: 5px;
+  background: var(--yd-accent);
+  transition: inline-size 400ms ease;
+}
+
+/* Six figures on one row at 1440, three at 900, two at 390. */
+.yd-figures--wide {
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+}
+
+.yd-session__history {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.yd-session__row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  padding: 0;
+}
+
+.yd-session__pick {
+  display: grid;
+  grid-template-columns: minmax(7ch, auto) 1fr auto 6ch;
+  align-items: center;
+  gap: 10px;
+  inline-size: 100%;
+  padding: 10px 12px;
+  border: none;
+  border-radius: inherit;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.yd-session__pick:hover,
+.yd-session__pick[aria-current="true"] {
+  background: var(--yd-surface-strong);
+}
+
+.yd-session__pick:focus-visible {
+  outline: 2px solid var(--yd-accent);
+  outline-offset: -2px;
+}
+
+.yd-session__pick > .yd-num:last-child {
+  text-align: right;
+}
+
+@media (max-width: 520px) {
+  .yd-session__pick {
+    grid-template-columns: 1fr auto;
+  }
+  .yd-session__pick .yd-feed__message {
+    grid-column: 1 / -1;
+  }
+}

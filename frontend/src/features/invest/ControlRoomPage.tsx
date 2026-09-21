@@ -9,6 +9,7 @@ import { InfoTip } from "../../design/InfoTip";
 import { PageHead } from "../../design/PageHead";
 import { PageSkeleton } from "../../design/PageSkeleton";
 import {
+  CalendarIcon,
   BrokersIcon,
   ControlRoomIcon,
   DecisionModelIcon,
@@ -241,6 +242,9 @@ export function ControlRoomPage() {
         )}
         <Link to="/invest/decisions" className="yd-button">
           <DecisionsIcon /> Toutes les décisions
+        </Link>
+        <Link to="/invest/journee" className="yd-button">
+          <CalendarIcon /> Simuler une journée
         </Link>
       </div>
 

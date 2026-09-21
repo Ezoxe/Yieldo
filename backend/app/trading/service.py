@@ -171,6 +171,24 @@ def account_for(db: Session, user: User, mode: str, today: date) -> TradingAccou
     return row
 
 
+def reset_sandbox(db: Session, user: User, *, cash_cents: int, today: date) -> TradingAccount:
+    """The paper account back to `cash_cents`, no position, counters at zero.
+    Paper only: there is nothing to reset on a live account, the money is at
+    the broker. Flushes; the caller commits and writes the journal entry."""
+    account = account_for(db, user, "paper", today)
+    account.cash_cents = cash_cents
+    account.initial_cash_cents = cash_cents
+    account.peak_equity_cents = cash_cents
+    account.orders_today = 0
+    account.realised_pnl_today_cents = 0
+    account.realised_pnl_total_cents = 0
+    db.query(TradingPosition).filter(
+        TradingPosition.user_id == user.id, TradingPosition.mode == "paper"
+    ).delete()
+    db.flush()
+    return account
+
+
 def positions_of(db: Session, user: User, mode: str) -> dict[str, TradingPosition]:
     rows = (
         db.query(TradingPosition)

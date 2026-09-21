@@ -32,7 +32,6 @@ from app.models import (
     DecisionSettings,
     TradeDecision,
     TradeOrder,
-    TradingPosition,
     TradingVenue,
     User,
 )
@@ -392,16 +391,7 @@ def reset_sandbox(
     `get_session_user`, so an agent key cannot erase the record its own
     decisions are judged on.
     """
-    account = service.account_for(db, user, "paper", date.today())
-    account.cash_cents = cash_cents
-    account.initial_cash_cents = cash_cents
-    account.peak_equity_cents = cash_cents
-    account.orders_today = 0
-    account.realised_pnl_today_cents = 0
-    account.realised_pnl_total_cents = 0
-    db.query(TradingPosition).filter(
-        TradingPosition.user_id == user.id, TradingPosition.mode == "paper"
-    ).delete()
+    service.reset_sandbox(db, user, cash_cents=cash_cents, today=date.today())
     audit.append(
         db, user, kind="sandbox_reset", actor="session",
         payload={"cash_cents": cash_cents},

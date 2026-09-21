@@ -39,6 +39,15 @@ const overview: InvestOverview = {
   ],
   examined: 20, skipped: 6, held: 10, refused: 2, ordered: 2, failed: 0,
   latency_median_ms: 84, latency_worst_ms: 412,
+  second_opinion: {
+    compared: 12, agreed: 9, agreement_bps: 7_500,
+    disagreements: [
+      { decision_id: 41, symbol: "BTC-EUR", model_choice: "acheter", rules_choice: "ne rien faire",
+        created_at: "2026-09-20T10:05:00Z" },
+      { decision_id: 38, symbol: "AAPL", model_choice: "vendre", rules_choice: "acheter",
+        created_at: "2026-09-20T10:01:00Z" },
+    ],
+  },
   calibration: {
     observations: 52, brier_bps: 1_180, coin_flip_brier_bps: 2_500,
     verdict: "Le modèle est bien calibré.",

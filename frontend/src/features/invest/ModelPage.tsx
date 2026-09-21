@@ -9,11 +9,12 @@ import { DecisionModelIcon } from "../../design/icons";
 import { ApiError, api } from "../../lib/api";
 import { useApiQuery, useInvalidate } from "../../lib/useApiQuery";
 import type { InvestDecisionModel, InvestModelCheck } from "../../lib/types";
-import { formatLatency } from "./format";
+import { formatLatency, formatProbability } from "./format";
+import { MassBars } from "./MassBars";
 import { PROVIDER_LABELS } from "./vocabulary";
 import "./invest.css";
 
-const PROVIDERS = ["local", "jev", "replay"] as const;
+const PROVIDERS = ["local", "jev", "laya", "replay"] as const;
 
 /** What each provider is, and the trade it asks you to make. */
 const PROVIDER_NOTES: Record<string, string> = {
@@ -28,6 +29,13 @@ const PROVIDER_NOTES: Record<string, string> = {
     + "en quelques dizaines de millisecondes. En contrepartie, les indicateurs et la position "
     + "quittent la machine à chaque décision. C'est un choix légitime, et ce n'est pas le "
     + "choix par défaut.",
+  laya:
+    "Un encodeur, pas un LLM : ModernBERT et une tête de décision, 421 M de paramètres, sur "
+    + "votre propre serveur — un CPU suffit, environ 0,6 s par question. Il rend une décision "
+    + "typée et, en plus, toute sa masse de probabilité par option : vous voyez si « acheter » "
+    + "à 36 % est une décision ou un pile-ou-face. Entraîné sur du texte métier, pas sur des "
+    + "séries de prix : le panneau « Le modèle contre les règles » dit s'il bat quatre règles "
+    + "de momentum. Rien ne sort de chez vous.",
   replay:
     "Des règles lisibles, exécutées par Yieldo, sans réseau : moyennes, momentum, RSI, "
     + "position dans le canal. Ce n'est jamais un repli automatique — il faut le choisir. "
@@ -140,22 +148,31 @@ export function ModelPage() {
                          placeholder={
                            provider === "jev"
                              ? "https://api.typesafe.ai/v1/systemone"
-                             : "http://192.168.1.20:8000/v1"
+                             : provider === "laya"
+                               ? "http://192.168.1.172:8100"
+                               : "http://192.168.1.20:8000/v1"
                          } />
                   {provider === "local" ? (
                     <small>
                       L'adresse de base compatible OpenAI, celle qui se termine par /v1.
                     </small>
+                  ) : provider === "laya" ? (
+                    <small>
+                      L'adresse du serveur Laya de <code>tools/laya-server</code>, port 8100
+                      par défaut. Le checkpoint chargé est lu sur le serveur.
+                    </small>
                   ) : (
                     <small>Laissez vide pour l'adresse officielle.</small>
                   )}
                 </label>
-                <label className="yd-invest-field">
-                  <span>Nom du modèle</span>
-                  <input className="yd-input" value={name}
-                         onChange={(event) => setName(event.target.value)}
-                         placeholder={provider === "jev" ? "jev-latest" : "qwen3-4b-instruct"} />
-                </label>
+                {provider !== "laya" ? (
+                  <label className="yd-invest-field">
+                    <span>Nom du modèle</span>
+                    <input className="yd-input" value={name}
+                           onChange={(event) => setName(event.target.value)}
+                           placeholder={provider === "jev" ? "jev-latest" : "qwen3-4b-instruct"} />
+                  </label>
+                ) : null}
                 <label className="yd-invest-field">
                   <span>Clé{model.data?.has_key ? " (une clé est déjà enregistrée)" : ""}</span>
                   <input className="yd-input" type="password" value={key} autoComplete="off"
@@ -190,6 +207,67 @@ export function ModelPage() {
                 {result.message}
                 {result.latency_ms !== null ? ` (${formatLatency(result.latency_ms)})` : ""}
               </p>
+            ) : null}
+
+            {result?.health ? (
+              <div role="group" aria-label="Carte de santé du serveur">
+                <h4 className="yd-detail__heading">Le serveur</h4>
+                <dl className="yd-health">
+                  <div><dt>Checkpoint</dt><dd>{result.health.checkpoint ?? "—"}</dd></div>
+                  <div><dt>Machine</dt><dd>{result.health.device ?? "—"}</dd></div>
+                  <div>
+                    <dt>Threads</dt>
+                    <dd className="yd-num">{result.health.threads ?? "—"}</dd>
+                  </div>
+                  <div>
+                    <dt>Contexte</dt>
+                    <dd className="yd-num">
+                      {result.health.context_tokens
+                        ? `${result.health.context_tokens.toLocaleString("fr-FR")} tokens`
+                        : "—"}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Chauffe</dt>
+                    <dd className="yd-num">{formatLatency(result.health.warmup_ms)}</dd>
+                  </div>
+                  <div>
+                    <dt>Médiane</dt>
+                    <dd className="yd-num">{formatLatency(result.health.latency_p50_ms)}</dd>
+                  </div>
+                  <div>
+                    <dt>Au pire (p95)</dt>
+                    <dd className="yd-num">{formatLatency(result.health.latency_p95_ms)}</dd>
+                  </div>
+                  <div>
+                    <dt>Prédictions</dt>
+                    <dd className="yd-num">{result.health.predictions ?? "—"}</dd>
+                  </div>
+                  <div>
+                    <dt>Versions</dt>
+                    <dd className="yd-num">
+                      {[result.health.laya_version && `laya ${result.health.laya_version}`,
+                        result.health.torch_version && `torch ${result.health.torch_version}`]
+                        .filter(Boolean).join(" · ") || "—"}
+                    </dd>
+                  </div>
+                </dl>
+              </div>
+            ) : null}
+
+            {result?.mass_bps ? (
+              <div>
+                <h4 className="yd-detail__heading">
+                  Ce qu'il a répondu à la question de test
+                </h4>
+                <MassBars mass={result.mass_bps} chosen={result.choice ?? null} />
+                {result.act_bps !== null && result.act_bps !== undefined ? (
+                  <p className="yd-feed__time">
+                    Probabilité d'agir plutôt que d'escalader&nbsp;:
+                    agir {formatProbability(result.act_bps)}.
+                  </p>
+                ) : null}
+              </div>
             ) : null}
           </div>
         </BentoCell>

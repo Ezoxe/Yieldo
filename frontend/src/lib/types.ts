@@ -2601,10 +2601,34 @@ export interface InvestDecisionModel {
   updated_at: string | null;
 }
 
+/** A self-hosted model server's health card (Laya): what `/health` says. */
+export interface InvestModelHealth {
+  status?: string;
+  checkpoint?: string;
+  repo?: string;
+  device?: string;
+  threads?: number;
+  context_tokens?: number | null;
+  temperatures?: Record<string, number> | null;
+  laya_version?: string | null;
+  torch_version?: string | null;
+  loaded_at?: string;
+  warmup_ms?: number | null;
+  predictions?: number;
+  latency_p50_ms?: number | null;
+  latency_p95_ms?: number | null;
+}
+
 export interface InvestModelCheck {
   valid: boolean;
   message: string;
   latency_ms: number | null;
+  /** The test answer: what the model chose, its mass, its act probability. */
+  choice?: string | null;
+  mass_bps?: Record<string, number> | null;
+  act_bps?: number | null;
+  /** From a provider that has one; null for the others. */
+  health?: InvestModelHealth | null;
 }
 
 /** One typed answer, as it was stored beside the decision it belongs to. */
@@ -2615,6 +2639,10 @@ export interface InvestAnswer {
   score_value: number | null;
   probability_bps: number | null;
   confidence_bps?: number | null;
+  /** The model's whole distribution, option or level → bps, when exposed. */
+  mass_bps?: Record<string, number> | null;
+  /** Laya's act/escalate head, in bps, when exposed. */
+  act_bps?: number | null;
   latency_ms?: number;
   raw?: string;
   provider?: string;
@@ -2683,6 +2711,9 @@ export interface InvestDecisionDetail extends InvestDecision {
   questions: InvestQuestion[];
   risk_verdict: InvestRiskVerdict | null;
   order: InvestOrder | null;
+  /** The built-in rules' canonical answers on the same context; null when the
+   *  rules were themselves the model. */
+  second_opinion: Record<string, InvestAnswer> | null;
 }
 
 export interface InvestOrder {
@@ -2736,6 +2767,22 @@ export interface InvestCalibration {
   buckets: InvestCalibrationBucket[];
 }
 
+export interface InvestDisagreement {
+  decision_id: number;
+  symbol: string;
+  model_choice: string;
+  rules_choice: string;
+  created_at: string;
+}
+
+/** The model against the built-in rules, on the direction, over the window. */
+export interface InvestSecondOpinion {
+  compared: number;
+  agreed: number;
+  agreement_bps: number;
+  disagreements: InvestDisagreement[];
+}
+
 export interface InvestOverview {
   mode: InvestMode;
   autonomy: InvestAutonomy;
@@ -2763,6 +2810,7 @@ export interface InvestOverview {
   latency_median_ms: number | null;
   latency_worst_ms: number | null;
   calibration: InvestCalibration;
+  second_opinion: InvestSecondOpinion;
   venue: InvestVenue | null;
 }
 

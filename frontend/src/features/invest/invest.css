@@ -612,3 +612,105 @@
   inline-size: 100%;
   resize: vertical;
 }
+
+/* -- The mass: the model's whole distribution ------------------------------ */
+
+.yd-mass {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.yd-mass__row {
+  display: grid;
+  /* label · track · value · tick. 12ch holds « ne rien faire ». */
+  grid-template-columns: minmax(6ch, 12ch) 1fr 5ch 1.1em;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8rem;
+  color: var(--yd-text-muted);
+}
+
+.yd-mass__row--chosen {
+  color: var(--yd-text);
+  font-weight: 600;
+}
+
+.yd-mass__label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.yd-mass__track {
+  position: relative;
+  display: block;
+  block-size: 8px;
+  border-radius: 4px;
+  background: var(--yd-surface-strong);
+  overflow: hidden;
+}
+
+.yd-mass__fill {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 0;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--yd-accent) 55%, transparent);
+}
+
+.yd-mass__row--chosen .yd-mass__fill {
+  background: var(--yd-accent);
+}
+
+.yd-mass__value {
+  text-align: right;
+}
+
+.yd-mass__tick {
+  display: inline-flex;
+  inline-size: 1.1em;
+  block-size: 1.1em;
+  color: var(--yd-accent);
+}
+
+.yd-mass__tick .yd-icon {
+  inline-size: 100%;
+  block-size: 100%;
+}
+
+/* -- The health card of a self-hosted model server ------------------------- */
+
+.yd-health {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
+  gap: 8px 14px;
+  margin: 10px 0 0;
+}
+
+.yd-health > div {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 8px 10px;
+  border: 1px solid var(--yd-border);
+  border-radius: var(--yd-radius-sm, 9px);
+  background: var(--yd-surface);
+}
+
+.yd-health dt {
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--yd-text-muted);
+}
+
+.yd-health dd {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+}

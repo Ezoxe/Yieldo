@@ -85,6 +85,7 @@ export const PRICE_SOURCE_LABELS: Record<string, string> = {
 export const PROVIDER_LABELS: Record<string, string> = {
   local: "Modèle auto-hébergé",
   jev: "Jev (TypeSafe)",
+  laya: "Laya (auto-hébergé)",
   replay: "Moteur déterministe intégré",
 };
 

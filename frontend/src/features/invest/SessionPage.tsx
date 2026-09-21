@@ -35,6 +35,13 @@ const STATUS_TONE: Record<string, string> = {
   failed: "negative",
 };
 
+/** Three instruments share a row; one takes it; two or four go in pairs. */
+function instrumentSpan(count: number): number {
+  if (count <= 1) return 12;
+  if (count % 3 === 0) return 4;
+  return 6;
+}
+
 function seedLabel(seed: number): string {
   return seed.toLocaleString("fr-FR").replace(/\s/g, " ");
 }
@@ -239,11 +246,14 @@ export function SessionPage() {
                 </span>
               </div>
               <div className="yd-figure">
-                <span className="yd-figure__label">Ordres</span>
-                <span className="yd-figure__value yd-num">{report.orders}</span>
+                <span className="yd-figure__label">Ordres exécutés</span>
+                <span className="yd-figure__value yd-num">{report.filled}</span>
                 <span className="yd-figure__note">
                   {report.winning} {plural(report.winning, "gagnant", "gagnants")},{" "}
                   {report.losing} {plural(report.losing, "perdant", "perdants")}
+                  {report.refused > 0
+                    ? ` · ${report.refused} ${plural(report.refused, "refusé par le mandat", "refusés par le mandat")}`
+                    : ""}
                 </span>
               </div>
               <div className="yd-figure">
@@ -302,7 +312,7 @@ export function SessionPage() {
           </BentoCell>
 
           {day.symbols.map((symbol) => (
-            <BentoCell key={symbol} span={{ base: 1, md: 6, lg: 6 }}>
+            <BentoCell key={symbol} span={{ base: 1, md: 6, lg: instrumentSpan(day.symbols.length) }}>
               <PanelHead
                 icon={DecisionsIcon}
                 subtitle="Le cours synthétique, les achats et les ventes"

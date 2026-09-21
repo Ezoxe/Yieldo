@@ -33,8 +33,8 @@ fetch laya.service /etc/systemd/system/laya.service
 if [ ! -f /etc/default/laya ]; then
   cat > /etc/default/laya <<CONF
 # Laya pour Yieldo. Après modification : systemctl restart laya
-# Checkpoint : typed-decisions (défaut), base ou multilingual.
-LAYA_CHECKPOINT=typed-decisions
+# Checkpoint : multilingual (défaut), base ou typed-decisions.
+LAYA_CHECKPOINT=multilingual
 LAYA_PORT=$PORT
 LAYA_THREADS=$(nproc)
 # Vide = pas de clé (réseau local). Sinon Yieldo doit envoyer la même.

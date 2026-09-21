@@ -35,7 +35,8 @@ const PROVIDER_NOTES: Record<string, string> = {
     + "typée et, en plus, toute sa masse de probabilité par option : vous voyez si « acheter » "
     + "à 36 % est une décision ou un pile-ou-face. Entraîné sur du texte métier, pas sur des "
     + "séries de prix : le panneau « Le modèle contre les règles » dit s'il bat quatre règles "
-    + "de momentum. Rien ne sort de chez vous.",
+    + "de momentum. Le checkpoint multilingual est celui qui lit l'état français que Yieldo "
+    + "envoie. Rien ne sort de chez vous.",
   replay:
     "Des règles lisibles, exécutées par Yieldo, sans réseau : moyennes, momentum, RSI, "
     + "position dans le canal. Ce n'est jamais un repli automatique — il faut le choisir. "

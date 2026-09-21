@@ -51,7 +51,7 @@ distribution.
 
 | Clé | Défaut | Rôle |
 |---|---|---|
-| `LAYA_CHECKPOINT` | `typed-decisions` | `base`, `multilingual` ou `typed-decisions` |
+| `LAYA_CHECKPOINT` | `multilingual` | `multilingual`, `base` ou `typed-decisions` |
 | `LAYA_PORT` | `8100` | le port servi |
 | `LAYA_THREADS` | `nproc` | threads torch |
 | `LAYA_API_KEY` | vide | si renseignée, Yieldo doit envoyer la même clé |
@@ -76,8 +76,11 @@ Journal : `journalctl -u laya -f`.
   d'après ses auteurs). Le panneau « Le modèle dit-il vrai ? » de la Salle de
   contrôle le mesure sur vos propres décisions.
 - **Zero-shot proche du hasard** sur les décisions typées pour les checkpoints
-  de base ; `typed-decisions` a été affiné sur des flux métier, pas sur des
-  séries de prix. Sur neuf indicateurs de marché, la première réponse observée
-  était 0,35 / 0,29 / 0,36 — le hasard. Le panneau « Le modèle contre les
-  règles » compare chaque décision de Laya au moteur déterministe intégré,
-  jamais exécuté : c'est là que se lit s'il bat quatre règles de momentum.
+  de base ; `typed-decisions` a été affiné sur des flux métier anglais, pas
+  sur des séries de prix. Mesuré le 2026-09-21 sur une journée simulée de
+  78 pas : avec `typed-decisions`, la masse reste figée (≈ 20 / 30 / 50 %)
+  et le modèle ne fait rien ; avec `multilingual` — l'état que Yieldo envoie
+  est en français — la masse suit le marché (acheter de 4 à 74 %) et des
+  ordres partent. D'où le défaut. Le panneau « Le modèle contre les règles »
+  compare chaque décision de Laya au moteur déterministe intégré, jamais
+  exécuté : c'est là que se lit s'il bat quatre règles de momentum.

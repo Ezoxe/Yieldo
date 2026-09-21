@@ -140,7 +140,7 @@ def load_app() -> FastAPI:
     import laya  # noqa: PLC0415 - only here, so the tests never need torch
     import torch  # noqa: PLC0415
 
-    checkpoint = os.environ.get("LAYA_CHECKPOINT", "typed-decisions").strip()
+    checkpoint = os.environ.get("LAYA_CHECKPOINT", "multilingual").strip()
     threads = int(os.environ.get("LAYA_THREADS") or os.cpu_count() or 1)
     torch.set_num_threads(threads)
     subfolder = None if checkpoint in ("", "base") else checkpoint

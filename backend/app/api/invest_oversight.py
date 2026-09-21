@@ -351,7 +351,7 @@ def replay(
         verdict = (
             "Rejeu conforme : les entrées enregistrées sont intactes et le modèle configuré "
             "redonne exactement les mêmes réponses. La décision du "
-            f"{row.created_at.date().isoformat()} est reproductible."
+            f"{row.created_at.strftime('%d/%m/%Y')} est reproductible."
         )
     elif matches:
         verdict = (

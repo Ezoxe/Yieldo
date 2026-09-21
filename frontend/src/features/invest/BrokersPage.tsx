@@ -3,6 +3,7 @@ import { useState } from "react";
 import { BentoCell } from "../../design/bento/BentoCell";
 import { BentoGrid } from "../../design/bento/BentoGrid";
 import { PanelHead } from "../../design/bento/PanelHead";
+import { EmptyState } from "../../design/EmptyState";
 import { PageHead } from "../../design/PageHead";
 import { PageSkeleton } from "../../design/PageSkeleton";
 import { BrokersIcon, SandboxIcon } from "../../design/icons";
@@ -124,13 +125,14 @@ export function BrokersPage() {
             Connexions enregistrées
           </PanelHead>
           {(venues.data?.length ?? 0) === 0 ? (
-            <p className="yd-note">
-              Aucun courtier connecté. Commencez par le carnet simulé de Yieldo&nbsp;: il ne
-              demande aucune clé et son marché est toujours ouvert.
-            </p>
+            <EmptyState
+              icon={BrokersIcon}
+              title="Aucun courtier connecté."
+              detail="Commencez par le carnet simulé de Yieldo, ci-contre : il ne demande aucune clé et son marché est toujours ouvert."
+            />
           ) : (
             <div className="yd-scroll-x">
-              <table className="yd-table">
+              <table className="yd-table yd-table--wrap">
                 <caption className="yd-visually-hidden">
                   Les courtiers connectés, leur mode et l'état de leur dernière vérification
                 </caption>

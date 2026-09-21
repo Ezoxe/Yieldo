@@ -47,6 +47,33 @@
   white-space: nowrap;
 }
 
+/* A sentence in a cell — a courtier's check message, a hint — wraps and
+   clamps; the nowrap above is for figures and labels, not prose. Without
+   this the Courtiers table was 1 245px wide in a 600px panel. */
+.yd-table .yd-feed__message {
+  white-space: normal;
+  max-width: 36ch;
+}
+
+/* Five columns beside a form: names and sources wrap too; only figures and
+   pills keep their line. */
+.yd-table--wrap {
+  /* Below this the columns crush into one word per line; the container
+     scrolls instead, as every wide table does. */
+  min-width: 34rem;
+}
+
+.yd-table--wrap th,
+.yd-table--wrap td {
+  white-space: normal;
+  vertical-align: top;
+}
+
+.yd-table--wrap .yd-num,
+.yd-table--wrap .yd-pill {
+  white-space: nowrap;
+}
+
 .yd-table thead th {
   font-size: 0.72rem;
   font-weight: 600;

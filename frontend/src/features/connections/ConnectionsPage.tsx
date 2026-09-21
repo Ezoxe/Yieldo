@@ -1,5 +1,6 @@
 import { motion } from "motion/react";
 import { useEffect, useMemo, useState } from "react";
+import { useLocation } from "react-router";
 
 import { BentoCell, type BentoSpan } from "../../design/bento/BentoCell";
 import { BentoGrid } from "../../design/bento/BentoGrid";
@@ -383,11 +384,16 @@ export function ConnectionsPage() {
     }
   }
 
+  // The same screen opens from both environments. Under /invest the sidebar
+  // calls it « Connexions marché »; a head reading « Réglages → Connexions »
+  // there would tell the reader they had been sent back to Finances.
+  const fromInvest = useLocation().pathname.startsWith("/invest");
+
   return (
     <section className="yd-connections">
       <PageHead
         icon={ConnectionsIcon}
-        title="Réglages → Connexions"
+        title={fromInvest ? "Connexions marché" : "Réglages → Connexions"}
         className="yd-connections__header"
         shortLead={
           <p className="yd-connections__lead">

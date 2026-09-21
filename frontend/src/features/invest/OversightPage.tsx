@@ -83,7 +83,14 @@ export function OversightPage() {
       <BentoGrid>
         <BentoCell span={{ base: 1, md: 6, lg: 5 }}>
           <PanelHead icon={DecisionsIcon}>Rejouer une décision</PanelHead>
-          <div className="yd-invest-form">
+          {/* A form, so Enter in the field replays too. */}
+          <form
+            className="yd-invest-form"
+            onSubmit={(event) => {
+              event.preventDefault();
+              if (!busy && decisionId) void runReplay();
+            }}
+          >
             <label className="yd-invest-field">
               <span>Numéro de la décision</span>
               <input className="yd-input yd-num" inputMode="numeric" value={decisionId}
@@ -94,8 +101,8 @@ export function OversightPage() {
               </small>
             </label>
             <div className="yd-invest-actions">
-              <button type="button" className="yd-button yd-button--primary"
-                      onClick={() => void runReplay()} disabled={busy || !decisionId}>
+              <button type="submit" className="yd-button yd-button--primary"
+                      disabled={busy || !decisionId}>
                 {busy ? "Rejeu en cours…" : "Rejouer"}
               </button>
             </div>
@@ -156,7 +163,7 @@ export function OversightPage() {
                 </div>
               </div>
             ) : null}
-          </div>
+          </form>
         </BentoCell>
 
         <BentoCell span={{ base: 1, md: 6, lg: 7 }}>

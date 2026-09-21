@@ -5,6 +5,8 @@ authorities meet on `/api/invest/*` and every one of them is pinned here,
 because a boundary that drifts is a boundary nobody notices has moved.
 """
 
+import re
+
 import pytest
 
 from app.api.invest_policy import ARM_PHRASE
@@ -392,6 +394,9 @@ def test_replaying_a_decision_reports_that_it_is_reproducible(client, session):
     assert replay["inputs_intact"] is True
     assert replay["matches"] is True
     assert "reproductible" in replay["verdict"]
+    # The date is written the French way in a French sentence, never ISO.
+    assert re.search(r"du \d{2}/\d{2}/\d{4} est reproductible", replay["verdict"])
+    assert not re.search(r"\d{4}-\d{2}-\d{2}", replay["verdict"])
 
 
 def test_replaying_reports_an_edited_row_rather_than_a_clean_replay(client, session, db):

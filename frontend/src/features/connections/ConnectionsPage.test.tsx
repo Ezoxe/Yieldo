@@ -64,9 +64,9 @@ function mockApi(options: MockOptions = {}) {
   });
 }
 
-function renderPage() {
+function renderPage(path = "/reglages/connexions") {
   return render(
-    <MemoryRouter>
+    <MemoryRouter initialEntries={[path]}>
       <ThemeProvider>
         <ConnectionsPage />
       </ThemeProvider>
@@ -80,6 +80,25 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.restoreAllMocks();
+});
+
+describe("ConnectionsPage — one screen, two doors", () => {
+  it("is headed « Réglages → Connexions » from the Finances side", async () => {
+    renderPage("/reglages/connexions");
+    expect(await screen.findByRole("heading", { level: 1 })).toHaveTextContent(
+      "Réglages → Connexions",
+    );
+  });
+
+  it("is headed « Connexions marché », as the sidebar names it, from Investissement", async () => {
+    // The sidebar entry under /invest reads « Connexions marché »; a title
+    // pointing at Réglages would say the reader had left the environment.
+    renderPage("/invest/connexions");
+    expect(await screen.findByRole("heading", { level: 1 })).toHaveTextContent(
+      "Connexions marché",
+    );
+    expect(screen.queryByText(/Réglages → Connexions/)).not.toBeInTheDocument();
+  });
 });
 
 describe("ConnectionsPage — the write-only contract", () => {

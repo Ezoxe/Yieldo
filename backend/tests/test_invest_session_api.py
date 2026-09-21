@@ -105,7 +105,12 @@ def test_a_day_picks_the_synthetic_book_even_behind_a_recorded_one(client, ready
     refused = client.post("/api/invest/sessions", headers=headers, json={"steps": 4})
     assert refused.status_code == 409
     assert "Marché synthétique" in refused.json()["detail"]
+    assert "supprimez" in refused.json()["detail"]
 
+    # One internal book per mode: the recorded one goes before the synthetic
+    # one can be connected, which is what the refusal tells the household.
+    recorded = client.get("/api/invest/venues", headers=headers).json()[0]
+    client.delete(f"/api/invest/venues/{recorded['id']}", headers=headers)
     client.post("/api/invest/venues", headers=headers, json={
         "venue": "internal", "mode": "paper", "label": "Synthétique",
         "slippage_bps": 10, "price_source": "synthetic",

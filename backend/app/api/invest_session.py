@@ -81,9 +81,9 @@ def synthetic_book_for(db: Session, user: User) -> TradingVenue:
         raise HTTPException(
             status_code=409,
             detail="Une journée simulée se joue sur le carnet simulé de Yieldo avec la source "
-                   "« Marché synthétique (toujours ouvert) », le seul marché rejouable. "
-                   "Connectez-le dans Investissement → Courtiers, à côté de votre courtier "
-                   "actuel si besoin.",
+                   "« Marché synthétique (toujours ouvert) », le seul marché rejouable. Dans "
+                   "Investissement → Courtiers, supprimez le carnet simulé actuel s'il lit "
+                   "d'autres cours, puis reconnectez-le avec cette source.",
         )
     return row
 

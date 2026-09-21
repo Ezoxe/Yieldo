@@ -1,0 +1,16 @@
+[Unit]
+Description=Laya pour Yieldo (System One, CPU)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+EnvironmentFile=/etc/default/laya
+Environment=LAYA_SERVE=1
+WorkingDirectory=/opt/laya
+ExecStart=/opt/laya/venv/bin/uvicorn server:app --host 0.0.0.0 --port ${LAYA_PORT}
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

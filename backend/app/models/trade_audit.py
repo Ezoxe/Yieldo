@@ -22,6 +22,8 @@ AUDIT_KINDS = (
     "order_filled",
     "order_failed",
     "sandbox_reset",
+    "session_started",
+    "session_finished",
 )
 
 

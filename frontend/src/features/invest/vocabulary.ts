@@ -164,6 +164,8 @@ export const JOURNAL_KIND_LABELS: Record<string, string> = {
   order_filled: "Ordre exécuté",
   order_failed: "Ordre en échec",
   sandbox_reset: "Bac à sable remis à zéro",
+  session_started: "Journée simulée lancée",
+  session_finished: "Journée simulée terminée",
 };
 
 export const ACTOR_LABELS: Record<string, string> = {

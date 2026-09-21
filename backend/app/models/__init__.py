@@ -42,6 +42,7 @@ from app.models.trade_decision import DECISION_OUTCOMES, TradeDecision
 from app.models.trade_order import ORDER_SIDES, ORDER_STATES, ORDER_TYPES, TradeOrder
 from app.models.trading_account import TradingAccount, TradingPosition
 from app.models.trading_policy import AUTONOMY_MODES, TradingPolicy
+from app.models.trading_session import SESSION_STATUSES, TradingSession
 from app.models.trading_venue import (
     PRICE_SOURCES,
     TRADING_VENUES,
@@ -61,7 +62,7 @@ __all__ = [
     "PLAN_KINDS", "PLAN_ORIGINS", "PLAN_PERIODICITIES",
     "ORDER_SIDES", "ORDER_STATES", "ORDER_TYPES", "PRICE_SOURCES",
     "PROPOSAL_KINDS", "PROPOSAL_STATES", "RULE_ORIGINS",
-    "RULE_PRIORITIES", "SCENARIO_KINDS", "TRADING_VENUES",
+    "RULE_PRIORITIES", "SCENARIO_KINDS", "SESSION_STATUSES", "TRADING_VENUES",
     "TRANSACTION_CATEGORY_SOURCES", "VENUE_LABELS", "VENUE_MODES",
     "Account", "AgentKey", "AgentProposal", "AgentRun", "AgentStep", "AlertSettings",
     "AllocationTarget", "ApiKey", "Category", "CategoryRule",
@@ -72,7 +73,7 @@ __all__ = [
     "Lot", "PlanLine", "PlanSettings", "Position", "PriceIndexPoint", "PricePoint", "QuotaWindow",
     "RecurrenceCheckin", "RecurrenceDismissal", "Scenario",
     "TradeAuditEvent", "TradeDecision", "TradeOrder",
-    "TradingAccount", "TradingPolicy", "TradingPosition", "TradingVenue",
+    "TradingAccount", "TradingPolicy", "TradingPosition", "TradingSession", "TradingVenue",
     "Transaction",
     "User",
 ]

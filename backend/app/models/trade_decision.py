@@ -106,6 +106,13 @@ class TradeDecision(Base):
     # Read by `engines/second_opinion.py`.
     second_opinion: Mapped[dict | None] = mapped_column(JSON, nullable=True)
 
+    # The simulated day this decision belongs to, and its step within it,
+    # when it was taken inside one. NULL for a tour launched by hand.
+    session_id: Mapped[int | None] = mapped_column(
+        ForeignKey("trading_sessions.id", ondelete="SET NULL"), index=True, nullable=True
+    )
+    session_step: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
     # SHA-256 over the canonical features and questions. See the class
     # docstring.
     inputs_hash: Mapped[str] = mapped_column(String(64), nullable=False)

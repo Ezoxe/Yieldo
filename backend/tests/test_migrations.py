@@ -1661,6 +1661,9 @@ INVESTMENT_REVISION = "a1b2c3d4e5f6"
 # The rules' second opinion beside a model's decision:
 # `trade_decisions.second_opinion`, nullable, no backfill.
 SECOND_OPINION_REVISION = "c7d8e9f0a1b2"
+# The simulated trading day: `trading_sessions`, and `session_id` /
+# `session_step` on `trade_decisions`.
+TRADING_SESSIONS_REVISION = "d8e9f0a1b2c3"
 
 
 def test_the_goal_account_migration_matches_base_metadata_exactly(migration_db):
@@ -1711,8 +1714,10 @@ def test_the_investment_migration_is_the_single_head(migration_db):
 
     script = ScriptDirectory.from_config(migration_db.config)
     assert len(script.get_heads()) == 1
-    assert script.get_current_head() == SECOND_OPINION_REVISION
-    assert INVESTMENT_REVISION in {rev.revision for rev in script.walk_revisions()}
+    assert script.get_current_head() == TRADING_SESSIONS_REVISION
+    on_path = {rev.revision for rev in script.walk_revisions()}
+    assert SECOND_OPINION_REVISION in on_path
+    assert INVESTMENT_REVISION in on_path
     assert GOAL_ACCOUNT_REVISION in {rev.revision for rev in script.walk_revisions()}
     # The revisions it replaced as head are still on the path to it.
     on_path = {rev.revision for rev in script.walk_revisions()}
@@ -1814,7 +1819,7 @@ def test_the_investment_migration_matches_base_metadata_exactly(migration_db, ta
 
     `trade_decisions` is compared one revision later: c7d8e9f0a1b2 added
     `second_opinion` to it, and the model can only match the head."""
-    target = SECOND_OPINION_REVISION if table == "trade_decisions" else INVESTMENT_REVISION
+    target = TRADING_SESSIONS_REVISION if table == "trade_decisions" else INVESTMENT_REVISION
     command.upgrade(migration_db.config, target)
     conn = _connect(migration_db)
     migrated_columns = _table_columns(conn, table)
@@ -1932,8 +1937,9 @@ def test_the_investment_migration_downgrades_cleanly(migration_db):
 
 def test_the_second_opinion_migration_matches_base_metadata_exactly(migration_db):
     """`trade_decisions` after the column landed, column for column against
-    today's `models/trade_decision.py`."""
-    command.upgrade(migration_db.config, SECOND_OPINION_REVISION)
+    today's `models/trade_decision.py` -- compared at the head, since the
+    trading-day revision added two more columns to the same table."""
+    command.upgrade(migration_db.config, TRADING_SESSIONS_REVISION)
     conn = _connect(migration_db)
     migrated_columns = _table_columns(conn, "trade_decisions")
     migrated_indexes = _index_names(conn, "trade_decisions")
@@ -1978,3 +1984,56 @@ def test_the_second_opinion_migration_downgrades_cleanly(migration_db):
     conn.close()
     assert "second_opinion" not in names
     command.upgrade(migration_db.config, SECOND_OPINION_REVISION)
+
+
+# --------------------------------------------------------------------------
+# d8e9f0a1b2c3 -- the simulated trading day
+# --------------------------------------------------------------------------
+
+def test_the_trading_day_migration_matches_base_metadata_exactly(migration_db):
+    command.upgrade(migration_db.config, TRADING_SESSIONS_REVISION)
+    conn = _connect(migration_db)
+    migrated_columns = _table_columns(conn, "trading_sessions")
+    migrated_indexes = _index_names(conn, "trading_sessions")
+    conn.close()
+
+    reference_columns, reference_indexes = _reference_schema("trading_sessions")
+    assert migrated_columns == reference_columns
+    assert migrated_indexes == reference_indexes
+
+
+def test_the_trading_day_columns_land_on_a_populated_decision_table_as_null(migration_db):
+    command.upgrade(migration_db.config, SECOND_OPINION_REVISION)
+    conn = _connect(migration_db)
+    _seed_preexisting_user_and_full_category_tree(conn)
+    conn.execute(
+        """
+        INSERT INTO trade_decisions (
+            user_id, run_id, symbol, mode, provider, model, features, windows, context,
+            questions, answers, latency_ms, outcome, inputs_hash, created_at
+        ) VALUES (1, 'r', 'BTC-EUR', 'paper', 'laya', 'm', '{}', '{}', '{}', '[]', '{}',
+                  0, 'held', 'x', '2026-09-21 09:00:00')
+        """
+    )
+    conn.commit()
+    conn.close()
+
+    command.upgrade(migration_db.config, TRADING_SESSIONS_REVISION)
+    conn = _connect(migration_db)
+    rows = conn.execute(
+        "SELECT symbol, session_id, session_step FROM trade_decisions"
+    ).fetchall()
+    conn.close()
+    assert rows == [("BTC-EUR", None, None)]
+
+
+def test_the_trading_day_migration_downgrades_cleanly(migration_db):
+    command.upgrade(migration_db.config, TRADING_SESSIONS_REVISION)
+    command.downgrade(migration_db.config, SECOND_OPINION_REVISION)
+    conn = _connect(migration_db)
+    tables = {row[0] for row in conn.execute("SELECT name FROM sqlite_master WHERE type = 'table'")}
+    columns = {row[1] for row in conn.execute("PRAGMA table_info(trade_decisions)")}
+    conn.close()
+    assert "trading_sessions" not in tables
+    assert "session_id" not in columns
+    command.upgrade(migration_db.config, TRADING_SESSIONS_REVISION)

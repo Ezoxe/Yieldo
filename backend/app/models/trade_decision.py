@@ -99,6 +99,13 @@ class TradeDecision(Base):
     # engines.trading_risk.RiskVerdict.canonical(), when an order was sized.
     risk_verdict: Mapped[dict | None] = mapped_column(JSON, nullable=True)
 
+    # The built-in deterministic engine's canonical answers on the SAME
+    # context, when the provider was a real model -- a yardstick beside the
+    # model, never sized, never sent to the mandate. NULL when the engine was
+    # itself the configured model, or when the model failed before answering.
+    # Read by `engines/second_opinion.py`.
+    second_opinion: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+
     # SHA-256 over the canonical features and questions. See the class
     # docstring.
     inputs_hash: Mapped[str] = mapped_column(String(64), nullable=False)

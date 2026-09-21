@@ -12,7 +12,7 @@ import pytest
 
 from app.decision.contract import Decision, DecisionError, DecisionFailureCause
 from app.decision.replay import ReplayProvider
-from app.decision.strategy import BUY, HOLD
+from app.decision.strategy import BUY, HOLD, SELL
 from app.models import (
     TradeAuditEvent,
     TradeDecision,
@@ -395,3 +395,51 @@ def test_a_buy_is_never_larger_than_the_verdict_allowed(db, account):
 def test_the_direction_options_are_the_ones_the_strategy_declares():
     from app.decision.strategy import DIRECTION
     assert DIRECTION.options == (BUY, "vendre", HOLD)
+
+
+# --- the second opinion ---------------------------------------------------
+
+class AlwaysBuyProvider:
+    """A real model stand-in: « acheter », conviction 7, continuation 0,6."""
+
+    name = "laya"
+
+    def decide(self, question, context):
+        if question.key == "direction":
+            return Decision(question_key="direction", kind="choice", choice=BUY,
+                            score_value=None, probability_bps=None, latency_ms=1,
+                            provider="laya", model="test", raw="{}")
+        if question.key == "conviction":
+            return Decision(question_key="conviction", kind="score", choice=None,
+                            score_value=7, probability_bps=None, latency_ms=1,
+                            provider="laya", model="test", raw="{}")
+        return Decision(question_key="continuation", kind="probability", choice=None,
+                        score_value=None, probability_bps=6_000, latency_ms=1,
+                        provider="laya", model="test", raw="{}")
+
+
+def test_a_real_model_gets_the_rules_second_opinion_stored_beside_it(db, account):
+    run(db, account, provider=AlwaysBuyProvider())
+    db.commit()
+    for row in db.query(TradeDecision).all():
+        assert row.provider == "laya"
+        assert row.answers["direction"]["choice"] == BUY
+        # The rules' canonical answers on the same context, and only those:
+        # no raw, no latency, nothing the mandate could have acted on.
+        assert row.second_opinion is not None
+        assert row.second_opinion["direction"]["choice"] in (BUY, SELL, HOLD)
+        assert set(row.second_opinion["direction"]) == {
+            "question_key", "kind", "choice", "score_value", "probability_bps",
+        }
+        if row.second_opinion["direction"]["choice"] != HOLD:
+            assert "conviction" in row.second_opinion
+            assert "continuation" in row.second_opinion
+        else:
+            assert "conviction" not in row.second_opinion
+
+
+def test_the_deterministic_engine_has_no_second_opinion_of_itself(db, account):
+    run(db, account)
+    db.commit()
+    for row in db.query(TradeDecision).all():
+        assert row.second_opinion is None

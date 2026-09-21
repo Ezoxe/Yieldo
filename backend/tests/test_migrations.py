@@ -1658,6 +1658,9 @@ GOAL_ACCOUNT_REVISION = "e4a7c1d9b2f6"
 # The Investissement environment: brokers, the mandate, decisions, orders and
 # the audit chain. Eight new tables, nothing existing touched.
 INVESTMENT_REVISION = "a1b2c3d4e5f6"
+# The rules' second opinion beside a model's decision:
+# `trade_decisions.second_opinion`, nullable, no backfill.
+SECOND_OPINION_REVISION = "c7d8e9f0a1b2"
 
 
 def test_the_goal_account_migration_matches_base_metadata_exactly(migration_db):
@@ -1708,7 +1711,8 @@ def test_the_investment_migration_is_the_single_head(migration_db):
 
     script = ScriptDirectory.from_config(migration_db.config)
     assert len(script.get_heads()) == 1
-    assert script.get_current_head() == INVESTMENT_REVISION
+    assert script.get_current_head() == SECOND_OPINION_REVISION
+    assert INVESTMENT_REVISION in {rev.revision for rev in script.walk_revisions()}
     assert GOAL_ACCOUNT_REVISION in {rev.revision for rev in script.walk_revisions()}
     # The revisions it replaced as head are still on the path to it.
     on_path = {rev.revision for rev in script.walk_revisions()}
@@ -1806,8 +1810,12 @@ INVESTMENT_TABLES = (
 def test_the_investment_migration_matches_base_metadata_exactly(migration_db, table):
     """Every new table, column for column and index for index against today's
     models. A migration that drifts from its model is a deployed instance whose
-    schema differs from every test in this suite."""
-    command.upgrade(migration_db.config, INVESTMENT_REVISION)
+    schema differs from every test in this suite.
+
+    `trade_decisions` is compared one revision later: c7d8e9f0a1b2 added
+    `second_opinion` to it, and the model can only match the head."""
+    target = SECOND_OPINION_REVISION if table == "trade_decisions" else INVESTMENT_REVISION
+    command.upgrade(migration_db.config, target)
     conn = _connect(migration_db)
     migrated_columns = _table_columns(conn, table)
     migrated_indexes = _index_names(conn, table)
@@ -1916,3 +1924,57 @@ def test_the_investment_migration_downgrades_cleanly(migration_db):
     names = {row[0] for row in conn.execute("SELECT name FROM sqlite_master WHERE type = 'table'")}
     conn.close()
     assert set(INVESTMENT_TABLES) <= names
+
+
+# --------------------------------------------------------------------------
+# c7d8e9f0a1b2 -- the second opinion column
+# --------------------------------------------------------------------------
+
+def test_the_second_opinion_migration_matches_base_metadata_exactly(migration_db):
+    """`trade_decisions` after the column landed, column for column against
+    today's `models/trade_decision.py`."""
+    command.upgrade(migration_db.config, SECOND_OPINION_REVISION)
+    conn = _connect(migration_db)
+    migrated_columns = _table_columns(conn, "trade_decisions")
+    migrated_indexes = _index_names(conn, "trade_decisions")
+    conn.close()
+
+    reference_columns, reference_indexes = _reference_schema("trade_decisions")
+    assert migrated_columns == reference_columns
+    assert migrated_indexes == reference_indexes
+
+
+def test_the_second_opinion_column_lands_on_a_populated_table_as_null(migration_db):
+    """The real `upgrade()` against a decision written before the column
+    existed: it is kept, and its second opinion is NULL -- the honest value
+    for a comparison that was never made."""
+    command.upgrade(migration_db.config, INVESTMENT_REVISION)
+    conn = _connect(migration_db)
+    _seed_preexisting_user_and_full_category_tree(conn)
+    conn.execute(
+        """
+        INSERT INTO trade_decisions (
+            user_id, run_id, symbol, mode, provider, model, features, windows, context,
+            questions, answers, latency_ms, outcome, inputs_hash, created_at
+        ) VALUES (1, 'r', 'BTC-EUR', 'paper', 'laya', 'm', '{}', '{}', '{}', '[]', '{}',
+                  0, 'held', 'x', '2026-09-21 09:00:00')
+        """
+    )
+    conn.commit()
+    conn.close()
+
+    command.upgrade(migration_db.config, SECOND_OPINION_REVISION)
+    conn = _connect(migration_db)
+    rows = conn.execute("SELECT symbol, second_opinion FROM trade_decisions").fetchall()
+    conn.close()
+    assert rows == [("BTC-EUR", None)]
+
+
+def test_the_second_opinion_migration_downgrades_cleanly(migration_db):
+    command.upgrade(migration_db.config, SECOND_OPINION_REVISION)
+    command.downgrade(migration_db.config, INVESTMENT_REVISION)
+    conn = _connect(migration_db)
+    names = {row[1] for row in conn.execute("PRAGMA table_info(trade_decisions)")}
+    conn.close()
+    assert "second_opinion" not in names
+    command.upgrade(migration_db.config, SECOND_OPINION_REVISION)

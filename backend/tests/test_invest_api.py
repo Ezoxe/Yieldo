@@ -439,6 +439,47 @@ def test_the_overview_reports_the_funnel_and_the_calibration(client, session):
     assert overview["calibration"]["coin_flip_brier_bps"] == 2_500
 
 
+def test_the_overview_scores_the_model_against_the_rules(client, session, laya_server):
+    headers, _ = session
+    connect_sandbox(client, headers)
+    client.put("/api/invest/model", headers=headers,
+               json={"provider": "laya", "endpoint_url": "http://192.168.1.172:8100"})
+    client.put("/api/invest/policy", headers=headers, json=full_policy())
+    run = client.post("/api/invest/run", headers=headers).json()
+    assert run["examined"] == 2
+
+    overview = client.get("/api/invest/overview", headers=headers).json()
+    opinion = overview["second_opinion"]
+    assert opinion["compared"] == 2
+    assert opinion["agreed"] + len(opinion["disagreements"]) == 2
+    assert 0 <= opinion["agreement_bps"] <= 10_000
+    for row in opinion["disagreements"]:
+        assert row["model_choice"] == "ne rien faire"
+        assert row["rules_choice"] in ("acheter", "vendre")
+        assert row["symbol"] in ("AAPL", "BTC-EUR")
+
+    first = run["decisions"][0]["id"]
+    detail = client.get(f"/api/invest/decisions/{first}", headers=headers).json()
+    assert detail["second_opinion"]["direction"]["choice"] in ("acheter", "vendre", "ne rien faire")
+    assert detail["answers"]["direction"]["mass_bps"]["acheter"] == 3_497
+    assert detail["answers"]["direction"]["act_bps"] == 10_000
+
+
+def test_the_deterministic_model_compares_to_nothing(client, session):
+    headers, _ = session
+    connect_sandbox(client, headers)
+    choose_deterministic_model(client, headers)
+    client.put("/api/invest/policy", headers=headers, json=full_policy())
+    run = client.post("/api/invest/run", headers=headers).json()
+    overview = client.get("/api/invest/overview", headers=headers).json()
+    assert overview["second_opinion"] == {
+        "compared": 0, "agreed": 0, "agreement_bps": 0, "disagreements": [],
+    }
+    first = run["decisions"][0]["id"]
+    detail = client.get(f"/api/invest/decisions/{first}", headers=headers).json()
+    assert detail["second_opinion"] is None
+
+
 def test_one_households_decisions_are_invisible_to_another(client, session):
     headers, _ = session
     connect_sandbox(client, headers)

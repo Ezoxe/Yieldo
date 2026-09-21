@@ -42,6 +42,7 @@ from typing import Any
 from sqlalchemy.orm import Session
 
 from app.decision.contract import Decision, DecisionError, DecisionProvider
+from app.decision.replay import ReplayProvider
 from app.decision.strategy import (
     CONTINUATION,
     CONVICTION,
@@ -248,6 +249,7 @@ def _record(
     context: dict[str, Any], answers: dict[str, Any], provider: str, model: str,
     outcome: str, rule: str | None, message: str | None,
     risk_verdict: RiskVerdict | None, latency_ms: int, now: datetime,
+    second_opinion: dict[str, Any] | None = None,
 ) -> TradeDecision:
     canonical = features.canonical() if features is not None else {"symbol": symbol}
     questions = _questions_payload()
@@ -259,6 +261,7 @@ def _record(
         reference_price_cents=None if features is None else features.last_price_cents,
         latency_ms=latency_ms, outcome=outcome, rule=rule, message=message,
         risk_verdict=None if risk_verdict is None else risk_verdict.canonical(),
+        second_opinion=second_opinion,
         inputs_hash=audit.inputs_digest(canonical, questions),
         created_at=now,
     )
@@ -276,6 +279,19 @@ def _record(
 
 def _ask(provider: DecisionProvider, question: Any, context: dict[str, Any]) -> Decision:
     return provider.decide(question, context)
+
+
+def _second_opinion(context: dict[str, Any]) -> dict[str, Any]:
+    """The deterministic engine's answers on the same context, canonical only
+    -- no raw, no latency. Asked in the same order and with the same
+    short-circuit as the model, so the two are compared like for like. Never
+    sized, never sent to the mandate: a yardstick beside the model."""
+    rules = ReplayProvider()
+    out = {DIRECTION.key: rules.decide(DIRECTION, context).canonical()}
+    if out[DIRECTION.key]["choice"] != HOLD:
+        out[CONVICTION.key] = rules.decide(CONVICTION, context).canonical()
+        out[CONTINUATION.key] = rules.decide(CONTINUATION, context).canonical()
+    return out
 
 
 def run_cycle(
@@ -370,6 +386,9 @@ def run_cycle(
                 continuation = _ask(provider, CONTINUATION, context)
                 answers[CONTINUATION.key] = _decision_payload(continuation)
                 latency += continuation.latency_ms
+            # A real model gets the rules' opinion stored beside it; the rules
+            # do not get compared to themselves.
+            second_opinion = None if provider_name == "replay" else _second_opinion(context)
         except DecisionError as exc:
             report.failed += 1
             report.outcomes.append(SymbolOutcome(symbol, _record(
@@ -395,6 +414,7 @@ def run_cycle(
                 features=features, windows=windows, context=context, answers=answers,
                 provider=provider_name, model=model_name, outcome="held", rule=sized.rule,
                 message=sized.message, risk_verdict=None, latency_ms=latency, now=now,
+                second_opinion=second_opinion,
             )))
             continue
 
@@ -428,6 +448,7 @@ def run_cycle(
             rule=verdict.breaches[0].rule if verdict.breaches else None,
             message=verdict.breaches[0].message if verdict.breaches else None,
             risk_verdict=verdict, latency_ms=latency, now=now,
+            second_opinion=second_opinion,
         )
 
         order = _place(

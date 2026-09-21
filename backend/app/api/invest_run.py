@@ -27,6 +27,7 @@ from app.decision.registry import build_provider
 from app.engines.calibration import Observation, evaluate_calibration
 from app.engines.quantity import parse as parse_quantity
 from app.engines.quantity import value_cents
+from app.engines.second_opinion import Opinion, compare
 from app.models import (
     DecisionSettings,
     TradeDecision,
@@ -40,10 +41,12 @@ from app.schemas.invest import (
     CalibrationOut,
     DecisionDetailOut,
     DecisionOut,
+    DisagreementOut,
     OrderOut,
     OverviewOut,
     PositionOut,
     RunOut,
+    SecondOpinionOut,
 )
 from app.security.deps import get_current_user, get_session_user
 from app.trading import audit, service
@@ -175,7 +178,7 @@ def read_decision(
     base = _decision_out(row).model_dump()
     return DecisionDetailOut(
         **base, windows=row.windows, context=row.context, questions=row.questions,
-        risk_verdict=row.risk_verdict,
+        risk_verdict=row.risk_verdict, second_opinion=row.second_opinion,
         order=None if order is None else _order_out(order),
     )
 
@@ -195,6 +198,20 @@ def list_orders(
         query = query.filter(TradeOrder.status == status_filter)
     rows = query.order_by(TradeOrder.id.desc()).limit(limit).all()
     return [_order_out(row) for row in rows]
+
+
+def second_opinions(rows: list[TradeDecision]) -> tuple[Opinion, ...]:
+    """What the model chose and what the rules would have, per decision. A
+    missing side is None and the engine leaves it out of the comparison."""
+    out = []
+    for row in rows:
+        model = (row.answers or {}).get("direction") or {}
+        rules = (row.second_opinion or {}).get("direction") or {}
+        out.append(Opinion(
+            decision_id=row.id, symbol=row.symbol, created_at=row.created_at,
+            model_choice=model.get("choice"), rules_choice=rules.get("choice"),
+        ))
+    return tuple(out)
 
 
 def calibration_observations(rows: list[TradeDecision]) -> tuple[Observation, ...]:
@@ -287,6 +304,7 @@ def overview(
     # hide the one property a System One model is chosen for.
     latencies = sorted(row.latency_ms for row in rows)
     report = evaluate_calibration(calibration_observations(rows))
+    agreement = compare(second_opinions(rows))
 
     equity = service.equity_cents(account, positions, prices)
     drawdown_bps = (
@@ -343,6 +361,18 @@ def overview(
                     observed_bps=bucket.observed_bps, gap_bps=bucket.gap_bps,
                 )
                 for bucket in report.buckets
+            ],
+        ),
+        second_opinion=SecondOpinionOut(
+            compared=agreement.compared, agreed=agreement.agreed,
+            agreement_bps=agreement.agreement_bps,
+            disagreements=[
+                DisagreementOut(
+                    decision_id=row.decision_id, symbol=row.symbol,
+                    model_choice=row.model_choice, rules_choice=row.rules_choice,
+                    created_at=row.created_at,
+                )
+                for row in agreement.disagreements
             ],
         ),
         venue=None if venue_row is None else venue_out(venue_row),

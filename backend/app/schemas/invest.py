@@ -186,6 +186,9 @@ class DecisionDetailOut(DecisionOut):
     questions: list[dict[str, Any]]
     risk_verdict: dict[str, Any] | None
     order: "OrderOut | None"
+    # The deterministic engine's canonical answers on the same context, when
+    # the provider was a real model; None otherwise.
+    second_opinion: dict[str, Any] | None = None
 
 
 class OrderOut(BaseModel):
@@ -264,6 +267,8 @@ class OverviewOut(BaseModel):
     latency_median_ms: int | None
     latency_worst_ms: int | None
     calibration: "CalibrationOut"
+    # The model against the built-in rules, on the direction, over the window.
+    second_opinion: "SecondOpinionOut"
     venue: VenueOut | None
 
 
@@ -282,6 +287,21 @@ class CalibrationOut(BaseModel):
     coin_flip_brier_bps: int
     verdict: str
     buckets: list[CalibrationBucketOut]
+
+
+class DisagreementOut(BaseModel):
+    decision_id: int
+    symbol: str
+    model_choice: str
+    rules_choice: str
+    created_at: datetime
+
+
+class SecondOpinionOut(BaseModel):
+    compared: int
+    agreed: int
+    agreement_bps: int
+    disagreements: list[DisagreementOut]
 
 
 # --------------------------------------------------------------------------

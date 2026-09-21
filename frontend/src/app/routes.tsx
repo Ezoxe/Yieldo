@@ -82,6 +82,26 @@ const connections = screen(
   (m) => m.ConnectionsPage,
 );
 
+// The Investissement environment. Its own prefix, its own sidebar
+// (`app/navigation.ts`), and its own six screens — see `EnvironmentSwitcher`
+// on why the two halves of the application are separated rather than folded
+// into five more sidebar sections.
+const controlRoom = screen(
+  () => import("../features/invest/ControlRoomPage"),
+  (m) => m.ControlRoomPage,
+);
+const investDecisions = screen(
+  () => import("../features/invest/DecisionsPage"),
+  (m) => m.DecisionsPage,
+);
+const mandate = screen(() => import("../features/invest/MandatePage"), (m) => m.MandatePage);
+const brokers = screen(() => import("../features/invest/BrokersPage"), (m) => m.BrokersPage);
+const decisionModel = screen(() => import("../features/invest/ModelPage"), (m) => m.ModelPage);
+const oversight = screen(
+  () => import("../features/invest/OversightPage"),
+  (m) => m.OversightPage,
+);
+
 // Development-only instrument, not a shipped screen: /design-systeme renders
 // every visual primitive on one page so they can be judged in a browser. It is
 // registered only under `import.meta.env.DEV`, and is deliberately absent from
@@ -147,7 +167,23 @@ export const router = createBrowserRouter([
           // `llm/client.py` points the reader at "Réglages -> Connexions",
           // and a URL they can be sent to is what makes that sentence
           // actionable.
+          //
+          // The screen now LIVES in the Investissement environment, at
+          // /invest/connexions: the market-data keys feed the indicators a
+          // trading decision is taken on, and they belong beside the brokers
+          // rather than beside the household's password. This path stays
+          // registered because those French refusals name it, and a sentence
+          // pointing at a 404 is worse than no sentence.
           { path: "reglages/connexions", element: connections },
+
+          // --- Investissement ---
+          { path: "invest", element: controlRoom },
+          { path: "invest/decisions", element: investDecisions },
+          { path: "invest/mandat", element: mandate },
+          { path: "invest/modele", element: decisionModel },
+          { path: "invest/courtiers", element: brokers },
+          { path: "invest/connexions", element: connections },
+          { path: "invest/supervision", element: oversight },
           ...devRoutes,
         ],
       },

@@ -7,7 +7,7 @@ import { AtmosphericBackground } from "../design/atmosphere/AtmosphericBackgroun
 import { useCardSpotlight } from "../design/bento/useCardSpotlight";
 import { Shibi } from "../design/shibi/Shibi";
 import { useShibiVisible } from "../design/shibi/shibiPreference";
-import { AssistantIcon, ImportIcon, MenuIcon, YieldoMark } from "../design/icons";
+import { AssistantIcon, ImportIcon, MenuIcon } from "../design/icons";
 import { AssistantDrawer } from "../features/assistant/AssistantDrawer";
 import { useProposalCount } from "../features/agent/useProposalCount";
 import { useAlertCount } from "../features/alerts/useAlertCount";
@@ -15,7 +15,8 @@ import { LedgerModeBadge } from "../features/plan/LedgerModeBadge";
 import { GlobalSearch } from "../features/search/GlobalSearch";
 import { useLedgerMode } from "../features/plan/useLedgerMode";
 import { BottomTabs } from "./BottomTabs";
-import { NAV_SECTIONS } from "./navigation";
+import { EnvironmentSwitcher } from "./EnvironmentSwitcher";
+import { environmentFor, type Environment, type NavSection } from "./navigation";
 import { UserMenu } from "./UserMenu";
 import { slideOver } from "../design/motion/variants";
 import { useReducedMotion } from "../design/motion/useReducedMotion";
@@ -36,6 +37,12 @@ interface SidebarNavProps {
   className: string;
   onNavigate?: () => void;
   /**
+   * The environment whose sections this nav draws. Passed in rather than read
+   * from the location here: the static sidebar and the mobile drawer are both
+   * mounted at once, and two readings of the same URL is one reading too many.
+   */
+  environment: Environment;
+  /**
    * Unique per rendered nav. The static sidebar and the mobile drawer are both
    * mounted at once (the first is only hidden by a media query), and a shared
    * `layoutId` would make Motion animate the indicator BETWEEN the two navs.
@@ -54,16 +61,17 @@ interface SidebarNavProps {
 }
 
 function SidebarNav({
-  id, className, onNavigate, indicatorId, animated, badges,
+  id, className, onNavigate, environment, indicatorId, animated, badges,
 }: SidebarNavProps) {
+  const sections: NavSection[] = environment.sections;
   return (
     <nav id={id} className={className} aria-label="Navigation principale">
-      <div className="yd-shell__brand">
-        <YieldoMark />
-        <span>Yieldo</span>
-      </div>
+      {/* Where the brand block was. It still says « Yieldo » first — see
+          EnvironmentSwitcher on why the product name does not give way to the
+          control that changes environment. */}
+      <EnvironmentSwitcher current={environment} onNavigate={onNavigate} />
 
-      {NAV_SECTIONS.map((section, index) => (
+      {sections.map((section, index) => (
         <div className="yd-shell__nav-section" key={section.title ?? `section-${index}`}>
           {section.title ? (
             <p className="yd-shell__nav-heading" aria-hidden="true">
@@ -134,6 +142,10 @@ export function AppShell({ userName }: AppShellProps) {
   useCardSpotlight();
   const location = useLocation();
   const navId = useId();
+  // Which half of the application the current URL belongs to. One reading,
+  // passed to both navs and to the phone tabs, so the sidebar, the drawer and
+  // the tab bar can never disagree about where the reader is.
+  const environment = environmentFor(location.pathname);
 
   // How many changes the AI is waiting on a decision for. Refetched on every
   // navigation rather than polled: a proposal appears when the household asks
@@ -187,6 +199,7 @@ export function AppShell({ userName }: AppShellProps) {
 
       <SidebarNav
         className="yd-shell__sidebar yd-shell__sidebar--static"
+        environment={environment}
         indicatorId={`${navId}-static`}
         animated={!reducedMotion}
         badges={{ "/propositions": pendingProposals, "/alertes": alertCount }}
@@ -207,6 +220,7 @@ export function AppShell({ userName }: AppShellProps) {
                   id="yd-sidebar-drawer"
                   className="yd-shell__sidebar yd-shell__sidebar--drawer"
                   onNavigate={closeDrawer}
+                  environment={environment}
                   indicatorId={`${navId}-drawer`}
                   animated={false}
                   badges={{ "/propositions": pendingProposals, "/alertes": alertCount }}
@@ -234,6 +248,7 @@ export function AppShell({ userName }: AppShellProps) {
                   id="yd-sidebar-drawer"
                   className="yd-shell__sidebar yd-shell__sidebar--drawer"
                   onNavigate={closeDrawer}
+                  environment={environment}
                   indicatorId={`${navId}-drawer`}
                   animated
                   badges={{ "/propositions": pendingProposals, "/alertes": alertCount }}
@@ -315,7 +330,11 @@ export function AppShell({ userName }: AppShellProps) {
         {/* Inside the body, so it is inert with the rest of the content while
             the drawer is open — a tab bar that stayed live under the scrim
             would let a thumb change screens behind it. */}
-        <BottomTabs onMore={() => setDrawerOpen(true)} moreOpen={drawerOpen} />
+        <BottomTabs
+          environment={environment}
+          onMore={() => setDrawerOpen(true)}
+          moreOpen={drawerOpen}
+        />
       </div>
 
       <AssistantDrawer open={assistantOpen} onClose={() => setAssistantOpen(false)} />

@@ -2521,3 +2521,291 @@ export interface SearchResults {
   query: string;
   groups: SearchGroup[];
 }
+
+/* -- Investissement -------------------------------------------------------
+ *
+ * The wire shapes of `/api/invest/*`. Money is an integer number of cents and
+ * a rate is an integer number of basis points, exactly as everywhere else:
+ * `trend_bps: 347` is 3,47 %, and nothing here is ever a float.
+ *
+ * Nothing in this block carries a credential. `InvestVenue` says whether one
+ * is on file (`configured`) and never what it is — the backend's schema has
+ * nowhere to put one, and neither has this.
+ */
+
+export type InvestMode = "paper" | "live";
+export type InvestAutonomy = "observer" | "paper" | "live";
+export type DecisionOutcome = "skipped" | "held" | "refused" | "ordered" | "failed";
+
+export interface InvestVenue {
+  id: number;
+  venue: string;
+  label: string;
+  mode: InvestMode;
+  price_source: string;
+  slippage_bps: number;
+  enabled: boolean;
+  configured: boolean;
+  requires_credentials: boolean;
+  sandbox_step: number;
+  created_at: string;
+  last_used_at: string | null;
+  last_check_at: string | null;
+  last_check_ok: boolean | null;
+  last_check_message: string | null;
+}
+
+export interface InvestVenueCheck {
+  valid: boolean;
+  message: string;
+}
+
+export interface InvestPolicy {
+  max_position_cents: number;
+  max_exposure_cents: number;
+  max_order_notional_cents: number;
+  max_daily_loss_cents: number;
+  min_cash_buffer_cents: number;
+  min_order_notional_cents: number;
+  max_drawdown_bps: number;
+  max_orders_per_day: number;
+  allowed_symbols: string[];
+  allow_short: boolean;
+  allow_leverage: boolean;
+  allow_limit_orders: boolean;
+  minimum_conviction: number;
+  minimum_probability_bps: number;
+  max_volatility_bps: number;
+  full_conviction_share_bps: number;
+  autonomy: InvestAutonomy;
+  armed_until: string | null;
+  armed: boolean;
+  halted: boolean;
+  halted_reason: string | null;
+  halted_at: string | null;
+  halted_by: string | null;
+  orders_today: number;
+  realised_pnl_today_cents: number;
+  /** The rules the model is bound by, in French — shown verbatim. */
+  declared_rules: string[];
+  updated_at: string;
+}
+
+export interface InvestDecisionModel {
+  provider: string;
+  endpoint_url: string | null;
+  model_name: string | null;
+  timeout_ms: number;
+  configured: boolean;
+  has_key: boolean;
+  updated_at: string | null;
+}
+
+export interface InvestModelCheck {
+  valid: boolean;
+  message: string;
+  latency_ms: number | null;
+}
+
+/** One typed answer, as it was stored beside the decision it belongs to. */
+export interface InvestAnswer {
+  question_key?: string;
+  kind?: string;
+  choice: string | null;
+  score_value: number | null;
+  probability_bps: number | null;
+  confidence_bps?: number | null;
+  latency_ms?: number;
+  raw?: string;
+  provider?: string;
+  model?: string;
+}
+
+export interface InvestFeatures {
+  symbol?: string;
+  closes_seen?: number;
+  last_price_cents?: number;
+  sma_short_cents?: number;
+  sma_long_cents?: number;
+  trend_bps?: number;
+  momentum_bps?: number;
+  rsi_bps?: number;
+  volatility_bps?: number;
+  drawdown_bps?: number;
+  range_position_bps?: number;
+}
+
+export interface InvestRiskBreach {
+  rule: string;
+  message: string;
+  limit: number | null;
+  observed: number | null;
+}
+
+export interface InvestRiskVerdict {
+  decision: "allowed" | "reduced" | "refused";
+  quantity: string;
+  notional_cents: number;
+  breaches: InvestRiskBreach[];
+}
+
+export interface InvestDecision {
+  id: number;
+  run_id: string;
+  symbol: string;
+  mode: InvestMode;
+  provider: string;
+  model: string;
+  outcome: DecisionOutcome;
+  rule: string | null;
+  message: string | null;
+  reference_price_cents: number | null;
+  latency_ms: number;
+  created_at: string;
+  features: InvestFeatures;
+  answers: Record<string, InvestAnswer>;
+  inputs_hash: string;
+}
+
+export interface InvestQuestion {
+  key: string;
+  kind: string;
+  prompt?: string;
+  statement?: string;
+  options?: string[];
+  minimum?: number;
+  maximum?: number;
+}
+
+export interface InvestDecisionDetail extends InvestDecision {
+  windows: Record<string, number>;
+  context: Record<string, unknown>;
+  questions: InvestQuestion[];
+  risk_verdict: InvestRiskVerdict | null;
+  order: InvestOrder | null;
+}
+
+export interface InvestOrder {
+  id: number;
+  decision_id: number | null;
+  symbol: string;
+  mode: InvestMode;
+  side: "buy" | "sell";
+  order_type: string;
+  quantity: string;
+  requested_quantity: string;
+  limit_price_cents: number | null;
+  reference_price_cents: number;
+  notional_cents: number;
+  status: "refused" | "pending" | "filled" | "cancelled" | "failed";
+  rule: string | null;
+  failure_reason: string | null;
+  external_id: string | null;
+  filled_quantity: string | null;
+  average_price_cents: number | null;
+  cost_cents: number;
+  realised_pnl_cents: number;
+  created_at: string;
+}
+
+export interface InvestPosition {
+  symbol: string;
+  quantity: string;
+  average_price_cents: number;
+  /** null when the price could not be read — the screen says so rather than
+   *  showing a stale one. */
+  price_cents: number | null;
+  market_value_cents: number | null;
+  unrealised_pnl_cents: number | null;
+}
+
+export interface InvestCalibrationBucket {
+  lower_bps: number;
+  upper_bps: number;
+  count: number;
+  stated_bps: number;
+  observed_bps: number;
+  gap_bps: number;
+}
+
+export interface InvestCalibration {
+  observations: number;
+  brier_bps: number;
+  coin_flip_brier_bps: number;
+  verdict: string;
+  buckets: InvestCalibrationBucket[];
+}
+
+export interface InvestOverview {
+  mode: InvestMode;
+  autonomy: InvestAutonomy;
+  armed: boolean;
+  armed_until: string | null;
+  halted: boolean;
+  halted_reason: string | null;
+  currency: string;
+  cash_cents: number;
+  initial_cash_cents: number;
+  equity_cents: number;
+  peak_equity_cents: number;
+  drawdown_bps: number;
+  unrealised_pnl_cents: number;
+  realised_pnl_today_cents: number;
+  realised_pnl_total_cents: number;
+  orders_today: number;
+  positions: InvestPosition[];
+  examined: number;
+  skipped: number;
+  held: number;
+  refused: number;
+  ordered: number;
+  failed: number;
+  latency_median_ms: number | null;
+  latency_worst_ms: number | null;
+  calibration: InvestCalibration;
+  venue: InvestVenue | null;
+}
+
+export interface InvestRun {
+  run_id: string;
+  mode: InvestMode;
+  examined: number;
+  skipped: number;
+  held: number;
+  refused: number;
+  ordered: number;
+  failed: number;
+  summary: string;
+  decisions: InvestDecision[];
+}
+
+export interface InvestJournalEntry {
+  sequence: number;
+  kind: string;
+  actor: string;
+  payload: Record<string, unknown>;
+  entry_hash: string;
+  previous_hash: string;
+  created_at: string;
+}
+
+export interface InvestJournal {
+  events: number;
+  intact: boolean;
+  broken_at: number | null;
+  message: string;
+  next_sequence: number;
+  entries: InvestJournalEntry[];
+}
+
+export interface InvestReplay {
+  decision_id: number;
+  inputs_intact: boolean;
+  inputs_hash_stored: string;
+  inputs_hash_recomputed: string;
+  matches: boolean;
+  stored_answers: Record<string, InvestAnswer>;
+  replayed_answers: Record<string, InvestAnswer>;
+  provider: string;
+  verdict: string;
+}

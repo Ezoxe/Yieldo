@@ -8,11 +8,12 @@ import { MemoryRouter } from "react-router";
 import { describe, expect, it, vi } from "vitest";
 
 import { BottomTabs } from "./BottomTabs";
+import { environmentFor } from "./navigation";
 
 function renderTabs(entry = "/budgets", onMore = vi.fn()) {
   render(
     <MemoryRouter initialEntries={[entry]}>
-      <BottomTabs onMore={onMore} moreOpen={false} />
+      <BottomTabs environment={environmentFor(entry)} onMore={onMore} moreOpen={false} />
     </MemoryRouter>,
   );
   return onMore;
@@ -63,5 +64,23 @@ describe("BottomTabs", () => {
     const base = css.match(/\.yd-tabs\s*\{([^}]*)\}/);
     expect(base?.[1]).toMatch(/display:\s*none/);
     expect(css).toMatch(/@media \(max-width: 899px\)/);
+  });
+});
+
+describe("BottomTabs, dans l'environnement Investissement", () => {
+  it("offers the four daily investment screens rather than the finance ones", () => {
+    renderTabs("/invest/decisions");
+    const nav = screen.getByRole("navigation", { name: "Navigation rapide" });
+    expect(within(nav).getAllByRole("link").map((link) => link.getAttribute("href"))).toEqual([
+      "/invest", "/invest/decisions", "/invest/mandat", "/invest/courtiers",
+    ]);
+  });
+
+  it("keeps the sidebar's word as the accessible name where the tab shortens it", () => {
+    renderTabs("/invest");
+    expect(screen.getByRole("link", { name: "Salle de contrôle" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
   });
 });

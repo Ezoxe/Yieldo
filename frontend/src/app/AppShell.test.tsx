@@ -148,11 +148,12 @@ describe("AppShell", () => {
       "Catégories",
       "Import",
       "Réglages",
-      // Réglages -> Connexions, the screen every French refusal in
-      // `market/client.py` and `llm/client.py` sends the reader to. Its own
-      // nav entry, because a link buried inside another screen is not an
-      // address a sentence can point at.
-      "Connexions",
+      // « Connexions » is NOT here any more: the market-data keys moved to the
+      // Investissement environment, at /invest/connexions, because they feed
+      // the indicators a trading decision is taken on. The old
+      // /reglages/connexions route still resolves — every French refusal in
+      // `market/client.py` names it — but the entry belongs to the other
+      // sidebar now.
     ]);
   });
 

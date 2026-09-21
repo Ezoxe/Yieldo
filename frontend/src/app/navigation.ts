@@ -2,16 +2,24 @@ import {
   AlertsIcon,
   AnalysisIcon,
   AssistantIcon,
+  BrokersIcon,
   BudgetsIcon,
   CashflowIcon,
   CategoriesIcon,
   ConnectionsIcon,
+  ControlRoomIcon,
   DebtsIcon,
+  DecisionModelIcon,
+  DecisionsIcon,
   ExportIcon,
   FeasibilityIcon,
+  FinanceEnvironmentIcon,
   GoalsIcon,
   ImportIcon,
+  InvestEnvironmentIcon,
+  MandateIcon,
   OverviewIcon,
+  OversightIcon,
   PlanIcon,
   PortfolioIcon,
   ProposalsIcon,
@@ -23,6 +31,9 @@ import {
   TransactionsIcon,
   type IconComponent,
 } from "../design/icons";
+
+/** The two halves of the application. See `ENVIRONMENTS` below. */
+export type EnvironmentId = "finances" | "investissement";
 
 export interface NavItem {
   to: string;
@@ -36,6 +47,12 @@ export interface NavItem {
    * screen means a new line here, not a new branch somewhere.
    */
   aliases?: string[];
+  /**
+   * Which environment this screen belongs to. Filled in by `ENVIRONMENTS`
+   * below rather than typed on every entry, so a screen cannot claim to be in
+   * one environment while sitting in the other's list.
+   */
+  environment?: EnvironmentId;
 }
 
 /**
@@ -56,7 +73,35 @@ export interface NavSection {
   items: NavItem[];
 }
 
-export const NAV_SECTIONS: NavSection[] = [
+/**
+ * One half of the application: its own sidebar, its own home, its own screens.
+ *
+ * **Why two environments rather than five more sections.** Managing a
+ * household's money and running software that trades it are two different
+ * activities with two different tempos, and a sidebar that mixed them would
+ * put « Arrêt d'urgence » three entries below « Courses ». The switcher at the
+ * top left is the whole of the boundary: everything else — the sidebar, the
+ * phone tabs, the header search's grouping — reads this list.
+ *
+ * `prefixes` is what decides which environment a URL belongs to, and it is
+ * data for the same reason the sections are: a route reachable from a sidebar
+ * that the switcher does not recognise would light up the wrong environment,
+ * and nobody would notice until they were in it.
+ */
+export interface Environment {
+  id: EnvironmentId;
+  label: string;
+  /** One line, in the switcher, saying what this half is for. */
+  tagline: string;
+  icon: IconComponent;
+  /** Where the switcher lands. */
+  home: string;
+  /** Every route in this environment starts with one of these. */
+  prefixes: string[];
+  sections: NavSection[];
+}
+
+const FINANCE_SECTIONS: NavSection[] = [
   {
     title: null,
     items: [
@@ -123,11 +168,129 @@ export const NAV_SECTIONS: NavSection[] = [
       { to: "/reglages", label: "Réglages", icon: SettingsIcon, end: true,
         aliases: ["paramètres", "compte", "mot de passe", "apparence",
                   "mode de lecture", "réel", "estimation"] },
-      { to: "/reglages/connexions", label: "Connexions", icon: ConnectionsIcon,
-        aliases: ["modèle", "clé api", "fournisseur"] },
     ],
   },
 ];
 
-/** Every destination, flat, in sidebar order — what the header's search reads. */
-export const SCREENS: NavItem[] = NAV_SECTIONS.flatMap((section) => section.items);
+const INVESTMENT_SECTIONS: NavSection[] = [
+  {
+    title: null,
+    items: [
+      { to: "/invest", label: "Salle de contrôle", icon: ControlRoomIcon, end: true,
+        aliases: ["pilotage", "tableau de bord investissement", "en direct",
+                  "arrêt d'urgence", "kill switch"] },
+    ],
+  },
+  {
+    title: "Le pilotage",
+    items: [
+      { to: "/invest/decisions", label: "Décisions", icon: DecisionsIcon,
+        aliases: ["flux", "raisonnement", "pourquoi", "historique des décisions"] },
+      { to: "/invest/mandat", label: "Mandat", icon: MandateIcon,
+        aliases: ["limites", "risque", "plafonds", "armement", "autonomie",
+                  "règles", "liste blanche"] },
+      { to: "/invest/modele", label: "Modèle de décision", icon: DecisionModelIcon,
+        aliases: ["jev", "ia", "modèle", "vllm", "ollama", "system one"] },
+    ],
+  },
+  {
+    title: "Les connexions",
+    items: [
+      { to: "/invest/courtiers", label: "Courtiers", icon: BrokersIcon,
+        aliases: ["alpaca", "kraken", "binance", "bac à sable", "exécution",
+                  "clé api courtier"] },
+      // Réglages → Connexions lives here now: the market data keys feed the
+      // indicators a decision is taken on, and they belong beside the brokers
+      // rather than beside the household's password.
+      { to: "/invest/connexions", label: "Connexions marché", icon: ConnectionsIcon,
+        aliases: ["cours", "finnhub", "alpha vantage", "coingecko", "clé api",
+                  "fournisseur de cours", "quota"] },
+    ],
+  },
+  {
+    title: "Le contrôle",
+    items: [
+      { to: "/invest/supervision", label: "Supervision", icon: OversightIcon,
+        aliases: ["journal", "audit", "rejeu", "intégrité", "api", "claude",
+                  "vérifier"] },
+    ],
+  },
+];
+
+export const ENVIRONMENTS: Environment[] = [
+  {
+    id: "finances",
+    label: "Finances",
+    tagline: "Le grand livre du foyer : comptes, budgets, objectifs.",
+    icon: FinanceEnvironmentIcon,
+    home: "/",
+    // Everything that is not the investment environment. Listed as the empty
+    // prefix so `environmentFor` can fall through to it without a special case.
+    prefixes: [""],
+    sections: FINANCE_SECTIONS,
+  },
+  {
+    id: "investissement",
+    label: "Investissement",
+    tagline: "Le pilotage : marché, décisions, mandat, exécution.",
+    icon: InvestEnvironmentIcon,
+    home: "/invest",
+    prefixes: ["/invest"],
+    sections: INVESTMENT_SECTIONS,
+  },
+];
+
+export const FINANCES = ENVIRONMENTS[0];
+export const INVESTISSEMENT = ENVIRONMENTS[1];
+
+/** The finance sidebar. Kept exported because it is the default environment. */
+export const NAV_SECTIONS: NavSection[] = FINANCE_SECTIONS;
+
+function stamp(environment: Environment): NavItem[] {
+  return environment.sections.flatMap((section) =>
+    section.items.map((item) => ({ ...item, environment: environment.id })),
+  );
+}
+
+/**
+ * Every destination in BOTH environments, flat — what the header's search
+ * reads.
+ *
+ * The search deliberately looks across the switcher: someone typing « mandat »
+ * from the Transactions screen wants the mandate, and a search that only saw
+ * the environment they happen to be in would answer « rien trouvé » about a
+ * screen that exists. Each entry carries its `environment` so the dialog can
+ * say which half it is in.
+ */
+export const SCREENS: NavItem[] = ENVIRONMENTS.flatMap(stamp);
+
+/**
+ * Which environment a URL belongs to.
+ *
+ * Longest matching prefix wins, so `/invest/mandat` resolves to the investment
+ * environment rather than to the finance one's catch-all. An unknown path
+ * lands in Finances, which is where an unknown path in this application has
+ * always landed.
+ */
+export function environmentFor(pathname: string): Environment {
+  let best = ENVIRONMENTS[0];
+  let bestLength = -1;
+  for (const environment of ENVIRONMENTS) {
+    for (const prefix of environment.prefixes) {
+      const matches =
+        prefix === "" ||
+        pathname === prefix ||
+        pathname.startsWith(`${prefix}/`);
+      if (matches && prefix.length > bestLength) {
+        best = environment;
+        bestLength = prefix.length;
+      }
+    }
+  }
+  return best;
+}
+
+/** The other environment, for the switcher's one-key toggle. */
+export function otherEnvironment(current: Environment): Environment {
+  return current.id === "finances" ? INVESTISSEMENT : FINANCES;
+}

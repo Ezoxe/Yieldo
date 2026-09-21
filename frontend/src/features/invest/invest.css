@@ -1,0 +1,577 @@
+/* The Investissement environment's own pieces.
+ *
+ * Nothing here declares a max-width: the shell owns content width
+ * (`--yd-page-max` on `.yd-shell__main`). Nothing here writes a hex: every
+ * colour is a token, so `design/contrast.test.ts` measures what is actually on
+ * screen and the light theme gets its own steps rather than an automatic flip.
+ */
+
+.yd-invest-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-gap, 20px);
+}
+
+/* Wide content scrolls inside its own container; the page never scrolls
+   sideways, and at 390px every column stays reachable. */
+.yd-scroll-x {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.yd-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* -- Tables --------------------------------------------------------------- */
+
+.yd-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.86rem;
+}
+
+.yd-table th,
+.yd-table td {
+  padding: 7px 10px;
+  text-align: left;
+  border-bottom: 1px solid var(--yd-border);
+  white-space: nowrap;
+}
+
+.yd-table thead th {
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--yd-text-muted);
+  border-bottom-color: var(--yd-border-strong, var(--yd-border));
+}
+
+.yd-table tbody tr:last-child th,
+.yd-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.yd-table td.yd-num,
+.yd-table th.yd-num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* -- Status pills --------------------------------------------------------- */
+
+.yd-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 9px;
+  border: 1px solid var(--yd-border);
+  border-radius: 999px;
+  background: var(--yd-surface);
+  font-size: 0.74rem;
+  font-weight: 600;
+  line-height: 1.6;
+  white-space: nowrap;
+}
+
+/* A flat tint and a hairline, never a gradient. The word inside is the state;
+   the tint is a reading aid on top of it. */
+.yd-pill--positive { color: var(--yd-positive); border-color: color-mix(in srgb, var(--yd-positive) 35%, transparent); }
+.yd-pill--negative { color: var(--yd-negative); border-color: color-mix(in srgb, var(--yd-negative) 35%, transparent); }
+.yd-pill--warning  { color: var(--yd-warning);  border-color: color-mix(in srgb, var(--yd-warning) 35%, transparent); }
+.yd-pill--info     { color: var(--yd-info);     border-color: color-mix(in srgb, var(--yd-info) 35%, transparent); }
+.yd-pill--accent   { color: var(--yd-accent);   border-color: color-mix(in srgb, var(--yd-accent) 35%, transparent); }
+.yd-pill--neutral  { color: var(--yd-text-muted); }
+
+/* -- The pipeline, stage by stage ----------------------------------------- */
+
+.yd-funnel__list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.yd-funnel__row {
+  display: grid;
+  grid-template-columns: minmax(8ch, 15ch) 1fr auto auto;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.82rem;
+}
+
+.yd-funnel__label {
+  color: var(--yd-text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.yd-funnel__track {
+  position: relative;
+  display: block;
+  block-size: 10px;
+  border-radius: 4px;
+  background: var(--yd-surface-strong);
+  overflow: hidden;
+}
+
+/* 4px rounded data-end, anchored to the baseline at the start. Thin mark. */
+.yd-funnel__bar {
+  display: block;
+  block-size: 100%;
+  min-inline-size: 2px;
+  border-radius: 0 4px 4px 0;
+  background: currentColor;
+}
+
+.yd-funnel__bar--positive { color: var(--yd-positive); }
+.yd-funnel__bar--negative { color: var(--yd-negative); }
+.yd-funnel__bar--warning  { color: var(--yd-warning); }
+.yd-funnel__bar--info     { color: var(--yd-info); }
+.yd-funnel__bar--neutral  { color: var(--yd-text-muted); }
+
+.yd-funnel__count {
+  font-weight: 600;
+  min-inline-size: 3ch;
+  text-align: right;
+}
+
+.yd-funnel__share {
+  color: var(--yd-text-muted);
+  min-inline-size: 5ch;
+  text-align: right;
+}
+
+@media (max-width: 520px) {
+  .yd-funnel__row {
+    grid-template-columns: 1fr auto auto;
+  }
+  .yd-funnel__label {
+    grid-column: 1 / -1;
+    white-space: normal;
+  }
+}
+
+/* -- The reliability plot -------------------------------------------------- */
+
+.yd-calib {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.yd-calib__svg {
+  inline-size: 100%;
+  max-inline-size: 320px;
+  block-size: auto;
+  align-self: center;
+}
+
+.yd-calib__axis {
+  stroke: var(--yd-border-strong, var(--yd-border));
+  stroke-width: 0.6;
+}
+
+.yd-calib__diagonal {
+  stroke: var(--yd-text-muted);
+  stroke-width: 0.6;
+  stroke-dasharray: 2.5 2.5;
+  opacity: 0.65;
+}
+
+.yd-calib__dot {
+  fill: var(--yd-accent);
+  /* A 2px surface ring keeps two overlapping bands separable. */
+  stroke: var(--yd-surface-strong);
+  stroke-width: 0.7;
+}
+
+.yd-calib__caption {
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: var(--yd-text-muted);
+}
+
+/* -- Figure rows ----------------------------------------------------------- */
+
+.yd-figures {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+}
+
+.yd-figure {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.yd-figure__label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--yd-text-muted);
+}
+
+.yd-figure__value {
+  font-size: 1.32rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+.yd-figure__value--positive { color: var(--yd-positive); }
+.yd-figure__value--negative { color: var(--yd-negative); }
+
+.yd-figure__note {
+  font-size: 0.75rem;
+  color: var(--yd-text-muted);
+}
+
+/* -- The decision feed ----------------------------------------------------- */
+
+.yd-feed {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.yd-feed__item {
+  border: 1px solid var(--yd-border);
+  border-radius: var(--yd-radius-md, 12px);
+  background: var(--yd-surface);
+}
+
+.yd-feed__summary {
+  display: grid;
+  grid-template-columns: minmax(7ch, auto) 1fr auto;
+  align-items: center;
+  gap: 10px;
+  inline-size: 100%;
+  padding: 10px 12px;
+  border: none;
+  border-radius: inherit;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.yd-feed__summary:hover { background: var(--yd-surface-strong); }
+.yd-feed__summary:focus-visible { outline: 2px solid var(--yd-accent); outline-offset: -2px; }
+
+.yd-feed__symbol {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.yd-feed__message {
+  font-size: 0.82rem;
+  color: var(--yd-text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.yd-feed__time {
+  font-size: 0.75rem;
+  color: var(--yd-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.yd-feed__detail {
+  padding: 0 12px 12px;
+  border-top: 1px solid var(--yd-border);
+  padding-top: 12px;
+}
+
+@media (max-width: 520px) {
+  .yd-feed__summary {
+    grid-template-columns: 1fr auto;
+  }
+  .yd-feed__message {
+    grid-column: 1 / -1;
+    white-space: normal;
+  }
+}
+
+/* -- The decision detail --------------------------------------------------- */
+
+.yd-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.yd-detail__section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.yd-detail__heading {
+  margin: 0;
+  font-size: 0.74rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--yd-text-muted);
+}
+
+.yd-detail__question {
+  border: 1px solid var(--yd-border);
+  border-radius: var(--yd-radius-sm, 9px);
+  padding: 9px 11px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.yd-detail__prompt {
+  font-size: 0.8rem;
+  line-height: 1.45;
+  color: var(--yd-text-muted);
+}
+
+.yd-detail__answer {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.yd-detail__breaches {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.yd-detail__breach {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 8px 10px;
+  border: 1px solid color-mix(in srgb, var(--yd-warning) 30%, transparent);
+  border-radius: var(--yd-radius-sm, 9px);
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.yd-detail__hash {
+  font-family: var(--yd-font-mono, ui-monospace, monospace);
+  font-size: 0.72rem;
+  color: var(--yd-text-muted);
+  word-break: break-all;
+}
+
+/* -- Forms ----------------------------------------------------------------- */
+
+.yd-invest-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.yd-invest-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 12px;
+}
+
+.yd-invest-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.yd-invest-field > span {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--yd-text-muted);
+}
+
+.yd-invest-field small {
+  font-size: 0.72rem;
+  line-height: 1.4;
+  color: var(--yd-text-muted);
+}
+
+.yd-invest-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 0.85rem;
+}
+
+.yd-invest-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+/* Pin a card's footer rather than letting it float: bento cells stretch to
+   their row. */
+.yd-push-down { margin-top: auto; }
+
+.yd-rules {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  margin: 0;
+  padding-inline-start: 1.1em;
+  font-size: 0.83rem;
+  line-height: 1.5;
+  color: var(--yd-text-muted);
+}
+
+.yd-note {
+  font-size: 0.82rem;
+  line-height: 1.5;
+  color: var(--yd-text-muted);
+}
+
+.yd-note--warning {
+  padding: 9px 11px;
+  border: 1px solid color-mix(in srgb, var(--yd-warning) 32%, transparent);
+  border-radius: var(--yd-radius-sm, 9px);
+  color: var(--yd-text);
+}
+
+.yd-note--negative {
+  padding: 9px 11px;
+  border: 1px solid color-mix(in srgb, var(--yd-negative) 32%, transparent);
+  border-radius: var(--yd-radius-sm, 9px);
+  color: var(--yd-text);
+}
+
+.yd-note--positive {
+  padding: 9px 11px;
+  border: 1px solid color-mix(in srgb, var(--yd-positive) 32%, transparent);
+  border-radius: var(--yd-radius-sm, 9px);
+  color: var(--yd-text);
+}
+
+.yd-code {
+  font-family: var(--yd-font-mono, ui-monospace, monospace);
+  font-size: 0.78rem;
+  line-height: 1.5;
+  padding: 10px 12px;
+  border: 1px solid var(--yd-border);
+  border-radius: var(--yd-radius-sm, 9px);
+  background: var(--yd-surface-strong);
+  white-space: pre;
+  overflow-x: auto;
+}
+
+/* -- Controls --------------------------------------------------------------
+ *
+ * Yieldo has no shared button class: each screen has declared its own, and
+ * this environment declares one set for its six screens rather than six more.
+ * Same geometry and same tokens as the ones already in the app (compare
+ * `.yd-goals__add`), so nothing here looks like a different application.
+ */
+
+.yd-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 0 var(--yd-space-md, 14px);
+  border: 1px solid var(--yd-border-control);
+  border-radius: var(--yd-radius-sm, 9px);
+  background: transparent;
+  color: var(--yd-text);
+  font: inherit;
+  font-size: 0.84rem;
+  text-decoration: none;
+  cursor: pointer;
+  transition: border-color var(--yd-motion-fast, 140ms) var(--yd-ease, ease);
+}
+
+.yd-button:hover:not(:disabled) { border-color: var(--yd-accent); }
+.yd-button:focus-visible { outline: 2px solid var(--yd-accent); outline-offset: 2px; }
+.yd-button:disabled { opacity: 0.55; cursor: not-allowed; }
+
+.yd-button--primary {
+  border-color: color-mix(in srgb, var(--yd-accent) 55%, transparent);
+  color: var(--yd-accent);
+  font-weight: 600;
+}
+
+/* The emergency stop. A flat tint and a hairline, never a gradient, and the
+   word « Arrêt d'urgence » is what names it — the colour is a reading aid. */
+.yd-button--danger {
+  border-color: color-mix(in srgb, var(--yd-negative) 55%, transparent);
+  color: var(--yd-negative);
+  font-weight: 600;
+}
+
+.yd-button--danger:hover:not(:disabled) { border-color: var(--yd-negative); }
+
+.yd-button--quiet {
+  min-height: 30px;
+  padding: 0 10px;
+  border-color: transparent;
+  color: var(--yd-text-muted);
+  font-size: 0.78rem;
+}
+
+.yd-button--quiet:hover { border-color: var(--yd-border-control); }
+
+.yd-input,
+.yd-select {
+  min-height: 36px;
+  padding: 0 10px;
+  border: 1px solid var(--yd-border-control);
+  border-radius: var(--yd-radius-sm, 9px);
+  background: var(--yd-surface-strong);
+  color: var(--yd-text);
+  font: inherit;
+  font-size: 0.86rem;
+  inline-size: 100%;
+}
+
+.yd-input.yd-num { font-variant-numeric: tabular-nums; text-align: right; }
+
+.yd-input:focus-visible,
+.yd-select:focus-visible {
+  outline: 2px solid var(--yd-accent);
+  outline-offset: 1px;
+}
+
+.yd-textarea {
+  min-block-size: 76px;
+  padding: 8px 10px;
+  border: 1px solid var(--yd-border-control);
+  border-radius: var(--yd-radius-sm, 9px);
+  background: var(--yd-surface-strong);
+  color: var(--yd-text);
+  font: inherit;
+  font-size: 0.86rem;
+  inline-size: 100%;
+  resize: vertical;
+}

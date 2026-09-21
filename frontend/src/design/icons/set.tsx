@@ -705,3 +705,128 @@ export function EyeOffIcon(props: IconProps) {
     </Icon>
   );
 }
+
+/* -- Investissement ------------------------------------------------------- */
+
+/** L'environnement Investissement — une chandelle et son ombre, le marché. */
+export function InvestEnvironmentIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M7 3v3" />
+      <rect x="4" y="6" width="6" height="9" rx="1.5" />
+      <path d="M7 15v6" />
+      <path d="M17 3v5" />
+      <rect x="14" y="8" width="6" height="7" rx="1.5" />
+      <path d="M17 15v6" />
+    </Icon>
+  );
+}
+
+/** L'environnement Finances — le grand livre du foyer. */
+export function FinanceEnvironmentIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M5 4a1 1 0 0 1 1-1h11a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a1 1 0 0 1-1-1z" />
+      <path d="M5 17h14" />
+      <path d="M9 8h6" />
+      <path d="M9 12h6" />
+    </Icon>
+  );
+}
+
+/** Salle de contrôle — un cadran sous surveillance. */
+export function ControlRoomIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M3 13a9 9 0 0 1 18 0" />
+      <path d="M12 13l4-3" />
+      <path d="M3 13v3a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-3" />
+      <path d="M8 21h8" />
+    </Icon>
+  );
+}
+
+/** Décisions — un embranchement, une voie choisie. */
+export function DecisionsIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M6 3v6a3 3 0 0 0 3 3h9" />
+      <path d="M15 9l3 3-3 3" />
+      <path d="M6 12v9" />
+      <circle cx="6" cy="3" r="0" />
+    </Icon>
+  );
+}
+
+/** Mandat — un document scellé : ce qui est autorisé, et rien d'autre. */
+export function MandateIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M6 3h8l5 5v9a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3V6a3 3 0 0 1 3-3z" />
+      <path d="M14 3v5h5" />
+      <circle cx="11" cy="14" r="2.5" />
+      <path d="M11 16.5V19" />
+    </Icon>
+  );
+}
+
+/** Courtiers — deux bâtiments, la place de marché. */
+export function BrokersIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M3 21h18" />
+      <path d="M5 21V9l5-3 5 3v12" />
+      <path d="M15 21V13h4v8" />
+      <path d="M9 12h2" />
+      <path d="M9 16h2" />
+    </Icon>
+  );
+}
+
+/** Modèle de décision — une puce qui tranche. */
+export function DecisionModelIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <rect x="7" y="7" width="10" height="10" rx="2" />
+      <path d="M10 3v4" />
+      <path d="M14 3v4" />
+      <path d="M10 17v4" />
+      <path d="M14 17v4" />
+      <path d="M3 10h4" />
+      <path d="M3 14h4" />
+      <path d="M17 10h4" />
+      <path d="M17 14h4" />
+    </Icon>
+  );
+}
+
+/** Supervision — un regard sur une trace scellée. */
+export function OversightIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6-10-6-10-6z" />
+      <circle cx="12" cy="12" r="2.5" />
+    </Icon>
+  );
+}
+
+/** Arrêt d'urgence — la corde qu'on tire. */
+export function HaltIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <circle cx="12" cy="12" r="9" />
+      <rect x="9" y="9" width="6" height="6" rx="1" />
+    </Icon>
+  );
+}
+
+/** Bac à sable — un marché fabriqué, sans argent derrière. */
+export function SandboxIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M4 20V7a3 3 0 0 1 3-3h10a3 3 0 0 1 3 3v13" />
+      <path d="M4 20h16" />
+      <path d="M8 16l3-4 2.5 2.5L17 9" />
+    </Icon>
+  );
+}

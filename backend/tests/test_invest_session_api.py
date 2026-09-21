@@ -89,6 +89,34 @@ def test_a_day_needs_a_model_a_broker_and_a_running_pipeline(client, ready):
     assert "Modèle de décision" in refused.json()["detail"]
 
 
+def test_a_day_picks_the_synthetic_book_even_behind_a_recorded_one(client, ready):
+    """A household whose first paper venue reads Yieldo's recorded prices
+    (not replayable) still gets its day, on the synthetic book connected
+    beside it -- the first day ever asked for was refused for this."""
+    headers, _ = ready
+    # The synthetic book from `ready` is deleted; a recorded one takes the
+    # first id, then a synthetic one is connected after it.
+    venues = client.get("/api/invest/venues", headers=headers).json()
+    client.delete(f"/api/invest/venues/{venues[0]['id']}", headers=headers)
+    client.post("/api/invest/venues", headers=headers, json={
+        "venue": "internal", "mode": "paper", "label": "TEST",
+        "slippage_bps": 10, "price_source": "recorded",
+    })
+    refused = client.post("/api/invest/sessions", headers=headers, json={"steps": 4})
+    assert refused.status_code == 409
+    assert "Marché synthétique" in refused.json()["detail"]
+
+    client.post("/api/invest/venues", headers=headers, json={
+        "venue": "internal", "mode": "paper", "label": "Synthétique",
+        "slippage_bps": 10, "price_source": "synthetic",
+    })
+    started = client.post("/api/invest/sessions", headers=headers, json={"steps": 4})
+    assert started.status_code == 202
+    detail = client.get(f"/api/invest/sessions/{started.json()['id']}", headers=headers).json()
+    assert detail["status"] == "finished"
+    assert len(detail["closes"]["AAPL"]) == 4
+
+
 def test_steps_are_bounded(client, ready):
     headers, _ = ready
     assert client.post("/api/invest/sessions", headers=headers,

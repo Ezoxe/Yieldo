@@ -19,7 +19,6 @@ from datetime import UTC, date, datetime
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.api.invest_common import venue_for
 from app.api.invest_policy import policy_for
 from app.db import SessionLocal, get_db
 from app.decision.contract import DecisionError
@@ -30,6 +29,7 @@ from app.models import (
     TradeDecision,
     TradeOrder,
     TradingSession,
+    TradingVenue,
     User,
 )
 from app.schemas.invest import (
@@ -58,6 +58,34 @@ def session_factory() -> Callable[[], Session]:
     """How the background task opens its own database session. A dependency
     so the tests can hand it the in-memory one."""
     return SessionLocal
+
+
+def synthetic_book_for(db: Session, user: User) -> TradingVenue:
+    """The paper venue a day can be replayed on: Yieldo's own book reading the
+    synthetic market. Not simply the first paper venue -- a household whose
+    first book reads recorded prices would otherwise be refused a day it
+    could have had on the synthetic book beside it."""
+    row = (
+        db.query(TradingVenue)
+        .filter(
+            TradingVenue.user_id == user.id,
+            TradingVenue.mode == "paper",
+            TradingVenue.enabled.is_(True),
+            TradingVenue.venue == "internal",
+            TradingVenue.price_source == "synthetic",
+        )
+        .order_by(TradingVenue.id.asc())
+        .first()
+    )
+    if row is None:
+        raise HTTPException(
+            status_code=409,
+            detail="Une journée simulée se joue sur le carnet simulé de Yieldo avec la source "
+                   "« Marché synthétique (toujours ouvert) », le seul marché rejouable. "
+                   "Connectez-le dans Investissement → Courtiers, à côté de votre courtier "
+                   "actuel si besoin.",
+        )
+    return row
 
 
 def _out(row: TradingSession) -> SessionOut:
@@ -118,14 +146,7 @@ def start(
         provider = build_provider(settings_row)
     except DecisionError as exc:
         raise HTTPException(status_code=409, detail=exc.message) from exc
-    venue_row = venue_for(db, user, "paper")
-    if venue_row.price_source != "synthetic":
-        raise HTTPException(
-            status_code=409,
-            detail="Une journée simulée se joue sur le marché synthétique du carnet simulé "
-                   "de Yieldo. Le courtier papier connecté lit d'autres cours : connectez le "
-                   "carnet simulé dans Investissement → Courtiers.",
-        )
+    venue_row = synthetic_book_for(db, user)
 
     seed = payload.seed if payload.seed is not None else secrets.randbelow(SEED_SPACE)
     try:

@@ -35,16 +35,43 @@ export function formatLatency(ms: number | null | undefined): string {
   return `${(ms / 1000).toLocaleString("fr-FR", { maximumFractionDigits: 1 })}${NBSP}s`;
 }
 
+/** How many decimals a unit count is shown to. See `formatQuantity`. */
+export const QUANTITY_DECIMALS = 8;
+
 /**
- * A unit count as stored: the backend keeps eighteen decimal places, and a
- * screen showing `0.010000000000000000 BTC` is showing a data structure rather
- * than a quantity. Trailing zeros go; the significant digits stay, all of them.
+ * A unit count, as a person reads one.
+ *
+ * The backend stores eighteen decimal places, because a token with eighteen of
+ * them exists and rounding one away in the ledger would be real money lost.
+ * On screen that is a data structure, not a quantity: « 11.207306749155836804 »
+ * was really on the positions table, with a decimal POINT in a French
+ * interface, and it told a reader nothing that « 11,2073067 » does not.
+ *
+ * So this shortens for display only — eight decimals, trailing zeros gone,
+ * French decimal comma — and the caller puts the stored value on the element's
+ * `title` so the exact figure is never actually hidden. That is the same
+ * "convert at the display boundary" rule the rest of the app follows for
+ * money; nothing here ever feeds back into a computation.
  */
-export function formatQuantity(raw: string | null | undefined): string {
+export function formatQuantity(
+  raw: string | null | undefined, decimals: number = QUANTITY_DECIMALS,
+): string {
   if (!raw) return "—";
   if (!raw.includes(".")) return raw;
-  const trimmed = raw.replace(/0+$/, "").replace(/\.$/, "");
-  return trimmed === "" || trimmed === "-" ? "0" : trimmed;
+  const [whole, fraction = ""] = raw.split(".");
+  const kept = fraction.slice(0, decimals).replace(/0+$/, "");
+  if (kept === "") return whole === "" || whole === "-" ? "0" : whole;
+  return `${whole},${kept}`;
+}
+
+/** Whether `formatQuantity` had to drop digits — the caller then shows the
+ *  stored value on `title` rather than pretending there were none. */
+export function quantityIsShortened(
+  raw: string | null | undefined, decimals: number = QUANTITY_DECIMALS,
+): boolean {
+  if (!raw || !raw.includes(".")) return false;
+  const fraction = raw.split(".")[1] ?? "";
+  return fraction.slice(decimals).replace(/0+$/, "") !== "";
 }
 
 /** A timestamp as a French time of day, for a feed read in one sitting. */

@@ -51,10 +51,16 @@ export function PipelineFunnel({ examined, stages }: PipelineFunnelProps) {
                 role="img"
                 aria-label={`${stage.count} sur ${examined}, soit ${share} %`}
               >
-                <span
-                  className={`yd-funnel__bar yd-funnel__bar--${OUTCOME_TONE[stage.outcome]}`}
-                  style={{ inlineSize: `${(stage.count / total) * 100}%` }}
-                />
+                {/* A stage that held nothing draws NOTHING. The bar has a
+                    two-pixel minimum so a real but tiny stage stays visible,
+                    and that minimum turned zero into a mark claiming a stage
+                    had happened. */}
+                {stage.count > 0 ? (
+                  <span
+                    className={`yd-funnel__bar yd-funnel__bar--${OUTCOME_TONE[stage.outcome]}`}
+                    style={{ inlineSize: `${(stage.count / total) * 100}%` }}
+                  />
+                ) : null}
               </span>
               <span className="yd-funnel__count yd-num">{stage.count}</span>
               <span className="yd-funnel__share yd-num">{share}&nbsp;%</span>

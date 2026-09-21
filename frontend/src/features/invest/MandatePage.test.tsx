@@ -9,11 +9,12 @@ import { MemoryRouter } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ThemeProvider } from "../../app/ThemeProvider";
+import type { InvestPolicy } from "../../lib/types";
 import { ARM_PHRASE, MandatePage } from "./MandatePage";
 
 const fetchMock = vi.fn();
 
-const policy = {
+const policy: InvestPolicy = {
   max_position_cents: 200_000, max_exposure_cents: 1_000_000,
   max_order_notional_cents: 200_000, max_daily_loss_cents: 50_000,
   min_cash_buffer_cents: 0, min_order_notional_cents: 1_000,
@@ -40,7 +41,7 @@ function json(body: unknown, status = 200) {
   });
 }
 
-function setupFetch(patch: Partial<typeof policy> = {}, handlers: Record<string, () => Response> = {}) {
+function setupFetch(patch: Partial<InvestPolicy> = {}, handlers: Record<string, () => Response> = {}) {
   fetchMock.mockImplementation((input: string, init?: RequestInit) => {
     const url = new URL(typeof input === "string" ? input : String(input), "http://localhost");
     const key = `${init?.method ?? "GET"} ${url.pathname}`;
@@ -107,8 +108,11 @@ describe("MandatePage", () => {
     setupFetch();
     renderPage();
     expect(await screen.findByDisplayValue("AAPL, BTC-EUR")).toBeInTheDocument();
-    expect(screen.getByLabelText(/Plafond par position/)).toHaveValue("2000.00");
+    // A French interface types a comma. `parseCents` reads either, so the
+    // field shows the reader the notation they are expected to use.
+    expect(screen.getByLabelText(/Plafond par position/)).toHaveValue("2000,00");
     expect(screen.getByLabelText(/Repli maximal/)).toHaveValue("20");
+    expect(screen.getByLabelText(/Probabilité minimale/)).toHaveValue("55");
   });
 
   it("publishes the rules the model cannot get round", async () => {
@@ -159,6 +163,25 @@ describe("MandatePage", () => {
     renderPage();
     expect(await screen.findByText(/il reste environ 2[45] minute/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Désarmer maintenant" })).toBeInTheDocument();
+  });
+
+  it("reads a comma back as cents without changing the figure", async () => {
+    const put = vi.fn(() => json(policy));
+    setupFetch({}, { "PUT /api/invest/policy": put });
+    const user = userEvent.setup();
+    renderPage();
+
+    const field = await screen.findByLabelText(/Plafond par position/);
+    await user.clear(field);
+    await user.type(field, "1234,56");
+    await user.click(screen.getByRole("button", { name: "Enregistrer le mandat" }));
+    await waitFor(() => expect(put).toHaveBeenCalled());
+
+    const call = fetchMock.mock.calls.find(
+      ([, init]) => (init as RequestInit | undefined)?.method === "PUT",
+    );
+    const body = JSON.parse((call![1] as RequestInit).body as string);
+    expect(body.max_position_cents).toBe(123_456);
   });
 
   it("sends the limits as cents and the rates as basis points", async () => {

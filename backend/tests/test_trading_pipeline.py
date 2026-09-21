@@ -48,9 +48,15 @@ def account(db):
         minimum_conviction=0, minimum_probability_bps=0, max_volatility_bps=10_000,
         full_conviction_share_bps=10_000, autonomy="paper",
     )
+    # 527 is not an arbitrary step: it is one at which the synthetic market
+    # makes the deterministic provider buy BOTH whitelisted instruments, so a
+    # test asserting on an order has an order to assert on. Picked by
+    # searching the series rather than guessed — see
+    # `trading/sandbox.py` on why the market has to move enough to trade at
+    # all.
     venue = TradingVenue(
         user_id=user.id, venue="internal", mode="paper", label="Bac à sable",
-        slippage_bps=10, price_source="synthetic", sandbox_step=500,
+        slippage_bps=10, price_source="synthetic", sandbox_step=527,
     )
     balance = TradingAccount(
         user_id=user.id, mode="paper", currency="EUR",
@@ -297,9 +303,9 @@ def test_two_cycles_at_the_same_step_see_the_same_market(db, account):
     """Determinism: the difference between two runs is the mandate, never the
     market."""
     _, _, venue, _ = account
-    venue.sandbox_step = 400
+    venue.sandbox_step = 527
     first = run(db, account)
-    venue.sandbox_step = 400
+    venue.sandbox_step = 527
     second = run(db, account)
     db.commit()
     first_features = [o.decision.features for o in first.outcomes]

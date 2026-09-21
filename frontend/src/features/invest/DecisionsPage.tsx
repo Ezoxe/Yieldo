@@ -12,6 +12,17 @@ import "./invest.css";
 const OUTCOMES: DecisionOutcome[] = ["skipped", "held", "refused", "ordered", "failed"];
 
 /**
+ * How many rows are drawn before the reader asks for more.
+ *
+ * The feed used to render everything the route returned, and a pipeline run
+ * sixty times over five instruments made a page twelve thousand pixels tall —
+ * measured in a browser, not guessed. Fifty rows is a screenful or two, which
+ * is what a feed is for; the rest is one click away and the count above says
+ * how much of it there is.
+ */
+const PAGE = 50;
+
+/**
  * Every decision the pilot has taken, filterable, each one unfoldable.
  *
  * **Including the ones where nothing happened.** A feed that showed only the
@@ -26,6 +37,7 @@ const OUTCOMES: DecisionOutcome[] = ["skipped", "held", "refused", "ordered", "f
 export function DecisionsPage() {
   const [outcome, setOutcome] = useState<DecisionOutcome | "">("");
   const [symbol, setSymbol] = useState("");
+  const [shown, setShown] = useState(PAGE);
 
   const decisions = useApiQuery<InvestDecision[]>("/invest/decisions", {
     limit: 200,
@@ -54,7 +66,10 @@ export function DecisionsPage() {
           <select
             className="yd-select"
             value={outcome}
-            onChange={(event) => setOutcome(event.target.value as DecisionOutcome | "")}
+            onChange={(event) => {
+              setOutcome(event.target.value as DecisionOutcome | "");
+              setShown(PAGE);
+            }}
           >
             <option value="">Toutes</option>
             {OUTCOMES.map((value) => (
@@ -69,7 +84,10 @@ export function DecisionsPage() {
           <input
             className="yd-input"
             value={symbol}
-            onChange={(event) => setSymbol(event.target.value)}
+            onChange={(event) => {
+              setSymbol(event.target.value);
+              setShown(PAGE);
+            }}
             placeholder="BTC-EUR"
           />
         </label>
@@ -82,9 +100,21 @@ export function DecisionsPage() {
       ) : (
         <>
           <p className="yd-note">
-            {decisions.data.length} décision(s) affichée(s).
+            {decisions.data.length} décision(s) retenue(s) par ces filtres,{" "}
+            {Math.min(shown, decisions.data.length)} affichée(s).
           </p>
-          <DecisionFeed decisions={decisions.data} />
+          <DecisionFeed decisions={decisions.data} limit={shown} />
+          {decisions.data.length > shown ? (
+            <div className="yd-invest-actions">
+              <button
+                type="button"
+                className="yd-button"
+                onClick={() => setShown((current) => current + PAGE)}
+              >
+                Afficher {Math.min(PAGE, decisions.data.length - shown)} de plus
+              </button>
+            </div>
+          ) : null}
         </>
       )}
     </div>

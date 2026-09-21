@@ -3,9 +3,35 @@ import { useState } from "react";
 import { useApiQuery } from "../../lib/useApiQuery";
 import type { InvestDecision, InvestDecisionDetail } from "../../lib/types";
 import { DecisionDetail } from "./DecisionDetail";
-import { formatTime } from "./format";
-import { OUTCOME_SHORT, OUTCOME_TONE, RULE_LABELS, labelFor } from "./vocabulary";
+import { formatProbability, formatTime } from "./format";
+import { OUTCOME_LABELS, OUTCOME_SHORT, OUTCOME_TONE } from "./vocabulary";
 import "./invest.css";
+
+/**
+ * What a row says beside its badge.
+ *
+ * The backend writes a French sentence on every decision that was STOPPED by
+ * something — a prefilter, a threshold, a risk rule, a failure — because a
+ * refusal has to name its cause. A decision that went all the way through was
+ * stopped by nothing, so it carries no sentence, and the row was printing an
+ * em dash: a line that said less than the silence around it.
+ *
+ * So the fallback is built from the answers the row already carries. It is not
+ * a summary invented here — every part of it is a stored typed answer.
+ */
+function summaryOf(decision: InvestDecision): string {
+  if (decision.message) return decision.message;
+  const direction = decision.answers?.direction?.choice;
+  const conviction = decision.answers?.conviction?.score_value;
+  const probability = decision.answers?.continuation?.probability_bps;
+  if (!direction) return OUTCOME_LABELS[decision.outcome];
+  const parts = [direction];
+  if (conviction !== null && conviction !== undefined) parts.push(`conviction ${conviction}/10`);
+  if (probability !== null && probability !== undefined) {
+    parts.push(`probabilité ${formatProbability(probability)}`);
+  }
+  return parts.join(" — ");
+}
 
 interface DecisionFeedProps {
   decisions: InvestDecision[];
@@ -53,7 +79,7 @@ export function DecisionFeed({ decisions, limit }: DecisionFeedProps) {
               <span className={`yd-pill yd-pill--${OUTCOME_TONE[decision.outcome]}`}>
                 {OUTCOME_SHORT[decision.outcome]}
               </span>{" "}
-              {decision.message ?? labelFor(RULE_LABELS, decision.rule)}
+              {summaryOf(decision)}
             </span>
             <span className="yd-feed__time">{formatTime(decision.created_at)}</span>
           </button>

@@ -282,7 +282,10 @@ def overview(
         .limit(window)
         .all()
     )
-    latencies = sorted(row.latency_ms for row in rows if row.latency_ms > 0)
+    # Zeros included: a constrained small model really can answer inside a
+    # millisecond, and reporting « — » for the fastest possible model would
+    # hide the one property a System One model is chosen for.
+    latencies = sorted(row.latency_ms for row in rows)
     report = evaluate_calibration(calibration_observations(rows))
 
     equity = service.equity_cents(account, positions, prices)

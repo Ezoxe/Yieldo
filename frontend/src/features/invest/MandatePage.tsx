@@ -26,9 +26,35 @@ export const ARM_PHRASE = "JE CONFIRME L'EXECUTION REELLE";
 
 const AUTONOMIES: InvestAutonomy[] = ["observer", "paper", "live"];
 
-/** Cents in, euros on screen, cents back out. Never a float on the way. */
+/**
+ * Cents in, euros in a French field, cents back out.
+ *
+ * Integer arithmetic and a decimal COMMA. `toFixed(2)` was here first and put
+ * « 2000.00 » in every money field of a French interface — a defect on screen
+ * before it is anything else. `parseCents` reads a comma or a dot, so nothing
+ * downstream changes; what changes is that the field now shows the reader the
+ * notation they are expected to type.
+ *
+ * No thousands separator on purpose: this is an editable field, and a value
+ * the reader has to un-group before editing is worse than an ungrouped one.
+ * The read-only figures on these screens go through `formatCents`, which does
+ * group them.
+ */
 function euros(cents: number): string {
-  return (cents / 100).toFixed(2);
+  const sign = cents < 0 ? "-" : "";
+  const whole = Math.trunc(Math.abs(cents) / 100);
+  const fraction = Math.abs(cents) % 100;
+  return `${sign}${whole},${String(fraction).padStart(2, "0")}`;
+}
+
+/** A rate in basis points as a French percentage for an editable field. */
+function percent(bps: number): string {
+  const whole = Math.trunc(Math.abs(bps) / 100);
+  const fraction = Math.abs(bps) % 100;
+  const sign = bps < 0 ? "-" : "";
+  return fraction === 0
+    ? `${sign}${whole}`
+    : `${sign}${whole},${String(fraction).padStart(2, "0")}`;
 }
 
 interface Draft {
@@ -59,16 +85,16 @@ function toDraft(policy: InvestPolicy): Draft {
     min_order_notional: euros(policy.min_order_notional_cents),
     max_daily_loss: euros(policy.max_daily_loss_cents),
     min_cash_buffer: euros(policy.min_cash_buffer_cents),
-    max_drawdown_bps: String(policy.max_drawdown_bps / 100),
+    max_drawdown_bps: percent(policy.max_drawdown_bps),
     max_orders_per_day: String(policy.max_orders_per_day),
     allowed_symbols: policy.allowed_symbols.join(", "),
     allow_short: policy.allow_short,
     allow_leverage: policy.allow_leverage,
     allow_limit_orders: policy.allow_limit_orders,
     minimum_conviction: String(policy.minimum_conviction),
-    minimum_probability_bps: String(policy.minimum_probability_bps / 100),
-    max_volatility_bps: String(policy.max_volatility_bps / 100),
-    full_conviction_share_bps: String(policy.full_conviction_share_bps / 100),
+    minimum_probability_bps: percent(policy.minimum_probability_bps),
+    max_volatility_bps: percent(policy.max_volatility_bps),
+    full_conviction_share_bps: percent(policy.full_conviction_share_bps),
     autonomy: policy.autonomy,
   };
 }

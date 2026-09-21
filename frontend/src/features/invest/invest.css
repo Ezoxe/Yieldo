@@ -105,7 +105,10 @@
 
 .yd-funnel__row {
   display: grid;
-  grid-template-columns: minmax(8ch, 15ch) 1fr auto auto;
+  /* 22ch holds « Écarté avant le modèle », the longest stage name. It was 15ch
+     and the label was clipped to « Écarté avant le mod… » — a stage nobody
+     could read is a stage nobody can act on. */
+  grid-template-columns: minmax(10ch, 22ch) 1fr auto auto;
   align-items: center;
   gap: 10px;
   font-size: 0.82rem;
@@ -283,12 +286,18 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* Two lines, not one. A refusal's sentence names the rule AND the figure that
+   met it, and one line clipped « …pour un plafond… » exactly where the number
+   was. The detail panel still holds the whole of it. */
 .yd-feed__message {
   font-size: 0.82rem;
+  line-height: 1.4;
   color: var(--yd-text-muted);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .yd-feed__time {
@@ -309,7 +318,8 @@
   }
   .yd-feed__message {
     grid-column: 1 / -1;
-    white-space: normal;
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
   }
 }
 

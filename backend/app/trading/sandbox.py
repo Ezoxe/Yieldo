@@ -37,11 +37,23 @@ _CONTEXT = Context(prec=60, rounding=ROUND_HALF_UP)
 
 BPS_WHOLE = 10_000
 
-# Three superposed cycles, in steps: a slow one that gives a week its shape, a
-# medium one that gives a session its swings, and a fast one that keeps two
-# consecutive closes from ever being equal. Coprime periods, so the sum does
-# not repeat until their product.
-_CYCLES = ((541, 900), (97, 350), (17, 120))
+# Three superposed cycles, as (period in steps, amplitude in bps): a slow one
+# that gives a stretch its shape, a medium one that gives a session its swings,
+# and a fast one that keeps two consecutive closes from ever being equal. All
+# three periods are prime, so the sum does not repeat until their product.
+#
+# **The periods are short on purpose, and the reason is a measured defect.**
+# They were 541/97/17 at first, which produced a market so gentle that the
+# default indicator windows (10 and 30 closes) never saw a trend worth the
+# name: over thirty steps of a 541-step triangle the price moves about a
+# hundred basis points, the two moving averages sit on top of each other, and
+# a hundred and fifty cycles of the sandbox produced a hundred and fifty
+# « ne rien faire » and not one order. A sandbox that never trades cannot
+# teach anything, and cannot serve as the baseline `decision/replay.py` exists
+# to provide. At 89/29/7 a thirty-close window spans real structure, so the
+# indicators cross, the thresholds bite, and both the orders AND the refusals
+# actually happen.
+_CYCLES = ((89, 900), (29, 350), (7, 120))
 
 # How far the hash noise may move a close, in bps. Small against the cycles:
 # noise is what stops an indicator from being trivially predictable, not what

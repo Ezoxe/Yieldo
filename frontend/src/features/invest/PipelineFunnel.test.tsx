@@ -40,7 +40,7 @@ describe("PipelineFunnel", () => {
     expect(bar.style.inlineSize).toBe("50%");
   });
 
-  it("keeps a stage that held nothing visible rather than dropping it", () => {
+  it("keeps a stage that held nothing in the list rather than dropping it", () => {
     render(<PipelineFunnel examined={20} stages={STAGES} />);
     const rows = screen.getAllByRole("listitem");
     expect(rows).toHaveLength(5);
@@ -52,6 +52,15 @@ describe("PipelineFunnel", () => {
     expect(screen.getByRole("img", { name: "10 sur 20, soit 50 %" })).toBeInTheDocument();
   });
 
+  it("draws nothing at all for a stage that held nothing", () => {
+    // The bar has a two-pixel minimum so a real but tiny stage stays visible,
+    // and that minimum turned zero into a mark claiming a stage had happened.
+    render(<PipelineFunnel examined={20} stages={STAGES} />);
+    const rows = screen.getAllByRole("listitem");
+    expect(rows[4].querySelector(".yd-funnel__bar")).toBeNull();
+    expect(rows[1].querySelector(".yd-funnel__bar")).not.toBeNull();
+  });
+
   it("does not divide by zero on a pipeline that has examined nothing", () => {
     render(
       <PipelineFunnel
@@ -59,7 +68,8 @@ describe("PipelineFunnel", () => {
         stages={[{ outcome: "skipped" as const, count: 0 }]}
       />,
     );
-    const bar = screen.getByRole("listitem").querySelector(".yd-funnel__bar") as HTMLElement;
-    expect(bar.style.inlineSize).toBe("0%");
+    const row = screen.getByRole("listitem");
+    expect(row.querySelector(".yd-funnel__bar")).toBeNull();
+    expect(within(row).getByText("0")).toBeInTheDocument();
   });
 });

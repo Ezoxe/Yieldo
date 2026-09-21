@@ -14,10 +14,10 @@ import {
   DecisionModelIcon,
   DecisionsIcon,
   HaltIcon,
-  MandateIcon,
   OversightIcon,
   SandboxIcon,
 } from "../../design/icons";
+import { parseCents } from "../../design/theme";
 import { ApiError, api } from "../../lib/api";
 import { useApiQuery, useInvalidate } from "../../lib/useApiQuery";
 import type { InvestDecision, InvestOverview, InvestRun } from "../../lib/types";
@@ -29,6 +29,7 @@ import {
   formatCents,
   formatLatency,
   formatQuantity,
+  quantityIsShortened,
   remainingMinutes,
 } from "./format";
 import { AUTONOMY_EXPLAINED, AUTONOMY_LABELS, MODE_LABELS, VENUE_LABELS, labelFor } from "./vocabulary";
@@ -59,6 +60,7 @@ export function ControlRoomPage() {
   const [lastRun, setLastRun] = useState<InvestRun | null>(null);
   const [haltReason, setHaltReason] = useState("");
   const [haltOpen, setHaltOpen] = useState(false);
+  const [funding, setFunding] = useState("10000.00");
 
   const refresh = async () => {
     await Promise.all([invalidate("/invest/overview"), invalidate("/invest/decisions")]);
@@ -89,6 +91,24 @@ export function ControlRoomPage() {
       await refresh();
     } catch (error) {
       setRunError(error instanceof ApiError ? error.detail : "L'arrêt n'a pas pu être enregistré.");
+    }
+  };
+
+  // Crediting the sandbox is the same route that resets it: putting the paper
+  // account back to a starting balance IS funding it. A fresh account starts
+  // at zero, which is correct — nobody should be handed imaginary money by
+  // default — but it means the first thing a household needs on this screen is
+  // a way to put some there.
+  const fund = async () => {
+    const cents = parseCents(funding);
+    if (cents === null || cents < 0) return;
+    try {
+      await api.post(`/invest/sandbox/reset?cash_cents=${cents}`, {});
+      await refresh();
+    } catch (error) {
+      setRunError(
+        error instanceof ApiError ? error.detail : "Le bac à sable n'a pas pu être crédité.",
+      );
     }
   };
 
@@ -170,6 +190,32 @@ export function ControlRoomPage() {
         </div>
       ) : null}
 
+      {data.mode === "paper" && data.equity_cents === 0 ? (
+        <div className="yd-note yd-note--warning" role="status">
+          <strong>Le bac à sable est vide.</strong> Un compte papier neuf ne contient rien —
+          personne ne devrait recevoir de l'argent imaginaire par défaut. Créditez-le pour que
+          le pilote ait de quoi travailler&nbsp;; c'est de l'argent fictif, et le remettre à
+          zéro efface aussi les positions.
+          <div className="yd-invest-grid" style={{ marginTop: 8 }}>
+            <label className="yd-invest-field">
+              <span>Montant de départ (€)</span>
+              <input
+                className="yd-input yd-num"
+                inputMode="decimal"
+                value={funding}
+                onChange={(event) => setFunding(event.target.value)}
+              />
+            </label>
+          </div>
+          <div className="yd-invest-actions" style={{ marginTop: 8 }}>
+            <button type="button" className="yd-button yd-button--primary"
+                    onClick={() => void fund()}>
+              Créditer le bac à sable
+            </button>
+          </div>
+        </div>
+      ) : null}
+
       <div className="yd-invest-actions">
         <button
           type="button"
@@ -238,7 +284,7 @@ export function ControlRoomPage() {
       ) : null}
 
       <BentoGrid>
-        <BentoCell span={{ base: 1, md: 6, lg: 5 }}>
+        <BentoCell span={{ base: 1, md: 6, lg: 4 }}>
           <PanelHead icon={SandboxIcon} subtitle={`En ${MODE_LABELS[data.mode].toLowerCase()}`}>
             Le compte
           </PanelHead>
@@ -281,7 +327,7 @@ export function ControlRoomPage() {
           </div>
         </BentoCell>
 
-        <BentoCell span={{ base: 1, md: 6, lg: 7 }}>
+        <BentoCell span={{ base: 1, md: 6, lg: 8 }}>
           <PanelHead
             icon={DecisionsIcon}
             subtitle={`${data.examined} instrument(s) examiné(s)`}
@@ -311,6 +357,68 @@ export function ControlRoomPage() {
           </p>
         </BentoCell>
 
+        <BentoCell span={{ base: 1, md: 6, lg: 12 }}>
+          <PanelHead icon={BrokersIcon} subtitle={`${data.positions.length} ligne(s)`}>
+            Les positions
+          </PanelHead>
+          {data.positions.length === 0 ? (
+            <p className="yd-note">Aucune position ouverte en ce moment.</p>
+          ) : (
+            <div className="yd-scroll-x">
+              <table className="yd-table">
+                <caption className="yd-visually-hidden">
+                  Les positions tenues par le pilotage, avec leur valeur et leur plus-value
+                </caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Instrument</th>
+                    <th scope="col" className="yd-num">Quantité</th>
+                    <th scope="col" className="yd-num">Prix de revient</th>
+                    <th scope="col" className="yd-num">Cours</th>
+                    <th scope="col" className="yd-num">Valeur</th>
+                    <th scope="col" className="yd-num">Latent</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.positions.map((position) => (
+                    <tr key={position.symbol}>
+                      <th scope="row">{position.symbol}</th>
+                      <td
+                        className="yd-num"
+                        title={
+                          quantityIsShortened(position.quantity)
+                            ? `Quantité exacte enregistrée : ${position.quantity}`
+                            : undefined
+                        }
+                      >
+                        {formatQuantity(position.quantity)}
+                      </td>
+                      <td className="yd-num">{formatCents(position.average_price_cents)}</td>
+                      {/* A price that could not be read is said, never replaced
+                          by a stale one. */}
+                      <td className="yd-num">
+                        {position.price_cents === null
+                          ? "cours indisponible"
+                          : formatCents(position.price_cents)}
+                      </td>
+                      <td className="yd-num">
+                        {position.market_value_cents === null
+                          ? "—"
+                          : formatCents(position.market_value_cents)}
+                      </td>
+                      <td className="yd-num">
+                        {position.unrealised_pnl_cents === null
+                          ? "—"
+                          : formatCents(position.unrealised_pnl_cents, { signed: true })}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </BentoCell>
+
         <BentoCell span={{ base: 1, md: 6, lg: 5 }}>
           <PanelHead
             icon={DecisionModelIcon}
@@ -338,59 +446,6 @@ export function ControlRoomPage() {
         </BentoCell>
 
         <BentoCell span={{ base: 1, md: 6, lg: 7 }}>
-          <PanelHead icon={BrokersIcon} subtitle={`${data.positions.length} ligne(s)`}>
-            Les positions
-          </PanelHead>
-          {data.positions.length === 0 ? (
-            <p className="yd-note">Aucune position ouverte en ce moment.</p>
-          ) : (
-            <div className="yd-scroll-x">
-              <table className="yd-table">
-                <caption className="yd-visually-hidden">
-                  Les positions tenues par le pilotage, avec leur valeur et leur plus-value
-                </caption>
-                <thead>
-                  <tr>
-                    <th scope="col">Instrument</th>
-                    <th scope="col" className="yd-num">Quantité</th>
-                    <th scope="col" className="yd-num">Prix de revient</th>
-                    <th scope="col" className="yd-num">Cours</th>
-                    <th scope="col" className="yd-num">Valeur</th>
-                    <th scope="col" className="yd-num">Latent</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {data.positions.map((position) => (
-                    <tr key={position.symbol}>
-                      <th scope="row">{position.symbol}</th>
-                      <td className="yd-num">{formatQuantity(position.quantity)}</td>
-                      <td className="yd-num">{formatCents(position.average_price_cents)}</td>
-                      {/* A price that could not be read is said, never replaced
-                          by a stale one. */}
-                      <td className="yd-num">
-                        {position.price_cents === null
-                          ? "cours indisponible"
-                          : formatCents(position.price_cents)}
-                      </td>
-                      <td className="yd-num">
-                        {position.market_value_cents === null
-                          ? "—"
-                          : formatCents(position.market_value_cents)}
-                      </td>
-                      <td className="yd-num">
-                        {position.unrealised_pnl_cents === null
-                          ? "—"
-                          : formatCents(position.unrealised_pnl_cents, { signed: true })}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </BentoCell>
-
-        <BentoCell span={{ base: 1, md: 6, lg: 12 }}>
           <PanelHead
             icon={OversightIcon}
             subtitle="Les plus récentes"
@@ -411,10 +466,9 @@ export function ControlRoomPage() {
       </BentoGrid>
 
       <p className="yd-note">
-        Le mandat et ses limites se règlent dans <Link to="/invest/mandat">Mandat</Link>
-        {" "}<MandateIcon />, le modèle dans{" "}
-        <Link to="/invest/modele">Modèle de décision</Link>, et le journal scellé se vérifie
-        dans <Link to="/invest/supervision">Supervision</Link>.
+        Le mandat et ses limites se règlent dans <Link to="/invest/mandat">Mandat</Link>, le
+        modèle dans <Link to="/invest/modele">Modèle de décision</Link>, et le journal scellé
+        se vérifie dans <Link to="/invest/supervision">Supervision</Link>.
       </p>
     </div>
   );

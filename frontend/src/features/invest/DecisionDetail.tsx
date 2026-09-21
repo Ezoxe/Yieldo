@@ -14,34 +14,48 @@ interface DecisionDetailProps {
   detail: InvestDecisionDetail;
 }
 
-/** The indicators, in the order a reader builds a picture from them. */
+/**
+ * The indicators, in the order a reader builds a picture from them.
+ *
+ * `kind` distinguishes a rate that has a DIRECTION from one that is a level.
+ * A trend of +1,21 % and a momentum of −9,10 % are signed and must be: the
+ * sign is half the reading. An RSI, a volatility, a drawdown and a position in
+ * the channel are levels between 0 and 100 % — printing « +24,52 % » for an
+ * RSI invites the reader to take it for a rise of a quarter, which is not
+ * remotely what it says.
+ */
 const FEATURE_ROWS: Array<{
   key: keyof InvestDecisionDetail["features"];
   label: string;
-  kind: "cents" | "bps" | "count";
+  kind: "cents" | "signed" | "level" | "count";
   hint?: string;
 }> = [
   { key: "last_price_cents", label: "Dernier cours", kind: "cents" },
   { key: "sma_short_cents", label: "Moyenne courte", kind: "cents" },
   { key: "sma_long_cents", label: "Moyenne longue", kind: "cents" },
-  { key: "trend_bps", label: "Tendance", kind: "bps",
+  { key: "trend_bps", label: "Tendance", kind: "signed",
     hint: "L'écart entre les deux moyennes. Positif : la courte est au-dessus." },
-  { key: "momentum_bps", label: "Momentum", kind: "bps",
+  { key: "momentum_bps", label: "Momentum", kind: "signed",
     hint: "La variation sur la fenêtre de momentum." },
-  { key: "rsi_bps", label: "RSI", kind: "bps",
-    hint: "50 % : ni acheteurs ni vendeurs n'ont pris l'avantage sur la fenêtre." },
-  { key: "volatility_bps", label: "Volatilité", kind: "bps",
+  { key: "rsi_bps", label: "RSI", kind: "level",
+    hint: "Un niveau, pas une variation : 50 % signifie que ni les acheteurs ni les "
+          + "vendeurs n'ont pris l'avantage sur la fenêtre." },
+  { key: "volatility_bps", label: "Volatilité", kind: "level",
     hint: "L'écart-type des variations période à période." },
-  { key: "drawdown_bps", label: "Repli depuis le plus haut", kind: "bps" },
-  { key: "range_position_bps", label: "Position dans le canal", kind: "bps",
+  { key: "drawdown_bps", label: "Repli depuis le plus haut", kind: "level",
+    hint: "Toujours positif ou nul : la distance au plus haut de la fenêtre." },
+  { key: "range_position_bps", label: "Position dans le canal", kind: "level",
     hint: "0 % au plus bas de la fenêtre, 100 % au plus haut." },
   { key: "closes_seen", label: "Cours observés", kind: "count" },
 ];
 
-function featureValue(value: number | undefined, kind: "cents" | "bps" | "count"): string {
+function featureValue(
+  value: number | undefined, kind: "cents" | "signed" | "level" | "count"
+): string {
   if (value === undefined) return "—";
   if (kind === "cents") return formatCents(value);
-  if (kind === "bps") return formatBps(value, { signed: true });
+  if (kind === "signed") return formatBps(value, { signed: true });
+  if (kind === "level") return formatBps(value);
   return String(value);
 }
 
@@ -191,8 +205,12 @@ export function DecisionDetail({ detail }: DecisionDetailProps) {
                   ? "Réduit"
                   : "Refusé"}
             </span>
-            <span className="yd-num">{formatQuantity(verdict.quantity)}</span>
-            <span className="yd-num">{formatCents(verdict.notional_cents)}</span>
+            <span className="yd-detail__prompt">
+              quantité <span className="yd-num">{formatQuantity(verdict.quantity)}</span>
+            </span>
+            <span className="yd-detail__prompt">
+              pour <span className="yd-num">{formatCents(verdict.notional_cents)}</span>
+            </span>
           </p>
           {verdict.breaches.length ? (
             <ul className="yd-detail__breaches">
@@ -259,7 +277,14 @@ export function DecisionDetail({ detail }: DecisionDetailProps) {
               </tbody>
             </table>
           </div>
-          {order.failure_reason ? <p className="yd-note">{order.failure_reason}</p> : null}
+          {/* The mandate's sentence is already printed under « Issue » and again
+              in the breach box above; a third copy is noise. Only shown when
+              the venue said something the mandate did not. */}
+          {order.failure_reason
+            && order.failure_reason !== detail.message
+            && !verdict?.breaches.some((breach) => breach.message === order.failure_reason) ? (
+            <p className="yd-note">{order.failure_reason}</p>
+          ) : null}
         </section>
       ) : null}
 

@@ -5,11 +5,12 @@ import { MemoryRouter } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ThemeProvider } from "../../app/ThemeProvider";
+import type { InvestOverview } from "../../lib/types";
 import { ControlRoomPage } from "./ControlRoomPage";
 
 const fetchMock = vi.fn();
 
-const overview = {
+const overview: InvestOverview = {
   mode: "paper",
   autonomy: "paper",
   armed: false,
@@ -59,7 +60,12 @@ const decisions = [
     id: 7, run_id: "abc", symbol: "BTC-EUR", mode: "paper", provider: "replay",
     model: "yieldo-regles-1", outcome: "ordered", rule: null,
     message: null, reference_price_cents: 2_640_000, latency_ms: 3,
-    created_at: "2026-09-20T10:05:00Z", features: { symbol: "BTC-EUR" }, answers: {},
+    created_at: "2026-09-20T10:05:00Z", features: { symbol: "BTC-EUR" },
+    answers: {
+      direction: { choice: "acheter", score_value: null, probability_bps: null, latency_ms: 1 },
+      conviction: { choice: null, score_value: 8, probability_bps: null, latency_ms: 1 },
+      continuation: { choice: null, score_value: null, probability_bps: 6_500, latency_ms: 1 },
+    },
     inputs_hash: "a".repeat(64),
   },
   {
@@ -78,7 +84,7 @@ function json(body: unknown, status = 200) {
   });
 }
 
-function setupFetch(patch: Partial<typeof overview> = {}, handlers: Record<string, () => Response> = {}) {
+function setupFetch(patch: Partial<InvestOverview> = {}, handlers: Record<string, () => Response> = {}) {
   fetchMock.mockImplementation((input: string, init?: RequestInit) => {
     const url = new URL(typeof input === "string" ? input : String(input), "http://localhost");
     const key = `${init?.method ?? "GET"} ${url.pathname}`;
@@ -152,8 +158,25 @@ describe("Salle de contrôle", () => {
     setupFetch();
     renderPage();
     await screen.findByText("Où sont partis les instruments");
-    expect(screen.getByText("Refusé par le mandat")).toBeInTheDocument();
-    expect(screen.getByText("Ordre transmis")).toBeInTheDocument();
+    const funnel = document.querySelector(".yd-funnel") as HTMLElement;
+    for (const stage of [
+      "Écarté avant le modèle", "Aucune action", "Refusé par le mandat",
+      "Ordre transmis", "En échec",
+    ]) {
+      expect(within(funnel).getByText(stage)).toBeInTheDocument();
+    }
+  });
+
+  it("tells a decision that went through what it decided, never an em dash", async () => {
+    // A decision stopped by nothing carries no sentence from the backend, and
+    // the row used to print « — »: a line saying less than the silence around
+    // it. The fallback is built from the typed answers the row already has.
+    setupFetch();
+    renderPage();
+    await screen.findByText("Les décisions, en direct");
+    const feed = document.querySelector(".yd-feed") as HTMLElement;
+    expect(within(feed).getByText(/acheter — conviction 8\/10 — probabilité 65/))
+      .toBeInTheDocument();
   });
 
   it("says a position's price is unavailable rather than showing a stale one", async () => {
@@ -252,5 +275,43 @@ describe("Salle de contrôle", () => {
     await screen.findByText("Où sont partis les instruments");
     expect(pageText()).toContain("84 ms en médiane");
     expect(pageText()).toContain("412 ms au pire");
+  });
+});
+
+describe("un bac à sable vide", () => {
+  it("dit qu'il est vide et propose de le créditer", async () => {
+    setupFetch({ equity_cents: 0, cash_cents: 0, positions: [] });
+    renderPage();
+    expect(await screen.findByText(/bac à sable est vide/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Créditer le bac à sable" }))
+      .toBeInTheDocument();
+  });
+
+  it("crédite le montant demandé, en centimes", async () => {
+    const reset = vi.fn(() => new Response(null, { status: 204 }));
+    setupFetch(
+      { equity_cents: 0, cash_cents: 0, positions: [] },
+      { "POST /api/invest/sandbox/reset": reset },
+    );
+    const user = userEvent.setup();
+    renderPage();
+
+    const field = await screen.findByLabelText(/Montant de départ/);
+    await user.clear(field);
+    await user.type(field, "2500,50");
+    await user.click(screen.getByRole("button", { name: "Créditer le bac à sable" }));
+
+    await waitFor(() => expect(reset).toHaveBeenCalled());
+    const call = fetchMock.mock.calls.find(([input]) =>
+      String(input).includes("/invest/sandbox/reset"),
+    );
+    expect(String(call![0])).toContain("cash_cents=250050");
+  });
+
+  it("ne propose rien quand le compte a déjà de quoi travailler", async () => {
+    setupFetch();
+    renderPage();
+    await screen.findByText("Capital");
+    expect(screen.queryByText(/bac à sable est vide/)).not.toBeInTheDocument();
   });
 });

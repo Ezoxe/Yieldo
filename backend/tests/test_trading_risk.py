@@ -275,3 +275,34 @@ def test_a_non_positive_quantity_is_refused(quantity):
         order_type="market", reference_price_cents=10_000,
     )
     assert evaluate_order(mandate(), state(), intent).decision == "refused"
+
+
+def test_the_order_count_ceiling_applies_to_a_sale_too():
+    """The cap is a churn control, not a risk ceiling.
+
+    It was grouped with the loss and drawdown ceilings once, which exempt a
+    risk-reducing sale by design — and a sandbox run then transmitted 63 orders
+    against a mandate of 40 without one refusal, because every sale walked
+    past it. A cap a sale can walk through is not a cap.
+    """
+    verdict = evaluate_order(
+        mandate(max_orders_per_day=3),
+        state(orders_today=3, position_quantity=parse_quantity("10")),
+        OrderIntent(symbol="AAPL", side="sell", quantity=parse_quantity("5"),
+                    order_type="market", reference_price_cents=10_000),
+    )
+    assert verdict.decision == "refused"
+    assert verdict.breaches[0].rule == "orders_per_day"
+    assert "Relevez-le dans le mandat" in verdict.breaches[0].message
+
+
+def test_the_loss_ceiling_still_exempts_a_sale_even_at_the_order_cap_boundary():
+    """The two exemptions must not have been collapsed into each other."""
+    verdict = evaluate_order(
+        mandate(max_orders_per_day=10),
+        state(orders_today=9, realised_pnl_today_cents=-90_000,
+              position_quantity=parse_quantity("10")),
+        OrderIntent(symbol="AAPL", side="sell", quantity=parse_quantity("10"),
+                    order_type="market", reference_price_cents=10_000),
+    )
+    assert verdict.decision == "allowed"

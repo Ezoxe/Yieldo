@@ -31,9 +31,9 @@ boundary, for the same reason it was applied to the first.
 **Two families of rule, and they behave differently on purpose.**
 
 * A *permission* rule -- halted, not armed, symbol off the whitelist, a side
-  or an order type the mandate never allowed, a short or a leveraged position
-  -- REFUSES. There is no smaller version of an order that was never
-  authorised.
+  or an order type the mandate never allowed, a short or a leveraged position,
+  the day's order count spent -- REFUSES. There is no smaller version of an
+  order that was never authorised.
 * A *size* rule -- position ceiling, total exposure, order notional, cash
   buffer -- REDUCES, down to the largest quantity that satisfies every size
   rule at once, and refuses only when that quantity rounds to nothing. A
@@ -78,9 +78,9 @@ RISK_RULES = (
     "limit_price_missing",
     "short_not_allowed",
     "leverage_not_allowed",
+    "orders_per_day",
     "daily_loss_ceiling",
     "drawdown_ceiling",
-    "orders_per_day",
     "non_positive_quantity",
     "order_notional_ceiling",
     "position_ceiling",
@@ -337,6 +337,23 @@ def _permission_breach(
             f"{state.position_quantity} seulement sont détenues, et le mandat interdit "
             "la vente à découvert.",
         )
+    # **Not exempt for a sale, unlike the two ceilings in `_standing_breach`.**
+    # Those two exist to stop a household taking on MORE risk while it is
+    # losing, so exempting a risk-reducing sale is the whole point of them.
+    # This one is a churn control: every order costs a spread and a slot, and
+    # a cap that a sale can walk through is not a cap. It was exempt once, and
+    # a sandbox run transmitted 63 orders against a mandate of 40 without a
+    # single refusal — measured, not imagined. A household that meets it can
+    # raise it, which is precisely what it must NOT be able to do in the heat
+    # of the moment with a loss ceiling.
+    if state.orders_today >= mandate.max_orders_per_day:
+        return RiskBreach(
+            "orders_per_day",
+            f"{state.orders_today} ordres ont déjà été transmis aujourd'hui, pour un "
+            f"plafond de {mandate.max_orders_per_day}. Relevez-le dans le mandat si vous "
+            "voulez en transmettre davantage aujourd'hui.",
+            limit=mandate.max_orders_per_day, observed=state.orders_today,
+        )
     if mandate.allow_leverage is False and intent.side == "buy":
         cost = value_cents(intent.quantity, intent.reference_price_cents)
         if cost > state.cash_cents:
@@ -391,13 +408,6 @@ def _standing_breach(
                 limit=mandate.max_drawdown_bps, observed=drawdown_bps,
             )
 
-    if state.orders_today >= mandate.max_orders_per_day:
-        return RiskBreach(
-            "orders_per_day",
-            f"{state.orders_today} ordres ont déjà été transmis aujourd'hui, pour un "
-            f"plafond de {mandate.max_orders_per_day}.",
-            limit=mandate.max_orders_per_day, observed=state.orders_today,
-        )
     return None
 
 

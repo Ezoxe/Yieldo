@@ -22,7 +22,7 @@ from app.security.passwords import hash_password
 from app.trading import session as day
 
 TODAY = date(2026, 9, 21)
-NOW = datetime(2026, 9, 21, 9, 0, tzinfo=UTC)
+NOW = datetime(2026, 9, 21, 17, 40, tzinfo=UTC)
 SEED = 520
 
 
@@ -97,13 +97,31 @@ def test_a_day_runs_every_step_and_records_one_point_per_step(db, household):
     assert row.decisions == 16
     steps = sorted({d.session_step for d in db.query(TradeDecision).filter_by(session_id=row.id)})
     assert steps == list(range(1, 9))
-    # Decisions carry the day's virtual clock: five minutes per step.
+    # Decisions carry the day's virtual clock: the session opens at 09:00
+    # whatever the launch hour, five minutes per step.
     first = db.query(TradeDecision).filter_by(session_id=row.id, session_step=1).first()
     last = db.query(TradeDecision).filter_by(session_id=row.id, session_step=8).first()
+    assert (first.created_at.hour, first.created_at.minute) == (9, 0)
     assert (last.created_at - first.created_at).total_seconds() == 7 * 5 * 60
     assert row.orders == db.query(TradeOrder).filter_by(user_id=user.id).count()
     kinds = [event.kind for event in db.query(TradeAuditEvent).order_by(TradeAuditEvent.id)]
     assert kinds[-1] == "session_finished"
+
+
+def test_the_market_moves_from_one_step_to_the_next(db, household):
+    """The venue adapter reads the sandbox index it was built with: an
+    adapter built once for the whole day would play seventy-eight copies of
+    the same step. The first day run ever did exactly that."""
+    user, _, _ = household
+    row = start(db, household, steps=8)
+    db.commit()
+    day.run_session(db, user, row, provider=ReplayProvider(), today=TODAY)
+    prices = {
+        d.session_step: d.reference_price_cents
+        for d in db.query(TradeDecision).filter_by(session_id=row.id, symbol="AAPL")
+    }
+    assert len(prices) == 8
+    assert len(set(prices.values())) > 1
 
 
 def test_the_capital_curve_is_cash_plus_positions_at_the_step_price(db, household):

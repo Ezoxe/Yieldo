@@ -15,18 +15,24 @@ import { formatCents, formatProbability } from "./format";
  * library, which cannot plot an integer number of cents on a euro axis. The
  * tooltips format from the original integers through `format.ts`.
  *
- * The x axis is the day's own clock: step k is `started_at + (k − 1) ×
- * interval`, printed as « 09:05 », so a session read back reads like one.
+ * The x axis is the day's own clock: the session opens at 09:00 and step k
+ * is (k − 1) intervals later, printed as « 09:05 », so a session read back
+ * reads like one whatever the hour it was launched at.
  */
 
-function clock(started: string, intervalMinutes: number, step: number): string {
-  const at = new Date(new Date(started).getTime() + (step - 1) * intervalMinutes * 60_000);
-  return at.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", timeZone: "UTC" });
+/** A session opens at 09:00; step k is (k − 1) intervals later. The same
+ *  clock the runner stamps on the decisions. */
+export const SESSION_OPEN_MINUTES = 9 * 60;
+
+function clock(intervalMinutes: number, step: number): string {
+  const minutes = SESSION_OPEN_MINUTES + (step - 1) * intervalMinutes;
+  const hours = Math.floor(minutes / 60) % 24;
+  const rest = minutes % 60;
+  return `${String(hours).padStart(2, "0")}:${String(rest).padStart(2, "0")}`;
 }
 
 function stepLabels(day: InvestSessionDetail, count: number): string[] {
-  return Array.from({ length: count }, (_, index) =>
-    clock(day.started_at, day.interval_minutes, index + 1));
+  return Array.from({ length: count }, (_, index) => clock(day.interval_minutes, index + 1));
 }
 
 const GRID = { left: 8, right: 20, top: 32, bottom: 8, containLabel: true };
@@ -42,7 +48,7 @@ export function capitalOption(day: InvestSessionDetail, theme: Resolved): EChart
         const rows = (Array.isArray(params) ? params : [params]) as Array<{ dataIndex?: number }>;
         const point = points[rows[0]?.dataIndex ?? 0];
         if (!point) return "";
-        return `<strong>${clock(day.started_at, day.interval_minutes, point.step)}</strong>`
+        return `<strong>${clock(day.interval_minutes, point.step)}</strong>`
           + `<br/>Capital : ${formatCents(point.equity_cents)}`
           + `<br/>Liquidités : ${formatCents(point.cash_cents)}`
           + `<br/>Exposition : ${formatCents(point.exposure_cents)}`
@@ -96,7 +102,7 @@ export function marketOption(
         const index = rows[0]?.dataIndex ?? 0;
         const step = index + 1;
         const decision = decisionsAt.get(step);
-        let text = `<strong>${clock(day.started_at, day.interval_minutes, step)}</strong>`
+        let text = `<strong>${clock(day.interval_minutes, step)}</strong>`
           + `<br/>Cours : ${formatCents(closes[index] ?? 0)}`;
         if (decision) {
           text += `<br/>Le modèle : ${decision.choice ?? "—"}`;

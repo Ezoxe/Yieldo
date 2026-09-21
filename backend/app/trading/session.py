@@ -10,7 +10,7 @@ after each step, and committing each step so the screen can watch.
 **A day is a sequence of ordinary tours.** Nothing here sizes an order or
 touches the mandate: the same `run_cycle`, the same second opinion, the same
 sealed journal. The only thing this module adds is the clock -- decisions
-inside a day carry a virtual time, `started_at + step × interval`, so a
+inside a day carry a virtual time, 09:00 plus (step - 1) intervals, so a
 6 h 30 session read back looks like one rather than like ten real minutes.
 
 **It stops for two reasons and says which.** `stop_requested`, read from the
@@ -22,7 +22,7 @@ must say so rather than draw a flat line.
 """
 
 from dataclasses import dataclass
-from datetime import date, datetime, timedelta
+from datetime import UTC, date, datetime, time, timedelta
 
 from sqlalchemy.orm import Session
 
@@ -43,6 +43,11 @@ from app.trading.venues.base import VenueError
 # How many consecutive steps with every instrument « en échec » end the day.
 FAILURE_STREAK = 3
 
+# A session opens at 09:00 (UTC, the clock every stored timestamp uses):
+# step k is stamped (k - 1) intervals later, whatever the hour the day was
+# launched at, so a 6 h 30 session read back looks like one.
+SESSION_OPEN = time(9, 0)
+
 
 class DayAlreadyRunning(Exception):
     """A second day cannot start while one is running on the same sandbox."""
@@ -62,6 +67,13 @@ class StepPoint:
             "cash_cents": self.cash_cents, "exposure_cents": self.exposure_cents,
             "orders": self.orders,
         }
+
+
+def session_clock(row: TradingSession, step: int) -> datetime:
+    """The virtual time of `step`: the launch date at SESSION_OPEN, plus
+    (step - 1) intervals."""
+    opened = datetime.combine(row.started_at.date(), SESSION_OPEN, tzinfo=UTC)
+    return opened + timedelta(minutes=row.interval_minutes * (step - 1))
 
 
 def running_day(db: Session, user: User) -> TradingSession | None:
@@ -115,8 +127,6 @@ def run_session(
     """Play the day. Commits after every step. Returns the same row, ended."""
     policy = db.query(TradingPolicy).filter(TradingPolicy.user_id == user.id).one()
     venue_row = db.get(TradingVenue, row.venue_id)
-    quoting = factory.build(venue_row)
-    execution = factory.execution_adapter(venue_row, quoting)
     points: list[dict[str, int]] = list(row.points or [])
     failure_streak = 0
     orders_total = 0
@@ -129,7 +139,13 @@ def run_session(
                 row.status = "stopped"
                 break
 
-            at = row.started_at + timedelta(minutes=row.interval_minutes * (step - 1))
+            at = session_clock(row, step)
+            # Built per step, not once: the sandbox adapter reads the market
+            # index it was built with, and `run_cycle` advances that index on
+            # the row. One adapter for the day would replay the same step
+            # seventy-eight times -- which is what the first day ever did.
+            quoting = factory.build(venue_row)
+            execution = factory.execution_adapter(venue_row, quoting)
             report = service.run_cycle(
                 db, user, policy=policy, venue_row=venue_row, quoting=quoting,
                 execution=execution, provider=provider, today=today, now=at,
@@ -143,7 +159,8 @@ def run_session(
 
             account = service.account_for(db, user, "paper", today)
             positions = service.positions_of(db, user, "paper")
-            prices = _prices_of(quoting, positions)
+            # Valued at the close the step just advanced to.
+            prices = _prices_of(factory.build(venue_row), positions)
             equity = service.equity_cents(account, positions, prices)
             point = StepPoint(
                 step=step, equity_cents=equity, cash_cents=account.cash_cents,

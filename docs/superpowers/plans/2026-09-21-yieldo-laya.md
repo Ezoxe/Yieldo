@@ -58,7 +58,7 @@ into an agreement rate. Three screens read the new fields.
   confidence?, probabilities?, act_probability?}}, raw}`.
 - `create_app(agent, *, api_key: str | None = None, checkpoint: str, threads: int) -> FastAPI`.
 
-- [ ] **Step 1: Write the failing tests** (`tools/laya-server/test_server.py`)
+- [x] **Step 1: Write the failing tests** (`tools/laya-server/test_server.py`)
 
 ```python
 """The Laya server, tested without torch: a fake agent stands in for laya."""
@@ -163,12 +163,12 @@ def test_a_failing_agent_is_a_500_naming_the_error():
     assert "poids introuvables" in response.json()["detail"]
 ```
 
-- [ ] **Step 2: Run to see them fail**
+- [x] **Step 2: Run to see them fail**
 
 Run: `cd tools/laya-server && ../../backend/.venv/Scripts/python.exe -m pytest test_server.py -q`
 Expected: `ModuleNotFoundError: No module named 'server'`.
 
-- [ ] **Step 3: Write `server.py`**
+- [x] **Step 3: Write `server.py`**
 
 ```python
 """Laya behind HTTP, for Yieldo.
@@ -324,12 +324,12 @@ if os.environ.get("LAYA_SERVE") == "1":
     app = load_app()
 ```
 
-- [ ] **Step 4: Run the tests**
+- [x] **Step 4: Run the tests**
 
 Run: `cd tools/laya-server && ../../backend/.venv/Scripts/python.exe -m pytest test_server.py -q`
 Expected: 6 passed. (`fastapi` is a backend dependency; the backend venv has it.)
 
-- [ ] **Step 5: Write `requirements.txt`, `laya.service`, `install.sh`, `README.md`**
+- [x] **Step 5: Write `requirements.txt`, `laya.service`, `install.sh`, `README.md`**
 
 `requirements.txt`:
 ```
@@ -417,7 +417,7 @@ to switch (`LAYA_CHECKPOINT=base|multilingual|typed-decisions`, then
 `systemctl restart laya`), reading `/health`, logs
 (`journalctl -u laya -f`), the zero-shot caveat and the second-opinion panel.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add tools/laya-server
@@ -442,7 +442,7 @@ git commit -m "feat(invest): a Laya server for Yieldo, in the Jev dialect with t
 - `Decision(..., mass_bps: dict[str, int] | None = None, act_bps: int | None = None)`.
 - `PROVIDERS == ("local", "jev", "laya", "replay")`, `PROVIDER_LABELS["laya"] == "Laya (auto-hébergé)"`.
 
-- [ ] **Step 1: Failing tests** (append to `tests/test_decision_contract.py`)
+- [x] **Step 1: Failing tests** (append to `tests/test_decision_contract.py`)
 
 ```python
 def test_mass_and_act_probability_stay_out_of_the_canonical_form():
@@ -462,9 +462,9 @@ def test_laya_is_a_named_provider():
     assert PROVIDER_LABELS["laya"] == "Laya (auto-hébergé)"
 ```
 
-- [ ] **Step 2: Run** — `pytest tests/test_decision_contract.py -q` — FAIL (`unexpected keyword 'mass_bps'`).
+- [x] **Step 2: Run** — `pytest tests/test_decision_contract.py -q` — FAIL (`unexpected keyword 'mass_bps'`).
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 `contract.py`: `PROVIDERS = ("local", "jev", "laya", "replay")`; label
 `"laya": "Laya (auto-hébergé)"`; on `Decision`, after `confidence_bps`:
@@ -489,9 +489,9 @@ def test_laya_is_a_named_provider():
 `service.py` `_decision_payload`: add `payload["mass_bps"] = decision.mass_bps`
 and `payload["act_bps"] = decision.act_bps`.
 
-- [ ] **Step 4: Run** — `pytest tests/test_decision_contract.py tests/test_trading_pipeline.py tests/test_invest_api.py -q` — PASS. Then `cd frontend && npx vitest run src/features/invest/vocabulary.test.ts` — FAIL on the missing `laya` label (fixed in Task 7; note it).
+- [x] **Step 4: Run** — `pytest tests/test_decision_contract.py tests/test_trading_pipeline.py tests/test_invest_api.py -q` — PASS. Then `cd frontend && npx vitest run src/features/invest/vocabulary.test.ts` — FAIL on the missing `laya` label (fixed in Task 7; note it).
 
-- [ ] **Step 5: Commit** — `feat(invest): the decision carries the model's mass, and laya is a provider`.
+- [x] **Step 5: Commit** — `feat(invest): the decision carries the model's mass, and laya is a provider`.
 
 ---
 
@@ -507,7 +507,7 @@ and `payload["act_bps"] = decision.act_bps`.
   with `.decide(question, context) -> Decision` and `.probe() -> dict[str, Any]`.
 - Registry: `provider == "laya"` requires `endpoint_url` else `NO_MODEL`.
 
-- [ ] **Step 1: Failing tests** (`tests/test_laya_provider.py`; monkeypatch
+- [x] **Step 1: Failing tests** (`tests/test_laya_provider.py`; monkeypatch
 `httpx.post` / `httpx.get` with a stub returning `httpx.Response`)
 
 Cases: a conforming choice answer is parsed with `mass_bps` in bps and
@@ -518,9 +518,9 @@ posts (no `Authorization` header); a 401 is `MODEL_REJECTED`; a timeout is
 `TOO_SLOW`; `probe()` returns the `/health` body; `build_provider` on a
 `DecisionSettings(provider="laya", endpoint_url=None)` raises `NO_MODEL`.
 
-- [ ] **Step 2: Run** — FAIL (`No module named app.decision.laya`).
+- [x] **Step 2: Run** — FAIL (`No module named app.decision.laya`).
 
-- [ ] **Step 3: Implement** — same structure as `JevProvider.decide`, with:
+- [x] **Step 3: Implement** — same structure as `JevProvider.decide`, with:
   - URL `f"{endpoint_url.rstrip('/')}/v1/systemone"`; header only when a key exists.
   - `json.loads(raw, parse_float=Decimal)`; `answer = body["answers"]["q"]`.
   - After the typed parse, `mass_bps=systemone.mass_bps(answer.get("probabilities"))`
@@ -532,9 +532,9 @@ posts (no `Authorization` header); a 401 is `MODEL_REJECTED`; a timeout is
   - Registry: branch `if row.provider == "laya": if not row.endpoint_url: raise NO_MODEL; return LayaProvider(...)`.
   - `failure_message` for `NO_MODEL` already names the screen.
 
-- [ ] **Step 4: Run** — `pytest tests/test_laya_provider.py -q` — PASS. `ruff check app/decision tests/test_laya_provider.py`.
+- [x] **Step 4: Run** — `pytest tests/test_laya_provider.py -q` — PASS. `ruff check app/decision tests/test_laya_provider.py`.
 
-- [ ] **Step 5: Commit** — `feat(invest): the Laya provider, with the mass and the health probe`.
+- [x] **Step 5: Commit** — `feat(invest): the Laya provider, with the mass and the health probe`.
 
 ---
 
@@ -550,24 +550,24 @@ posts (no `Authorization` header); a 401 is `MODEL_REJECTED`; a timeout is
   `mass_bps: dict[str, int] | None = None`, `act_bps: int | None = None`,
   `choice: str | None = None`.
 
-- [ ] **Step 1: Failing tests** — with `httpx.post`/`httpx.get` stubbed:
+- [x] **Step 1: Failing tests** — with `httpx.post`/`httpx.get` stubbed:
 `PUT /invest/model {"provider": "laya", "endpoint_url": "http://laya:8100"}`
 → `valid` true, `health["checkpoint"] == "laya-typed-decisions"`,
 `mass_bps` has three keys, `choice == "ne rien faire"`; without
 `endpoint_url` → 422 naming the address; `GET /invest/model` echoes
 `provider == "laya"`.
 
-- [ ] **Step 2: Run** — FAIL.
+- [x] **Step 2: Run** — FAIL.
 
-- [ ] **Step 3: Implement** — in `write_model`: the `local`-style 422 check
+- [x] **Step 3: Implement** — in `write_model`: the `local`-style 422 check
 extended to `laya` (`"Laya a besoin de l'adresse de son serveur (par exemple http://192.168.1.172:8100)."`);
 after `decision = provider.decide(...)`, `health = provider.probe() if hasattr(provider, "probe") else None`
 inside the same `try`; return `choice=decision.choice, mass_bps=decision.mass_bps, act_bps=decision.act_bps, health=health`.
 The 404 sentence lists four providers.
 
-- [ ] **Step 4: Run** — `pytest tests/test_invest_api.py -q` — PASS.
+- [x] **Step 4: Run** — `pytest tests/test_invest_api.py -q` — PASS.
 
-- [ ] **Step 5: Commit** — `feat(invest): saving Laya shows its health card and the test answer's mass`.
+- [x] **Step 5: Commit** — `feat(invest): saving Laya shows its health card and the test answer's mass`.
 
 ---
 
@@ -590,7 +590,7 @@ The 404 sentence lists four providers.
   `Disagreement(decision_id, symbol, model_choice, rules_choice, created_at)`.
 - `OverviewOut.second_opinion: SecondOpinionOut`; `DecisionDetailOut.second_opinion: dict | None`.
 
-- [ ] **Step 1: Failing tests**
+- [x] **Step 1: Failing tests**
 
 `tests/test_second_opinion.py` (pure): three opinions, two agreeing → `compared 3, agreed 2, agreement_bps 6667`, one disagreement first; rows with a `None` on either side are not compared; an empty input gives `0, 0, 0, ()`; disagreements are capped at 8, most recent first.
 
@@ -600,9 +600,9 @@ The 404 sentence lists four providers.
 
 `tests/test_migrations.py`: `SECOND_OPINION_REVISION = "c7d8e9f0a1b2"`; upgrade from `INVESTMENT_REVISION` adds a nullable `second_opinion` column to `trade_decisions` matching `_reference_schema`; downgrade removes it; it is the single head.
 
-- [ ] **Step 2: Run** — FAIL.
+- [x] **Step 2: Run** — FAIL.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 Model: `second_opinion: Mapped[dict | None] = mapped_column(JSON, nullable=True)` with a comment (the deterministic engine's canonical answers on the same context, when the provider was a real model; never executed).
 
@@ -632,17 +632,17 @@ Engine `engines/second_opinion.py`: frozen dataclasses above; `compare()` skips 
 
 Routes: `overview` builds `Opinion`s from `rows` (`model_choice = row.answers.get("direction", {}).get("choice")`, `rules_choice = (row.second_opinion or {}).get("direction", {}).get("choice")`); `read_decision` adds `second_opinion=row.second_opinion`.
 
-- [ ] **Step 4: Run** — the four files, then the whole backend suite. PASS. `alembic upgrade head` on the dev DB.
+- [x] **Step 4: Run** — the four files, then the whole backend suite. PASS. `alembic upgrade head` on the dev DB.
 
-- [ ] **Step 5: Commit** — `feat(invest): the deterministic engine's second opinion beside every model decision`.
+- [x] **Step 5: Commit** — `feat(invest): the deterministic engine's second opinion beside every model decision`.
 
 ---
 
 ### Task 6: `install.sh` on the LXC, end to end
 
-- [ ] Push `master`; on the LXC: `curl -fsSL https://raw.githubusercontent.com/Ezoxe/Yieldo/master/tools/laya-server/install.sh | bash`.
-- [ ] `curl http://192.168.1.172:8100/health` from the workstation; one `POST /v1/systemone` with the three questions; note p50.
-- [ ] No commit (operations).
+- [x] Push `master`; on the LXC: `curl -fsSL https://raw.githubusercontent.com/Ezoxe/Yieldo/master/tools/laya-server/install.sh | bash`.
+- [x] `curl http://192.168.1.172:8100/health` from the workstation; one `POST /v1/systemone` with the three questions; note p50.
+- [x] No commit (operations).
 
 ---
 
@@ -661,11 +661,11 @@ Routes: `overview` builds `Opinion`s from `rows` (`model_choice = row.answers.ge
   the `%` in `.yd-num`; the chosen key carries `aria-current="true"` and the
   `CheckIcon`.
 
-- [ ] **Step 1: Failing tests** — `MassBars` renders three items, marks the chosen one, prints `35,0 %`; `ModelPage` shows the fourth radio « Laya (auto-hébergé) », the address placeholder `http://192.168.1.172:8100`, no « Nom du modèle » field for laya, and after save with a stubbed `PUT` answering `health` + `mass_bps`, the card prints the checkpoint, `p50`, `threads` and the mass bars.
-- [ ] **Step 2: Run** — FAIL.
-- [ ] **Step 3: Implement** — `PROVIDERS = ["local", "jev", "laya", "replay"]`; a `PROVIDER_NOTES.laya` (encoder, not an LLM; CPU 0,6 s per question; zero-shot caveat, the second-opinion panel); fields: address (placeholder above), key, timeout — no name field when `provider === "laya"`; the result block gains a `<dl className="yd-health">` when `result.health` exists (Checkpoint, Machine, Threads, Contexte, Chauffe, Médiane, p95, Prédictions) and `<MassBars>` when `result.mass_bps` exists, headed « Ce qu'il a répondu à la question de test ».
-- [ ] **Step 4: Run** — vitest on the two files + `vocabulary.test.ts`; `npx tsc -b`.
-- [ ] **Step 5: Commit** — `feat(invest): Laya in Modèle de décision, with its health card`.
+- [x] **Step 1: Failing tests** — `MassBars` renders three items, marks the chosen one, prints `35,0 %`; `ModelPage` shows the fourth radio « Laya (auto-hébergé) », the address placeholder `http://192.168.1.172:8100`, no « Nom du modèle » field for laya, and after save with a stubbed `PUT` answering `health` + `mass_bps`, the card prints the checkpoint, `p50`, `threads` and the mass bars.
+- [x] **Step 2: Run** — FAIL.
+- [x] **Step 3: Implement** — `PROVIDERS = ["local", "jev", "laya", "replay"]`; a `PROVIDER_NOTES.laya` (encoder, not an LLM; CPU 0,6 s per question; zero-shot caveat, the second-opinion panel); fields: address (placeholder above), key, timeout — no name field when `provider === "laya"`; the result block gains a `<dl className="yd-health">` when `result.health` exists (Checkpoint, Machine, Threads, Contexte, Chauffe, Médiane, p95, Prédictions) and `<MassBars>` when `result.mass_bps` exists, headed « Ce qu'il a répondu à la question de test ».
+- [x] **Step 4: Run** — vitest on the two files + `vocabulary.test.ts`; `npx tsc -b`.
+- [x] **Step 5: Commit** — `feat(invest): Laya in Modèle de décision, with its health card`.
 
 ---
 
@@ -675,11 +675,11 @@ Routes: `overview` builds `Opinion`s from `rows` (`model_choice = row.answers.ge
 - Modify: `frontend/src/features/invest/DecisionDetail.tsx`
 - Test: `frontend/src/features/invest/DecisionDetail.test.tsx` (new)
 
-- [ ] **Step 1: Failing tests** — a detail with `answers.direction.mass_bps` renders `MassBars` with « acheter » chosen; a `continuation` with `probability_bps: 2890` renders two bars « Se poursuit 28,9 % » / « S'inverse 71,1 % »; `act_bps` prints « agir : 100 % »; a `second_opinion.direction.choice === "ne rien faire"` beside a model « acheter » prints the pill « Les règles auraient dit : ne rien faire » with the negative tone, and the positive tone when equal; no `second_opinion` prints nothing.
-- [ ] **Step 2: Run** — FAIL.
-- [ ] **Step 3: Implement** — after the answer line: `MassBars` for `choice`/`score` masses; for a probability, a two-key mass built from `probability_bps`; a `yd-feed__time` « agir : … » when `act_bps`; the rules pill from `detail.second_opinion?.[question.key]`.
-- [ ] **Step 4: Run** — PASS; `tsc`.
-- [ ] **Step 5: Commit** — `feat(invest): a decision shows the model's whole distribution and the rules' verdict`.
+- [x] **Step 1: Failing tests** — a detail with `answers.direction.mass_bps` renders `MassBars` with « acheter » chosen; a `continuation` with `probability_bps: 2890` renders two bars « Se poursuit 28,9 % » / « S'inverse 71,1 % »; `act_bps` prints « agir : 100 % »; a `second_opinion.direction.choice === "ne rien faire"` beside a model « acheter » prints the pill « Les règles auraient dit : ne rien faire » with the negative tone, and the positive tone when equal; no `second_opinion` prints nothing.
+- [x] **Step 2: Run** — FAIL.
+- [x] **Step 3: Implement** — after the answer line: `MassBars` for `choice`/`score` masses; for a probability, a two-key mass built from `probability_bps`; a `yd-feed__time` « agir : … » when `act_bps`; the rules pill from `detail.second_opinion?.[question.key]`.
+- [x] **Step 4: Run** — PASS; `tsc`.
+- [x] **Step 5: Commit** — `feat(invest): a decision shows the model's whole distribution and the rules' verdict`.
 
 ---
 
@@ -689,16 +689,16 @@ Routes: `overview` builds `Opinion`s from `rows` (`model_choice = row.answers.ge
 - Modify: `frontend/src/features/invest/ControlRoomPage.tsx`
 - Test: `frontend/src/features/invest/ControlRoomPage.test.tsx`
 
-- [ ] **Step 1: Failing tests** — with `second_opinion: {compared: 12, agreed: 9, agreement_bps: 7500, disagreements: [...]}` the panel prints « 75,0 % », « 12 décisions comparées », and one row per disagreement with symbol, model choice, rules choice and a link to `/invest/decisions`; with `compared: 0` an `EmptyState` says the second opinion is kept only beside a model other than the built-in engine.
-- [ ] **Step 2: Run** — FAIL.
-- [ ] **Step 3: Implement** — a `BentoCell span={{ base: 1, md: 6, lg: 5 }}` after « Le modèle dit-il vrai ? », `PanelHead` « Le modèle contre les règles » with `InfoTip` (judged on direction only); big figure `.yd-invest-kpi`; list `.yd-feed` of disagreements.
-- [ ] **Step 4: Run** — PASS; `tsc`; full `npm test`.
-- [ ] **Step 5: Commit** — `feat(invest): the Salle de contrôle scores the model against the rules`.
+- [x] **Step 1: Failing tests** — with `second_opinion: {compared: 12, agreed: 9, agreement_bps: 7500, disagreements: [...]}` the panel prints « 75,0 % », « 12 décisions comparées », and one row per disagreement with symbol, model choice, rules choice and a link to `/invest/decisions`; with `compared: 0` an `EmptyState` says the second opinion is kept only beside a model other than the built-in engine.
+- [x] **Step 2: Run** — FAIL.
+- [x] **Step 3: Implement** — a `BentoCell span={{ base: 1, md: 6, lg: 5 }}` after « Le modèle dit-il vrai ? », `PanelHead` « Le modèle contre les règles » with `InfoTip` (judged on direction only); big figure `.yd-invest-kpi`; list `.yd-feed` of disagreements.
+- [x] **Step 4: Run** — PASS; `tsc`; full `npm test`.
+- [x] **Step 5: Commit** — `feat(invest): the Salle de contrôle scores the model against the rules`.
 
 ---
 
 ### Task 10: Judge in the browser, both widths and themes
 
-- [ ] Dev servers up; Modèle de décision → Laya at `http://192.168.1.172:8100` → « Enregistrer et interroger » → the card and the bars, 1440 and 390, light and dark.
-- [ ] Run three tours; open a decision; the mass bars and the rules pill; the new panel on the Salle de contrôle.
-- [ ] Fix what the browser shows; commit as `fix(invest): …`; push.
+- [x] Dev servers up; Modèle de décision → Laya at `http://192.168.1.172:8100` → « Enregistrer et interroger » → the card and the bars, 1440 and 390, light and dark.
+- [x] Run three tours; open a decision; the mass bars and the rules pill; the new panel on the Salle de contrôle.
+- [x] Fix what the browser shows; commit as `fix(invest): …`; push.

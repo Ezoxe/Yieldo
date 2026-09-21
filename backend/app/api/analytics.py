@@ -5,8 +5,6 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app.api.common import period_range, tx_points
-from app.engines.transfer import measure_set_aside
-from app.transfers import set_aside_rows
 from app.db import get_db
 from app.engines.aggregate import (
     aggregate_by_category,
@@ -14,6 +12,7 @@ from app.engines.aggregate import (
     compare_periods,
     fill_missing_buckets,
 )
+from app.engines.transfer import measure_set_aside
 from app.models import Category, User
 from app.schemas.analytics import (
     CalendarPointOut,
@@ -24,6 +23,7 @@ from app.schemas.analytics import (
     SummaryOut,
 )
 from app.security.deps import get_current_user
+from app.transfers import set_aside_rows
 
 router = APIRouter(prefix="/analytics", tags=["analytics"])
 

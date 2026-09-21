@@ -305,6 +305,125 @@ class SecondOpinionOut(BaseModel):
 
 
 # --------------------------------------------------------------------------
+# La journée simulée
+# --------------------------------------------------------------------------
+
+class SessionStartIn(BaseModel):
+    steps: int = Field(default=78, ge=4, le=240)
+    # The sandbox index to start at; drawn at random when absent, and echoed
+    # back so the same day can be replayed under another model.
+    seed: int | None = Field(default=None, ge=0, le=1_000_000)
+    cash_cents: int = Field(default=1_000_000, ge=1_000, le=1_000_000_000)
+
+
+class SessionPointOut(BaseModel):
+    step: int
+    equity_cents: int
+    cash_cents: int
+    exposure_cents: int
+    orders: int
+
+
+class SessionOut(BaseModel):
+    id: int
+    mode: str
+    seed: int
+    steps: int
+    interval_minutes: int
+    completed_steps: int
+    status: str
+    stop_requested: bool
+    message: str | None
+    provider: str
+    model: str
+    initial_cash_cents: int
+    final_equity_cents: int | None
+    realised_pnl_cents: int
+    unrealised_pnl_cents: int
+    max_drawdown_bps: int
+    orders: int
+    decisions: int
+    started_at: datetime
+    finished_at: datetime | None
+
+
+class SessionDecisionOut(BaseModel):
+    """A decision as the day's charts need it: where, what, how sure."""
+
+    id: int
+    step: int
+    symbol: str
+    outcome: str
+    rule: str | None
+    message: str | None
+    choice: str | None
+    score_value: int | None
+    probability_bps: int | None
+    mass_bps: dict[str, int] | None
+    confidence_bps: int | None
+    act_bps: int | None
+    latency_ms: int
+    reference_price_cents: int | None
+    rules_choice: str | None
+    created_at: datetime
+
+
+class SessionOrderOut(BaseModel):
+    id: int
+    step: int | None
+    symbol: str
+    side: str
+    status: str
+    quantity: str
+    notional_cents: int
+    average_price_cents: int | None
+    realised_pnl_cents: int
+    created_at: datetime
+
+
+class MassPointOut(BaseModel):
+    step: int
+    buy_bps: int
+    sell_bps: int
+    hold_bps: int
+
+
+class SessionReportOut(BaseModel):
+    final_equity_cents: int
+    return_bps: int
+    max_drawdown_bps: int
+    decisions: int
+    held: int
+    refused: int
+    ordered: int
+    failed: int
+    orders: int
+    filled: int
+    winning: int
+    losing: int
+    realised_pnl_cents: int
+    compared: int
+    agreement_bps: int
+    mean_confidence_bps: int | None
+    mean_act_bps: int | None
+    latency_p50_ms: int | None
+    mass_series: dict[str, list[MassPointOut]]
+
+
+class SessionDetailOut(SessionOut):
+    points: list[SessionPointOut]
+    # One series per whitelisted instrument, one close per step, recomputed
+    # from the seed: the market the day was played on.
+    closes: dict[str, list[int]]
+    symbols: list[str]
+    # The rows themselves here, where the list route carries only the counts
+    # (the counts are in `report`).
+    decisions: list[SessionDecisionOut]  # type: ignore[assignment]
+    orders: list[SessionOrderOut]  # type: ignore[assignment]
+    report: SessionReportOut
+
+
+# --------------------------------------------------------------------------
 # Supervision
 # --------------------------------------------------------------------------
 

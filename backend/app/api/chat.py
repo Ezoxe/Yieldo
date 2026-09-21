@@ -67,16 +67,16 @@ from app.engines.intent import UnrecognisedQuery, parse_intent
 from app.llm.agent import run_agent
 from app.llm.client import LlmSettingsInput
 from app.models import AgentRun, AgentStep, Category, ChatMessage, Debt, Goal, LlmSettings, User
-from app.security.crypto import decrypt_secret
 from app.schemas.chat import (
     ChatAnswerOut,
-    ConversationOut,
     ChatChartOut,
     ChatChartPointOut,
     ChatMessageIn,
     ChatMessageOut,
     ChatStepOut,
+    ConversationOut,
 )
+from app.security.crypto import decrypt_secret
 from app.security.deps import get_current_user
 
 router = APIRouter(prefix="/chat", tags=["chat"])

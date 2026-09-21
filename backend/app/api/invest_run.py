@@ -49,6 +49,7 @@ from app.schemas.invest import (
 )
 from app.security.deps import get_current_user, get_session_user
 from app.trading import audit, service
+from app.trading import session as day
 from app.trading.venues.base import VenueError
 
 router = APIRouter(prefix="/invest", tags=["invest"])
@@ -98,6 +99,14 @@ def run(
                    "contrôle.",
         )
     mode = "live" if policy.autonomy == "live" else "paper"
+
+    if day.running_day(db, user) is not None:
+        raise HTTPException(
+            status_code=409,
+            detail="Une journée simulée est en cours sur ce carnet : deux mains sur le même "
+                   "bac à sable fausseraient sa courbe. Attendez sa fin ou arrêtez-la depuis "
+                   "La journée.",
+        )
 
     if mode == "live" and actor_of(request) == "agent":
         raise HTTPException(

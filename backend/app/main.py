@@ -29,6 +29,7 @@ from app.api import invest_model as invest_model_routes
 from app.api import invest_oversight as invest_oversight_routes
 from app.api import invest_policy as invest_policy_routes
 from app.api import invest_run as invest_run_routes
+from app.api import invest_session as invest_session_routes
 from app.api import invest_venues as invest_venue_routes
 from app.api import plan as plan_routes
 from app.api import portfolio as portfolio_routes
@@ -111,6 +112,7 @@ api.include_router(invest_venue_routes.router)
 api.include_router(invest_policy_routes.router)
 api.include_router(invest_model_routes.router)
 api.include_router(invest_oversight_routes.router)
+api.include_router(invest_session_routes.router)
 api.include_router(invest_run_routes.router)
 
 app.include_router(api)

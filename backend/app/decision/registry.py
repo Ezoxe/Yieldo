@@ -21,6 +21,7 @@ from app.decision.contract import (
     decision_error,
 )
 from app.decision.jev import JevProvider
+from app.decision.laya import LayaProvider
 from app.decision.local import LocalProvider
 from app.decision.replay import ReplayProvider
 from app.models import DecisionSettings
@@ -52,6 +53,15 @@ def build_provider(row: DecisionSettings | None) -> DecisionProvider:
         return ReplayProvider()
     if row.provider == "jev":
         return JevProvider(
+            endpoint_url=row.endpoint_url, model_name=row.model_name,
+            api_key=api_key, timeout_ms=timeout_ms,
+        )
+    if row.provider == "laya":
+        # No default address: Laya is the household's own server, and the
+        # refusal names the screen where its address goes.
+        if not row.endpoint_url:
+            raise decision_error(DecisionFailureCause.NO_MODEL, "laya")
+        return LayaProvider(
             endpoint_url=row.endpoint_url, model_name=row.model_name,
             api_key=api_key, timeout_ms=timeout_ms,
         )

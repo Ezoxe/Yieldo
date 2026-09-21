@@ -89,28 +89,19 @@ def test_a_day_needs_a_model_a_broker_and_a_running_pipeline(client, ready):
     assert "Modèle de décision" in refused.json()["detail"]
 
 
-def test_a_day_picks_the_synthetic_book_even_behind_a_recorded_one(client, ready):
-    """A household whose first paper venue reads Yieldo's recorded prices
-    (not replayable) still gets its day, on the synthetic book connected
-    beside it -- the first day ever asked for was refused for this."""
+def test_a_day_needs_the_synthetic_book_and_says_how_to_get_it(client, ready):
+    """Without Yieldo's own book on the synthetic market there is no
+    replayable day; the refusal names the source and the one-book-per-mode
+    rule (delete, then reconnect), and a reconnected book gets its day."""
     headers, _ = ready
-    # The synthetic book from `ready` is deleted; a recorded one takes the
-    # first id, then a synthetic one is connected after it.
     venues = client.get("/api/invest/venues", headers=headers).json()
     client.delete(f"/api/invest/venues/{venues[0]['id']}", headers=headers)
-    client.post("/api/invest/venues", headers=headers, json={
-        "venue": "internal", "mode": "paper", "label": "TEST",
-        "slippage_bps": 10, "price_source": "recorded",
-    })
+
     refused = client.post("/api/invest/sessions", headers=headers, json={"steps": 4})
     assert refused.status_code == 409
     assert "Marché synthétique" in refused.json()["detail"]
     assert "supprimez" in refused.json()["detail"]
 
-    # One internal book per mode: the recorded one goes before the synthetic
-    # one can be connected, which is what the refusal tells the household.
-    recorded = client.get("/api/invest/venues", headers=headers).json()[0]
-    client.delete(f"/api/invest/venues/{recorded['id']}", headers=headers)
     client.post("/api/invest/venues", headers=headers, json={
         "venue": "internal", "mode": "paper", "label": "Synthétique",
         "slippage_bps": 10, "price_source": "synthetic",

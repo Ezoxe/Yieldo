@@ -27,14 +27,15 @@ else:**
   describes the run, not the decision, and a replay must not differ from the
   run it replays because a distribution shifted in the third decimal.
 
-`parse_answer` is not used here: Jev's answers are already typed by the
+The question body and the number conversions are `decision/systemone.py`,
+shared with Laya. `parse_answer` is not used here: Jev's answers are already typed by the
 service, so there is no JSON-in-a-string to re-parse. The type is checked all
 the same -- a `choice` outside the criteria offered is `OFF_CONTRACT`, exactly
 as it would be from a local model.
 """
 
 import json
-from decimal import ROUND_HALF_UP, Context, Decimal, InvalidOperation
+from decimal import Decimal, InvalidOperation
 from time import perf_counter
 from typing import Any
 
@@ -48,13 +49,12 @@ from app.decision.contract import (
     ScoreQuestion,
     decision_error,
 )
+from app.decision.systemone import CONTEXT, bps, questions_payload, to_decimal
 
 NAME = "jev"
 
 DEFAULT_ENDPOINT = "https://api.typesafe.ai/v1/systemone"
 DEFAULT_MODEL = "jev-latest"
-
-_CONTEXT = Context(prec=50, rounding=ROUND_HALF_UP)
 
 # One key per request. Jev accepts a map of questions in one call; this provider
 # asks one at a time because the contract's `decide` is one question, and
@@ -62,50 +62,13 @@ _CONTEXT = Context(prec=50, rounding=ROUND_HALF_UP)
 _KEY = "q"
 
 
-def _questions_payload(question: Question) -> dict[str, Any]:
-    if isinstance(question, ChoiceQuestion):
-        return {
-            "type": "choice",
-            "instructions": question.prompt,
-            # Jev's criteria map an option to what it means. The options here
-            # are already French sentences a person wrote, so each describes
-            # itself; sending the option twice is honest rather than clever.
-            "criteria": {option: option for option in question.options},
-        }
-    if isinstance(question, ScoreQuestion):
-        return {
-            "type": "score",
-            "instructions": question.prompt,
-            "criteria": [
-                str(level) for level in range(question.minimum, question.maximum + 1)
-            ],
-        }
-    return {
-        "type": "noul",
-        "instructions": question.statement,
-        "criteria": {
-            "true": "L'affirmation est vraie.",
-            "false": "L'affirmation est fausse.",
-        },
-    }
-
-
-def _decimal(value: Any) -> Decimal:
-    if isinstance(value, Decimal):
-        return value
-    if isinstance(value, int) and not isinstance(value, bool):
-        return Decimal(value)
-    raise ValueError(f"valeur numérique attendue, reçu {value!r}")
-
-
 def _confidence_bps(answer: dict[str, Any]) -> int | None:
     if "confidence" not in answer:
         return None
     try:
-        value = _decimal(answer["confidence"])
+        return bps(to_decimal(answer["confidence"]))
     except (ValueError, InvalidOperation):
         return None
-    return int(_CONTEXT.quantize(_CONTEXT.multiply(value, Decimal(10_000)), Decimal(1)))
 
 
 class JevProvider:
@@ -128,7 +91,7 @@ class JevProvider:
         payload = {
             "state": context,
             "model": self.model_name,
-            "questions": {_KEY: _questions_payload(question)},
+            "questions": {_KEY: questions_payload(question)},
         }
         started = perf_counter()
         try:
@@ -192,13 +155,13 @@ class JevProvider:
 
         if isinstance(question, ScoreQuestion):
             try:
-                position = _decimal(answer.get("score"))
+                position = to_decimal(answer.get("score"))
             except (ValueError, InvalidOperation) as exc:
                 raise decision_error(
                     DecisionFailureCause.OFF_CONTRACT, NAME,
                     f"« {answer.get('score')} » n'est pas une note",
                 ) from exc
-            level = int(_CONTEXT.quantize(position, Decimal(1))) + question.minimum
+            level = int(CONTEXT.quantize(position, Decimal(1))) + question.minimum
             if not question.minimum <= level <= question.maximum:
                 raise decision_error(
                     DecisionFailureCause.OFF_CONTRACT, NAME,
@@ -210,7 +173,7 @@ class JevProvider:
             )
 
         try:
-            probability = _decimal(answer.get("noul"))
+            probability = to_decimal(answer.get("noul"))
         except (ValueError, InvalidOperation) as exc:
             raise decision_error(
                 DecisionFailureCause.OFF_CONTRACT, NAME,
@@ -223,8 +186,6 @@ class JevProvider:
             )
         return Decision(
             choice=None, score_value=None,
-            probability_bps=int(
-                _CONTEXT.quantize(_CONTEXT.multiply(probability, Decimal(10_000)), Decimal(1))
-            ),
+            probability_bps=bps(probability),
             confidence_bps=None, **common,
         )

@@ -7,7 +7,10 @@ an answer outside its own type is REFUSED, never coerced into range.
 import pytest
 
 from app.decision.contract import (
+    PROVIDER_LABELS,
+    PROVIDERS,
     ChoiceQuestion,
+    Decision,
     DecisionError,
     DecisionFailureCause,
     ProbabilityQuestion,
@@ -175,3 +178,25 @@ def test_latency_is_not_part_of_what_a_replay_compares():
     second = provider.decide(DIRECTION, context)
     assert first.canonical() == second.canonical()
     assert "latency" not in first.canonical()
+
+
+def test_mass_and_act_probability_stay_out_of_the_canonical_form():
+    # Laya returns its whole distribution and an act probability. Both
+    # describe this run's output, like confidence and latency: a replay must
+    # not differ from the run it replays because a mass moved a little.
+    decision = Decision(
+        question_key="direction", kind="choice", choice="acheter", score_value=None,
+        probability_bps=None, latency_ms=12, provider="laya", model="m", raw="{}",
+        confidence_bps=40,
+        mass_bps={"acheter": 6_000, "vendre": 1_000, "ne rien faire": 3_000},
+        act_bps=10_000,
+    )
+    assert "mass_bps" not in decision.canonical()
+    assert "act_bps" not in decision.canonical()
+    assert decision.mass_bps["acheter"] == 6_000
+    assert decision.act_bps == 10_000
+
+
+def test_laya_is_a_named_provider():
+    assert "laya" in PROVIDERS
+    assert PROVIDER_LABELS["laya"] == "Laya (auto-hébergé)"

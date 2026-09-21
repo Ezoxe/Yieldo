@@ -45,11 +45,12 @@ BPS_WHOLE = 10_000
 
 # Where a decision came from. Stored on every decision row so a household can
 # tell a sandbox replay from a real model answer months later.
-PROVIDERS = ("local", "jev", "replay")
+PROVIDERS = ("local", "jev", "laya", "replay")
 
 PROVIDER_LABELS = {
     "local": "modèle auto-hébergé",
     "jev": "Jev (TypeSafe)",
+    "laya": "Laya (auto-hébergé)",
     "replay": "moteur déterministe intégré",
 }
 
@@ -178,6 +179,14 @@ class Decision:
     # from the PROBABILITY question instead (`engines/calibration.py`), which
     # every provider answers and which can be checked against what happened.
     confidence_bps: int | None = None
+    # The model's whole distribution, when the provider exposes it: option →
+    # bps for a choice, level → bps for a score. Laya returns it; an
+    # OpenAI-compatible endpoint does not. Like `confidence_bps` it describes
+    # this run's output and stays out of `canonical()`.
+    mass_bps: dict[str, int] | None = None
+    # Laya's act/escalate head: how sure it is that acting is right at all,
+    # in bps. None from every other provider.
+    act_bps: int | None = None
 
     def canonical(self) -> dict[str, Any]:
         """The stable mapping the audit chain hashes and the replay compares.

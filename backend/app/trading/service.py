@@ -218,6 +218,8 @@ def _decision_payload(decision: Decision) -> dict[str, Any]:
     payload["raw"] = decision.raw
     payload["latency_ms"] = decision.latency_ms
     payload["confidence_bps"] = decision.confidence_bps
+    payload["mass_bps"] = decision.mass_bps
+    payload["act_bps"] = decision.act_bps
     payload["provider"] = decision.provider
     payload["model"] = decision.model
     return payload

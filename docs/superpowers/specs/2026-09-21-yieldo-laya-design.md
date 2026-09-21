@@ -26,6 +26,20 @@ Deux faits qui bornent l'ambition, et que l'écran doit rendre visibles :
   pas sur des séries de prix. Que Laya tranche sensément sur neuf indicateurs
   de marché n'est pas acquis.
 
+Mesuré le 2026-09-21 sur le LXC de l'opérateur (10 cœurs, `laya 0.3.4`,
+`torch 2.14 cpu`, checkpoint `typed-decisions`) : 649 ms pour une question,
+2,3–2,7 s pour les trois en un appel ; sur les neuf indicateurs d'une
+décision réelle, `direction` rend 0,35 / 0,29 / 0,36 avec une confiance de
+0,004 — le hasard annoncé. D'où une question par appel, comme Jev.
+
+La forme exacte de `predict()`, à laquelle le serveur et le parseur sont
+écrits : `answers[clé]` porte `type`, la valeur (`choice` / `score` /
+`noul`), `confidence`, `probabilities` (**un dict**, option → p pour un
+choix, niveau → p pour une note, avec `legend`), et `action.act_probability`
+(la tête act/escalate). À la racine : `model` (`laya-rl-agent`) et
+`usage.input_tokens`. L'agent expose `cfg.model_name`, `cfg.max_len`,
+`temperature` et `temperature_by_options`.
+
 D'où le principe du chantier : **brancher, et instrumenter la comparaison**.
 Le panneau de calibration mesure la surconfiance ; un second avis du moteur
 déterministe, rangé à côté de chaque décision, mesure si Laya bat quatre
@@ -44,16 +58,17 @@ l'image de l'application. Il tourne dans un LXC Debian sur le même réseau
   - Au démarrage : `laya.load("convaiinnovations/laya", subfolder=<checkpoint>)`,
     `torch.set_num_threads(<threads>)`, une prédiction de chauffe dont la durée
     est retenue.
-  - `GET /health` : `status`, `checkpoint`, `repo`, `device`, `threads`,
-    `context_tokens`, `laya_version`, `torch_version`, `loaded_at`,
-    `warmup_ms`, `predictions`, `latency_p50_ms`, `latency_p95_ms` (sur les 200
-    dernières prédictions).
+  - `GET /health` : `status`, `checkpoint` (`cfg.model_name`), `repo`,
+    `device`, `threads`, `context_tokens` (`cfg.max_len`), `temperatures`
+    (`cfg.temperature_by_options`), `laya_version`, `torch_version`,
+    `loaded_at`, `warmup_ms`, `predictions`, `latency_p50_ms`,
+    `latency_p95_ms` (sur les 200 dernières prédictions).
   - `POST /v1/systemone` : corps au dialecte Jev — `state`, `questions`
     (`{clé: {type, instructions, criteria}}`), `model` ignoré. Réponse :
-    `model` (le checkpoint), `latency_ms`, `answers` (`choice`/`score`/`noul`,
-    `confidence`, `probabilities` pour un choix, `distribution` pour une note),
-    et `raw` : le dictionnaire rendu par `predict()` tel quel, pour qu'aucun
-    champ inconnu ne soit perdu.
+    `model` (le checkpoint), `latency_ms`, `input_tokens`, `answers`
+    (`choice`/`score`/`noul`, `confidence`, `probabilities`,
+    `act_probability`), et `raw` : le dictionnaire rendu par `predict()` tel
+    quel, pour qu'aucun champ inconnu ne soit perdu.
   - Clé facultative : `LAYA_API_KEY` non vide impose `Authorization: Bearer`.
     Vide par défaut — un réseau local.
   - Une exception de `predict()` est un 500 dont le `detail` est le message
@@ -80,7 +95,8 @@ Ce que le fournisseur emporte en plus :
 
 - `Decision.mass_bps: dict[str, int] | None` — la masse par option (choix)
   ou par niveau (note, clés `"0"`…`"10"`), en points de base, parsée en
-  `Decimal`. **Absente de `canonical()`** comme `confidence_bps` : elle décrit
+  `Decimal` depuis `probabilities`. `Decision.act_bps: int | None` — la
+  probabilité d'agir de la tête act/escalate, même traitement. **Absente de `canonical()`** comme `confidence_bps` : elle décrit
   la sortie du modèle à ce run-là, pas la décision, et un rejeu ne doit pas
   différer parce qu'une distribution a bougé à la troisième décimale.
   `_decision_payload` l'écrit dans `answers` ; l'écran la lit là.

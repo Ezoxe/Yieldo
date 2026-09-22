@@ -53,6 +53,7 @@ from app.decision.strategy import (
     Skip,
     StrategySettings,
     build_context,
+    direction_question,
     prefilter,
     size_intent,
 )
@@ -244,10 +245,10 @@ def _decision_payload(decision: Decision) -> dict[str, Any]:
     return payload
 
 
-def _questions_payload() -> list[dict[str, Any]]:
+def _questions_payload(direction: Any = DIRECTION) -> list[dict[str, Any]]:
     return [
-        {"key": DIRECTION.key, "kind": "choice", "prompt": DIRECTION.prompt,
-         "options": list(DIRECTION.options)},
+        {"key": direction.key, "kind": "choice", "prompt": direction.prompt,
+         "options": list(direction.options)},
         {"key": CONVICTION.key, "kind": "score", "prompt": CONVICTION.prompt,
          "minimum": CONVICTION.minimum, "maximum": CONVICTION.maximum},
         {"key": CONTINUATION.key, "kind": "probability", "statement": CONTINUATION.statement},
@@ -268,9 +269,10 @@ def _record(
     outcome: str, rule: str | None, message: str | None,
     risk_verdict: RiskVerdict | None, latency_ms: int, now: datetime,
     second_opinion: dict[str, Any] | None = None,
+    direction: Any = DIRECTION,
 ) -> TradeDecision:
     canonical = features.canonical() if features is not None else {"symbol": symbol}
-    questions = _questions_payload()
+    questions = _questions_payload(direction)
     row = TradeDecision(
         user_id=user.id, run_id=run_id, symbol=symbol, mode=mode, venue_id=venue.id,
         provider=provider, model=model,
@@ -299,14 +301,14 @@ def _ask(provider: DecisionProvider, question: Any, context: dict[str, Any]) -> 
     return provider.decide(question, context)
 
 
-def _second_opinion(context: dict[str, Any]) -> dict[str, Any]:
+def _second_opinion(context: dict[str, Any], direction: Any = DIRECTION) -> dict[str, Any]:
     """The deterministic engine's answers on the same context, canonical only
     -- no raw, no latency. Asked in the same order and with the same
     short-circuit as the model, so the two are compared like for like. Never
     sized, never sent to the mandate: a yardstick beside the model."""
     rules = ReplayProvider()
-    out = {DIRECTION.key: rules.decide(DIRECTION, context).canonical()}
-    if out[DIRECTION.key]["choice"] != HOLD:
+    out = {direction.key: rules.decide(direction, context).canonical()}
+    if out[direction.key]["choice"] != HOLD:
         out[CONVICTION.key] = rules.decide(CONVICTION, context).canonical()
         out[CONTINUATION.key] = rules.decide(CONTINUATION, context).canonical()
     return out
@@ -386,13 +388,17 @@ def run_cycle(
             continue
 
         context = build_context(features, snapshot)
+        # Only what can be executed is offered: with nothing held there is
+        # nothing to sell, and an option the pipeline would refuse anyway
+        # wastes the model's answer. See `strategy.direction_question`.
+        direction_q = direction_question(snapshot)
         answers: dict[str, Any] = {}
         latency = 0
 
         # --- the three questions -----------------------------------------
         try:
-            direction = _ask(provider, DIRECTION, context)
-            answers[DIRECTION.key] = _decision_payload(direction)
+            direction = _ask(provider, direction_q, context)
+            answers[direction_q.key] = _decision_payload(direction)
             latency += direction.latency_ms
 
             conviction = None
@@ -406,7 +412,9 @@ def run_cycle(
                 latency += continuation.latency_ms
             # A real model gets the rules' opinion stored beside it; the rules
             # do not get compared to themselves.
-            second_opinion = None if provider_name == "replay" else _second_opinion(context)
+            second_opinion = (
+                None if provider_name == "replay" else _second_opinion(context, direction_q)
+            )
         except DecisionError as exc:
             report.failed += 1
             report.outcomes.append(SymbolOutcome(symbol, _record(
@@ -414,6 +422,7 @@ def run_cycle(
                 features=features, windows=windows, context=context, answers=answers,
                 provider=provider_name, model="", outcome="failed", rule=exc.cause.value,
                 message=exc.message, risk_verdict=None, latency_ms=latency, now=now,
+                direction=direction_q,
             )))
             continue
 
@@ -432,7 +441,7 @@ def run_cycle(
                 features=features, windows=windows, context=context, answers=answers,
                 provider=provider_name, model=model_name, outcome="held", rule=sized.rule,
                 message=sized.message, risk_verdict=None, latency_ms=latency, now=now,
-                second_opinion=second_opinion,
+                second_opinion=second_opinion, direction=direction_q,
             )))
             continue
 
@@ -466,7 +475,7 @@ def run_cycle(
             rule=verdict.breaches[0].rule if verdict.breaches else None,
             message=verdict.breaches[0].message if verdict.breaches else None,
             risk_verdict=verdict, latency_ms=latency, now=now,
-            second_opinion=second_opinion,
+            second_opinion=second_opinion, direction=direction_q,
         )
 
         order = _place(

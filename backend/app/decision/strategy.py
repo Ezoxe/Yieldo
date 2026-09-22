@@ -54,6 +54,38 @@ DIRECTION = ChoiceQuestion(
     options=(BUY, SELL, HOLD),
 )
 
+# The same question when nothing is held. Not a variant of the prompt: an
+# option the pipeline would refuse anyway is simply not offered.
+DIRECTION_WITHOUT_SALE = ChoiceQuestion(
+    key="direction",
+    prompt=(
+        "Au vu des seuls indicateurs fournis, faut-il acheter cet instrument, ou ne rien "
+        "faire ? Réponds par une des options exactement."
+    ),
+    options=(BUY, HOLD),
+)
+
+
+def direction_question(position: "PositionSnapshot | None") -> ChoiceQuestion:
+    """The direction question, offering only what can be executed.
+
+    With nothing held a sale is impossible -- the pipeline refuses it, the
+    mandate refuses it, and the decision dies on « rien à vendre ». Offering
+    it anyway is how a model spends a whole session answering into the void:
+    measured on one simulated day, 217 of 234 decisions were « vendre » with
+    an empty book, and saying so IN THE CONTEXT changed nothing (161 of 234
+    on the next day) -- an encoder classifies, it does not obey a sentence.
+    So the option goes away, and the question asked is stored on the decision
+    beside the answer: a reader sees what was actually offered.
+
+    Selling short is a mandate permission this pipeline does not implement,
+    so « vendre » here always means « vendre ce qui est détenu ».
+    """
+    if position is None or position.quantity.value == 0:
+        return DIRECTION_WITHOUT_SALE
+    return DIRECTION
+
+
 CONVICTION = ScoreQuestion(
     key="conviction",
     prompt=(

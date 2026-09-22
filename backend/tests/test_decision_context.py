@@ -8,7 +8,7 @@ does nothing, so it answered « vendre » on 217 decisions out of 234, 158 of
 which died on « rien à vendre ».
 """
 
-from app.decision.strategy import PositionSnapshot, build_context
+from app.decision.strategy import BUY, DIRECTION, HOLD, SELL, PositionSnapshot, build_context
 from app.engines.quantity import parse as parse_quantity
 from app.engines.signals import MarketFeatures
 
@@ -80,3 +80,29 @@ def test_the_context_is_stable_for_the_same_inputs():
     # It is hashed with the features into the audit chain's digest, and a
     # replay compares it: two calls must not differ by a word.
     assert build_context(FEATURES, held()) == build_context(FEATURES, held())
+
+
+# --------------------------------------------------------------------------
+# The question only offers what can be done
+# --------------------------------------------------------------------------
+
+def test_with_nothing_held_the_direction_question_offers_no_sale():
+    """Measured, twice, on a real simulated day: told in the context that it
+    holds nothing, the model still answered « vendre » on 161 decisions out of
+    234 — an encoder classifies, it does not obey a sentence. An option that
+    cannot be executed has no business being offered; the mandate refused
+    every one of those answers anyway."""
+    from app.decision.strategy import direction_question
+
+    question = direction_question(None)
+    assert question.key == "direction"
+    assert question.options == (BUY, HOLD)
+    assert "vendre" not in question.prompt.lower()
+
+
+def test_holding_a_position_puts_the_sale_back_on_the_table():
+    from app.decision.strategy import direction_question
+
+    question = direction_question(held())
+    assert question.options == (BUY, SELL, HOLD)
+    assert question.prompt == DIRECTION.prompt

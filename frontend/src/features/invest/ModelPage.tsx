@@ -8,13 +8,18 @@ import { PageSkeleton } from "../../design/PageSkeleton";
 import { DecisionModelIcon } from "../../design/icons";
 import { ApiError, api } from "../../lib/api";
 import { useApiQuery, useInvalidate } from "../../lib/useApiQuery";
-import type { InvestDecisionModel, InvestModelCheck } from "../../lib/types";
-import { formatLatency, formatProbability } from "./format";
+import type {
+  InvestDecisionModel,
+  InvestModelCheck,
+  InvestTraining,
+  InvestWindowVerdict,
+} from "../../lib/types";
+import { formatBps, formatLatency, formatProbability } from "./format";
 import { MassBars } from "./MassBars";
 import { PROVIDER_LABELS } from "./vocabulary";
 import "./invest.css";
 
-const PROVIDERS = ["local", "jev", "laya", "replay"] as const;
+const PROVIDERS = ["local", "jev", "laya", "learned", "replay"] as const;
 
 /** What each provider is, and the trade it asks you to make. */
 const PROVIDER_NOTES: Record<string, string> = {
@@ -37,6 +42,12 @@ const PROVIDER_NOTES: Record<string, string> = {
     + "séries de prix : le panneau « Le modèle contre les règles » dit s'il bat quatre règles "
     + "de momentum. Le checkpoint multilingual est celui qui lit l'état français que Yieldo "
     + "envoie. Rien ne sort de chez vous.",
+  learned:
+    "Sept poids sur les indicateurs que Yieldo calcule déjà, appris sur votre propre "
+    + "processeur en quelques secondes : ni carte graphique, ni réseau, ni clé. Mesuré sur "
+    + "le bac à sable, il est le seul à passer l'examen des deux fenêtres — 65,8 % et 63,8 % "
+    + "hors échantillon, pour un avantage qui paie l'exécution. Il apprend le marché sur "
+    + "lequel il est entraîné, et l'examen le dit.",
   replay:
     "Des règles lisibles, exécutées par Yieldo, sans réseau : moyennes, momentum, RSI, "
     + "position dans le canal. Ce n'est jamais un repli automatique — il faut le choisir. "
@@ -63,6 +74,7 @@ export function ModelPage() {
   const [timeout, setTimeoutMs] = useState("2000");
   const [result, setResult] = useState<InvestModelCheck | null>(null);
   const [busy, setBusy] = useState(false);
+  const [training, setTraining] = useState<InvestTraining | null>(null);
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
@@ -75,6 +87,24 @@ export function ModelPage() {
   }, [model.data, hydrated]);
 
   if (model.isPending) return <PageSkeleton />;
+
+  const train = async () => {
+    setBusy(true);
+    setResult(null);
+    setTraining(null);
+    try {
+      setTraining(await api.post<InvestTraining>("/invest/model/apprendre", {}));
+      await invalidate("/invest/model");
+    } catch (error) {
+      setResult({
+        valid: false, latency_ms: null,
+        message: error instanceof ApiError
+          ? error.detail : "Le modèle n'a pas pu être entraîné.",
+      });
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const save = async () => {
     setBusy(true);
@@ -140,7 +170,16 @@ export function ModelPage() {
               ))}
             </fieldset>
 
-            {provider !== "replay" ? (
+            {provider === "learned" ? (
+              <div className="yd-invest-actions">
+                <button type="button" className="yd-button yd-button--primary"
+                        onClick={() => void train()} disabled={busy}>
+                  {busy ? "Entraînement en cours…" : "Entraîner sur le bac à sable"}
+                </button>
+              </div>
+            ) : null}
+
+            {provider !== "replay" && provider !== "learned" ? (
               <div className="yd-invest-grid">
                 <label className="yd-invest-field">
                   <span>Adresse du point d'accès</span>
@@ -216,6 +255,40 @@ export function ModelPage() {
                 {result.message}
                 {result.latency_ms !== null ? ` (${formatLatency(result.latency_ms)})` : ""}
               </p>
+            ) : null}
+
+            {training ? (
+              <div role="group" aria-label="Examen du modèle appris">
+                <p className={`yd-note yd-note--${training.holds ? "positive" : "negative"}`}
+                   role="status">
+                  {training.verdict}
+                </p>
+                <h4 className="yd-detail__heading">
+                  Deux fenêtres que l'entraînement n'a jamais vues
+                </h4>
+                <dl className="yd-health">
+                  <div>
+                    <dt>Appris sur</dt>
+                    <dd className="yd-num">{training.trained_on.toLocaleString("fr-FR")} états</dd>
+                  </div>
+                  {[["Première fenêtre", training.first_window],
+                    ["Seconde fenêtre", training.second_window]].map(([label, window]) => {
+                    const w = window as InvestWindowVerdict;
+                    return (
+                      <div key={String(label)}>
+                        <dt>{String(label)}</dt>
+                        <dd className="yd-num">{formatBps(w.accuracy_bps, { decimals: 1 })}</dd>
+                        <small className="yd-figure__note">
+                          hasard {formatBps(w.chance_accuracy_bps, { decimals: 1 })} · p{" "}
+                          {formatBps(w.p_value_bps, { decimals: 2 })}
+                          {" · "}avantage net{" "}
+                          {w.net_edge_bps > 0 ? "+" : ""}{w.net_edge_bps} bps sur {w.buys} achats
+                        </small>
+                      </div>
+                    );
+                  })}
+                </dl>
+              </div>
             ) : null}
 
             {result?.health ? (

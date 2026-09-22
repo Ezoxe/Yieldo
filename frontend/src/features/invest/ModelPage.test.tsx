@@ -36,15 +36,23 @@ function json(body: unknown, status = 200) {
 }
 
 let puts: Array<Record<string, unknown>>;
+let posts: Array<Record<string, unknown>>;
+let trainingResponse: unknown;
 
 beforeEach(() => {
   puts = [];
+  posts = [];
+  trainingResponse = TRAINING;
   fetchMock.mockReset();
   vi.stubGlobal("fetch", fetchMock);
   fetchMock.mockImplementation((input: string, init?: RequestInit) => {
     const url = new URL(String(input), "http://localhost");
     if (url.pathname === "/api/invest/model" && (init?.method ?? "GET") === "GET") {
       return Promise.resolve(json(UNSET));
+    }
+    if (url.pathname === "/api/invest/model/apprendre" && init?.method === "POST") {
+      posts.push({ path: url.pathname, body: JSON.parse(String(init.body)) });
+      return Promise.resolve(json(trainingResponse));
     }
     if (url.pathname === "/api/invest/model" && init?.method === "PUT") {
       puts.push(JSON.parse(String(init.body)));
@@ -74,6 +82,43 @@ function renderPage() {
     </QueryClientProvider>,
   );
 }
+
+const TRAINING = {
+  provider: "learned", trained_on: 1_200, dead_band_bps: 50, threshold_bps: 7_000,
+  first_window: { states: 600, accuracy_bps: 6_580, chance_accuracy_bps: 5_690,
+                  p_value_bps: 5, buys: 53, edge_bps: 248, net_edge_bps: 228 },
+  second_window: { states: 600, accuracy_bps: 6_380, chance_accuracy_bps: 5_690,
+                   p_value_bps: 5, buys: 53, edge_bps: 177, net_edge_bps: 157 },
+  holds: true,
+  verdict: "Le modèle bat le hasard sur les deux fenêtres et son avantage paie l'exécution : 228 et 157 points de base nets.",
+};
+
+describe("Modèle de décision — le modèle appris", () => {
+  it("trains on the processor and prints the verdict of both windows", async () => {
+    renderPage();
+    await userEvent.click(await screen.findByRole("radio", { name: /Modèle appris/ }));
+    await userEvent.click(screen.getByRole("button", { name: /Entraîner/ }));
+
+    expect(await screen.findByRole("status")).toHaveTextContent("paie l'exécution");
+    const card = screen.getByRole("group", { name: "Examen du modèle appris" });
+    // Les deux fenêtres, et l'avantage net : le chiffre qui parle d'argent.
+    expect(card).toHaveTextContent("65,8 %");
+    expect(card).toHaveTextContent("63,8 %");
+    expect(card).toHaveTextContent("+228");
+    expect(card).toHaveTextContent("+157");
+    expect(card).toHaveTextContent("1 200");
+    expect(posts.some((body) => body.path === "/api/invest/model/apprendre")).toBe(true);
+  });
+
+  it("says what a refused verdict means rather than showing figures alone", async () => {
+    trainingResponse = { ...TRAINING, holds: false,
+      verdict: "Le modèle bat le hasard, mais son avantage ne paie pas l'exécution sur les deux fenêtres : -9 et -12 points de base nets." };
+    renderPage();
+    await userEvent.click(await screen.findByRole("radio", { name: /Modèle appris/ }));
+    await userEvent.click(screen.getByRole("button", { name: /Entraîner/ }));
+    expect(await screen.findByText(/ne paie pas l'exécution/)).toBeInTheDocument();
+  });
+});
 
 describe("Modèle de décision — Laya", () => {
   it("offers Laya as a fourth provider, with an address and no model name", async () => {

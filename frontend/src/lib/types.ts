@@ -2593,6 +2593,7 @@ export interface InvestPolicy {
 
 export interface InvestDecisionModel {
   provider: string;
+  has_learned_model?: boolean;
   endpoint_url: string | null;
   model_name: string | null;
   timeout_ms: number;
@@ -2617,6 +2618,28 @@ export interface InvestModelHealth {
   predictions?: number;
   latency_p50_ms?: number | null;
   latency_p95_ms?: number | null;
+}
+
+export interface InvestWindowVerdict {
+  states: number;
+  accuracy_bps: number;
+  chance_accuracy_bps: number;
+  p_value_bps: number;
+  buys: number;
+  edge_bps: number;
+  net_edge_bps: number;
+}
+
+/** Ce qu'un entraînement rend : le modèle, et son examen sur deux fenêtres. */
+export interface InvestTraining {
+  provider: string;
+  trained_on: number;
+  dead_band_bps: number;
+  threshold_bps: number;
+  first_window: InvestWindowVerdict;
+  second_window: InvestWindowVerdict;
+  holds: boolean;
+  verdict: string;
 }
 
 export interface InvestModelCheck {

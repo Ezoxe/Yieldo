@@ -86,6 +86,7 @@ export const PROVIDER_LABELS: Record<string, string> = {
   local: "Modèle auto-hébergé",
   jev: "Jev (TypeSafe)",
   laya: "Laya (auto-hébergé)",
+  learned: "Modèle appris (votre processeur)",
   replay: "Moteur déterministe intégré",
 };
 

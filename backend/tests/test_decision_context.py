@@ -106,3 +106,23 @@ def test_holding_a_position_puts_the_sale_back_on_the_table():
     question = direction_question(held())
     assert question.options == (BUY, SELL, HOLD)
     assert question.prompt == DIRECTION.prompt
+
+
+def test_the_rules_answer_inside_the_options_they_were_offered():
+    """The built-in engine reads the same indicators whatever is offered, but
+    « vendre » with nothing held is not an option any more: its verdict then
+    is « ne rien faire », not a failure. Six decisions of one simulated day
+    died `off_contract` before this."""
+    from app.decision.replay import ReplayProvider
+    from app.decision.strategy import direction_question
+
+    falling = build_context(FEATURES, None)  # every indicator points down
+    answer = ReplayProvider().decide(direction_question(None), falling)
+    assert answer.choice == HOLD
+
+    # With a position, the sale is offered again and the engine takes it.
+    position = held()
+    held_answer = ReplayProvider().decide(
+        direction_question(position), build_context(FEATURES, position)
+    )
+    assert held_answer.choice == SELL

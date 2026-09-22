@@ -91,13 +91,19 @@ class ReplayProvider:
             else:
                 answer = HOLD
             if answer not in question.options:
-                # The catalogue changed under this provider. Refusing is the
-                # only honest move: silently picking the first option would be
-                # this module inventing a decision.
-                raise decision_error(
-                    DecisionFailureCause.OFF_CONTRACT, NAME,
-                    f"« {answer} » n'est pas une des options proposées",
-                )
+                # Yieldo asks only for what can be executed: with nothing held
+                # the sale is not offered (`strategy.direction_question`), and
+                # the honest verdict is then « ne rien faire » -- the engine
+                # read a fall, and doing nothing IS what a fall with an empty
+                # book allows. Anything else offered and refused would mean the
+                # catalogue changed under this provider, and that is a failure.
+                if answer == SELL and HOLD in question.options:
+                    answer = HOLD
+                else:
+                    raise decision_error(
+                        DecisionFailureCause.OFF_CONTRACT, NAME,
+                        f"« {answer} » n'est pas une des options proposées",
+                    )
             fields = {"choice": answer, "score_value": None, "probability_bps": None}
         elif isinstance(question, ScoreQuestion):
             # Conviction is agreement: four indicators all pointing one way is

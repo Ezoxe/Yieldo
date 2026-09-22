@@ -160,6 +160,54 @@ def prefilter(
     return None
 
 
+def _euros(cents: int) -> str:
+    """A price the way a reader reads it. `Decimal` at the display boundary
+    and nowhere before it -- and this IS a display boundary: the model reads
+    the context, and « 3086 » invites it to reason about three thousand."""
+    return f"{Decimal(cents) / 100:.2f} €".replace(".", ",")
+
+
+def _percent(bps: int, *, signed: bool = False) -> str:
+    body = f"{Decimal(bps) / 100:.2f}".replace(".", ",")
+    sign = "+" if signed and bps > 0 else ""
+    return f"{sign}{body} %"
+
+
+def _reading(features: MarketFeatures) -> str:
+    """One sentence naming what the indicators say, in words rather than in
+    figures. An encoder reads « la moyenne courte est sous la longue » far
+    better than it reads a negative integer of basis points."""
+    trend = (
+        "la moyenne courte est au-dessus de la longue (tendance en hausse)"
+        if features.trend_bps > 0
+        else "la moyenne courte est sous la longue (tendance en baisse)"
+        if features.trend_bps < 0
+        else "les deux moyennes sont confondues (pas de tendance)"
+    )
+    momentum = (
+        "le cours monte sur la fenêtre récente"
+        if features.momentum_bps > 0
+        else "le cours baisse sur la fenêtre récente"
+        if features.momentum_bps < 0
+        else "le cours est stable sur la fenêtre récente"
+    )
+    rsi = (
+        "le RSI est haut (acheteurs dominants, risque de surachat)"
+        if features.rsi_bps >= 7_000
+        else "le RSI est bas (vendeurs dominants, possible survente)"
+        if features.rsi_bps <= 3_000
+        else "le RSI est au milieu de sa plage"
+    )
+    canal = (
+        "le cours est en haut de son canal"
+        if features.range_position_bps >= 7_500
+        else "le cours est en bas de son canal"
+        if features.range_position_bps <= 2_500
+        else "le cours est au milieu de son canal"
+    )
+    return f"{trend} ; {momentum} ; {rsi} ; {canal}."
+
+
 def build_context(
     features: MarketFeatures, position: PositionSnapshot | None
 ) -> dict[str, Any]:
@@ -168,29 +216,69 @@ def build_context(
     French keys, because they are shown to the household verbatim on the
     decision's detail panel: the screen prints the context as it was sent, so a
     reader sees the model's actual input rather than a summary of it.
+
+    **Every figure travels twice**, as the integer the engines carry and as
+    the string a reader reads. The integers are the audited input; the strings
+    are what a text encoder can actually use, and a model sent « 3086 » reads
+    three thousand and eighty-six of something rather than thirty euros.
+
+    **What is possible is stated, not implied.** With nothing held, a sale is
+    impossible (short selling is a mandate permission, and the pipeline refuses
+    a sale of nothing); saying so in the context is the difference between a
+    model that answers « vendre » into the void -- measured: 217 of 234
+    decisions on one simulated day, 158 of them dying on « rien à vendre » --
+    and a model choosing among the options it actually has. The mandate still
+    checks everything afterwards: this tells the model the truth, it does not
+    trust it.
     """
     context: dict[str, Any] = {
         "instrument": features.symbol,
         "dernier_cours_centimes": features.last_price_cents,
+        "dernier_cours": _euros(features.last_price_cents),
         "moyenne_courte_centimes": features.sma_short_cents,
+        "moyenne_courte": _euros(features.sma_short_cents),
         "moyenne_longue_centimes": features.sma_long_cents,
+        "moyenne_longue": _euros(features.sma_long_cents),
         "tendance_points_de_base": features.trend_bps,
+        "tendance": _percent(features.trend_bps),
         "momentum_points_de_base": features.momentum_bps,
+        "momentum": _percent(features.momentum_bps),
         "rsi_points_de_base": features.rsi_bps,
+        "rsi": _percent(features.rsi_bps),
         "volatilite_points_de_base": features.volatility_bps,
+        "volatilite": _percent(features.volatility_bps),
         "repli_depuis_le_plus_haut_points_de_base": features.drawdown_bps,
+        "repli_depuis_le_plus_haut": _percent(features.drawdown_bps),
         "position_dans_le_canal_points_de_base": features.range_position_bps,
+        "position_dans_le_canal": _percent(features.range_position_bps),
         "cours_observes": features.closes_seen,
+        "lecture": _reading(features),
     }
     if position is None or position.quantity.value == 0:
         context["position_detenue"] = None
+        context["actions_possibles"] = [BUY, HOLD]
+        context["situation"] = (
+            f"Vous ne détenez aucune position sur {features.symbol}. Vendre est impossible : "
+            "il n'y a rien à vendre. Les seules réponses utiles sont « acheter » ou "
+            "« ne rien faire »."
+        )
     else:
         context["position_detenue"] = {
             "quantite": str(position.quantity),
             "prix_de_revient_centimes": position.average_price_cents,
+            "prix_de_revient": _euros(position.average_price_cents),
             "valeur_centimes": position.market_value_cents,
+            "valeur": _euros(position.market_value_cents),
             "plus_ou_moins_value_points_de_base": position.unrealised_pnl_bps,
+            "plus_ou_moins_value": _percent(position.unrealised_pnl_bps, signed=True),
         }
+        context["actions_possibles"] = [BUY, SELL, HOLD]
+        context["situation"] = (
+            f"Vous détenez {position.quantity} {features.symbol}, achetés en moyenne à "
+            f"{_euros(position.average_price_cents)}, soit "
+            f"{_percent(position.unrealised_pnl_bps, signed=True)} pour l'instant. Vous pouvez "
+            "acheter davantage, vendre ce que vous détenez, ou ne rien faire."
+        )
     return context
 
 

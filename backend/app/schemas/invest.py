@@ -308,6 +308,17 @@ class SecondOpinionOut(BaseModel):
 # La journée simulée
 # --------------------------------------------------------------------------
 
+class RiskProfileOut(BaseModel):
+    """A ready-made mandate the screen offers to fill the form with."""
+
+    name: str
+    label: str
+    summary: str
+    cash_cents: int
+    # The mandate body this profile proposes for `cash_cents`.
+    mandate: dict[str, Any]
+
+
 class SessionStartIn(BaseModel):
     steps: int = Field(default=78, ge=4, le=240)
     # The sandbox index to start at; drawn at random when absent, and echoed

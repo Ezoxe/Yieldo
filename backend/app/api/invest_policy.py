@@ -20,14 +20,15 @@ someone who meant to try something for an afternoon.
 
 from datetime import UTC, datetime, timedelta
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.db import get_db
 from app.decision.strategy import DECLARED_RULES
+from app.engines.risk_profiles import PROFILES
 from app.models import AUTONOMY_MODES, TradingPolicy, User
-from app.schemas.invest import ArmIn, PolicyIn, PolicyOut
-from app.security.deps import get_session_user
+from app.schemas.invest import ArmIn, PolicyIn, PolicyOut, RiskProfileOut
+from app.security.deps import get_current_user, get_session_user
 from app.trading import audit, service
 
 router = APIRouter(prefix="/invest/policy", tags=["invest"])
@@ -37,6 +38,26 @@ router = APIRouter(prefix="/invest/policy", tags=["invest"])
 # to reproduce it exactly, and a confirmation that fails on a diacritic teaches
 # people to paste rather than to read.
 ARM_PHRASE = "JE CONFIRME L'EXECUTION REELLE"
+
+
+@router.get("/profils", response_model=list[RiskProfileOut])
+def list_profiles(
+    cash_cents: int = Query(default=1_000_000, ge=1_000, le=1_000_000_000),
+    user: User = Depends(get_current_user),
+) -> list[RiskProfileOut]:
+    """The three ready-made mandates, scaled to the capital asked for.
+
+    Read-only, and applied by nobody but the household: the screen fills the
+    form with one and the household presses « Enregistrer le mandat » -- the
+    same rule the CSV importer follows with a proposed column mapping.
+    """
+    return [
+        RiskProfileOut(
+            name=profile.name, label=profile.label, summary=profile.summary,
+            cash_cents=profile.cash_cents, mandate=profile.mandate(cash_cents),
+        )
+        for profile in PROFILES
+    ]
 
 
 def policy_for(db: Session, user: User) -> TradingPolicy:

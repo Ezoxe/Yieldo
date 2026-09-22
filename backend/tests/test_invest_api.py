@@ -377,6 +377,32 @@ def test_the_deterministic_model_has_no_health_card(client, session):
     assert body["mass_bps"] is None
 
 
+def test_the_risk_profiles_propose_three_mandates_that_can_actually_trade(client, session):
+    headers, _ = session
+    profiles = client.get("/api/invest/policy/profils", headers=headers,
+                          params={"cash_cents": 1_000_000}).json()
+    assert [p["name"] for p in profiles] == ["prudent", "equilibre", "offensif"]
+    for profile in profiles:
+        mandate = profile["mandate"]
+        # None of them is the trap the operator met by hand.
+        assert mandate["max_orders_per_day"] >= 5
+        assert mandate["max_daily_loss_cents"] > 0
+        assert mandate["autonomy"] == "paper"
+        # And each is a body the mandate route accepts as it stands.
+        assert client.put("/api/invest/policy", headers=headers, json=mandate).status_code == 200
+
+    equilibre = next(p for p in profiles if p["name"] == "equilibre")["mandate"]
+    assert equilibre["max_position_cents"] == 250_000
+    assert equilibre["minimum_conviction"] == 3
+
+
+def test_the_profiles_scale_with_the_capital_they_are_asked_for(client, session):
+    headers, _ = session
+    small = client.get("/api/invest/policy/profils", headers=headers,
+                       params={"cash_cents": 100_000}).json()[1]["mandate"]
+    assert small["max_position_cents"] == 25_000
+
+
 def test_a_run_without_a_model_refuses_and_names_the_screen(client, session):
     headers, _ = session
     connect_sandbox(client, headers)

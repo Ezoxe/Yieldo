@@ -2786,6 +2786,15 @@ export interface InvestSecondOpinion {
 /** A simulated trading day: consecutive sandbox steps against one model. */
 export type InvestSessionStatus = "running" | "finished" | "stopped" | "failed";
 
+/** A ready-made mandate the Mandat screen offers to fill the form with. */
+export interface InvestRiskProfile {
+  name: string;
+  label: string;
+  summary: string;
+  cash_cents: number;
+  mandate: Record<string, unknown>;
+}
+
 export interface InvestSessionPoint {
   step: number;
   equity_cents: number;

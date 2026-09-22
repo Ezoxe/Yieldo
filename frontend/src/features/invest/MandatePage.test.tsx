@@ -41,12 +41,39 @@ function json(body: unknown, status = 200) {
   });
 }
 
+const PROFILES = [
+  { name: "prudent", label: "Prise de risque faible", summary: "Peu d'ordres, petites lignes.",
+    cash_cents: 1_000_000, mandate: { max_position_cents: 100_000, max_orders_per_day: 10,
+      minimum_conviction: 5 } },
+  { name: "equilibre", label: "Prise de risque moyenne",
+    summary: "Le réglage de départ conseillé : le modèle agit sur un signal correct.",
+    cash_cents: 1_000_000, mandate: {
+      max_position_cents: 250_000, max_exposure_cents: 700_000,
+      max_order_notional_cents: 150_000, min_order_notional_cents: 5_000,
+      max_daily_loss_cents: 50_000, min_cash_buffer_cents: 5_000, max_drawdown_bps: 1_500,
+      max_orders_per_day: 30, allowed_symbols: ["BTC-EUR", "ETH-EUR", "AAPL"],
+      allow_short: false, allow_leverage: false, allow_limit_orders: true,
+      minimum_conviction: 3, minimum_probability_bps: 4_000, max_volatility_bps: 2_000,
+      full_conviction_share_bps: 8_000, autonomy: "paper" } },
+  { name: "offensif", label: "Prise de risque forte", summary: "Le modèle agit dès qu'il penche.",
+    cash_cents: 1_000_000, mandate: { max_position_cents: 400_000, max_orders_per_day: 60,
+      minimum_conviction: 1 } },
+];
+
+let puts: Array<Record<string, unknown>> = [];
+
 function setupFetch(patch: Partial<InvestPolicy> = {}, handlers: Record<string, () => Response> = {}) {
+  puts = [];
   fetchMock.mockImplementation((input: string, init?: RequestInit) => {
     const url = new URL(typeof input === "string" ? input : String(input), "http://localhost");
     const key = `${init?.method ?? "GET"} ${url.pathname}`;
     if (handlers[key]) return Promise.resolve(handlers[key]());
+    if (url.pathname === "/api/invest/policy/profils") return Promise.resolve(json(PROFILES));
     if (url.pathname === "/api/invest/policy") {
+      if (init?.method === "PUT") {
+        puts.push(JSON.parse(String(init.body)));
+        return Promise.resolve(json({ ...policy, ...patch }));
+      }
       return Promise.resolve(json({ ...policy, ...patch }));
     }
     throw new Error(`Unhandled fetch in test: ${key}`);
@@ -203,5 +230,31 @@ describe("MandatePage", () => {
     expect(body.max_drawdown_bps).toBe(2_000);
     expect(body.minimum_probability_bps).toBe(5_500);
     expect(body.allowed_symbols).toEqual(["AAPL", "BTC-EUR"]);
+  });
+});
+
+describe("Mandat — les profils de risque", () => {
+  it("fills the form from a profile without saving it", async () => {
+    setupFetch();
+    renderPage();
+    await screen.findByText("Les limites");
+    const button = screen.getByRole("button", { name: /Prise de risque moyenne/ });
+    await userEvent.click(button);
+
+    // The form now holds the profile's figures, and nothing was sent.
+    expect(screen.getByLabelText(/Plafond par position/)).toHaveValue("2500,00");
+    expect(screen.getByLabelText(/Ordres maximum par jour/)).toHaveValue("30");
+    expect(screen.getByLabelText(/Conviction minimale/)).toHaveValue("3");
+    expect(puts).toHaveLength(0);
+    expect(screen.getByText(/Rien n'est enregistré/)).toBeInTheDocument();
+  });
+
+  it("names what each profile does before it is chosen", async () => {
+    setupFetch();
+    renderPage();
+    await screen.findByText("Les limites");
+    expect(screen.getByRole("button", { name: /Prise de risque faible/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Prise de risque forte/ })).toBeInTheDocument();
+    expect(screen.getByText(/réglage de départ conseillé/)).toBeInTheDocument();
   });
 });

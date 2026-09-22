@@ -10,7 +10,7 @@ import { HaltIcon, MandateIcon, OversightIcon } from "../../design/icons";
 import { parseCents } from "../../design/theme";
 import { ApiError, api } from "../../lib/api";
 import { useApiQuery, useInvalidate } from "../../lib/useApiQuery";
-import type { InvestAutonomy, InvestPolicy } from "../../lib/types";
+import type { InvestAutonomy, InvestPolicy, InvestRiskProfile } from "../../lib/types";
 import { plural } from "../../lib/plural";
 import { formatBps, formatCents, remainingMinutes } from "./format";
 import { AUTONOMY_EXPLAINED, AUTONOMY_LABELS } from "./vocabulary";
@@ -100,6 +100,11 @@ function toDraft(policy: InvestPolicy): Draft {
   };
 }
 
+/** A profile's mandate body, as `GET /invest/policy/profils` returns it. */
+function draftFromMandate(mandate: InvestPolicy): Draft {
+  return toDraft(mandate);
+}
+
 function percentToBps(value: string): number {
   const parsed = Number(value.replace(",", "."));
   return Number.isFinite(parsed) ? Math.round(parsed * 100) : 0;
@@ -126,6 +131,8 @@ export function MandatePage() {
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const [confirmation, setConfirmation] = useState("");
+  const [profileApplied, setProfileApplied] = useState<string | null>(null);
+  const profiles = useApiQuery<InvestRiskProfile[]>("/invest/policy/profils");
   const [minutes, setMinutes] = useState("30");
 
   useEffect(() => {
@@ -223,6 +230,35 @@ export function MandatePage() {
           {current.halted_reason ?? "sans raison enregistrée"}. Relancez-le depuis la Salle de
           contrôle avant d'armer quoi que ce soit.
         </div>
+      ) : null}
+
+      {profiles.data?.length ? (
+        <section className="yd-invest-form yd-profiles">
+          <h3 className="yd-detail__heading">Partir d'un réglage tout prêt</h3>
+          <p className="yd-note">
+            Chaque profil remplit le formulaire ci-dessous avec des montants calculés sur
+            10 000 €. <strong>Rien n'est enregistré</strong>&nbsp;: relisez, ajustez, puis
+            « Enregistrer le mandat ».
+          </p>
+          <div className="yd-profiles__row">
+            {profiles.data.map((profile) => (
+              <button
+                key={profile.name}
+                type="button"
+                className={`yd-profile${profileApplied === profile.name ? " yd-profile--picked" : ""}`}
+                onClick={() => {
+                  setDraft(draftFromMandate(profile.mandate as unknown as InvestPolicy));
+                  setProfileApplied(profile.name);
+                  setSaved(false);
+                }}
+                aria-pressed={profileApplied === profile.name}
+              >
+                <strong>{profile.label}</strong>
+                <small>{profile.summary}</small>
+              </button>
+            ))}
+          </div>
+        </section>
       ) : null}
 
       <BentoGrid>

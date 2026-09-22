@@ -2,6 +2,7 @@ import { Suspense, lazy, type ComponentType } from "react";
 import { createBrowserRouter } from "react-router";
 
 import { PageSkeleton } from "../design/PageSkeleton";
+import { loadOrReload } from "./lazyScreen";
 import { LoginPage } from "../features/auth/LoginPage";
 import { RegisterPage } from "../features/auth/RegisterPage";
 import { RequireAuth } from "../features/auth/RequireAuth";
@@ -23,7 +24,9 @@ function screen<M extends Record<string, unknown>>(
   load: () => Promise<M>,
   pick: (module: M) => ComponentType,
 ) {
-  const Component = lazy(() => load().then((module) => ({ default: pick(module) })));
+  // `loadOrReload`: a chunk missing after a deploy reloads the tab once
+  // instead of showing the router's error page.
+  const Component = lazy(() => loadOrReload(load).then((module) => ({ default: pick(module) })));
   return (
     <Suspense fallback={<PageSkeleton />}>
       <Component />

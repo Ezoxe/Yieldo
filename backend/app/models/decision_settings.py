@@ -1,6 +1,6 @@
 from datetime import UTC, datetime
 
-from sqlalchemy import DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
+from sqlalchemy import JSON, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db import Base
@@ -46,6 +46,9 @@ class DecisionSettings(Base):
     model_name: Mapped[str | None] = mapped_column(String(200), nullable=True)
     api_key_encrypted: Mapped[str | None] = mapped_column(Text, nullable=True)
     timeout_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # Les poids du modèle appris (`engines/logistic.LearnedModel.canonical`),
+    # quand le foyer en a entraîné un. NULL pour tous les autres fournisseurs.
+    learned_model: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(UTC), nullable=False
     )

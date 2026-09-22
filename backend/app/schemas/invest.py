@@ -119,6 +119,9 @@ class DecisionModelIn(BaseModel):
 
 class DecisionModelOut(BaseModel):
     provider: str
+    # Un modèle appris est-il enregistré ? Jamais ses poids : la page ne les
+    # affiche pas, elle dit qu'ils existent.
+    has_learned_model: bool = False
     endpoint_url: str | None
     model_name: str | None
     timeout_ms: int
@@ -307,6 +310,40 @@ class SecondOpinionOut(BaseModel):
 # --------------------------------------------------------------------------
 # La journée simulée
 # --------------------------------------------------------------------------
+
+class WindowVerdictOut(BaseModel):
+    """Une fenêtre de validation, lue par `engines/model_eval`."""
+
+    states: int
+    accuracy_bps: int
+    chance_accuracy_bps: int
+    p_value_bps: int
+    buys: int
+    edge_bps: int
+    net_edge_bps: int
+
+
+class TrainingOut(BaseModel):
+    provider: str
+    trained_on: int
+    dead_band_bps: int
+    threshold_bps: int
+    first_window: WindowVerdictOut
+    second_window: WindowVerdictOut
+    # Le signal tient-il sur les deux fenêtres ? La phrase le dit.
+    holds: bool
+    verdict: str
+
+
+class TrainingIn(BaseModel):
+    # Combien d'états par instrument, et où commencer. Les fenêtres de
+    # validation sont ailleurs, toujours.
+    samples_per_symbol: int = Field(default=400, ge=50, le=2_000)
+    start_index: int = Field(default=10_000, ge=0, le=10_000_000)
+    horizon: int = Field(default=3, ge=1, le=24)
+    dead_band_bps: int = Field(default=50, ge=0, le=1_000)
+    threshold_bps: int = Field(default=7_000, ge=5_000, le=9_900)
+
 
 class RiskProfileOut(BaseModel):
     """A ready-made mandate the screen offers to fill the form with."""

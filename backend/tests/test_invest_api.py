@@ -461,6 +461,42 @@ def test_the_profiles_scale_with_the_capital_they_are_asked_for(client, session)
     assert small["max_position_cents"] == 25_000
 
 
+def test_training_a_model_on_the_sandbox_returns_its_verdict(client, session):
+    """Sans carte graphique : quelques secondes de processeur, et un verdict
+    sur deux fenêtres lointaines plutôt qu'une promesse."""
+    headers, _ = session
+    response = client.post("/api/invest/model/apprendre", headers=headers, json={})
+    assert response.status_code == 200
+    body = response.json()
+
+    assert body["trained_on"] >= 500
+    assert body["provider"] == "learned"
+    # Deux fenêtres, jamais celle de l'entraînement.
+    for window in (body["first_window"], body["second_window"]):
+        assert window["states"] > 100
+        assert 0 <= window["accuracy_bps"] <= 10_000
+        assert window["chance_accuracy_bps"] > 0
+    assert isinstance(body["holds"], bool)
+    assert body["verdict"]
+
+    # Le modèle est enregistré et devient le fournisseur courant.
+    stored = client.get("/api/invest/model", headers=headers).json()
+    assert stored["provider"] == "learned"
+    assert stored["has_learned_model"] is True
+
+
+def test_the_learned_model_then_decides_a_real_cycle(client, session):
+    headers, _ = session
+    connect_sandbox(client, headers)
+    client.post("/api/invest/model/apprendre", headers=headers, json={})
+    client.put("/api/invest/policy", headers=headers, json=full_policy())
+    run = client.post("/api/invest/run", headers=headers).json()
+    assert run["examined"] == 2
+    assert run["failed"] == 0
+    for decision in run["decisions"]:
+        assert decision["provider"] == "learned"
+
+
 def test_a_run_without_a_model_refuses_and_names_the_screen(client, session):
     headers, _ = session
     connect_sandbox(client, headers)

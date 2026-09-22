@@ -45,12 +45,13 @@ BPS_WHOLE = 10_000
 
 # Where a decision came from. Stored on every decision row so a household can
 # tell a sandbox replay from a real model answer months later.
-PROVIDERS = ("local", "jev", "laya", "replay")
+PROVIDERS = ("local", "jev", "laya", "learned", "replay")
 
 PROVIDER_LABELS = {
     "local": "modèle auto-hébergé",
     "jev": "Jev (TypeSafe)",
     "laya": "Laya (auto-hébergé)",
+    "learned": "Modèle appris (votre processeur)",
     "replay": "moteur déterministe intégré",
 }
 

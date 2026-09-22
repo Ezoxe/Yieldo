@@ -1664,6 +1664,8 @@ SECOND_OPINION_REVISION = "c7d8e9f0a1b2"
 # The simulated trading day: `trading_sessions`, and `session_id` /
 # `session_step` on `trade_decisions`.
 TRADING_SESSIONS_REVISION = "d8e9f0a1b2c3"
+# Les poids du modèle appris sur `decision_settings`.
+LEARNED_MODEL_REVISION = "e9f0a1b2c3d4"
 
 
 def test_the_goal_account_migration_matches_base_metadata_exactly(migration_db):
@@ -1714,8 +1716,9 @@ def test_the_investment_migration_is_the_single_head(migration_db):
 
     script = ScriptDirectory.from_config(migration_db.config)
     assert len(script.get_heads()) == 1
-    assert script.get_current_head() == TRADING_SESSIONS_REVISION
+    assert script.get_current_head() == LEARNED_MODEL_REVISION
     on_path = {rev.revision for rev in script.walk_revisions()}
+    assert TRADING_SESSIONS_REVISION in on_path
     assert SECOND_OPINION_REVISION in on_path
     assert INVESTMENT_REVISION in on_path
     assert GOAL_ACCOUNT_REVISION in {rev.revision for rev in script.walk_revisions()}
@@ -1819,7 +1822,9 @@ def test_the_investment_migration_matches_base_metadata_exactly(migration_db, ta
 
     `trade_decisions` is compared one revision later: c7d8e9f0a1b2 added
     `second_opinion` to it, and the model can only match the head."""
-    target = TRADING_SESSIONS_REVISION if table == "trade_decisions" else INVESTMENT_REVISION
+    later = {"trade_decisions": TRADING_SESSIONS_REVISION,
+             "decision_settings": LEARNED_MODEL_REVISION}
+    target = later.get(table, INVESTMENT_REVISION)
     command.upgrade(migration_db.config, target)
     conn = _connect(migration_db)
     migrated_columns = _table_columns(conn, table)
@@ -2037,3 +2042,19 @@ def test_the_trading_day_migration_downgrades_cleanly(migration_db):
     assert "trading_sessions" not in tables
     assert "session_id" not in columns
     command.upgrade(migration_db.config, TRADING_SESSIONS_REVISION)
+
+
+def test_the_learned_model_column_lands_nullable_and_downgrades(migration_db):
+    command.upgrade(migration_db.config, LEARNED_MODEL_REVISION)
+    conn = _connect(migration_db)
+    columns = _table_columns(conn, "decision_settings")
+    reference, _ = _reference_schema("decision_settings")
+    conn.close()
+    assert columns == reference
+
+    command.downgrade(migration_db.config, TRADING_SESSIONS_REVISION)
+    conn = _connect(migration_db)
+    names = {row[1] for row in conn.execute("PRAGMA table_info(decision_settings)")}
+    conn.close()
+    assert "learned_model" not in names
+    command.upgrade(migration_db.config, LEARNED_MODEL_REVISION)

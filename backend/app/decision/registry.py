@@ -22,8 +22,10 @@ from app.decision.contract import (
 )
 from app.decision.jev import JevProvider
 from app.decision.laya import LayaProvider
+from app.decision.learned import LearnedProvider
 from app.decision.local import LocalProvider
 from app.decision.replay import ReplayProvider
+from app.engines.logistic import LearnedModel
 from app.models import DecisionSettings
 from app.security.crypto import SecretDecryptionError, decrypt_secret
 
@@ -56,6 +58,13 @@ def build_provider(row: DecisionSettings | None) -> DecisionProvider:
             endpoint_url=row.endpoint_url, model_name=row.model_name,
             api_key=api_key, timeout_ms=timeout_ms,
         )
+    if row.provider == "learned":
+        if not row.learned_model:
+            raise decision_error(
+                DecisionFailureCause.NO_MODEL, "learned",
+                "aucun modèle n'a encore été entraîné",
+            )
+        return LearnedProvider(model=LearnedModel.from_canonical(row.learned_model))
     if row.provider == "laya":
         # No default address: Laya is the household's own server, and the
         # refusal names the screen where its address goes.

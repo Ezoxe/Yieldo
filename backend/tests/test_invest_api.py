@@ -173,9 +173,10 @@ def test_a_halt_keeps_the_first_reason_rather_than_the_last(client, session):
     assert second["raison"] == "première"
 
 
-def test_a_halt_disarms_real_execution(client, session):
+def test_a_halt_disarms_real_execution(client, session, db):
     headers, agent = session
     connect_sandbox(client, headers)
+    give_a_track_record(db)
     client.put("/api/invest/policy", headers=headers, json=full_policy(autonomy="live"))
     client.post("/api/invest/policy/arm", headers=headers,
                 json={"confirmation": ARM_PHRASE, "minutes": 60})
@@ -201,6 +202,63 @@ def test_a_halted_pipeline_refuses_to_run(client, session):
 # --------------------------------------------------------------------------
 # The arming
 # --------------------------------------------------------------------------
+
+def give_a_track_record(db, email: str = "max@example.com", pairs: int = 12) -> None:
+    """A model that has earned real money: probabilised decisions whose
+    stated probability matched what the next cycle's price did. Written
+    straight into the ledger because running two hundred paper cycles to
+    arm one test would measure the sandbox rather than the gate."""
+    from app.models import TradeDecision, User
+
+    user = db.query(User).filter(User.email == email).one()
+    price = 10_000
+    for index in range(pairs * 2):
+        # « acheter » at 90 %, and the price does rise: a well-calibrated call.
+        db.add(TradeDecision(
+            user_id=user.id, run_id=f"track-{index}", symbol="AAPL", mode="live",
+            provider="replay", model="yieldo-regles-1", features={}, windows={},
+            context={}, questions=[],
+            answers={"direction": {"choice": "acheter"},
+                     "continuation": {"probability_bps": 9_000}},
+            reference_price_cents=price, latency_ms=1, outcome="ordered",
+            inputs_hash="x" * 64,
+        ))
+        price += 10
+    db.commit()
+
+
+def test_arming_refuses_a_model_with_no_measured_track_record(client, session):
+    """Real money is not armed on a hope. A model that has never been
+    measured — or that has been measured no better than a coin toss — cannot
+    be handed the household's own money, whatever phrase is typed. Measured
+    on this very sandbox: Laya's answers correlate 0,003 with what the market
+    did next, and it would have passed every other check."""
+    headers, _ = session
+    connect_sandbox(client, headers)
+    choose_deterministic_model(client, headers)
+    client.put("/api/invest/policy", headers=headers, json=full_policy(autonomy="live"))
+
+    response = client.post("/api/invest/policy/arm", headers=headers,
+                           json={"confirmation": ARM_PHRASE, "minutes": 30})
+    assert response.status_code == 409
+    detail = response.json()["detail"]
+    assert "pile ou face" in detail.lower() or "pile-ou-face" in detail.lower()
+    assert "décision" in detail
+    # It says where the figure is read.
+    assert "Salle de contrôle" in detail or "modèle dit-il vrai" in detail
+
+
+def test_a_measured_model_arms_normally(client, session, db):
+    headers, _ = session
+    connect_sandbox(client, headers)
+    choose_deterministic_model(client, headers)
+    give_a_track_record(db)
+    client.put("/api/invest/policy", headers=headers, json=full_policy(autonomy="live"))
+    response = client.post("/api/invest/policy/arm", headers=headers,
+                           json={"confirmation": ARM_PHRASE, "minutes": 30})
+    assert response.status_code == 200
+    assert response.json()["armed"] is True
+
 
 def test_arming_refuses_a_wrong_phrase_and_says_the_right_one(client, session):
     headers, _ = session

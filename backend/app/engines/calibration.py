@@ -132,6 +132,43 @@ def _verdict(observations: int, brier_bps: int) -> str:
     )
 
 
+# How many probabilised decisions must have been followed by a next step
+# before a track record means anything. Twenty is what `_verdict` already
+# calls too few to judge; real money asks for the same floor.
+TRACK_RECORD_MINIMUM = 20
+
+
+def beats_a_coin_toss(report: "CalibrationReport") -> tuple[bool, str]:
+    """Whether this model has EARNED real money, and the French sentence
+    saying why not.
+
+    A Brier score is the only figure in this application that compares a
+    model's own claim to what happened. Below the floor there is nothing to
+    read; at or above the coin-flip score the model's probabilities are worth
+    no more than a toss, and a household about to hand it real money should
+    hear that before typing the phrase, not after.
+    """
+    if report.observations < TRACK_RECORD_MINIMUM:
+        return False, (
+            f"Ce modèle n'a que {report.observations} décision"
+            f"{'s' if report.observations > 1 else ''} probabilisée"
+            f"{'s' if report.observations > 1 else ''} suivie"
+            f"{'s' if report.observations > 1 else ''} d'un tour suivant, pour un minimum de "
+            f"{TRACK_RECORD_MINIMUM} : rien ne permet encore de dire s'il fait mieux que "
+            "pile ou face. Laissez-le tourner en mode papier, puis lisez « Le modèle dit-il "
+            "vrai ? » sur la Salle de contrôle."
+        )
+    if report.brier_bps >= report.coin_flip_brier_bps:
+        return False, (
+            f"Sur {report.observations} décisions probabilisées, ce modèle obtient un score de "
+            f"Brier de {report.brier_bps / 100:.2f} % pour un pile ou face à "
+            f"{report.coin_flip_brier_bps / 100:.2f} % : ses probabilités ne valent pas mieux "
+            "qu'un tirage. L'exécution réelle reste fermée. Le détail est sur la Salle de "
+            "contrôle, panneau « Le modèle dit-il vrai ? »."
+        )
+    return True, ""
+
+
 def evaluate_calibration(observations: tuple[Observation, ...]) -> CalibrationReport:
     if not observations:
         return CalibrationReport(

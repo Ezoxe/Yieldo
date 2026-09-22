@@ -25,8 +25,9 @@ from sqlalchemy.orm import Session
 
 from app.db import get_db
 from app.decision.strategy import DECLARED_RULES
+from app.engines.calibration import beats_a_coin_toss, evaluate_calibration
 from app.engines.risk_profiles import PROFILES
-from app.models import AUTONOMY_MODES, TradingPolicy, User
+from app.models import AUTONOMY_MODES, TradeDecision, TradingPolicy, User
 from app.schemas.invest import ArmIn, PolicyIn, PolicyOut, RiskProfileOut
 from app.security.deps import get_current_user, get_session_user
 from app.trading import audit, service
@@ -193,6 +194,25 @@ def arm(
             detail="Le mandat n'autorise aucun instrument : armer l'exécution réelle "
                    "n'ouvrirait rien. Ajoutez au moins un instrument.",
         )
+
+    # The evidence gate. Everything above checks intent; this checks the
+    # model's record, and it is the only check that cannot be satisfied by
+    # typing something. A model whose probabilities are worth no more than a
+    # coin toss does not get the household's own money.
+    from app.api.invest_run import DEFAULT_WINDOW as CALIBRATION_WINDOW
+    from app.api.invest_run import calibration_observations
+
+    decisions = (
+        db.query(TradeDecision)
+        .filter(TradeDecision.user_id == user.id)
+        .order_by(TradeDecision.id.desc())
+        .limit(CALIBRATION_WINDOW)
+        .all()
+    )
+    report = evaluate_calibration(calibration_observations(decisions))
+    earned, why = beats_a_coin_toss(report)
+    if not earned:
+        raise HTTPException(status_code=409, detail=why)
 
     now = datetime.now(UTC)
     row.armed_until = now + timedelta(minutes=payload.minutes)

@@ -12,11 +12,20 @@ from the seed through `trading/sandbox.py`, so the chart is the very market
 the decisions were taken on, at no storage cost.
 """
 
+import json
 import secrets
 from collections.abc import Callable
 from datetime import UTC, date, datetime
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Depends,
+    HTTPException,
+    Query,
+    Response,
+    status,
+)
 from sqlalchemy.orm import Session
 
 from app.api.invest_policy import policy_for
@@ -24,6 +33,11 @@ from app.db import SessionLocal, get_db
 from app.decision.contract import DecisionError
 from app.decision.registry import build_provider
 from app.engines.session_report import DecisionSummary, OrderSummary, Point, report
+from app.engines.training_set import (
+    DEFAULT_DEAD_BAND_BPS,
+    DEFAULT_HORIZON,
+    label_examples,
+)
 from app.models import (
     DecisionSettings,
     TradeDecision,
@@ -289,6 +303,57 @@ def read_day(
                 for symbol, series in sheet.mass_series.items()
             },
         ),
+    )
+
+
+@router.get("/{session_id}/entrainement")
+def training_set(
+    session_id: int,
+    horizon: int = Query(default=DEFAULT_HORIZON, ge=1, le=20),
+    dead_band_bps: int = Query(default=DEFAULT_DEAD_BAND_BPS, ge=0, le=5_000),
+    user: User = Depends(get_session_user),
+    db: Session = Depends(get_db),
+) -> Response:
+    """The day as labelled examples, one JSON object per line.
+
+    An encoder learns a domain by training on it. Yieldo cannot fine-tune
+    anything -- that needs a GPU and `tools/laya-server/README.md` says how --
+    but it owns the one thing a fine-tune cannot be had without: states whose
+    right answer is known. The sandbox is deterministic, so the label is read
+    off the future rather than guessed.
+
+    `get_session_user`: the export carries the household's whole strategy,
+    and an access key opens the ledger, not the training data.
+    """
+    row = _row_for(db, user, session_id)
+    decisions = (
+        db.query(TradeDecision)
+        .filter(TradeDecision.user_id == user.id, TradeDecision.session_id == row.id)
+        .order_by(TradeDecision.id.asc())
+        .all()
+    )
+    by_symbol: dict[str, list[tuple[dict, int, list[str]]]] = {}
+    for decision in decisions:
+        if not decision.context or decision.reference_price_cents is None:
+            continue
+        offered = (decision.questions or [{}])[0].get("options") or []
+        by_symbol.setdefault(decision.symbol, []).append(
+            (decision.context, decision.reference_price_cents, list(offered))
+        )
+
+    lines: list[str] = []
+    for states in by_symbol.values():
+        for example in label_examples(states, horizon=horizon, dead_band_bps=dead_band_bps):
+            lines.append(json.dumps(example.canonical(), ensure_ascii=False))
+
+    body = "".join(f"{line}\n" for line in lines)
+    return Response(
+        content=body,
+        media_type="application/x-ndjson",
+        headers={
+            "Content-Disposition":
+                f'attachment; filename="journee-{row.seed}-entrainement.jsonl"',
+        },
     )
 
 

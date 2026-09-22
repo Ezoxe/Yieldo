@@ -84,3 +84,52 @@ Journal : `journalctl -u laya -f`.
   ordres partent. D'où le défaut. Le panneau « Le modèle contre les règles »
   compare chaque décision de Laya au moteur déterministe intégré, jamais
   exécuté : c'est là que se lit s'il bat quatre règles de momentum.
+
+## Rendre Laya utilisable sur des cours : l'affiner
+
+Mesuré sur le bac à sable de Yieldo, 1 032 décisions : la masse de
+probabilité de Laya corrèle **0,003 à 0,028** avec ce que le marché a fait
+ensuite — indiscernable de zéro, aux trois horizons testés. Ce n'est pas un
+défaut de réglage : un checkpoint de base score au hasard sur les décisions
+typées, et ses auteurs l'écrivent — « fine-tuning is where most of the value
+is ». Un encodeur n'apprend pas un domaine par une meilleure question ; il
+l'apprend par entraînement.
+
+Yieldo fournit la pièce qui manque : **un jeu d'exemples étiquetés**. Le
+marché du bac à sable est déterministe, donc pour chaque état montré au
+modèle, ce qui s'est passé ensuite est connu exactement — l'étiquette est
+mesurée, pas devinée.
+
+### La boucle
+
+1. **Produire des journées.** Investissement → La journée, avec n'importe
+   quel modèle (même le moteur déterministe : ce sont les états qui comptent,
+   pas les réponses). Une journée de 78 pas sur trois instruments donne
+   ≈ 225 exemples.
+2. **Exporter.** Le bouton « Exporter pour l'entraînement » sur le bilan, ou
+   `GET /api/invest/sessions/<id>/entrainement` (JSONL, un objet par ligne).
+   Deux réglages en paramètre : `horizon` (nombre de pas que l'étiquette
+   regarde devant, 3 par défaut) et `dead_band_bps` (en deçà, le mouvement
+   est du bruit et l'étiquette est « ne rien faire », 100 par défaut).
+3. **Assembler.** Concaténez les journées : comptez 20 000 à 30 000 exemples,
+   soit une centaine de journées, sur des numéros différents.
+4. **Entraîner.** Sur GPU — le notebook des auteurs
+   (`laya_finetune_typed_decisions_*.ipynb`) tourne en 4–5 h sur deux T4 pour
+   ~30 000 questions. Le CPU du conteneur ne suffit pas.
+5. **Servir.** Poussez le checkpoint sur le Hub, puis dans
+   `/etc/default/laya` : `LAYA_CHECKPOINT=<votre-checkpoint>`, et
+   `systemctl restart laya`.
+6. **Vérifier avant l'argent réel.** Yieldo refuse d'armer l'exécution réelle
+   tant que le modèle n'a pas vingt décisions probabilisées suivies d'un tour
+   ET un score de Brier meilleur qu'un pile ou face. Le panneau « Le modèle
+   dit-il vrai ? » de la Salle de contrôle porte le chiffre.
+
+### Ce que l'étiquette dit, exactement
+
+Chaque ligne porte l'état tel qu'il a été envoyé, les questions telles
+qu'elles ont été posées, et les trois réponses que le futur donne :
+
+- `direction` — la meilleure action **parmi celles réellement proposées** :
+  sans position, une baisse étiquette « ne rien faire », pas « vendre » ;
+- `conviction` — 0 dans la bande morte, 10 à quatre fois sa largeur ;
+- `continuation` — vrai quand le mouvement dépasse la bande morte.

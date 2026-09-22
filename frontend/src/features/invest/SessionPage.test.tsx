@@ -148,6 +148,15 @@ describe("La journée", () => {
     expect(screen.getByRole("textbox", { name: /^Rejouer la journée n°/ })).toHaveValue("4242");
   });
 
+  it("offers the day as a labelled training set", async () => {
+    // The only path measured to make an encoder decide on prices: teach it.
+    renderPage();
+    await screen.findByText("−3,40 %");
+    const link = screen.getByRole("link", { name: /Exporter pour l'entraînement/ });
+    expect(link).toHaveAttribute("href", "/api/invest/sessions/7/entrainement");
+    expect(link).toHaveAttribute("download");
+  });
+
   it("explains an empty history rather than drawing nothing", async () => {
     list = [];
     renderPage();

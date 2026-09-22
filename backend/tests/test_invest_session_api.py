@@ -5,6 +5,8 @@ a four-step day is finished by the time `POST` answers -- the routes are
 tested end to end without a thread.
 """
 
+import json
+
 import pytest
 
 from app.api.invest_session import session_factory
@@ -169,3 +171,33 @@ def test_a_tour_by_hand_is_refused_while_a_day_runs(client, ready, db):
     assert "journée" in refused.json()["detail"].lower()
     again = client.post("/api/invest/sessions", headers=headers, json={"steps": 4})
     assert again.status_code == 409
+
+
+def test_a_day_exports_a_labelled_training_set(client, ready):
+    """The only path that can make an encoder decide on prices: teach it.
+    The sandbox knows the future, so the label is measured rather than
+    guessed — and every row carries the options that were really offered."""
+    headers, _ = ready
+    day = client.post("/api/invest/sessions", headers=headers, json={"steps": 12}).json()
+
+    response = client.get(f"/api/invest/sessions/{day['id']}/entrainement", headers=headers)
+    assert response.status_code == 200
+    assert "ndjson" in response.headers["content-type"]
+    assert f"journee-{day['seed']}" in response.headers["content-disposition"]
+
+    rows = [json.loads(line) for line in response.text.splitlines() if line.strip()]
+    assert rows
+    for row in rows:
+        assert row["state"]["instrument"]
+        assert row["answers"]["direction"] in ("acheter", "vendre", "ne rien faire")
+        assert 0 <= row["answers"]["conviction"] <= 10
+        assert isinstance(row["answers"]["continuation"], bool)
+        # Never labelled with an option the pipeline could not have executed.
+        assert row["answers"]["direction"] in row["questions"]["direction"]["criteria"]
+
+
+def test_an_agent_key_cannot_pull_the_training_set(client, ready):
+    headers, agent = ready
+    day = client.post("/api/invest/sessions", headers=headers, json={"steps": 4}).json()
+    assert client.get(f"/api/invest/sessions/{day['id']}/entrainement",
+                      headers=agent).status_code == 401

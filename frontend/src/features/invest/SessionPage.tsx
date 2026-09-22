@@ -207,9 +207,20 @@ export function SessionPage() {
                 + `${day.model ? ` (${day.model})` : ""} · ${day.completed_steps} pas sur ${day.steps}`
               }
               actions={
-                <span className={`yd-pill yd-pill--${STATUS_TONE[day.status] ?? "neutral"}`}>
-                  {STATUS_LABELS[day.status] ?? day.status}
-                </span>
+                <>
+                  {day.completed_steps > 3 ? (
+                    <a
+                      className="yd-button yd-button--quiet"
+                      href={`/api/invest/sessions/${day.id}/entrainement`}
+                      download
+                    >
+                      Exporter pour l'entraînement
+                    </a>
+                  ) : null}
+                  <span className={`yd-pill yd-pill--${STATUS_TONE[day.status] ?? "neutral"}`}>
+                    {STATUS_LABELS[day.status] ?? day.status}
+                  </span>
+                </>
               }
             >
               Le bilan

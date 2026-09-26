@@ -2,7 +2,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
-import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ThemeProvider } from "../../app/ThemeProvider";
 import type { InvestSession, InvestSessionDetail } from "../../lib/types";
@@ -50,13 +50,11 @@ function json(body: unknown, status = 200) {
 let posts: Array<Record<string, unknown>>;
 let list: InvestSession[];
 
-beforeAll(() => {
-  // ECharts needs a canvas jsdom does not have; the page is judged on its
-  // text and its requests, the charts on their options (SessionCharts.test).
-  vi.mock("../../charts/Chart", () => ({
-    Chart: ({ ariaLabel }: { ariaLabel: string }) => <div role="img" aria-label={ariaLabel} />,
-  }));
-});
+// ECharts needs a canvas jsdom does not have; the page is judged on its
+// text and its requests, the charts on their options (SessionCharts.test).
+vi.mock("../../charts/Chart", () => ({
+  Chart: ({ ariaLabel }: { ariaLabel: string }) => <div role="img" aria-label={ariaLabel} />,
+}));
 
 beforeEach(() => {
   posts = [];

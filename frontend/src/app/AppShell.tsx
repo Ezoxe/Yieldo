@@ -98,6 +98,10 @@ function SidebarNav({
                       {/* The link's whole accessible name, and its whole text
                           content — the icon beside it is `aria-hidden`. */}
                       {item.label}
+                      {/* The space is for the accessible name: without it the
+                          link reads « Alertes2 en cours ». A flex container
+                          does not draw it. */}
+                      {(badges?.[item.to] ?? 0) > 0 ? " " : null}
                       {(badges?.[item.to] ?? 0) > 0 ? (
                         <span className="yd-shell__nav-badge">
                           {badges?.[item.to]} {BADGE_WORD[item.to] ?? "en attente"}

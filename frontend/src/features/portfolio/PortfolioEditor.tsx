@@ -448,10 +448,13 @@ export function PortfolioEditor({
           <button
             type="button"
             className="yd-editor__action yd-eaccount__add"
+            // Named in full: with several envelopes on screen, « Déclarer une
+            // position » alone does not say where. A leading space inside a
+            // visually hidden span is not a reliable way to build that name.
+            aria-label={`Déclarer une position dans ${account.name}`}
             onClick={() => setEditing({ kind: "position", accountId: account.id })}
           >
-            {`Déclarer une position`}
-            <span className="sr-only">{` dans ${account.name}`}</span>
+            Déclarer une position
           </button>
         )}
         </details>

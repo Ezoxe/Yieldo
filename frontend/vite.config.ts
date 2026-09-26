@@ -16,13 +16,16 @@ export default defineConfig({
   build: {
     outDir: "dist",
     sourcemap: false,
-    rollupOptions: {
+    rolldownOptions: {
       output: {
         // The charting library is the one dependency every screen with a
         // chart shares and none of the others need: its own chunk is fetched
         // once, on the first chart, and cached across every route-level chunk
-        // that would otherwise each carry a slice of it.
-        manualChunks: { echarts: ["echarts"] },
+        // that would otherwise each carry a slice of it. ECharts draws through
+        // zrender, which travels with it.
+        codeSplitting: {
+          groups: [{ name: "echarts", test: /node_modules[\\/](echarts|zrender)[\\/]/ }],
+        },
       },
     },
   },

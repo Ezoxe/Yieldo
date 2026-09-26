@@ -132,11 +132,12 @@ ensure_env() {
 
   # Read every value we intend to preserve BEFORE writing: the heredoc below
   # truncates $ENV_FILE, so any read inside it would come back empty.
-  local port secret registration
+  local port secret registration proxies
   registration=true
   if [ -f "$ENV_FILE" ]; then
     port="$(read_env_value "$ENV_FILE" YIELDO_PORT)"
     secret="$(read_env_value "$ENV_FILE" YIELDO_SECRET_KEY)"
+    proxies="$(read_env_value "$ENV_FILE" YIELDO_TRUSTED_PROXIES)"
     local stored_registration
     stored_registration="$(read_env_value "$ENV_FILE" YIELDO_REGISTRATION_OPEN)"
     [ -n "$stored_registration" ] && registration="$stored_registration"
@@ -167,6 +168,12 @@ YIELDO_ACCESS_TOKEN_MINUTES=30
 YIELDO_REFRESH_TOKEN_DAYS=30
 YIELDO_CONTAINER_NAME=yieldo
 EOF
+  # The operator's own line, kept across a re-install: without it a Yieldo
+  # behind an HTTPS proxy loses its Secure cookie and sees every visitor as
+  # the proxy.
+  if [ -n "${proxies:-}" ]; then
+    printf 'YIELDO_TRUSTED_PROXIES=%s\n' "$proxies" >> "$ENV_FILE"
+  fi
   chmod 600 "$ENV_FILE"
 }
 

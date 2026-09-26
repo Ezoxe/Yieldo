@@ -55,6 +55,19 @@ compte bancaire — voir « Format CSV attendu et taggage des colonnes »
 ci-dessous ; c'est une notion distincte du compte utilisateur que vous venez
 de créer.
 
+### Derrière un proxy HTTPS
+
+Si Yieldo est servi derrière un proxy (Caddy, Traefik, Nginx) qui termine le
+HTTPS, indiquez son adresse dans `.env` : `YIELDO_TRUSTED_PROXIES=172.18.0.1`
+(ou `*` si elle varie), puis `./install.sh update`. Yieldo sait alors que la
+connexion est chiffrée — le cookie de session devient `Secure` — et voit
+l'adresse réelle des visiteurs, dont dépend la limite de tentatives de
+connexion (cinq mots de passe erronés en quinze minutes, puis une attente).
+
+Une instance qui sert l'interface refuse de démarrer sans clé secrète propre :
+si le message « Clé secrète absente ou trop courte » apparaît dans
+`./install.sh logs`, relancez `./install.sh install`, qui la génère.
+
 ## Mise à jour
 
 ```bash

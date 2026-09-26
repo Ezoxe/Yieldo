@@ -365,3 +365,26 @@ def test_resending_the_same_email_needs_no_password(client):
     response = client.patch("/api/auth/me", json={"email": "MAX@example.com"}, headers=headers)
 
     assert response.status_code == 200
+
+
+# The refresh cookie is Secure whenever the request arrived over HTTPS -- which,
+# behind a reverse proxy, uvicorn learns from X-Forwarded-Proto when the proxy
+# is trusted (FORWARDED_ALLOW_IPS).
+
+
+def test_the_refresh_cookie_is_not_secure_over_plain_http(client):
+    response = client.post("/api/auth/register", json={
+        "name": "Max", "email": "max@example.com", "password": "motdepasse123"})
+    assert "secure" not in response.headers["set-cookie"].lower()
+
+
+def test_the_refresh_cookie_is_secure_over_https(client):
+    from fastapi.testclient import TestClient
+
+    from app.main import app
+
+    with TestClient(app, base_url="https://testserver") as secure_client:
+        response = secure_client.post("/api/auth/register", json={
+            "name": "Max", "email": "max@example.com", "password": "motdepasse123"})
+    assert response.status_code == 201
+    assert "secure" in response.headers["set-cookie"].lower()

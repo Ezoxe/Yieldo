@@ -14,5 +14,9 @@ services:
       YIELDO_REFRESH_TOKEN_DAYS: ${YIELDO_REFRESH_TOKEN_DAYS:-30}
       YIELDO_LLM_TIMEOUT_SECONDS: ${YIELDO_LLM_TIMEOUT_SECONDS:-120}
       YIELDO_CORS_ORIGINS: ${YIELDO_CORS_ORIGINS:-[]}
+      # Addresses of the reverse proxies whose X-Forwarded-* headers uvicorn
+      # believes: the HTTPS scheme (Secure cookie) and the client address (login
+      # throttle) come from them. "*" when the proxy's address is not fixed.
+      FORWARDED_ALLOW_IPS: ${YIELDO_TRUSTED_PROXIES:-127.0.0.1}
     volumes:
       - ./data:/app/data

@@ -42,6 +42,7 @@ from app.api import transactions as transaction_routes
 from app.api.errors import french_validation_detail
 from app.config import settings
 from app.security.headers import SecurityHeadersMiddleware
+from app.security.secret_guard import check_secret
 
 app = FastAPI(title="Yieldo", version=settings.version, docs_url="/api/docs",
               openapi_url="/api/openapi.json")
@@ -120,6 +121,10 @@ api.include_router(invest_run_routes.router)
 app.include_router(api)
 
 STATIC_DIR = Path(os.environ.get("YIELDO_STATIC_DIR", "/app/static"))
+
+# An instance that serves the interface is one people use: it refuses to start
+# on the public default secret. A development server only warns.
+check_secret(settings.secret_key, serves_interface=STATIC_DIR.is_dir())
 
 
 @app.get("/{full_path:path}", include_in_schema=False)

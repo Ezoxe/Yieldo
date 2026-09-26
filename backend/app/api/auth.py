@@ -31,21 +31,25 @@ def _invalid_credentials() -> HTTPException:
 _DUMMY_HASH = hash_password("timing-equalizer")
 
 
-def _set_refresh_cookie(response: Response, user: User) -> None:
+def _set_refresh_cookie(response: Response, request: Request, user: User) -> None:
     response.set_cookie(
         REFRESH_COOKIE,
         create_refresh_token(user.id, user.session_version),
         httponly=True,
         samesite="strict",
-        secure=False,  # self-hosted deployments often run behind plain HTTP on a LAN
+        # Secure whenever the request came over HTTPS. Behind a reverse proxy,
+        # uvicorn rewrites the scheme from X-Forwarded-Proto when the proxy is in
+        # FORWARDED_ALLOW_IPS; a LAN install on plain HTTP keeps a cookie it can
+        # still send.
+        secure=request.url.scheme == "https",
         max_age=settings.refresh_token_days * 86400,
         path="/api/auth",
     )
 
 
-def _issue_session(response: Response, user: User) -> TokenOut:
+def _issue_session(response: Response, request: Request, user: User) -> TokenOut:
     """A fresh access token and refresh cookie, under the user's current version."""
-    _set_refresh_cookie(response, user)
+    _set_refresh_cookie(response, request, user)
     return TokenOut(
         access_token=create_access_token(user.id, user.session_version),
         user=UserOut.model_validate(user),
@@ -66,7 +70,9 @@ def _end_other_sessions(db: Session, user: User) -> None:
 
 
 @router.post("/register", response_model=TokenOut, status_code=status.HTTP_201_CREATED)
-def register(payload: RegisterIn, response: Response, db: Session = Depends(get_db)) -> TokenOut:
+def register(
+    payload: RegisterIn, request: Request, response: Response, db: Session = Depends(get_db)
+) -> TokenOut:
     # BEGIN IMMEDIATE takes SQLite's write lock before the count, so two concurrent
     # registrations cannot both observe an empty table and both become admin. Every
     # exit from this block must release that lock explicitly: a request that fails
@@ -101,7 +107,7 @@ def register(payload: RegisterIn, response: Response, db: Session = Depends(get_
     categories = seed_categories(db, user.id)
     seed_rules(db, user.id, categories)
 
-    return _issue_session(response, user)
+    return _issue_session(response, request, user)
 
 
 @router.post("/login", response_model=TokenOut)
@@ -131,7 +137,7 @@ def login(
         raise _invalid_credentials()
 
     throttle.login_throttle.record_success(address, email)
-    return _issue_session(response, user)
+    return _issue_session(response, request, user)
 
 
 @router.post("/refresh", response_model=TokenOut)
@@ -149,7 +155,7 @@ def refresh(request: Request, response: Response, db: Session = Depends(get_db))
     if user is None or not user.is_active or claims.session_version != user.session_version:
         raise _invalid_credentials()
 
-    return _issue_session(response, user)
+    return _issue_session(response, request, user)
 
 
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
@@ -215,6 +221,7 @@ def update_profile(
 @router.post("/password", response_model=TokenOut)
 def change_password(
     payload: PasswordChangeIn,
+    request: Request,
     response: Response,
     # A session, never an agent key. See `get_session_user`.
     user: User = Depends(get_session_user),
@@ -247,11 +254,12 @@ def change_password(
 
     user.password_hash = hash_password(payload.new_password)
     _end_other_sessions(db, user)
-    return _issue_session(response, user)
+    return _issue_session(response, request, user)
 
 
 @router.post("/sessions/revoke-others", response_model=TokenOut)
 def revoke_other_sessions(
+    request: Request,
     response: Response,
     # A session, never an agent key: a key must not be able to sign its owner
     # out, nor to outlive the revocation it would be asking for.
@@ -261,4 +269,4 @@ def revoke_other_sessions(
     """« Déconnecter les autres appareils » : every other browser and the agent
     key lose access; this tab carries on with the session returned here."""
     _end_other_sessions(db, user)
-    return _issue_session(response, user)
+    return _issue_session(response, request, user)

@@ -9,6 +9,7 @@ class Settings(BaseSettings):
 
     model_config = SettingsConfigDict(env_prefix="YIELDO_", env_file=".env", extra="ignore")
 
+    # Must equal `security.secret_guard.DEFAULT_SECRET`; test_secret_guard pins it.
     secret_key: str = "dev-insecure-key-change-me"
     data_dir: Path = Path("./data")
     access_token_minutes: int = 30

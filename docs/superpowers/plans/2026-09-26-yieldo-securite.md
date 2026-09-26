@@ -47,7 +47,7 @@ PyJWT, pytest; React 19, vitest + Testing Library, ECharts 5.
   `treemapTooltip(params: { name?: string; value?: number }): string` exported
   from `charts/CategoryTreemap.tsx`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 `frontend/src/charts/escapeHtml.test.ts`:
 
@@ -181,13 +181,13 @@ describe("marketOption tooltip", () => {
 });
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `cd frontend && npx vitest run src/charts/escapeHtml.test.ts src/charts/tooltipSafety.test.ts src/features/invest/SessionCharts.test.tsx`
 Expected: FAIL — `escapeHtml` module not found, `treemapTooltip` not exported,
 and every other case finds `<img` in the tooltip.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 `frontend/src/charts/escapeHtml.ts`:
 
@@ -279,12 +279,12 @@ and, in `marketOption`'s formatter, escape every model-supplied string:
         }
 ```
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 Run: `cd frontend && npx vitest run src/charts src/features/invest/SessionCharts.test.tsx`
 Expected: PASS, including every pre-existing chart test.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add frontend/src/charts frontend/src/features/invest/SessionCharts.tsx frontend/src/features/invest/SessionCharts.test.tsx
@@ -308,7 +308,7 @@ git commit -m "fix(security): chart tooltips print the household's words as text
   `record_success(address: str, email: str) -> None`; module attribute
   `login_throttle`; `wait_message(seconds: int) -> str`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 `backend/tests/test_login_throttle.py`:
 
@@ -408,12 +408,12 @@ def test_the_throttle_is_fresh_for_every_test():
     assert throttle.login_throttle.retry_after("testclient", "max@example.com") is None
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `cd backend && ./.venv/Scripts/pytest.exe tests/test_login_throttle.py -q`
 Expected: FAIL — `ModuleNotFoundError: app.security.throttle`.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 `backend/app/security/throttle.py`:
 
@@ -556,12 +556,12 @@ def fresh_login_throttle(monkeypatch):
     monkeypatch.setattr(throttle, "login_throttle", throttle.LoginThrottle())
 ```
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 Run: `cd backend && ./.venv/Scripts/pytest.exe tests/test_login_throttle.py tests/test_auth_api.py -q`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add backend/app/security/throttle.py backend/app/api/auth.py backend/tests/conftest.py backend/tests/test_login_throttle.py
@@ -598,7 +598,7 @@ git commit -m "fix(security): five wrong passwords make the next attempt wait"
   refresh cookie. Frontend: `applySession(session: { access_token: string; user: User })`
   exported from `features/auth/session.ts`.
 
-- [ ] **Step 1: Write the failing backend tests**
+- [x] **Step 1: Write the failing backend tests**
 
 `backend/tests/test_session_revocation.py`:
 
@@ -736,13 +736,13 @@ def test_the_session_version_lands_as_zero_on_existing_users_and_downgrades(migr
     assert "session_version" not in names
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `cd backend && ./.venv/Scripts/pytest.exe tests/test_session_revocation.py tests/test_migrations.py -k "session" -q`
 Expected: FAIL — `/api/auth/password` answers 204, `session_version` does not
 exist, `/api/auth/sessions/revoke-others` is 404.
 
-- [ ] **Step 3: Implement the backend**
+- [x] **Step 3: Implement the backend**
 
 `backend/app/models/user.py` — import `Integer, text` from sqlalchemy and add
 after `is_active`:
@@ -979,12 +979,12 @@ def revoke_other_sessions(
     return _issue_session(response, user)
 ```
 
-- [ ] **Step 4: Run the backend tests**
+- [x] **Step 4: Run the backend tests**
 
 Run: `cd backend && ./.venv/Scripts/pytest.exe tests/test_session_revocation.py tests/test_auth_api.py tests/test_agent_key_api.py tests/test_security.py tests/test_migrations.py -q`
 Expected: PASS.
 
-- [ ] **Step 5: Write the failing frontend test**
+- [x] **Step 5: Write the failing frontend test**
 
 `frontend/src/features/settings/SessionsPanel.test.tsx`:
 
@@ -1035,12 +1035,12 @@ describe("SessionsPanel", () => {
 });
 ```
 
-- [ ] **Step 6: Run it to verify it fails**
+- [x] **Step 6: Run it to verify it fails**
 
 Run: `cd frontend && npx vitest run src/features/settings/SessionsPanel.test.tsx`
 Expected: FAIL — module `./SessionsPanel` not found.
 
-- [ ] **Step 7: Implement the frontend**
+- [x] **Step 7: Implement the frontend**
 
 `frontend/src/features/auth/session.ts` — change `function applySession(` to
 `export function applySession(`.
@@ -1141,14 +1141,14 @@ on success, and add:
     }),
 ```
 
-- [ ] **Step 8: Run the frontend tests**
+- [x] **Step 8: Run the frontend tests**
 
 Run: `cd frontend && npx vitest run src/features/settings src/features/auth`
 Expected: PASS. If `AccountForms.test.tsx` asserts on the old note text or
 on a 204 password answer, update those assertions to the new text and a 200
 session answer.
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add backend frontend
@@ -1167,7 +1167,7 @@ git commit -m "fix(security): a new password ends every other session and the ag
 **Interfaces:**
 - Produces: `SecurityHeadersMiddleware` (pure ASGI), `headers_for(path: str) -> dict[str, str]`, `INTERFACE_POLICY: str`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 `backend/tests/test_security_headers.py`:
 
@@ -1212,12 +1212,12 @@ def test_the_policy_is_decided_by_the_path():
     assert headers_for("/apiculture")["Content-Security-Policy"] == INTERFACE_POLICY
 ```
 
-- [ ] **Step 2: Run them to verify they fail**
+- [x] **Step 2: Run them to verify they fail**
 
 Run: `cd backend && ./.venv/Scripts/pytest.exe tests/test_security_headers.py -q`
 Expected: FAIL — `ModuleNotFoundError: app.security.headers`.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 `backend/app/security/headers.py`:
 
@@ -1302,13 +1302,13 @@ and, right after the `CORSMiddleware` registration:
 app.add_middleware(SecurityHeadersMiddleware)
 ```
 
-- [ ] **Step 4: Run the tests**
+- [x] **Step 4: Run the tests**
 
 Run: `cd backend && ./.venv/Scripts/pytest.exe tests/test_security_headers.py tests/test_spa_serving.py -q`
 (if `test_spa_serving.py` does not exist, run `./.venv/Scripts/pytest.exe -q -k spa`)
 Expected: PASS.
 
-- [ ] **Step 5: Verify the policy in the browser**
+- [x] **Step 5: Verify the policy in the browser**
 
 1. `cd frontend && npm run build`
 2. Add to `.claude/launch.json` a configuration `yieldo-built` identical to
@@ -1323,7 +1323,7 @@ Expected: PASS.
    none. Fix the policy (never by adding `'unsafe-eval'` or a wildcard) if a
    screen reports one, and add the case to the module docstring.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add backend/app/security/headers.py backend/app/main.py backend/tests/test_security_headers.py .claude/launch.json
@@ -1342,7 +1342,7 @@ git commit -m "fix(security): every answer carries nosniff and no-frame, the int
 - Modify: `frontend/src/features/settings/AccountForms.test.tsx`
 - Modify: `frontend/src/dev/mockApi.ts` (`PATCH /api/auth/me`)
 
-- [ ] **Step 1: Write the failing backend tests** (append to `test_auth_api.py`)
+- [x] **Step 1: Write the failing backend tests** (append to `test_auth_api.py`)
 
 ```python
 def test_an_email_change_needs_the_current_password(client):
@@ -1397,12 +1397,12 @@ Then update every pre-existing test in `test_auth_api.py` that PATCHes a NEW
 email (search `"email":` inside `client.patch("/api/auth/me"`) to also send
 `"current_password": "motdepasse123"`.
 
-- [ ] **Step 2: Run them to verify they fail**
+- [x] **Step 2: Run them to verify they fail**
 
 Run: `cd backend && ./.venv/Scripts/pytest.exe tests/test_auth_api.py -q -k email`
 Expected: FAIL — the change goes through without a password.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 `backend/app/schemas/auth.py` — add to `ProfileIn`:
 
@@ -1437,12 +1437,12 @@ Expected: FAIL — the change goes through without a password.
             user.email = email
 ```
 
-- [ ] **Step 4: Run the backend tests**
+- [x] **Step 4: Run the backend tests**
 
 Run: `cd backend && ./.venv/Scripts/pytest.exe tests/test_auth_api.py tests/test_agent_key_api.py -q`
 Expected: PASS.
 
-- [ ] **Step 5: Write the failing frontend test** (append to `AccountForms.test.tsx`, reusing its `USER`, `jsonResponse` and render helpers)
+- [x] **Step 5: Write the failing frontend test** (append to `AccountForms.test.tsx`, reusing its `USER`, `jsonResponse` and render helpers)
 
 ```tsx
   it("asks for the current password only when the email changes, and sends it", async () => {
@@ -1464,12 +1464,12 @@ Expected: PASS.
 Use the file's existing profile-render helper in place of `renderProfile()` if
 it is named differently.
 
-- [ ] **Step 6: Run it to verify it fails**
+- [x] **Step 6: Run it to verify it fails**
 
 Run: `cd frontend && npx vitest run src/features/settings/AccountForms.test.tsx`
 Expected: FAIL — no « Mot de passe actuel » field.
 
-- [ ] **Step 7: Implement `ProfileForm.tsx`**
+- [x] **Step 7: Implement `ProfileForm.tsx`**
 
 - add `const [password, setPassword] = useState("");`
 - add `const emailChanged = email.trim().toLowerCase() !== (user?.email ?? "");`
@@ -1507,12 +1507,12 @@ Expected: FAIL — no « Mot de passe actuel » field.
 `{ detail: "Le mot de passe actuel est incorrect" }` when
 `typeof body.email === "string" && body.email !== MUTABLE_USER.email && body.current_password !== "apercu"`.
 
-- [ ] **Step 8: Run the frontend tests**
+- [x] **Step 8: Run the frontend tests**
 
 Run: `cd frontend && npx vitest run src/features/settings`
 Expected: PASS.
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add backend frontend
@@ -1527,7 +1527,7 @@ git commit -m "fix(security): moving the login email asks for the current passwo
 - Modify: `backend/app/api/goals.py` (`_balance_cents`, `patch_goal`)
 - Modify: `backend/tests/test_goals_api.py`
 
-- [ ] **Step 1: Write the failing test** (append to `test_goals_api.py`)
+- [x] **Step 1: Write the failing test** (append to `test_goals_api.py`)
 
 ```python
 def test_a_goal_never_names_another_households_account(client, db):
@@ -1545,12 +1545,12 @@ def test_a_goal_never_names_another_households_account(client, db):
     assert "Léa" not in response.text
 ```
 
-- [ ] **Step 2: Run it to verify it fails**
+- [x] **Step 2: Run it to verify it fails**
 
 Run: `cd backend && ./.venv/Scripts/pytest.exe tests/test_goals_api.py -q -k another_households`
 Expected: FAIL — 422 whose detail contains « Livret secret de Léa ».
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 In `patch_goal`, move the ownership check BEFORE the `saved_cents` refusal and
 read the account's name through a user-filtered query:
@@ -1589,12 +1589,12 @@ with:
     )
 ```
 
-- [ ] **Step 4: Run the tests**
+- [x] **Step 4: Run the tests**
 
 Run: `cd backend && ./.venv/Scripts/pytest.exe tests/test_goals_api.py -q`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add backend/app/api/goals.py backend/tests/test_goals_api.py
@@ -1609,7 +1609,7 @@ git commit -m "fix(security): a goal's error message never names another househo
 - Modify: `backend/app/api/transactions.py` (`export_transactions`)
 - Modify: `backend/tests/test_transactions_api.py`
 
-- [ ] **Step 1: Write the failing test** (append to `test_transactions_api.py`)
+- [x] **Step 1: Write the failing test** (append to `test_transactions_api.py`)
 
 ```python
 def test_export_never_writes_a_cell_a_spreadsheet_would_execute(client, imported):
@@ -1629,12 +1629,12 @@ def test_export_never_writes_a_cell_a_spreadsheet_would_execute(client, imported
     assert ";-10,00;" in text
 ```
 
-- [ ] **Step 2: Run it to verify it fails**
+- [x] **Step 2: Run it to verify it fails**
 
 Run: `cd backend && ./.venv/Scripts/pytest.exe tests/test_transactions_api.py -q -k execute`
 Expected: FAIL — the label is written as `=HYPERLINK…`.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 In `backend/app/api/transactions.py`, above `export_transactions`:
 
@@ -1663,12 +1663,12 @@ and write the row as:
         ])
 ```
 
-- [ ] **Step 4: Run the tests**
+- [x] **Step 4: Run the tests**
 
 Run: `cd backend && ./.venv/Scripts/pytest.exe tests/test_transactions_api.py -q`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add backend/app/api/transactions.py backend/tests/test_transactions_api.py
@@ -1688,7 +1688,7 @@ git commit -m "fix(security): the CSV export neutralises cells a spreadsheet wou
 - Modify: `backend/tests/test_auth_api.py`
 - Modify: `docker-compose.yml`, `README.md`
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 `backend/tests/test_secret_guard.py`:
 
@@ -1742,12 +1742,12 @@ def test_the_refresh_cookie_is_secure_over_https(client):
     assert "secure" in response.headers["set-cookie"].lower()
 ```
 
-- [ ] **Step 2: Run them to verify they fail**
+- [x] **Step 2: Run them to verify they fail**
 
 Run: `cd backend && ./.venv/Scripts/pytest.exe tests/test_secret_guard.py tests/test_auth_api.py -q -k "secret or secure"`
 Expected: FAIL — module missing; the HTTPS cookie is not `Secure`.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 `backend/app/security/secret_guard.py`:
 
@@ -1842,12 +1842,12 @@ cookie de session devient `Secure` — et voit l'adresse réelle des visiteurs,
 dont dépend la limite de tentatives de connexion.
 ```
 
-- [ ] **Step 4: Run the tests**
+- [x] **Step 4: Run the tests**
 
 Run: `cd backend && ./.venv/Scripts/pytest.exe tests/test_secret_guard.py tests/test_auth_api.py tests/test_session_revocation.py -q`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add backend docker-compose.yml README.md
@@ -1862,7 +1862,7 @@ git commit -m "fix(security): Secure cookie behind HTTPS, and no public secret i
 - Modify: `backend/app/api/imports.py` (`analyze`)
 - Modify: `backend/tests/test_import_api.py`
 
-- [ ] **Step 1: Write the failing tests** (append to `test_import_api.py`; `FIXTURES`, `auth`, `account_id` exist in that file)
+- [x] **Step 1: Write the failing tests** (append to `test_import_api.py`; `FIXTURES`, `auth`, `account_id` exist in that file)
 
 ```python
 UNREADABLE = "Le paramétrage de l'import est illisible : relancez l'analyse."
@@ -1893,12 +1893,12 @@ def test_analyze_refuses_a_mapping_that_is_not_an_object(client, auth, account_i
     assert response.json()["detail"] == UNREADABLE
 ```
 
-- [ ] **Step 2: Run them to verify they fail**
+- [x] **Step 2: Run them to verify they fail**
 
 Run: `cd backend && ./.venv/Scripts/pytest.exe tests/test_import_api.py -q -k refuses_a`
 Expected: FAIL — 500 (JSONDecodeError / TypeError).
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 In `backend/app/api/imports.py`, above `analyze`:
 
@@ -1936,12 +1936,12 @@ and in `analyze` replace the two parsing lines with:
     parsed_mapping = _parse_mapping(mapping)
 ```
 
-- [ ] **Step 4: Run the tests**
+- [x] **Step 4: Run the tests**
 
 Run: `cd backend && ./.venv/Scripts/pytest.exe tests/test_import_api.py -q`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add backend/app/api/imports.py backend/tests/test_import_api.py
@@ -1980,7 +1980,7 @@ git commit -m "fix(import): an unreadable dialect or mapping is refused in Frenc
   `app.api.admin.registration_open(db: Session) -> bool`;
   `deps.require_session_admin`. Frontend: `useRegistrationStatus(): "loading" | "open" | "closed" | "unknown"`.
 
-- [ ] **Step 1: Write the failing backend tests**
+- [x] **Step 1: Write the failing backend tests**
 
 `backend/tests/test_registration_api.py`:
 
@@ -2094,12 +2094,12 @@ def test_the_instance_settings_table_matches_the_model_and_downgrades(migration_
     assert "instance_settings" not in tables
 ```
 
-- [ ] **Step 2: Run them to verify they fail**
+- [x] **Step 2: Run them to verify they fail**
 
 Run: `cd backend && ./.venv/Scripts/pytest.exe tests/test_registration_api.py tests/test_migrations.py -q -k "registration or instance"`
 Expected: FAIL — `/api/auth/registration` and `/api/admin/settings` are 404.
 
-- [ ] **Step 3: Implement the backend**
+- [x] **Step 3: Implement the backend**
 
 `backend/app/models/instance_settings.py`:
 
@@ -2292,12 +2292,12 @@ def registration_status(db: Session = Depends(get_db)) -> RegistrationStatusOut:
 accueillir un autre membre du foyer, l'administrateur les ouvre dans
 Réglages → Compte, le temps de la création. »
 
-- [ ] **Step 4: Run the backend tests**
+- [x] **Step 4: Run the backend tests**
 
 Run: `cd backend && ./.venv/Scripts/pytest.exe -q`
 Expected: PASS (whole suite: the conftest fixture keeps every multi-household test working).
 
-- [ ] **Step 5: Write the failing frontend tests**
+- [x] **Step 5: Write the failing frontend tests**
 
 `frontend/src/features/auth/RegisterPage.test.tsx`:
 
@@ -2433,12 +2433,12 @@ describe("InstancePanel", () => {
 });
 ```
 
-- [ ] **Step 6: Run them to verify they fail**
+- [x] **Step 6: Run them to verify they fail**
 
 Run: `cd frontend && npx vitest run src/features/auth src/features/settings/InstancePanel.test.tsx`
 Expected: FAIL — no closed message, no `InstancePanel`.
 
-- [ ] **Step 7: Implement the frontend**
+- [x] **Step 7: Implement the frontend**
 
 `frontend/src/lib/types.ts` — add:
 
@@ -2617,12 +2617,12 @@ and to the write table:
   },
 ```
 
-- [ ] **Step 8: Run the frontend suite and build**
+- [x] **Step 8: Run the frontend suite and build**
 
 Run: `cd frontend && npm test && npm run build`
 Expected: PASS, zero TypeScript errors.
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add backend frontend docker-compose.yml install.sh README.md
@@ -2633,14 +2633,14 @@ git commit -m "feat(security): registration closes after the first account; the 
 
 ### Task S11: Browser pass over the chantier
 
-- [ ] **Step 1:** Start `yieldo-backend` and `yieldo-frontend` (preview tools),
+- [x] **Step 1:** Start `yieldo-backend` and `yieldo-frontend` (preview tools),
   motion disabled (`localStorage["yieldo.motion-disabled"]="true"`).
-- [ ] **Step 2:** At 1440×2500 then 390×2400, dark then light: Connexion (link
+- [x] **Step 2:** At 1440×2500 then 390×2400, dark then light: Connexion (link
   hidden when closed), Inscription (closed message), Réglages (Installation cell
   for the admin, « Déconnecter les autres appareils », password note, email
   field asking for the password), every chart tooltip hovered once on Vue
   d'ensemble, Analyse, Dettes, Assistant.
-- [ ] **Step 3:** Fix what the browser shows (each fix with its test), commit
+- [x] **Step 3:** Fix what the browser shows (each fix with its test), commit
   as `fix(security): what the browser showed of chantier S`.
-- [ ] **Step 4:** Full suites: `cd backend && ./.venv/Scripts/pytest.exe -q` and
+- [x] **Step 4:** Full suites: `cd backend && ./.venv/Scripts/pytest.exe -q` and
   `cd frontend && npm test && npm run build`. All green before chantier Q starts.

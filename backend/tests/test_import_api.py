@@ -464,3 +464,40 @@ def test_the_last_import_is_the_most_recent_batch(client, auth, account_id):
     assert last.json()["filename"] == "releve.ofx"
     assert last.json()["rows_imported"] == 3
     assert last.json()["imported_at"]
+
+
+# An unreadable dialect or mapping is the screen's own mistake -- a stale tab, a
+# hand-edited request. It is refused in French, never answered with a 500.
+
+UNREADABLE = "Le paramétrage de l'import est illisible : relancez l'analyse."
+
+
+def _analyze_with(client, auth, account_id, **extra):
+    with (FIXTURES / "boursorama.csv").open("rb") as handle:
+        return client.post("/api/imports/analyze", headers=auth,
+                           files={"file": ("boursorama.csv", handle, "text/csv")},
+                           data={"account_id": str(account_id), **extra})
+
+
+def test_analyze_refuses_a_broken_dialect_in_french(client, auth, account_id):
+    response = _analyze_with(client, auth, account_id, dialect="{pas du json")
+    assert response.status_code == 422
+    assert response.json()["detail"] == UNREADABLE
+
+
+def test_analyze_refuses_a_dialect_with_an_unknown_key(client, auth, account_id):
+    response = _analyze_with(client, auth, account_id, dialect='{"inconnu": 1}')
+    assert response.status_code == 422
+    assert response.json()["detail"] == UNREADABLE
+
+
+def test_analyze_refuses_a_mapping_that_is_not_an_object(client, auth, account_id):
+    response = _analyze_with(client, auth, account_id, mapping='["date"]')
+    assert response.status_code == 422
+    assert response.json()["detail"] == UNREADABLE
+
+
+def test_analyze_refuses_a_mapping_that_is_not_json(client, auth, account_id):
+    response = _analyze_with(client, auth, account_id, mapping="date")
+    assert response.status_code == 422
+    assert response.json()["detail"] == UNREADABLE

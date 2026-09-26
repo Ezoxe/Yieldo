@@ -129,6 +129,37 @@ def _int_keys(mapping: dict[str, str]) -> dict[int, str]:
                             detail="Index de colonne invalide dans le mapping") from exc
 
 
+_UNREADABLE_SETTINGS = "Le paramétrage de l'import est illisible : relancez l'analyse."
+
+
+def _parse_dialect(raw: str | None) -> CsvDialect | None:
+    """The dialect the screen sends back after the reader adjusted it.
+
+    Anything that is not a JSON object of `CsvDialect` fields -- broken JSON,
+    a list, an unknown key -- is the screen's mistake (a stale tab, a
+    hand-edited request), refused in French rather than raised as a 500.
+    """
+    if not raw:
+        return None
+    try:
+        return CsvDialect(**json.loads(raw))
+    except (ValueError, TypeError) as exc:
+        raise HTTPException(status_code=422, detail=_UNREADABLE_SETTINGS) from exc
+
+
+def _parse_mapping(raw: str | None) -> dict[int, str] | None:
+    """The column roles the reader confirmed, keyed by column index."""
+    if not raw:
+        return None
+    try:
+        loaded = json.loads(raw)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=_UNREADABLE_SETTINGS) from exc
+    if not isinstance(loaded, dict):
+        raise HTTPException(status_code=422, detail=_UNREADABLE_SETTINGS)
+    return _int_keys(loaded)
+
+
 @router.post("/analyze", response_model=PreviewOut)
 async def analyze(
     file: UploadFile = File(...),
@@ -163,8 +194,8 @@ async def analyze(
     if not raw.strip():
         raise HTTPException(status_code=400, detail="Le fichier est vide.")
 
-    parsed_dialect = CsvDialect(**json.loads(dialect)) if dialect else None
-    parsed_mapping = _int_keys(json.loads(mapping)) if mapping else None
+    parsed_dialect = _parse_dialect(dialect)
+    parsed_mapping = _parse_mapping(mapping)
 
     # An OFX or QIF is turned into the fixed table before anything else reads
     # it: from here on, `raw` IS a CSV -- previewed, deduplicated, committed

@@ -5,6 +5,7 @@ import { formatCents, formatCompactCents } from "../design/theme";
 import type { ChatChart } from "../lib/types";
 import { Chart, type ChartExportRow } from "./Chart";
 import { ChartKey, type ChartKeyEntry } from "./ChartKey";
+import { escapeHtml } from "./escapeHtml";
 import { LINE_SMOOTHING, chartTokens, type Resolved } from "./theme";
 
 /**
@@ -51,7 +52,7 @@ export function buildAnswerOption(chart: ChatChart, theme: Resolved): EChartsOpt
         if (!point) return "";
         // Signed: a positive column on a spending chart is a refund, and
         // dropping the sign would make it read as more spending.
-        return `<strong>${point.label}</strong><br/>${formatCents(point.amount_cents, {
+        return `<strong>${escapeHtml(point.label)}</strong><br/>${formatCents(point.amount_cents, {
           signed: true,
         })}`;
       },

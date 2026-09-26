@@ -4,6 +4,7 @@ import { useTheme } from "../app/ThemeProvider";
 import { formatCents } from "../design/theme";
 import type { CategoryBreakdown, Summary } from "../lib/types";
 import { Chart, type ChartExportRow } from "./Chart";
+import { escapeHtml } from "./escapeHtml";
 import { type ChartTokens, type Resolved, chartTokens, seriesColors } from "./theme";
 
 interface WaterfallChartProps {
@@ -105,7 +106,7 @@ export function buildWaterfallOption(
       formatter: (params) => {
         const point = params as { dataIndex?: number };
         const step = steps[point.dataIndex ?? 0];
-        return `${step.name} : <strong>${formatCents(step.delta, { signed: true })}</strong>`;
+        return `${escapeHtml(step.name)} : <strong>${formatCents(step.delta, { signed: true })}</strong>`;
       },
     },
     series: [

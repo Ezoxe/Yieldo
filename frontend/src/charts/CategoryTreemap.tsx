@@ -4,6 +4,7 @@ import { useTheme } from "../app/ThemeProvider";
 import { formatCents } from "../design/theme";
 import type { Category, CategoryBreakdown } from "../lib/types";
 import { Chart, type ChartExportRow } from "./Chart";
+import { escapeHtml } from "./escapeHtml";
 import { CHART_LABEL_INK, CHART_LABEL_PAPER, chartTokens, neutralFill, seriesColors } from "./theme";
 
 export interface CategoryTreemapNode {
@@ -174,6 +175,12 @@ function flattenForExport(nodes: CategoryTreemapNode[], parentName = ""): ChartE
   });
 }
 
+/** The treemap's tooltip: a category's name and what it cost. The name is the
+ *  household's own text, so it is escaped -- see `escapeHtml`. */
+export function treemapTooltip(params: { name?: string; value?: number }): string {
+  return `${escapeHtml(params.name ?? "")} : <strong>${formatCents(-(params.value ?? 0))}</strong>`;
+}
+
 interface CategoryTreemapProps {
   items: CategoryTreemapNode[];
 }
@@ -190,10 +197,7 @@ export function CategoryTreemap({ items }: CategoryTreemapProps) {
 
   const option: EChartsOption = {
     tooltip: {
-      formatter: (params) => {
-        const point = params as { name?: string; value?: number };
-        return `${point.name} : <strong>${formatCents(-(point.value ?? 0))}</strong>`;
-      },
+      formatter: (params) => treemapTooltip(params as { name?: string; value?: number }),
     },
     series: [
       {

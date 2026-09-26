@@ -93,3 +93,22 @@ describe("massOption", () => {
     expect(series[2].data).toEqual([50, 30, null, 20]);
   });
 });
+
+describe("marketOption tooltip", () => {
+  it("prints a model's words as text, never as markup", () => {
+    const hostile = `<img src=x onerror="alert(1)">`;
+    const source = day();
+    source.decisions[0] = {
+      ...source.decisions[0],
+      choice: hostile,
+      rules_choice: hostile,
+      message: hostile,
+      mass_bps: { [hostile]: 10_000 },
+    };
+    const option = marketOption(source, "AAPL", "dark");
+    const html = (option as unknown as { tooltip: { formatter: (p: unknown) => string } })
+      .tooltip.formatter([{ dataIndex: 0 }]);
+    expect(html).not.toContain("<img");
+    expect(html).toContain("&lt;img");
+  });
+});

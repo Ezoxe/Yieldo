@@ -3,6 +3,7 @@ import type { EChartsOption } from "echarts";
 import { useTheme } from "../app/ThemeProvider";
 import { formatCents } from "../design/theme";
 import { Chart, type ChartExportRow } from "./Chart";
+import { escapeHtml } from "./escapeHtml";
 import { type ChartTokens, chartTokens, neutralFill, seriesColors } from "./theme";
 
 /** One slice: a category, what it cost, and the colour it is drawn in. */
@@ -47,7 +48,7 @@ export function buildDonutOption(
       trigger: "item",
       formatter: (params) => {
         const point = params as { name?: string; value?: number; percent?: number };
-        return `${point.name} : <strong>${formatCents(-(point.value ?? 0))}</strong><br/>${(point.percent ?? 0).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} % du total`;
+        return `${escapeHtml(point.name ?? "")} : <strong>${formatCents(-(point.value ?? 0))}</strong><br/>${(point.percent ?? 0).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} % du total`;
       },
     },
     series: [

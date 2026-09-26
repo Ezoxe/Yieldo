@@ -6,6 +6,7 @@ import { formatCents, formatCompactCents } from "../design/theme";
 import type { BalancePoint } from "../lib/types";
 import { Chart, type ChartExportRow } from "./Chart";
 import "./DebtPayoffChart.css";
+import { escapeHtml } from "./escapeHtml";
 import { LINE_SMOOTHING, chartTokens, seriesColors, type Resolved } from "./theme";
 
 /** "2026-09-30" → "sept. 2026". */
@@ -79,7 +80,7 @@ export function buildPayoffOption(
         return [
           `<strong>${frenchDate(point.on)}</strong>`,
           ...ids.map(
-            (id) => `${debtName(names, id)} : ${formatCents(point.balances_cents[id] ?? 0)}`,
+            (id) => `${escapeHtml(debtName(names, id))} : ${formatCents(point.balances_cents[id] ?? 0)}`,
           ),
           `Total restant dû : ${formatCents(point.total_cents)}`,
         ].join("<br/>");

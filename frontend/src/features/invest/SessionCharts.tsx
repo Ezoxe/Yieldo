@@ -2,6 +2,7 @@ import type { EChartsOption } from "echarts";
 
 import { useTheme } from "../../app/ThemeProvider";
 import { Chart } from "../../charts/Chart";
+import { escapeHtml } from "../../charts/escapeHtml";
 import { LINE_SMOOTHING, areaFade, chartTokens, type Resolved } from "../../charts/theme";
 import type { InvestSessionDecision, InvestSessionDetail } from "../../lib/types";
 import { formatCents, formatProbability } from "./format";
@@ -117,14 +118,14 @@ export function marketOption(
         let text = `<strong>${clock(day.interval_minutes, step)}</strong>`
           + `<br/>Cours : ${formatCents(closes[index] ?? 0)}`;
         if (decision) {
-          text += `<br/>Le modèle : ${decision.choice ?? "—"}`;
+          text += `<br/>Le modèle : ${escapeHtml(decision.choice ?? "—")}`;
           if (decision.mass_bps) {
             text += ` (${Object.entries(decision.mass_bps)
-              .map(([k, v]) => `${k} ${formatProbability(v)}`).join(" · ")})`;
+              .map(([k, v]) => `${escapeHtml(k)} ${formatProbability(v)}`).join(" · ")})`;
           }
           if (decision.score_value !== null) text += `<br/>Conviction : ${decision.score_value}/10`;
-          if (decision.rules_choice) text += `<br/>Les règles : ${decision.rules_choice}`;
-          if (decision.message) text += `<br/>${decision.message}`;
+          if (decision.rules_choice) text += `<br/>Les règles : ${escapeHtml(decision.rules_choice)}`;
+          if (decision.message) text += `<br/>${escapeHtml(decision.message)}`;
         }
         return text;
       },

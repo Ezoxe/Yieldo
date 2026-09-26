@@ -4,6 +4,7 @@ import { useTheme } from "../app/ThemeProvider";
 import { formatCents, formatCompactCents } from "../design/theme";
 import type { Granularity, SeriesBucket } from "../lib/types";
 import { Chart, type ChartExportRow } from "./Chart";
+import { escapeHtml } from "./escapeHtml";
 import { areaFade, type ChartTokens, chartTokens, LINE_SMOOTHING, zoomSlider } from "./theme";
 
 interface CashflowChartProps {
@@ -97,9 +98,9 @@ export function buildCashflowOption(
           value?: number;
           marker?: string;
         }>;
-        const header = rows[0]?.axisValueLabel ?? "";
+        const header = escapeHtml(rows[0]?.axisValueLabel ?? "");
         const lines = rows.map(
-          (row) => `${row.marker ?? ""}${row.seriesName} : <strong>${formatCents(row.value ?? 0)}</strong>`,
+          (row) => `${row.marker ?? ""}${escapeHtml(row.seriesName ?? "")} : <strong>${formatCents(row.value ?? 0)}</strong>`,
         );
         return [header, ...lines].join("<br/>");
       },

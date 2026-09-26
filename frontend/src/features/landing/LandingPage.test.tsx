@@ -167,7 +167,9 @@ describe("LandingPage honesty", () => {
   it("uses no emoji anywhere in its text", () => {
     const { container } = renderLanding();
     expect(container.textContent ?? "").not.toMatch(
-      /[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}]/u,
+      // The variation selector alone, outside the class: inside it, it reads
+      // as combining with the range before it.
+      /[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]|\u{FE0F}/u,
     );
   });
 

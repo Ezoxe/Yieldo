@@ -175,7 +175,7 @@ export function PriceIndexForm({ points, onSaved }: PriceIndexFormProps) {
   // click: pasting a hundred lines from the INSEE site was the only way to
   // get a reference index, and nobody did. The file is embedded, never
   // fetched; the button says how far it reaches.
-  async function useEmbedded() {
+  async function applyEmbedded() {
     setSaving(true);
     try {
       await api.post<{ points: number; last_month: string }>("/analysis/price-index/insee");
@@ -263,7 +263,7 @@ export function PriceIndexForm({ points, onSaved }: PriceIndexFormProps) {
           type="button"
           className="yd-index__save"
           disabled={saving}
-          onClick={() => void useEmbedded()}
+          onClick={() => void applyEmbedded()}
         >
           {`Utiliser l'indice INSEE embarqué (jusqu'à ${EMBEDDED_INDEX_LAST_MONTH})`}
         </button>

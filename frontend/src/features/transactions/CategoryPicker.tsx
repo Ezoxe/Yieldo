@@ -92,7 +92,6 @@ export function CategoryPicker({
     return () => document.removeEventListener("mousedown", onPointerDown);
     // Only re-subscribes when the list opens or closes -- closeAndReset itself
     // is stable in everything that matters (it only touches local state setters).
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   function openPicker() {

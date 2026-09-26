@@ -408,3 +408,20 @@ def test_a_current_account_cannot_back_a_goal(client):
     refused = _create(client, headers, account_id=checking)
     assert refused.status_code == 422
     assert "épargne" in refused.json()["detail"]
+
+
+def test_a_goal_never_names_another_households_account(client):
+    """A household probing account ids through its own goal learns nothing: the
+    ownership check runs before anything reads the account, name included."""
+    owner = _register(client, "proprietaire@example.fr")
+    account = client.post("/api/accounts", headers=owner, json={
+        "name": "Livret secret de Léa", "kind": "savings"}).json()
+    intruder = _register(client, "intrus@example.fr")
+    goal = _create(client, intruder).json()
+
+    response = client.patch(f"/api/goals/{goal['id']}", headers=intruder, json={
+        "saved_cents": 100, "account_id": account["id"]})
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Compte introuvable"
+    assert "Léa" not in response.text

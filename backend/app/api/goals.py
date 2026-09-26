@@ -85,7 +85,11 @@ def _balance_cents(db: Session, user_id: int, account_id: int) -> int:
     """Opening balance plus every movement -- the account as its own
     statements add it up, the same sum `api/common.liquid_balance_cents` and
     the portfolio's cash section use."""
-    account = db.get(Account, account_id)
+    account = (
+        db.query(Account)
+        .filter(Account.user_id == user_id, Account.id == account_id)
+        .first()
+    )
     movements = (
         db.query(func.coalesce(func.sum(Transaction.amount_cents), 0))
         .filter(Transaction.user_id == user_id, Transaction.account_id == account_id)
@@ -225,8 +229,16 @@ def patch_goal(goal_id: int, payload: GoalPatch, user: User = Depends(get_curren
     # same request lifts the refusal -- the household is going back to
     # declaring.
     backed_after = changes.get("account_id", goal.account_id)
+    # Ownership first: nothing below may read an account this household does
+    # not own, not even its name for an error message.
+    if changes.get("account_id") is not None:
+        _check_account(db, user, changes["account_id"], goal.id)
     if "saved_cents" in changes and backed_after is not None:
-        account = db.get(Account, backed_after)
+        account = (
+            db.query(Account)
+            .filter(Account.user_id == user.id, Account.id == backed_after)
+            .first()
+        )
         name = account.name if account is not None else "ce compte"
         raise HTTPException(
             status_code=422,
@@ -235,8 +247,6 @@ def patch_goal(goal_id: int, payload: GoalPatch, user: User = Depends(get_curren
                 "compte pour déclarer un montant vous-même."
             ),
         )
-    if changes.get("account_id") is not None:
-        _check_account(db, user, changes["account_id"], goal.id)
     for field, value in changes.items():
         setattr(goal, field, value)
     measure_goal(db, goal)

@@ -301,3 +301,22 @@ def test_export_honours_the_same_filters_as_the_list(client, imported):
 
 def test_export_needs_a_session(client, imported):
     assert client.get("/api/transactions/export.csv").status_code == 401
+
+
+def test_export_never_writes_a_cell_a_spreadsheet_would_execute(client, imported):
+    """A label or a note starting with =, +, -, @ is a formula to Excel, and a
+    formula can reach the network. Text cells go out with an apostrophe in
+    front; the amount keeps its sign."""
+    headers, account_id = imported
+    created = client.post("/api/transactions", headers=headers, json={
+        "account_id": account_id, "date": "2025-03-20", "amount_cents": -1_000,
+        "label_raw": '=HYPERLINK("http://example.com","clic")', "notes": "@SUM(A1)",
+    })
+    assert created.status_code == 201
+
+    text = client.get("/api/transactions/export.csv", headers=headers).content.decode("utf-8-sig")
+    row = next(line for line in text.splitlines() if "HYPERLINK" in line)
+
+    assert "'=HYPERLINK" in row
+    assert row.endswith("'@SUM(A1)")
+    assert ";-10,00;" in row

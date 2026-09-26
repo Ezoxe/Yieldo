@@ -225,6 +225,16 @@ def _filtered(db: Session, user: User, filters: ListFilters):
     return query, period_query, transfer_total
 
 
+# A cell starting with one of these is a formula to Excel and LibreOffice, and a
+# formula can reach the network (`=HYPERLINK`, `=WEBSERVICE`). The OWASP remedy:
+# an apostrophe in front, which the spreadsheet reads as "this is text".
+_FORMULA_TRIGGERS = ("=", "+", "-", "@", "\t", "\r")
+
+
+def _csv_safe(text: str) -> str:
+    return f"'{text}" if text.startswith(_FORMULA_TRIGGERS) else text
+
+
 @router.get("/export.csv")
 def export_transactions(
     filters: ListFilters = Depends(list_filters),
@@ -259,11 +269,13 @@ def export_transactions(
         cents = abs(row.amount_cents)
         writer.writerow([
             row.date.isoformat(),
-            row.label_raw,
+            _csv_safe(row.label_raw),
+            # Written by this function, never by the household: it is the one
+            # text cell allowed to start with a minus sign.
             f"{sign}{cents // 100},{cents % 100:02d}",
-            categories.get(row.category_id, "") if row.category_id is not None else "",
-            accounts.get(row.account_id, ""),
-            row.notes or "",
+            _csv_safe(categories.get(row.category_id, "")) if row.category_id is not None else "",
+            _csv_safe(accounts.get(row.account_id, "")),
+            _csv_safe(row.notes or ""),
         ])
     content = "\ufeff" + buffer.getvalue()
     stamp = date.today().isoformat()

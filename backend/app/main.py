@@ -41,6 +41,7 @@ from app.api import simulators as simulator_routes
 from app.api import transactions as transaction_routes
 from app.api.errors import french_validation_detail
 from app.config import settings
+from app.security.headers import SecurityHeadersMiddleware
 
 app = FastAPI(title="Yieldo", version=settings.version, docs_url="/api/docs",
               openapi_url="/api/openapi.json")
@@ -52,6 +53,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(SecurityHeadersMiddleware)
 
 @app.exception_handler(RequestValidationError)
 async def french_request_validation_error(

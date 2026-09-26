@@ -24,6 +24,16 @@
       "cwd": "frontend",
       "port": 5173,
       "autoPort": true
+    },
+    {
+      "name": "yieldo-built",
+      "runtimeExecutable": ".venv/Scripts/python.exe",
+      "runtimeArgs": [
+        "-c",
+        "import os; os.environ['YIELDO_STATIC_DIR'] = '../frontend/dist'; import uvicorn; uvicorn.run('app.main:app', host='127.0.0.1', port=8001)"
+      ],
+      "cwd": "backend",
+      "port": 8001
     }
   ]
 }

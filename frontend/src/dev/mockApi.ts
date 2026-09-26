@@ -1706,6 +1706,18 @@ const WRITES: Record<string, (body: Record<string, unknown>) => Response> = {
         headers: { "Content-Type": "application/json" },
       });
     }
+    // The real route asks for the current password when the login email moves;
+    // "apercu" is the preview's.
+    if (
+      typeof body.email === "string" &&
+      body.email.toLowerCase() !== MUTABLE_USER.email &&
+      body.current_password !== "apercu"
+    ) {
+      return new Response(JSON.stringify({ detail: "Le mot de passe actuel est incorrect" }), {
+        status: 403,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
     if (typeof body.name === "string") MUTABLE_USER.name = body.name;
     if (typeof body.email === "string") MUTABLE_USER.email = body.email.toLowerCase();
     return new Response(JSON.stringify(MUTABLE_USER), {

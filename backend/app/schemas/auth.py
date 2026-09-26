@@ -19,6 +19,9 @@ class ProfileIn(BaseModel):
 
     name: str | None = Field(default=None, min_length=1, max_length=120)
     email: EmailStr | None = None
+    # Required only when `email` changes: the address is the login key, and a
+    # session left open must not be enough to move the account elsewhere.
+    current_password: str | None = None
 
     @field_validator("name")
     @classmethod

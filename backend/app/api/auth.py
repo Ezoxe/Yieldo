@@ -185,15 +185,27 @@ def update_profile(
 
     if payload.email is not None:
         email = payload.email.strip().lower()
-        taken = (
-            db.query(User)
-            .filter(User.email == email, User.id != user.id)
-            .first()
-        )
-        if taken is not None:
-            raise HTTPException(status_code=status.HTTP_409_CONFLICT,
-                                detail="Un compte avec cet email existe déjà")
-        user.email = email
+        if email != user.email:
+            # The login key moves only with the current password: 422 when it
+            # is missing (a form to complete), 403 when it is wrong -- never
+            # 401, which would send the screen through a refresh it does not need.
+            if not payload.current_password:
+                raise HTTPException(
+                    status_code=422,
+                    detail="Confirmez votre mot de passe actuel pour changer d'email",
+                )
+            if not verify_password(payload.current_password, user.password_hash):
+                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
+                                    detail="Le mot de passe actuel est incorrect")
+            taken = (
+                db.query(User)
+                .filter(User.email == email, User.id != user.id)
+                .first()
+            )
+            if taken is not None:
+                raise HTTPException(status_code=status.HTTP_409_CONFLICT,
+                                    detail="Un compte avec cet email existe déjà")
+            user.email = email
 
     db.commit()
     db.refresh(user)

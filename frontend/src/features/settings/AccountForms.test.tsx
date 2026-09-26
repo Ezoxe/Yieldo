@@ -15,6 +15,8 @@ function jsonResponse(body: unknown, status = 200) {
 
 const USER = { id: 1, email: "max@example.com", name: "Max", role: "admin" };
 
+const CONFIRM_LABEL = "Mot de passe actuel, pour confirmer";
+
 beforeEach(() => {
   useSession.setState({
     user: USER,
@@ -83,11 +85,39 @@ describe("ProfileForm", () => {
 
     await user.clear(screen.getByLabelText("Adresse email"));
     await user.type(screen.getByLabelText("Adresse email"), "lea@example.com");
+    await user.type(screen.getByLabelText(CONFIRM_LABEL), "motdepasse123");
     await user.click(screen.getByRole("button", { name: /Enregistrer le profil/ }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "Un compte avec cet email existe déjà",
     );
+  });
+
+  // The email is the login key: moving it asks for the current password, and
+  // only then -- a name change asks for nothing.
+  it("asks for the current password only when the email changes, and sends it", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(jsonResponse({ ...USER, email: "nouveau@example.com" }));
+    vi.stubGlobal("fetch", fetchMock);
+    const user = userEvent.setup();
+    render(<ProfileForm />);
+
+    expect(screen.queryByLabelText(CONFIRM_LABEL)).not.toBeInTheDocument();
+    await user.clear(screen.getByLabelText("Adresse email"));
+    await user.type(screen.getByLabelText("Adresse email"), "nouveau@example.com");
+    expect(screen.getByRole("button", { name: /Enregistrer le profil/ })).toBeDisabled();
+    await user.type(screen.getByLabelText(CONFIRM_LABEL), "motdepasse123");
+    await user.click(screen.getByRole("button", { name: /Enregistrer le profil/ }));
+
+    await screen.findByText("Profil enregistré.");
+    const [, init] = fetchMock.mock.calls[0];
+    expect(JSON.parse(String(init.body))).toEqual({
+      email: "nouveau@example.com",
+      current_password: "motdepasse123",
+    });
+    // No password is left on screen once the change went through.
+    expect(screen.queryByLabelText(CONFIRM_LABEL)).not.toBeInTheDocument();
   });
 });
 

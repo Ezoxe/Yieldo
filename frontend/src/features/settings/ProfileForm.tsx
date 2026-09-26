@@ -21,11 +21,15 @@ export function ProfileForm() {
 
   const [name, setName] = useState(user?.name ?? "");
   const [email, setEmail] = useState(user?.email ?? "");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
 
   const dirty = name.trim() !== (user?.name ?? "") || email.trim() !== (user?.email ?? "");
+  // The backend compares lower-cased addresses; so does the question of whether
+  // the login key is moving, and with it whether the password is asked for.
+  const emailChanged = email.trim().toLowerCase() !== (user?.email ?? "").toLowerCase();
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
@@ -37,13 +41,15 @@ export function ProfileForm() {
       // email back would make the backend run its uniqueness check against the
       // account's own row on every save — which it handles, but there is no
       // reason to ask it.
-      const patch: { name?: string; email?: string } = {};
+      const patch: { name?: string; email?: string; current_password?: string } = {};
       if (name.trim() !== user?.name) patch.name = name.trim();
       if (email.trim() !== user?.email) patch.email = email.trim();
+      if (emailChanged) patch.current_password = password;
       const updated = await api.patch<User>("/auth/me", patch);
       setUser(updated);
       setName(updated.name);
       setEmail(updated.email);
+      setPassword("");
       setSaved(true);
     } catch (err) {
       setError(err instanceof ApiError ? err.detail : GENERIC_ERROR);
@@ -82,9 +88,25 @@ export function ProfileForm() {
         />
       </label>
 
+      {emailChanged ? (
+        <label className="yd-account__field">
+          <span>Mot de passe actuel, pour confirmer</span>
+          <input
+            type="password"
+            value={password}
+            autoComplete="current-password"
+            required
+            onChange={(event) => {
+              setPassword(event.target.value);
+              setSaved(false);
+            }}
+          />
+        </label>
+      ) : null}
+
       <p className="yd-account__note">
-        L'adresse email est aussi votre identifiant de connexion&nbsp;: si vous la changez, c'est
-        la nouvelle qu'il faudra saisir pour vous reconnecter.
+        L'adresse email est aussi votre identifiant de connexion&nbsp;: la changer demande votre
+        mot de passe actuel, et c'est la nouvelle qu'il faudra saisir pour vous reconnecter.
       </p>
 
       {error !== null ? (
@@ -102,7 +124,11 @@ export function ProfileForm() {
         </p>
       ) : null}
 
-      <button type="submit" className="yd-account__submit" disabled={saving || !dirty}>
+      <button
+        type="submit"
+        className="yd-account__submit"
+        disabled={saving || !dirty || (emailChanged && password === "")}
+      >
         <SaveIcon />
         {saving ? "Enregistrement…" : "Enregistrer le profil"}
       </button>

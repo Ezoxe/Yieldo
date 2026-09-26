@@ -213,7 +213,8 @@ def test_profile_update_changes_the_name(client):
 def test_profile_update_changes_the_email_and_the_login_follows_it(client):
     headers = _registered(client)
 
-    response = client.patch("/api/auth/me", json={"email": "Nouveau@Example.com"},
+    response = client.patch("/api/auth/me", json={"email": "Nouveau@Example.com",
+                                              "current_password": "motdepasse123"},
                             headers=headers)
 
     assert response.status_code == 200
@@ -230,7 +231,8 @@ def test_profile_update_refuses_an_email_another_account_already_uses(client):
         "name": "Lea", "email": "lea@example.com", "password": "motdepasse123"})
     headers = _registered(client)
 
-    response = client.patch("/api/auth/me", json={"email": "lea@example.com"},
+    response = client.patch("/api/auth/me", json={"email": "lea@example.com",
+                                              "current_password": "motdepasse123"},
                             headers=headers)
 
     assert response.status_code == 409
@@ -318,3 +320,48 @@ def test_password_change_refuses_the_password_already_in_use(client):
 
     assert response.status_code == 422
     assert "différent" in response.json()["detail"]
+
+
+# Moving the login email asks for the current password: the address is the key
+# a login is looked up by, and an unattended session must not be enough to move
+# the account somewhere its owner cannot sign in to.
+
+
+def test_an_email_change_needs_the_current_password(client):
+    headers = _registered(client)
+
+    response = client.patch("/api/auth/me", json={"email": "nouveau@example.com"},
+                            headers=headers)
+
+    assert response.status_code == 422
+    assert response.json()["detail"] == (
+        "Confirmez votre mot de passe actuel pour changer d'email")
+
+
+def test_an_email_change_refuses_a_wrong_password(client):
+    headers = _registered(client)
+
+    response = client.patch("/api/auth/me", json={
+        "email": "nouveau@example.com", "current_password": "paslebon"}, headers=headers)
+
+    assert response.status_code == 403
+    assert response.json()["detail"] == "Le mot de passe actuel est incorrect"
+    assert client.post("/api/auth/login", json={
+        "email": "max@example.com", "password": "motdepasse123"}).status_code == 200
+
+
+def test_a_name_change_needs_no_password(client):
+    headers = _registered(client)
+
+    response = client.patch("/api/auth/me", json={"name": "Maxime"}, headers=headers)
+
+    assert response.status_code == 200
+    assert response.json()["name"] == "Maxime"
+
+
+def test_resending_the_same_email_needs_no_password(client):
+    headers = _registered(client)
+
+    response = client.patch("/api/auth/me", json={"email": "MAX@example.com"}, headers=headers)
+
+    assert response.status_code == 200

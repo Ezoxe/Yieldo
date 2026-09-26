@@ -10,12 +10,13 @@ REQUEST schema: it is never returned in a response body.
 
 from pydantic import BaseModel, Field
 
+from app.schemas.chat import ChatAnswerOut
+
 #: Bounds on the model's answer time, in seconds. Below five nothing local
 #: replies; past ten minutes the household has stopped waiting.
 MIN_TIMEOUT_SECONDS = 5
 MAX_TIMEOUT_SECONDS = 600
 
-from app.schemas.chat import ChatAnswerOut
 
 
 class LlmSettingsIn(BaseModel):

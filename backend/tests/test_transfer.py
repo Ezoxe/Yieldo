@@ -12,7 +12,6 @@ from app.engines.transfer import (
     measure_set_aside,
 )
 
-
 # --- The marking rule -------------------------------------------------------
 
 def test_a_transfer_kind_category_marks_the_row():
@@ -184,7 +183,7 @@ def test_a_transfer_between_two_savings_accounts_nets_out():
 def test_every_savings_account_kind_is_a_real_account_kind():
     from app.models.account import ACCOUNT_KINDS
 
-    assert SAVINGS_ACCOUNT_KINDS <= set(ACCOUNT_KINDS)
+    assert set(ACCOUNT_KINDS) >= SAVINGS_ACCOUNT_KINDS
 
 
 def test_the_seed_still_ships_both_slugs_this_engine_names():

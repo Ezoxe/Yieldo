@@ -586,7 +586,7 @@ def test_a_rise_too_small_to_matter_over_a_year_is_not_reported():
     report = detect_recurrences(
         [RecurringTx(on=on, amount_cents=amount, label_key="decathlon",
                      label_raw="CB DECATHLON", category_id=None)
-         for on, amount in zip(dates, amounts)],
+         for on, amount in zip(dates, amounts, strict=True)],
         today=date(2025, 8, 10),
     )
 
@@ -606,7 +606,7 @@ def test_a_rise_that_costs_a_real_amount_over_a_year_is_still_reported():
     report = detect_recurrences(
         [RecurringTx(on=on, amount_cents=amount, label_key="netflix",
                      label_raw="PRLV NETFLIX", category_id=None)
-         for on, amount in zip(dates, amounts)],
+         for on, amount in zip(dates, amounts, strict=True)],
         today=date(2025, 8, 10),
     )
 
@@ -626,7 +626,7 @@ def test_the_same_small_step_on_a_weekly_charge_is_reported():
     report = detect_recurrences(
         [RecurringTx(on=on, amount_cents=amount, label_key="cafe",
                      label_raw="CB CAFE", category_id=None)
-         for on, amount in zip(dates, amounts)],
+         for on, amount in zip(dates, amounts, strict=True)],
         today=date(2025, 3, 5),
     )
 

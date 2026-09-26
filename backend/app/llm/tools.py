@@ -35,24 +35,25 @@ from typing import Any
 from sqlalchemy.orm import Session
 
 from app.api.common import (
+    LIQUID_ACCOUNT_KINDS,
     anomaly_points,
     ledger_mode,
+    liquid_balance_cents,
     period_range,
     plan_lines,
     real_points,
     recurrence_points,
     tx_points,
 )
-from app.api.common import LIQUID_ACCOUNT_KINDS, liquid_balance_cents
 from app.api.goals import observed_months
 from app.api.history import user_history
+from app.engines.anomaly import detect_anomalies
+from app.engines.budget import BudgetEntry, evaluate_budgets
 from app.engines.capacity import (
     measure_expense_rate,
     measure_income_rate,
     measure_savings_capacity,
 )
-from app.engines.anomaly import detect_anomalies
-from app.engines.budget import BudgetEntry, evaluate_budgets
 from app.engines.plan import occurrences, unrealised
 from app.engines.recurrence import detect_recurrences
 from app.models import (
@@ -376,7 +377,8 @@ def _read_balances(context: ToolContext, args: dict[str, Any]) -> str:
     sent = sum(row[0] for row in flagged if row[0] < 0)
     unmatched = received + sent
 
-    lines.append(f"Solde disponible total : {euros(liquid_balance_cents(context.db, context.user.id))}")
+    liquid = liquid_balance_cents(context.db, context.user.id)
+    lines.append(f"Solde disponible total : {euros(liquid)}")
     lines.append(
         f"Virements internes marqués : {len(flagged)} lignes, "
         f"{euros(received)} reçus et {euros(sent)} émis, écart {euros(unmatched)}."
@@ -785,7 +787,8 @@ TOOLS: tuple[Tool, ...] = (
          _schema({
              "investment_account_id": {"type": "integer"},
              "declared_value_cents": {"type": "integer", "description": "Positif, en centimes."},
-             "declared_value_on": {"type": "string", "description": "AAAA-MM-JJ, le jour du relevé."},
+             "declared_value_on": {"type": "string",
+                                   "description": "AAAA-MM-JJ, le jour du relevé."},
              "summary": {"type": "string"},
              "evidence": {"type": "string"},
          }, ["investment_account_id", "declared_value_cents"]),

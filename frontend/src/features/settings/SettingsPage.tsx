@@ -99,14 +99,6 @@ export function SettingsPage() {
           <PasswordForm />
         </BentoCell>
 
-        {/* The installation, not the account: only its administrator sees it. */}
-        {isAdmin ? (
-          <BentoCell as={motion.div} span={SPAN.half} className="yd-panel" {...entryProps(reduced)}>
-            <PanelHead icon={AccountIcon}>Installation</PanelHead>
-            <InstancePanel />
-          </BentoCell>
-        ) : null}
-
         {/* Full width: this is a list that grows with the household, and it is
             the one screen where the opening balance -- the figure under every
             solde the application prints -- can be corrected. */}
@@ -198,6 +190,15 @@ export function SettingsPage() {
             la planche de sprites et la palette.
           </p>
         </BentoCell>
+
+        {/* The installation, not the account: only its administrator sees it.
+            Beside Apparence, the one half-width cell that otherwise stands alone. */}
+        {isAdmin ? (
+          <BentoCell as={motion.div} span={SPAN.half} className="yd-panel" {...entryProps(reduced)}>
+            <PanelHead icon={AccountIcon}>Installation</PanelHead>
+            <InstancePanel />
+          </BentoCell>
+        ) : null}
 
         {/* Pleine largeur : c'est le panneau le plus dense de l'écran depuis
             qu'il montre le brief qu'un agent reçoit. Une centaine de lignes de

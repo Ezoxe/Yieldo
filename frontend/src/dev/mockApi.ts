@@ -1424,7 +1424,7 @@ const AGENT_RUNS: Record<string, unknown>[] = [
 
 const LEDGER = { mode: "real" };
 
-const MUTABLE_USER = { id: 1, email: "apercu@yieldo.local", name: "Maxime", role: "owner" };
+const MUTABLE_USER = { id: 1, email: "apercu@yieldo.local", name: "Maxime", role: "admin" };
 
 /** The harness's own agent key, with the same 24-hour shape the backend gives
  *  it. Held in memory for the tab: enough to see the panel behave. */

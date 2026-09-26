@@ -9,8 +9,15 @@ from sqlalchemy.pool import StaticPool
 from app.config import settings
 from app.db import Base, get_db
 from app.main import app
+from app.security import throttle
 
 FIXTURES = Path(__file__).parent / "fixtures"
+
+
+@pytest.fixture(autouse=True)
+def fresh_login_throttle(monkeypatch):
+    """The throttle is module state; a test must never inherit another's failures."""
+    monkeypatch.setattr(throttle, "login_throttle", throttle.LoginThrottle())
 
 
 @pytest.fixture

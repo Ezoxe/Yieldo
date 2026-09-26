@@ -7,6 +7,7 @@ from app.config import settings
 from app.db import get_db
 from app.models import User
 from app.schemas.auth import LoginIn, PasswordChangeIn, ProfileIn, RegisterIn, TokenOut, UserOut
+from app.security import throttle
 from app.security.deps import get_current_user, get_session_user
 from app.security.passwords import hash_password, verify_password
 from app.security.tokens import TokenError, create_access_token, create_refresh_token, decode_token
@@ -83,16 +84,32 @@ def register(payload: RegisterIn, response: Response, db: Session = Depends(get_
 
 
 @router.post("/login", response_model=TokenOut)
-def login(payload: LoginIn, response: Response, db: Session = Depends(get_db)) -> TokenOut:
-    user = db.query(User).filter(User.email == payload.email.strip().lower()).first()
+def login(
+    payload: LoginIn, request: Request, response: Response, db: Session = Depends(get_db)
+) -> TokenOut:
+    email = payload.email.strip().lower()
+    # The address as uvicorn resolved it: behind a reverse proxy it is the
+    # client's own only when the proxy is trusted (FORWARDED_ALLOW_IPS).
+    address = request.client.host if request.client is not None else "inconnue"
+    wait = throttle.login_throttle.retry_after(address, email)
+    if wait is not None:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=throttle.wait_message(wait),
+            headers={"Retry-After": str(wait)},
+        )
+
+    user = db.query(User).filter(User.email == email).first()
     # Exactly one Argon2 verification on every path, against a precomputed dummy
     # when the account does not exist, so the two failures are indistinguishable
     # from the outside.
     stored_hash = user.password_hash if user else _DUMMY_HASH
     password_ok = verify_password(payload.password, stored_hash)
     if user is None or not user.is_active or not password_ok:
+        throttle.login_throttle.record_failure(address, email)
         raise _invalid_credentials()
 
+    throttle.login_throttle.record_success(address, email)
     _set_refresh_cookie(response, user.id)
     return TokenOut(access_token=create_access_token(user.id), user=UserOut.model_validate(user))
 

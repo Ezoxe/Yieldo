@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { DensityProvider } from "../../app/DensityProvider";
 import { ThemeProvider } from "../../app/ThemeProvider";
@@ -31,10 +31,19 @@ function renderSettings() {
 }
 
 beforeEach(() => {
+  // The panels ask the API on mount. What this file tests is the page's own
+  // controls, so the questions are left unanswered: a real network attempt
+  // from jsdom would fail at a moment no test controls and update the panels
+  // after the test is over.
+  vi.stubGlobal("fetch", () => new Promise<Response>(() => {}));
   localStorage.clear();
   document.documentElement.removeAttribute("data-theme");
   document.documentElement.removeAttribute("data-density");
   useMotionPreference.setState({ disabled: false });
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
 });
 
 describe("SettingsPage", () => {

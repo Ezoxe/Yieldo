@@ -52,6 +52,8 @@ const summary = {
   net_cents: 80000,
   transaction_count: 40,
   savings_rate: 0.2667,
+  set_aside_cents: 0,
+  set_aside_gap_cents: 0,
   previous: {
     date_from: "2025-02-01",
     date_to: "2025-02-28",
@@ -60,6 +62,8 @@ const summary = {
     net_cents: 80000,
     transaction_count: 38,
     savings_rate: 0.2857,
+    set_aside_cents: 0,
+    set_aside_gap_cents: 0,
   },
   comparison: { delta_cents: 20000, delta_ratio: 0.071 },
   history: { date_from: "2025-03-01", date_to: "2025-03-31", transaction_count: 40 },

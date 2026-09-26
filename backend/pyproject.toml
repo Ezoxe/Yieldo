@@ -19,7 +19,9 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8.3", "pytest-cov>=6.0", "ruff>=0.9", "pypdf>=6.0"]
+# httpx2: what Starlette's TestClient runs on since Starlette 1.x; plain httpx
+# still works there but warns on every test.
+dev = ["pytest>=8.3", "pytest-cov>=6.0", "ruff>=0.9", "pypdf>=6.0", "httpx2>=2.13"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AgentRun, Proposal } from "../../lib/types";
 import { ProposalsPage } from "./ProposalsPage";
 import { useProposalCount } from "./useProposalCount";
+import { settle } from "../../testing/settle";
 
 const pendingProposal: Proposal = {
   id: 1,
@@ -214,6 +215,7 @@ describe("ProposalsPage", () => {
     // Nothing that would amount to a fabricated phase.
     expect(screen.queryByText(/étape 1 sur/i)).not.toBeInTheDocument();
     release(undefined);
+    await settle();
   });
 
   it("refuses to send an empty question", async () => {

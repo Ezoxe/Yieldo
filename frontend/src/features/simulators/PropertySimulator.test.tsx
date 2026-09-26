@@ -12,6 +12,7 @@ import {
   SIMULATOR_CONTEXT,
   jsonResponse,
 } from "./fixtures";
+import { settle } from "../../testing/settle";
 
 // See CreditSimulator.test.tsx: the canvas is pinned by
 // charts/AmortizationChart.test.tsx, including the client-side roll-up this
@@ -325,7 +326,7 @@ describe("PropertySimulator — the form and its refusals", () => {
     expect(JSON.parse(String(post?.[1]?.body)).notary_bps).toBe(420);
   });
 
-  it("keeps the rent comparison collapsed until it is asked for", () => {
+  it("keeps the rent comparison collapsed until it is asked for", async () => {
     setupFetch();
     renderIt();
     expect(screen.queryByLabelText(/Loyer mensuel/)).not.toBeInTheDocument();
@@ -333,6 +334,7 @@ describe("PropertySimulator — the form and its refusals", () => {
       "aria-expanded",
       "false",
     );
+    await settle();
   });
 
   it("prints the loan's own refusal as content, not as a failure", async () => {

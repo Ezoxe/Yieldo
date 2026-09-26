@@ -1,8 +1,9 @@
-import { render, screen } from "@testing-library/react";
+import { cleanup, render, screen } from "@testing-library/react";
 import { MemoryRouter, Outlet, Route, Routes } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { useSession, type SessionStatus } from "../features/auth/session";
+import { settle } from "../testing/settle";
 import { HomeRoute } from "./HomeRoute";
 import { ThemeProvider } from "./ThemeProvider";
 
@@ -50,21 +51,26 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  // Unmounted first: resetting the session under a mounted gate re-renders it
+  // outside any act(), after the test is over.
+  cleanup();
   useSession.setState({ status: "idle", isAuthenticated: false, user: null });
 });
 
 describe("HomeRoute", () => {
-  it("shows the public landing page to an anonymous visitor", () => {
+  it("shows the public landing page to an anonymous visitor", async () => {
     renderHome("anonymous");
     expect(screen.getByRole("heading", { level: 1, name: HERO_TITLE })).toBeInTheDocument();
     expect(screen.queryByText(DASHBOARD_MARKER)).not.toBeInTheDocument();
+    await settle();
   });
 
-  it("shows the dashboard inside the shell to an authenticated operator", () => {
+  it("shows the dashboard inside the shell to an authenticated operator", async () => {
     renderHome("authenticated");
     expect(screen.getByText(DASHBOARD_MARKER)).toBeInTheDocument();
     expect(screen.getByRole("navigation", { name: "Navigation principale" })).toBeInTheDocument();
     expect(screen.queryByRole("heading", { level: 1, name: HERO_TITLE })).not.toBeInTheDocument();
+    await settle();
   });
 
   // The failure this prevents is the visible one: hydrate() resolves after the

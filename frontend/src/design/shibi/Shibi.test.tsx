@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { cleanup, render, screen } from "@testing-library/react";
 import { act } from "react";
 import { afterEach, describe, expect, it } from "vitest";
 
@@ -7,6 +7,9 @@ import { SHIBI_SIZE } from "./sprite";
 import { useShibiPreference, useShibiVisible } from "./shibiPreference";
 
 afterEach(() => {
+  // Unmounted first: resetting shared state under a mounted component
+  // re-renders it outside any act(), after the test is over.
+  cleanup();
   useShibiPreference.setState({ hidden: false });
   try {
     localStorage.clear();

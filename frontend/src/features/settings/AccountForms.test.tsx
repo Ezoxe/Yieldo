@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -27,6 +27,9 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  // Unmounted first: resetting the store under a mounted form re-renders it
+  // outside any act(), after the test is over.
+  cleanup();
   vi.restoreAllMocks();
   useSession.setState({ user: null, accessToken: null, status: "idle", isAuthenticated: false });
 });

@@ -1,9 +1,12 @@
-import { act, renderHook } from "@testing-library/react";
+import { act, cleanup, renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { readDocumentTheme, useResolvedTheme } from "./useResolvedTheme";
 
 afterEach(() => {
+  // Unmounted first: the hook watches this attribute, and removing it under a
+  // mounted hook updates it outside any act(), after the test is over.
+  cleanup();
   delete document.documentElement.dataset.theme;
 });
 

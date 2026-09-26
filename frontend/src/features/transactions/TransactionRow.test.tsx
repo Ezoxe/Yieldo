@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import type { ReactElement } from "react";
 import { describe, expect, it, vi } from "vitest";
 
 import { TransactionRow, transferHint } from "./TransactionRow";
@@ -33,27 +34,34 @@ const transaction = {
   is_recurring: false, notes: null, tags: [], manual: false,
 };
 
+/** A `<tr>` rendered into a `<div>` is invalid HTML, and React says so. */
+function renderRow(ui: ReactElement) {
+  const table = document.body.appendChild(document.createElement("table"));
+  const body = table.appendChild(document.createElement("tbody"));
+  return render(ui, { container: body });
+}
+
 describe("TransactionRow", () => {
   it("shows a debit in French formatting", () => {
-    render(<TransactionRow transaction={transaction} categories={categories}
+    renderRow(<TransactionRow transaction={transaction} categories={categories}
                            onRecategorize={vi.fn()} onEdit={vi.fn()} onToggleTransfer={vi.fn()} />);
     expect(screen.getByText("−47,32 €")).toBeInTheDocument();
   });
 
   it("shows the raw label so the user recognizes the line on their statement", () => {
-    render(<TransactionRow transaction={transaction} categories={categories}
+    renderRow(<TransactionRow transaction={transaction} categories={categories}
                            onRecategorize={vi.fn()} onEdit={vi.fn()} onToggleTransfer={vi.fn()} />);
     expect(screen.getByText("CARREFOUR MARKET CB 01/03")).toBeInTheDocument();
   });
 
   it("marks where the category came from", () => {
-    render(<TransactionRow transaction={transaction} categories={categories}
+    renderRow(<TransactionRow transaction={transaction} categories={categories}
                            onRecategorize={vi.fn()} onEdit={vi.fn()} onToggleTransfer={vi.fn()} />);
     expect(screen.getByTitle("Catégorie déduite d'une règle intégrée")).toBeInTheDocument();
   });
 
   it("labels an uncategorized transaction explicitly", () => {
-    render(<TransactionRow
+    renderRow(<TransactionRow
       transaction={{ ...transaction, category_id: null, category_source: "uncategorized" }}
       categories={categories} onRecategorize={vi.fn()} onEdit={vi.fn()} onToggleTransfer={vi.fn()} />);
     expect(screen.getByText("Non catégorisé")).toBeInTheDocument();
@@ -61,7 +69,7 @@ describe("TransactionRow", () => {
 
   it("reports the chosen category when the user recategorizes", async () => {
     const onRecategorize = vi.fn();
-    render(<TransactionRow transaction={transaction} categories={categories}
+    renderRow(<TransactionRow transaction={transaction} categories={categories}
                            onRecategorize={onRecategorize} onEdit={vi.fn()} onToggleTransfer={vi.fn()} />);
     await userEvent.selectOptions(screen.getByLabelText("Catégorie"), "1");
     expect(onRecategorize).toHaveBeenCalledWith(10, 1);
@@ -69,14 +77,14 @@ describe("TransactionRow", () => {
 
   it("sends null -- not a coerced zero -- when Non catégorisé is chosen", async () => {
     const onRecategorize = vi.fn();
-    render(<TransactionRow transaction={transaction} categories={categories}
+    renderRow(<TransactionRow transaction={transaction} categories={categories}
                            onRecategorize={onRecategorize} onEdit={vi.fn()} onToggleTransfer={vi.fn()} />);
     await userEvent.selectOptions(screen.getByLabelText("Catégorie"), "");
     expect(onRecategorize).toHaveBeenCalledWith(10, null);
   });
 
   it("renders a credit with the positive tone", () => {
-    render(<TransactionRow transaction={{ ...transaction, amount_cents: 245000 }}
+    renderRow(<TransactionRow transaction={{ ...transaction, amount_cents: 245000 }}
                            categories={categories} onRecategorize={vi.fn()} onEdit={vi.fn()} onToggleTransfer={vi.fn()} />);
     expect(screen.getByText("2 450,00 €")).toHaveClass("yd-amount--positive");
   });
@@ -85,7 +93,7 @@ describe("TransactionRow", () => {
   // matched it: the colour came from an inline style, where no theme, no
   // stylesheet and no test could reach it.
   it("renders a debit with the negative tone, carried by the class and not an inline style", () => {
-    render(<TransactionRow transaction={transaction} categories={categories}
+    renderRow(<TransactionRow transaction={transaction} categories={categories}
                            onRecategorize={vi.fn()} onEdit={vi.fn()} onToggleTransfer={vi.fn()} />);
     const amount = screen.getByText("−47,32 €");
     expect(amount).toHaveClass("yd-amount--negative");
@@ -104,7 +112,7 @@ describe("TransactionRow", () => {
   // layout, so this asserts the declaration; the rendered result is in
   // task-4-report.md.
   it("declares its table semantics instead of leaving them to the layout", () => {
-    const { container } = render(<TransactionRow transaction={transaction} categories={categories}
+    const { container } = renderRow(<TransactionRow transaction={transaction} categories={categories}
                                                  onRecategorize={vi.fn()} onEdit={vi.fn()} onToggleTransfer={vi.fn()} />);
     // The attribute, not the inferred role: jsdom infers `row`/`cell` from the
     // tag whatever the stylesheet says, so only the written-down role proves
@@ -138,7 +146,7 @@ describe("TransactionRow", () => {
   // off, a debit entered as a credit. The way out is on the row itself.
   it("offers to correct the row, naming which row it would correct", async () => {
     const onEdit = vi.fn();
-    render(<TransactionRow transaction={transaction} categories={categories}
+    renderRow(<TransactionRow transaction={transaction} categories={categories}
                            onRecategorize={vi.fn()} onEdit={onEdit} onToggleTransfer={vi.fn()} />);
 
     await userEvent.click(
@@ -151,7 +159,7 @@ describe("TransactionRow", () => {
   // Amounts are a column to be compared down, not prose: tabular figures in
   // the mono family, right-aligned. `.yd-num` carries the first two.
   it("keeps the amount in the tabular figure style", () => {
-    render(<TransactionRow transaction={transaction} categories={categories}
+    renderRow(<TransactionRow transaction={transaction} categories={categories}
                            onRecategorize={vi.fn()} onEdit={vi.fn()} onToggleTransfer={vi.fn()} />);
     expect(screen.getByText("−47,32 €")).toHaveClass("yd-num");
     expect(ruleBody(".yd-transactions__cell--amount")).toMatch(/text-align:\s*right/);
@@ -160,7 +168,7 @@ describe("TransactionRow", () => {
   // The control that fixes what the rule got wrong, without opening anything.
   it("offers to mark the row as an internal transfer, naming which row", async () => {
     const onToggleTransfer = vi.fn();
-    render(<TransactionRow transaction={transaction} categories={categories}
+    renderRow(<TransactionRow transaction={transaction} categories={categories}
                            onRecategorize={vi.fn()} onEdit={vi.fn()}
                            onToggleTransfer={onToggleTransfer} />);
 
@@ -175,7 +183,7 @@ describe("TransactionRow", () => {
   it("shows a marked row as pressed, and offers to give it back to the expenses", async () => {
     const onToggleTransfer = vi.fn();
     const marked = { ...transaction, is_transfer: true };
-    render(<TransactionRow transaction={marked} categories={categories}
+    renderRow(<TransactionRow transaction={marked} categories={categories}
                            onRecategorize={vi.fn()} onEdit={vi.fn()}
                            onToggleTransfer={onToggleTransfer} />);
 

@@ -137,3 +137,16 @@ if (typeof HTMLCanvasElement !== "undefined") {
     return contextsByCanvas.get(this);
   } as typeof HTMLCanvasElement.prototype.getContext;
 }
+
+// jsdom has no layout, so every element measures 0 × 0 and ECharts says so on
+// each chart it mounts ("Can't get DOM width or height"). True, and about the
+// test environment rather than the code: that one message is dropped here so
+// the warnings that remain in a run are ones worth reading. Every other
+// console.warn goes through untouched.
+const passWarn = console.warn.bind(console);
+console.warn = (...args: unknown[]) => {
+  if (typeof args[0] === "string" && args[0].startsWith("[ECharts] Can't get DOM width or height")) {
+    return;
+  }
+  passWarn(...args);
+};

@@ -278,6 +278,13 @@ describe("copying", () => {
 });
 
 describe("downloading", () => {
+  // The screen hands the file to the browser through an anchor click, which
+  // jsdom answers with "Not implemented: navigation". What is under test is
+  // the request the click is built from, not the browser's download.
+  beforeEach(() => {
+    vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
+  });
+
   it("offers the three formats design §8.2 names, and asks for the one clicked", async () => {
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
     mockApi();

@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { render } from "@testing-library/react";
+import { cleanup, render } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { useMotionPreference } from "../motion/motionPreference";
@@ -30,6 +30,9 @@ function mockSystemReducedMotion(reduced: boolean) {
 }
 
 afterEach(() => {
+  // Unmounted first: resetting shared state under a mounted component
+  // re-renders it outside any act(), after the test is over.
+  cleanup();
   useMotionPreference.setState({ disabled: false });
 });
 

@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
 import { act } from "react";
@@ -172,6 +172,9 @@ describe("the shibi on the trace", () => {
   });
 
   afterEach(() => {
+    // Unmounted first: resetting shared state under a mounted component
+    // re-renders it outside any act(), after the test is over.
+    cleanup();
     vi.useRealTimers();
     useShibiPreference.setState({ hidden: false });
   });

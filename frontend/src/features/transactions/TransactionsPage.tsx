@@ -680,7 +680,11 @@ export function TransactionsPage() {
                   </thead>
                   <tbody className="yd-transactions__body" role="rowgroup">
                     {groupByDay(items).map((day, index) => (
-                      <Fragment key={day.date}>
+                      // The day AND its first row: a row that arrives out of the
+                      // server's order (typed in while paging) can open a second
+                      // group for a day already shown, and two children must not
+                      // share a key.
+                      <Fragment key={`${day.date}:${day.rows[0].id}`}>
                         <tr
                           className={`yd-transactions__daygroup${index === 0 ? " yd-transactions__daygroup--first" : ""}`}
                         >

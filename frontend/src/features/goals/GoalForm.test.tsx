@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { GoalProgress } from "../../lib/types";
 import { GoalForm } from "./GoalForm";
+import { settle } from "../../testing/settle";
 
 /** What `/api/goals` actually returns for one row. Note what is NOT here:
  *  `GoalProgressOut` carries no `priority`, so an edit cannot prefill it. */
@@ -77,11 +78,12 @@ describe("GoalForm", () => {
     });
   });
 
-  it("says outright which end of the priority scale is the urgent one", () => {
+  it("says outright which end of the priority scale is the urgent one", async () => {
     // "Priorité 1" is meaningless without it, and the whole funding queue —
     // one goal at a time, most urgent first — hangs off this number.
     render(<GoalForm onSaved={vi.fn()} onCancel={vi.fn()} />);
     expect(screen.getByLabelText(/1 = la plus urgente/)).toBeInTheDocument();
+    await settle();
   });
 
   it("refuses a target of zero at the field, and sends nothing", async () => {
@@ -197,10 +199,11 @@ describe("GoalForm — a goal that is an account", () => {
     accountsForTest = [];
   });
 
-  it("offers nothing when the household has no savings account", () => {
+  it("offers nothing when the household has no savings account", async () => {
     accountsForTest = [];
     render(<GoalForm onSaved={vi.fn()} onCancel={vi.fn()} />);
     expect(screen.queryByLabelText(/Compte d'épargne/)).not.toBeInTheDocument();
     expect(screen.getByLabelText(/Déjà mis de côté/)).toBeInTheDocument();
+    await settle();
   });
 });

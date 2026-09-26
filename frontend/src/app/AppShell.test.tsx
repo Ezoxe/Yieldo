@@ -12,6 +12,7 @@ import { useAlertCount } from "../features/alerts/useAlertCount";
 import { useShibiPreference } from "../design/shibi/shibiPreference";
 import { AppShell } from "./AppShell";
 import { ThemeProvider } from "./ThemeProvider";
+import { settle } from "../testing/settle";
 
 const NAV_LABEL = "Navigation principale";
 
@@ -65,7 +66,7 @@ function sidebar() {
 }
 
 describe("AppShell", () => {
-  it("marks only the active nav link with aria-current", () => {
+  it("marks only the active nav link with aria-current", async () => {
     renderShell("/transactions");
 
     expect(sidebar().getByRole("link", { name: "Transactions" })).toHaveAttribute(
@@ -75,6 +76,7 @@ describe("AppShell", () => {
     expect(sidebar().getByRole("link", { name: "Vue d'ensemble" })).not.toHaveAttribute(
       "aria-current",
     );
+    await settle();
   });
 
   it("marks the overview link active on the index route without matching other routes", () => {

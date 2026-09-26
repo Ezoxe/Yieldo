@@ -57,16 +57,19 @@ describe("LoginPage", () => {
 
   // The card floated alone with no mark and no way back: a reader could
   // not tell which application was asking, nor leave without the browser.
-  it("carries the brand and a way back to the landing page", () => {
+  it("carries the brand and a way back to the landing page", async () => {
     renderPage();
     expect(screen.getByRole("link", { name: "Yieldo" })).toHaveAttribute("href", "/");
     expect(screen.getByRole("link", { name: "Accueil" })).toHaveAttribute("href", "/");
+    // The page asks whether registration is open; let it answer before unmounting.
+    await screen.findByRole("link", { name: "Créer un compte" });
   });
 
-  it("labels both fields in French", () => {
+  it("labels both fields in French", async () => {
     renderPage();
     expect(screen.getByLabelText("Adresse email")).toBeInTheDocument();
     expect(screen.getByLabelText("Mot de passe")).toBeInTheDocument();
+    await screen.findByRole("link", { name: "Créer un compte" });
   });
 
   it("shows the backend error message on invalid credentials", async () => {

@@ -15,6 +15,14 @@ FIXTURES = Path(__file__).parent / "fixtures"
 
 
 @pytest.fixture(autouse=True)
+def secret_key_of_production_length(monkeypatch):
+    """The configured default is 26 characters: PyJWT warns on every token
+    signed with it, and `security.secret_guard` would refuse it in production.
+    Tests sign with a key of the length `install.sh` generates."""
+    monkeypatch.setattr(settings, "secret_key", "test-" + "0" * 59)
+
+
+@pytest.fixture(autouse=True)
 def fresh_login_throttle(monkeypatch):
     """The throttle is module state; a test must never inherit another's failures."""
     monkeypatch.setattr(throttle, "login_throttle", throttle.LoginThrottle())

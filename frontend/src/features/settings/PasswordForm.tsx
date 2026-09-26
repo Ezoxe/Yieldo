@@ -2,6 +2,8 @@ import { useState, type FormEvent } from "react";
 
 import { SaveIcon } from "../../design/icons";
 import { ApiError, api } from "../../lib/api";
+import type { User } from "../../lib/types";
+import { applySession } from "../auth/session";
 
 const GENERIC_ERROR = "Une erreur inattendue est survenue.";
 
@@ -47,7 +49,12 @@ export function PasswordForm() {
 
     setSaving(true);
     try {
-      await api.post("/auth/password", { current_password: current, new_password: next });
+      const session = await api.post<{ access_token: string; user: User }>("/auth/password", {
+        current_password: current,
+        new_password: next,
+      });
+      // The backend ended every other session and handed this tab a new one.
+      applySession(session);
       // Cleared on success, all three: a form still holding the old and the new
       // password after a successful change is a password left on screen.
       setCurrent("");
@@ -107,8 +114,8 @@ export function PasswordForm() {
       </label>
 
       <p className="yd-account__note">
-        Au moins {MIN_LENGTH} caractères. Vos sessions déjà ouvertes, celle-ci comprise, restent
-        actives&nbsp;: Yieldo ne vous déconnecte pas parce que vous avez changé de mot de passe.
+        Au moins {MIN_LENGTH} caractères. Changer de mot de passe déconnecte vos autres appareils
+        et retire la clé d'accès de l'agent&nbsp;; cet onglet reste connecté.
       </p>
 
       {error !== null ? (

@@ -1,12 +1,12 @@
+from datetime import UTC, datetime
+
 from fastapi import Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
-
-from datetime import UTC, datetime
 
 from app.db import get_db
 from app.models import User
 from app.security import agent_keys
-from app.security.tokens import TokenError, decode_token
+from app.security.tokens import TokenError, decode_claims
 
 
 def _unauthorized() -> HTTPException:
@@ -40,11 +40,13 @@ def _bearer(request: Request) -> str:
 
 def _session_user(token: str, db: Session) -> User:
     try:
-        user_id = decode_token(token, expected_type="access")
+        claims = decode_claims(token, expected_type="access")
     except TokenError as exc:
         raise _unauthorized() from exc
-    user = db.get(User, user_id)
-    if user is None or not user.is_active:
+    user = db.get(User, claims.user_id)
+    # A version behind the user's own means a password changed, or the owner
+    # signed every other device out, after this token was issued.
+    if user is None or not user.is_active or claims.session_version != user.session_version:
         raise _unauthorized()
     return user
 

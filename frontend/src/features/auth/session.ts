@@ -43,7 +43,7 @@ interface SessionState {
 // api.ts's own silent refresh — fired internally on a 401 from some unrelated
 // request, see onTokenRefreshed below — can update the store through this
 // exact same function, not a second, easily-drifting copy of the same logic.
-function applySession(session: { access_token: string; user: User }): void {
+export function applySession(session: { access_token: string; user: User }): void {
   setAccessToken(session.access_token);
   useSession.setState({
     user: session.user,

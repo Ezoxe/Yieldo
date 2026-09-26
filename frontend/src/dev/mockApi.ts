@@ -1720,8 +1720,16 @@ const WRITES: Record<string, (body: Record<string, unknown>) => Response> = {
         headers: { "Content-Type": "application/json" },
       });
     }
-    return new Response(null, { status: 204 });
+    return new Response(
+      JSON.stringify({ access_token: "apercu", token_type: "bearer", user: MUTABLE_USER }),
+      { status: 200, headers: { "Content-Type": "application/json" } },
+    );
   },
+  "POST /api/auth/sessions/revoke-others": () =>
+    new Response(
+      JSON.stringify({ access_token: "apercu", token_type: "bearer", user: MUTABLE_USER }),
+      { status: 200, headers: { "Content-Type": "application/json" } },
+    ),
 };
 
 export function installMockApi(): void {

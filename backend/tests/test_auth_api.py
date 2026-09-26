@@ -277,7 +277,7 @@ def test_password_change_replaces_the_password(client):
         "current_password": "motdepasse123",
         "new_password": "nouveaumotdepasse"}, headers=headers)
 
-    assert response.status_code == 204
+    assert response.status_code == 200
     assert client.post("/api/auth/login", json={
         "email": "max@example.com", "password": "nouveaumotdepasse"}).status_code == 200
     assert client.post("/api/auth/login", json={

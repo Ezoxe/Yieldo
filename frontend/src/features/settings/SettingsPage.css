@@ -107,6 +107,20 @@
   border-color: var(--yd-negative);
 }
 
+/* « Déconnecter les autres appareils » sits under « Se déconnecter », set apart
+   by a hairline: ending other sessions is a different act from leaving this one. */
+.yd-settings__sessions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-sm);
+  padding-top: var(--yd-space-md);
+  border-top: 1px solid var(--yd-border);
+}
+
+.yd-settings__sessions .yd-settings__logout {
+  margin-top: 0;
+}
+
 .yd-settings__logout:focus-visible {
   outline: 2px solid var(--yd-negative);
   outline-offset: 2px;

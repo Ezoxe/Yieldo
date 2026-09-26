@@ -130,8 +130,13 @@ describe("PasswordForm", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it("clears all three fields once the change is accepted", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(null, { status: 204 })));
+  it("clears all three fields once the change is accepted, and keeps this tab signed in", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        jsonResponse({ access_token: "apres-changement", token_type: "bearer", user: USER }),
+      ),
+    );
     const user = userEvent.setup();
     render(<PasswordForm />);
 
@@ -148,6 +153,9 @@ describe("PasswordForm", () => {
     expect(screen.getByLabelText("Mot de passe actuel")).toHaveValue("");
     expect(screen.getByLabelText("Nouveau mot de passe")).toHaveValue("");
     expect(screen.getByLabelText("Confirmer le nouveau mot de passe")).toHaveValue("");
+    // Every other session ended server-side; this one carries on with the
+    // session the backend handed back.
+    expect(useSession.getState().accessToken).toBe("apres-changement");
   });
 
   it("shows the backend's refusal when the current password is wrong", async () => {

@@ -1716,7 +1716,8 @@ def test_the_investment_migration_is_the_single_head(migration_db):
 
     script = ScriptDirectory.from_config(migration_db.config)
     assert len(script.get_heads()) == 1
-    assert script.get_current_head() == LEARNED_MODEL_REVISION
+    assert script.get_current_head() == SESSION_VERSION_REVISION
+    assert LEARNED_MODEL_REVISION in {rev.revision for rev in script.walk_revisions()}
     on_path = {rev.revision for rev in script.walk_revisions()}
     assert TRADING_SESSIONS_REVISION in on_path
     assert SECOND_OPINION_REVISION in on_path
@@ -1899,6 +1900,9 @@ def test_the_audit_chain_survives_the_upgrade_it_was_written_by(migration_db):
     )
     conn.commit()
     conn.close()
+    # The ORM below is today's model; the rest of the chain brings the schema
+    # up to it without touching the row written above.
+    command.upgrade(migration_db.config, "head")
 
     from app.models import User
     from app.trading import audit as trading_audit
@@ -2058,3 +2062,39 @@ def test_the_learned_model_column_lands_nullable_and_downgrades(migration_db):
     conn.close()
     assert "learned_model" not in names
     command.upgrade(migration_db.config, LEARNED_MODEL_REVISION)
+
+
+# ---------------------------------------------------------------------------
+# a3c5e7f9b1d2 -- a session version on every user
+# ---------------------------------------------------------------------------
+
+SESSION_VERSION_REVISION = "a3c5e7f9b1d2"
+
+
+def test_the_session_version_lands_as_zero_on_existing_users_and_downgrades(migration_db):
+    """Users who signed up before the column existed read version 0, which is
+    what the tokens already in their browsers carry: nobody is signed out by
+    the upgrade itself."""
+    command.upgrade(migration_db.config, LEARNED_MODEL_REVISION)
+    conn = _connect(migration_db)
+    conn.execute(
+        "INSERT INTO users (email, name, password_hash, role, is_active, created_at) "
+        "VALUES ('ancien@example.com', 'Ancien', 'x', 'admin', 1, '2026-01-01')")
+    conn.commit()
+    conn.close()
+
+    command.upgrade(migration_db.config, SESSION_VERSION_REVISION)
+    conn = _connect(migration_db)
+    version = conn.execute(
+        "SELECT session_version FROM users WHERE email = 'ancien@example.com'").fetchone()[0]
+    migrated = {column for column in _table_columns(conn, "users") if column[0] == "session_version"}
+    conn.close()
+    assert version == 0
+    reference, _ = _reference_schema("users")
+    assert migrated == {column for column in reference if column[0] == "session_version"}
+
+    command.downgrade(migration_db.config, LEARNED_MODEL_REVISION)
+    conn = _connect(migration_db)
+    names = {row[1] for row in conn.execute("PRAGMA table_info(users)")}
+    conn.close()
+    assert "session_version" not in names

@@ -32,6 +32,7 @@ import { PasswordForm } from "./PasswordForm";
 import { LedgerModeControl } from "../plan/LedgerModeControl";
 import { DismissedDetectionsPanel } from "./DismissedDetectionsPanel";
 import { ProfileForm } from "./ProfileForm";
+import { SessionsPanel } from "./SessionsPanel";
 import "./SettingsPage.css";
 
 const THEME_OPTIONS: { value: ThemePreference; label: string }[] = [
@@ -227,6 +228,7 @@ export function SettingsPage() {
             <SignOutIcon />
             Se déconnecter
           </button>
+          <SessionsPanel />
         </BentoCell>
       </BentoGrid>
     </section>

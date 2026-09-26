@@ -7,9 +7,26 @@ import { LoginPage } from "./LoginPage";
 
 const fetchMock = vi.fn();
 
+function json(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { "Content-Type": "application/json" },
+  });
+}
+
+// The page asks whether registration is open before offering « Créer un
+// compte ». That question is answered here, every other call by `fetchMock`.
+let registration = { open: true, first_account: false };
+
 beforeEach(() => {
   fetchMock.mockReset();
-  vi.stubGlobal("fetch", fetchMock);
+  registration = { open: true, first_account: false };
+  vi.stubGlobal("fetch", (input: RequestInfo | URL, init?: RequestInit) => {
+    if (String(input).endsWith("/api/auth/registration")) {
+      return Promise.resolve(json(registration));
+    }
+    return fetchMock(input, init);
+  });
 });
 
 function renderPage() {
@@ -21,6 +38,23 @@ function renderPage() {
 }
 
 describe("LoginPage", () => {
+  it("offers account creation while registration is open", async () => {
+    renderPage();
+    expect(await screen.findByRole("link", { name: "Créer un compte" })).toHaveAttribute(
+      "href",
+      "/inscription",
+    );
+  });
+
+  it("offers no account creation once registration is closed", async () => {
+    registration = { open: false, first_account: false };
+    renderPage();
+    await waitFor(() =>
+      expect(screen.queryByRole("link", { name: "Créer un compte" })).not.toBeInTheDocument(),
+    );
+    expect(await screen.findByText(/Les inscriptions sont fermées/)).toBeInTheDocument();
+  });
+
   // The card floated alone with no mark and no way back: a reader could
   // not tell which application was asking, nor leave without the browser.
   it("carries the brand and a way back to the landing page", () => {

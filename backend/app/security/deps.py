@@ -109,6 +109,15 @@ def get_session_user(request: Request, db: Session = Depends(get_db)) -> User:
     return _session_user(token, db)
 
 
+def require_session_admin(user: User = Depends(get_session_user)) -> User:
+    """The installation's administrator, proved by a session. A key never
+    administers the installation, whoever it belongs to."""
+    if user.role != "admin":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
+                            detail="Droits administrateur requis")
+    return user
+
+
 def require_admin(user: User = Depends(get_current_user)) -> User:
     if user.role != "admin":
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,

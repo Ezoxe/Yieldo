@@ -38,7 +38,9 @@ class Settings(BaseSettings):
     # the cost of one set too low is a working model that silently never
     # contributes.
     llm_timeout_seconds: int = 120
-    registration_open: bool = True
+    # Closed by default: the first account is always possible, every later one
+    # needs the administrator (Réglages → Compte) or YIELDO_REGISTRATION_OPEN=true.
+    registration_open: bool = False
     cors_origins: list[str] = ["http://localhost:5173"]
     version: str = "0.1.0"
 

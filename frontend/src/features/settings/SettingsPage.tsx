@@ -28,6 +28,7 @@ import type { DensityPreference, ThemePreference } from "../../design/theme";
 import { useSession } from "../auth/session";
 import { AccessKeyPanel } from "./AccessKeyPanel";
 import { AccountsPanel } from "./AccountsPanel";
+import { InstancePanel } from "./InstancePanel";
 import { PasswordForm } from "./PasswordForm";
 import { LedgerModeControl } from "../plan/LedgerModeControl";
 import { DismissedDetectionsPanel } from "./DismissedDetectionsPanel";
@@ -71,6 +72,7 @@ export function SettingsPage() {
   const shibiHidden = useShibiPreference((state) => state.hidden);
   const setShibiHidden = useShibiPreference((state) => state.setHidden);
   const userName = useSession((state) => state.user?.name ?? "");
+  const isAdmin = useSession((state) => state.user?.role === "admin");
   const logout = useSession((state) => state.logout);
   const navigate = useNavigate();
   const reduced = useReducedMotion();
@@ -96,6 +98,14 @@ export function SettingsPage() {
           <PanelHead icon={LockIcon}>Mot de passe</PanelHead>
           <PasswordForm />
         </BentoCell>
+
+        {/* The installation, not the account: only its administrator sees it. */}
+        {isAdmin ? (
+          <BentoCell as={motion.div} span={SPAN.half} className="yd-panel" {...entryProps(reduced)}>
+            <PanelHead icon={AccountIcon}>Installation</PanelHead>
+            <InstancePanel />
+          </BentoCell>
+        ) : null}
 
         {/* Full width: this is a list that grows with the household, and it is
             the one screen where the opening balance -- the figure under every

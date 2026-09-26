@@ -9,12 +9,14 @@ import { GlassCard } from "../../design/glass/GlassCard";
 import { ApiError } from "../../lib/api";
 import "./AuthPage.css";
 import { AuthBrand } from "./AuthBrand";
+import { useRegistrationStatus } from "./registration";
 import { useSession } from "./session";
 
 export function LoginPage() {
   const login = useSession((state) => state.login);
   const navigate = useNavigate();
   const reducedMotion = useReducedMotion();
+  const registration = useRegistrationStatus();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -90,9 +92,16 @@ export function LoginPage() {
               </button>
             </form>
 
-            <p className="yd-auth__footer">
-              Pas encore de compte ? <Link to="/inscription">Créer un compte</Link>
-            </p>
+            {registration === "closed" ? (
+              <p className="yd-auth__footer">
+                Pas encore de compte ? Les inscriptions sont fermées&nbsp;: demandez à
+                l'administrateur de cette installation.
+              </p>
+            ) : (
+              <p className="yd-auth__footer">
+                Pas encore de compte ? <Link to="/inscription">Créer un compte</Link>
+              </p>
+            )}
           </GlassCard>
         </motion.div>
       </div>

@@ -9,6 +9,19 @@ export interface User {
   role: string;
 }
 
+/** GET /auth/registration — public, asked before « Créer un compte » is offered. */
+export interface RegistrationStatus {
+  open: boolean;
+  first_account: boolean;
+}
+
+/** GET/PATCH /admin/settings — the installation's own settings, admin only. */
+export interface InstanceSettings {
+  registration_open: boolean;
+  /** "environment" until the administrator first decides (YIELDO_REGISTRATION_OPEN). */
+  source: "instance" | "environment";
+}
+
 /**
  * The rotating credential a program uses to drive Yieldo on this account's
  * behalf. `key` is the token in the clear — Yieldo issues it, so unlike a

@@ -20,6 +20,14 @@ def fresh_login_throttle(monkeypatch):
     monkeypatch.setattr(throttle, "login_throttle", throttle.LoginThrottle())
 
 
+@pytest.fixture(autouse=True)
+def registration_open_for_tests(monkeypatch):
+    """Most tests register several households to prove isolation. Registration
+    ships closed after the first account; `test_registration_api` sets it back
+    to False to test exactly that."""
+    monkeypatch.setattr(settings, "registration_open", True)
+
+
 @pytest.fixture
 def db():
     """In-memory database, rebuilt for each test so tests never share state.

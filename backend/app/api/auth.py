@@ -2,10 +2,12 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
+from app.api.admin import registration_open
 from app.categorization.seed import seed_categories, seed_rules
 from app.config import settings
 from app.db import get_db
 from app.models import AgentKey, User
+from app.schemas.admin import RegistrationStatusOut
 from app.schemas.auth import LoginIn, PasswordChangeIn, ProfileIn, RegisterIn, TokenOut, UserOut
 from app.security import throttle
 from app.security.deps import get_current_user, get_session_user
@@ -82,7 +84,7 @@ def register(
     db.execute(text("BEGIN IMMEDIATE"))
     try:
         is_first_user = db.query(User).count() == 0
-        if not is_first_user and not settings.registration_open:
+        if not is_first_user and not registration_open(db):
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
                                 detail="Les inscriptions sont fermées")
 
@@ -108,6 +110,14 @@ def register(
     seed_rules(db, user.id, categories)
 
     return _issue_session(response, request, user)
+
+
+@router.get("/registration", response_model=RegistrationStatusOut)
+def registration_status(db: Session = Depends(get_db)) -> RegistrationStatusOut:
+    """Public: the sign-in screen asks before offering « Créer un compte »,
+    rather than letting a visitor fill a form the server will refuse."""
+    first = db.query(User).count() == 0
+    return RegistrationStatusOut(open=first or registration_open(db), first_account=first)
 
 
 @router.post("/login", response_model=TokenOut)

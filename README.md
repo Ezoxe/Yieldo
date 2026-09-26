@@ -50,7 +50,10 @@ cd yieldo
 À la fin, le script affiche l'adresse (`http://localhost:<port>`). Ouvrez-la
 et créez votre compte utilisateur (nom, email, mot de passe) : **le tout
 premier compte utilisateur créé sur une instance devient automatiquement
-administrateur.** L'écran d'import vous invite ensuite à créer votre premier
+administrateur.** Les inscriptions se ferment ensuite : pour accueillir un
+autre membre du foyer, l'administrateur les ouvre dans Réglages → Compte
+(« Autoriser la création d'autres comptes »), le temps de la création, puis
+les referme. Chaque compte garde ses propres données. L'écran d'import vous invite ensuite à créer votre premier
 compte bancaire — voir « Format CSV attendu et taggage des colonnes »
 ci-dessous ; c'est une notion distincte du compte utilisateur que vous venez
 de créer.

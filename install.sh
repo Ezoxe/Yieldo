@@ -133,7 +133,9 @@ ensure_env() {
   # Read every value we intend to preserve BEFORE writing: the heredoc below
   # truncates $ENV_FILE, so any read inside it would come back empty.
   local port secret registration proxies
-  registration=true
+  # Closed once the first account exists; the administrator reopens it in
+  # Réglages → Compte when another member of the household needs an account.
+  registration=false
   if [ -f "$ENV_FILE" ]; then
     port="$(read_env_value "$ENV_FILE" YIELDO_PORT)"
     secret="$(read_env_value "$ENV_FILE" YIELDO_SECRET_KEY)"

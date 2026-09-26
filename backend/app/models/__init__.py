@@ -18,6 +18,7 @@ from app.models.declared_recurrence import (
 from app.models.goal import Goal
 from app.models.health_snapshot import HealthSnapshot
 from app.models.import_batch import ColumnProfile, ImportBatch
+from app.models.instance_settings import InstanceSettings
 from app.models.instrument import INSTRUMENT_ASSET_CLASSES, Instrument
 from app.models.investment_account import INVESTMENT_ACCOUNT_KINDS, InvestmentAccount
 from app.models.llm_settings import LlmSettings
@@ -68,7 +69,8 @@ __all__ = [
     "AllocationTarget", "ApiKey", "Category", "CategoryRule",
     "Challenge",
     "ChatMessage", "ColumnProfile", "Debt", "DecisionSettings", "DeclaredRecurrence",
-    "Goal", "HealthSnapshot", "ImportBatch", "Instrument", "InvestmentAccount", "LlmSettings",
+    "Goal", "HealthSnapshot", "ImportBatch", "InstanceSettings", "Instrument",
+    "InvestmentAccount", "LlmSettings",
     "NetWorthSnapshot",
     "Lot", "PlanLine", "PlanSettings", "Position", "PriceIndexPoint", "PricePoint", "QuotaWindow",
     "RecurrenceCheckin", "RecurrenceDismissal", "Scenario",

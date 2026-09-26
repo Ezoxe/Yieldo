@@ -1716,7 +1716,8 @@ def test_the_investment_migration_is_the_single_head(migration_db):
 
     script = ScriptDirectory.from_config(migration_db.config)
     assert len(script.get_heads()) == 1
-    assert script.get_current_head() == SESSION_VERSION_REVISION
+    assert script.get_current_head() == INSTANCE_SETTINGS_REVISION
+    assert SESSION_VERSION_REVISION in {rev.revision for rev in script.walk_revisions()}
     assert LEARNED_MODEL_REVISION in {rev.revision for rev in script.walk_revisions()}
     on_path = {rev.revision for rev in script.walk_revisions()}
     assert TRADING_SESSIONS_REVISION in on_path
@@ -2087,7 +2088,9 @@ def test_the_session_version_lands_as_zero_on_existing_users_and_downgrades(migr
     conn = _connect(migration_db)
     version = conn.execute(
         "SELECT session_version FROM users WHERE email = 'ancien@example.com'").fetchone()[0]
-    migrated = {column for column in _table_columns(conn, "users") if column[0] == "session_version"}
+    migrated = {
+        column for column in _table_columns(conn, "users") if column[0] == "session_version"
+    }
     conn.close()
     assert version == 0
     reference, _ = _reference_schema("users")
@@ -2098,3 +2101,25 @@ def test_the_session_version_lands_as_zero_on_existing_users_and_downgrades(migr
     names = {row[1] for row in conn.execute("PRAGMA table_info(users)")}
     conn.close()
     assert "session_version" not in names
+
+
+# ---------------------------------------------------------------------------
+# b4d6f8a0c2e4 -- the installation's own settings
+# ---------------------------------------------------------------------------
+
+INSTANCE_SETTINGS_REVISION = "b4d6f8a0c2e4"
+
+
+def test_the_instance_settings_table_matches_the_model_and_downgrades(migration_db):
+    command.upgrade(migration_db.config, INSTANCE_SETTINGS_REVISION)
+    conn = _connect(migration_db)
+    columns = _table_columns(conn, "instance_settings")
+    conn.close()
+    reference, _ = _reference_schema("instance_settings")
+    assert columns == reference
+
+    command.downgrade(migration_db.config, SESSION_VERSION_REVISION)
+    conn = _connect(migration_db)
+    tables = {row[0] for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+    conn.close()
+    assert "instance_settings" not in tables

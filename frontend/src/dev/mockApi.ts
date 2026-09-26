@@ -1180,9 +1180,17 @@ const DISMISSALS: { id: number; label_key: string; label: string; created_at: st
     created_at: "2026-09-10T10:00:00Z" },
 ];
 
+/** The installation's settings, mutable for the rest of the tab. */
+let instanceSettings: { registration_open: boolean; source: "instance" | "environment" } = {
+  registration_open: false,
+  source: "environment",
+};
+
 const ROUTES: Record<string, (params: Params) => unknown> = {
   "/api/auth/refresh": () => ({ access_token: "apercu", token_type: "bearer", user: MUTABLE_USER }),
   "/api/auth/me": () => MUTABLE_USER,
+  "/api/auth/registration": () => ({ open: true, first_account: false }),
+  "/api/admin/settings": () => instanceSettings,
   "/api/access-key": () => {
     // A read issues one when there is none, and never rotates an existing one
     // — the same contract the backend route documents.
@@ -1736,6 +1744,13 @@ const WRITES: Record<string, (body: Record<string, unknown>) => Response> = {
       JSON.stringify({ access_token: "apercu", token_type: "bearer", user: MUTABLE_USER }),
       { status: 200, headers: { "Content-Type": "application/json" } },
     );
+  },
+  "PATCH /api/admin/settings": (body) => {
+    instanceSettings = { registration_open: Boolean(body.registration_open), source: "instance" };
+    return new Response(JSON.stringify(instanceSettings), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
   },
   "POST /api/auth/sessions/revoke-others": () =>
     new Response(

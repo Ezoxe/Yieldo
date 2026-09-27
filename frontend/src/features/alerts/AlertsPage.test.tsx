@@ -43,6 +43,15 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+describe("AlertsPage — dates", () => {
+  it("writes the first of a month « 1er », as French does", async () => {
+    mockApi([{ ...OPERATOR_REPORT,
+               coverage: { ...OPERATOR_REPORT.coverage, first_on: "2025-03-01" } }]);
+    renderPage();
+    expect(await screen.findByText(/Du 1er mars 2025 au/)).toBeInTheDocument();
+  });
+});
+
 describe("AlertsPage — every alert says what, over what period, and what clears it", () => {
   it("prints the three claims as three labelled blocks, never as one paragraph", async () => {
     renderPage();

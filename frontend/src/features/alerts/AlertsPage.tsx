@@ -11,6 +11,7 @@ import { useReducedMotion } from "../../design/motion/useReducedMotion";
 import { entryProps, staggerProps } from "../../design/motion/variants";
 import { centsToInput, formatCents, parseCents } from "../../design/theme";
 import "../../design/Skeleton.css";
+import { frenchDate } from "../../design/EmptyState";
 import { Method } from "../../design/Method";
 import { api } from "../../lib/api";
 import { plural } from "../../lib/plural";
@@ -29,7 +30,6 @@ const MONTHS_FR = [
   "juillet", "août", "septembre", "octobre", "novembre", "décembre",
 ];
 
-const LONG_DATE = new Intl.DateTimeFormat("fr-FR", { dateStyle: "long" });
 
 /** `"2025-06"` → `"juin 2025"`. Local rather than `Intl`: the engine builds
  *  the same label server-side for every sentence it writes, and two different
@@ -39,10 +39,10 @@ function monthLabel(key: string): string {
   return `${MONTHS_FR[Number(month) - 1] ?? month} ${year}`;
 }
 
+/** "2025-03-01" as French writes it: « 1er mars 2025 ». */
 function dateLabel(iso: string | null): string | null {
   if (iso === null) return null;
-  const value = new Date(`${iso}T00:00:00`);
-  return Number.isNaN(value.getTime()) ? null : LONG_DATE.format(value);
+  return Number.isNaN(Date.parse(`${iso}T00:00:00Z`)) ? null : frenchDate(iso);
 }
 
 /**

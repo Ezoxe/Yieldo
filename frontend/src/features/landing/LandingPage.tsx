@@ -107,13 +107,13 @@ const CAPABILITIES: FeatureCell[] = [
   {
     icon: GaugeIcon,
     title: "Budgets, abonnements et alertes",
-    body: "Un plafond mensuel par catégorie et son suivi. Les prélèvements récurrents détectés sur vos relevés, ceux que vous déclarez vous-même, un calendrier des échéances, et l'alerte quand l'un d'eux change de montant.",
+    body: "Un plafond mensuel par catégorie et son suivi. Les prélèvements récurrents détectés sur vos relevés, ceux que vous déclarez vous-même, un calendrier des échéances, et l'alerte quand l'un d'eux change de montant ou quand le point bas prévu passe sous votre seuil.",
     span: { md: 3, lg: 6 },
   },
   {
     icon: CompassIcon,
-    title: "Un plan prévisionnel, et trois lectures",
-    body: "Déclarez ce que vous payez chaque mois, puis choisissez la lecture de vos chiffres : le réel de vos relevés, l'estimé du plan seul, ou le réel complété par ce qui n'est pas encore passé. Une dépense déjà sur le relevé n'est jamais comptée deux fois.",
+    title: "L'avenir jour par jour, et un plan",
+    body: "Avenir projette le solde de vos comptes courants jour par jour, avec sa fourchette, son point bas et ce qui tombe d'ici là — et « Et si… » pour essayer une dépense avant de la faire. Le plan prévisionnel complète vos chiffres de ce qui n'est pas encore passé, sans jamais compter deux fois une dépense déjà sur le relevé.",
     span: { md: 3, lg: 6 },
   },
   {
@@ -186,7 +186,7 @@ const STEPS: Step[] = [
   },
   {
     title: "Créez votre compte",
-    body: "Le premier compte créé devient administrateur. Les inscriptions peuvent ensuite être fermées.",
+    body: "Le premier compte créé devient administrateur, et les inscriptions se ferment derrière lui : il peut les rouvrir dans Réglages.",
   },
   {
     title: "Exportez, puis importez",

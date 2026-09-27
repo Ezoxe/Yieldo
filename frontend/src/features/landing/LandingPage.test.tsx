@@ -113,6 +113,13 @@ describe("LandingPage calls to action", () => {
   it("says out loud that registration may be closed on this instance", () => {
     renderLanding();
     expect(screen.getByText(/inscriptions ont été fermées/i)).toBeInTheDocument();
+    // Closed after the first account is the default, not an option.
+    expect(screen.getByText(/les inscriptions se ferment derrière lui/)).toBeInTheDocument();
+  });
+
+  it("announces Avenir, the screen that says what will be left", () => {
+    renderLanding();
+    expect(screen.getByText(/Avenir projette le solde de vos comptes courants/)).toBeInTheDocument();
   });
 });
 

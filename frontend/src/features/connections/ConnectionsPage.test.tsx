@@ -82,6 +82,14 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+describe("ConnectionsPage — dates", () => {
+  it("writes the first of a month « 1er », as French does", async () => {
+    mockApi({ connections: [{ ...CONNECTIONS[0], last_used_at: "2026-10-01T09:30:00" }] });
+    renderPage();
+    expect(await screen.findByText(/Dernière utilisation : 1er octobre 2026/)).toBeInTheDocument();
+  });
+});
+
 describe("ConnectionsPage — one screen, two doors", () => {
   it("is headed « Réglages → Connexions » from the Finances side", async () => {
     renderPage("/reglages/connexions");

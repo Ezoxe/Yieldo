@@ -49,7 +49,11 @@ const DATE_TIME = new Intl.DateTimeFormat("fr-FR", {
 function formatMoment(iso: string | null): string | null {
   if (iso === null) return null;
   const value = new Date(iso);
-  return Number.isNaN(value.getTime()) ? null : DATE_TIME.format(value);
+  if (Number.isNaN(value.getTime())) return null;
+  // French writes the first of the month « 1er », which Intl does not.
+  return DATE_TIME.formatToParts(value)
+    .map((part) => (part.type === "day" && part.value === "1" ? "1er" : part.value))
+    .join("");
 }
 
 /** What the quota pool says, in the provider's own units.

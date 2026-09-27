@@ -39,7 +39,7 @@ class Settings(BaseSettings):
     # contributes.
     llm_timeout_seconds: int = 120
     # Closed by default: the first account is always possible, every later one
-    # needs the administrator (Réglages → Compte) or YIELDO_REGISTRATION_OPEN=true.
+    # needs the administrator (Réglages → Installation) or YIELDO_REGISTRATION_OPEN=true.
     registration_open: bool = False
     cors_origins: list[str] = ["http://localhost:5173"]
     version: str = "0.1.0"

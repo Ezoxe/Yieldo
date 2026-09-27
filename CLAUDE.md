@@ -101,6 +101,25 @@ the account's own credentials — password, email, the key itself, and the
 provider keys in Réglages → Connexions — take `get_session_user` instead. A
 key opens the ledger; it does not open the account.
 
+Around them:
+
+- Tokens carry `sv`, the user's `session_version`. Changing the password or
+  « Déconnecter les autres sessions » (`POST /auth/sessions/revoke-others`)
+  bumps it, so every other refresh cookie and access token stops working;
+  the caller gets a fresh pair.
+- `security/throttle.py` slows repeated failed logins per address and per
+  email; `security/headers.py` (pure ASGI) sets the CSP and the other
+  headers on every response; `security/secret_guard.py` refuses to start in
+  production on the public default `SECRET_KEY`.
+- The refresh cookie is `Secure` whenever the request arrived over HTTPS —
+  behind a proxy that means uvicorn's `FORWARDED_ALLOW_IPS`.
+- Registration closes once the first account exists. The administrator
+  reopens it in Réglages → Installation (`/admin/settings`,
+  `require_session_admin`, `models/instance_settings.py`);
+  `YIELDO_REGISTRATION_OPEN` only sets the default.
+- Every ECharts HTML tooltip escapes what it prints through
+  `charts/escapeHtml.ts`: a label is written by a bank or a merchant.
+
 ### Database and migrations
 
 SQLite in `data/yieldo.db`, WAL, foreign keys on. Tests build the schema with
@@ -132,7 +151,9 @@ migration that backfills data.
 - `design/` — tokens (`tokens.css`), primitives (`PageHead`, `InfoTip`,
   `EmptyState`, `Skeleton`, `Drawer`), `bento/` grid and `PanelHead`,
   `icons/`, `motion/`, `ai/` (spotlight targets), `shibi/` (the mascot).
-  `charts/` — ECharts wrappers sharing `charts/theme.ts`.
+  `charts/` — ECharts wrappers sharing `charts/theme.ts`. ECharts 6 is loaded
+  module by module in `charts/echarts.ts`: a series or component not
+  registered there renders nothing.
 - `dev/mockApi.ts` — the `?apercu=1` fetch stub (see "Looking at the
   screens").
 
@@ -202,6 +223,38 @@ the screen applies it, remounts its box with it, and removes it from the URL.
 `LedgerModeBadge` only when the mode is not « Réel ». Any sentence in the app
 that tells the reader where to change the mode must point at Réglages.
 
+## Avenir
+
+`/avenir` answers what the money will do, day by day. Two perimeters:
+« Comptes courants » (`checking`, the overdraft question, the default) and
+« Tout le disponible » (`LIQUID_ACCOUNT_KINDS`). The projection starts the day
+after the perimeter's last statement (`as_of`); `today` only measures how
+stale that is.
+
+- `engines/outlook_sources.assemble` — what is known: detected recurrences,
+  declared ones (Récurrences), planned one-off events (`models/planned_event`,
+  `/planned-events`). **One euro, one source**: a declaration replaces the
+  detected series it describes (label, or same sign and rhythm within ±15 %
+  and ±5 days), transfer legs are paired and dropped, and a label the
+  household dismissed stays in the variable part instead of vanishing.
+- `engines/forecast.residual_model` — the variable part, month by month, with
+  a variance that accumulates from the first month.
+- `engines/outlook.project_outlook` — the days: median, P10/P90 band shaped by
+  the household's own month (`month_profile_bps`), low point, risk against the
+  threshold (`probable` median under, `possible` only the band's low edge),
+  month ends; `apply_adjustments` for « Et si… ». `OutlookInputs` +
+  `project_until` project any day of one assembly exactly as an assembly made
+  for that day would.
+- `engines/backtest.measure_reliability` — the method replayed on the
+  household's own history (1 and 3 months), refused under nine months.
+- `api/outlook.py` — `GET /outlook`, `POST /outlook/scenario` (nothing
+  written), `GET /outlook/reliability`. `Perimeter`, `project` and
+  `avenir_facts` are shared: the Alertes floor, the assistant and the agent's
+  `lire_avenir` read the future through them and nowhere else.
+- The threshold is the floor set in Alertes, or zero. The floor alert
+  (`engines/alert._balance_floor`) reads the current accounts' low point over
+  `FLOOR_HORIZON_DAYS` (90), keyed `balance_floor:<date>`.
+
 ## The assistant
 
 - **Spotlight.** `design/ai/targets.ts` lists what the assistant may point
@@ -210,6 +263,10 @@ that tells the reader where to change the mode must point at Réglages.
   against the list. A chip appears only when its `data-ai-target` is really
   in the document or its route can be navigated to. A component becomes
   pointable by carrying `data-ai-target="…"` (or `useSpotlightTarget(id)`).
+- **The future.** `balance_forecast` and `upcoming` are answered from
+  Avenir's projection. `api/chat` assembles `ChatContext.avenir`
+  (`api/outlook.avenir_facts`) only when a question is one of
+  `OUTLOOK_INTENTS`: every other question skips that walk of the ledger.
 - **Trace.** `answer.steps` is what actually ran, from
   `engines/answer.trace_query` — one declared branch per intent beside
   `_HANDLERS`; `test_every_intent_declares_a_trace` fails if they drift.
@@ -310,6 +367,12 @@ Things to know before trusting what you see there:
 - Judge at 1440 AND at 390 wide, both themes. `.yd-shell__main` scrolls the
   window, not itself.
 
+For the real backend, `e2e/seed_demo_household.py` writes an eighteen-month
+demonstration household into the DEVELOPMENT database (run it from
+`backend/`; it deletes and recreates that one user, never another). Its test
+credentials are in the script. Avenir, the dashboard's thirty days, the
+floor alert and the assistant's questions about the future are judged there.
+
 **Judge UI work in a browser before calling it done.** Phase 1's interface
 was reviewed twenty-four times on the diff alone and rejected on sight.
 
@@ -338,6 +401,8 @@ was reviewed twenty-four times on the diff alone and rejected on sight.
 - `.superpowers/sdd/2026-08-09-yieldo-phase-1-socle/progress.md` — the
   ledger of what each task actually shipped, deferred defects, and
   carry-forward notes. Read it before assuming a past task's behaviour.
+- `docs/superpowers/specs/2026-09-26-yieldo-avenir-securite-design.md` — the
+  security and quality audit of September 2026, and the design of Avenir.
 - `docs/superpowers/specs/2026-09-06-yieldo-audit-complet.md` — the audit
   run on a real 18-month ledger: what was found, fixed, and what is still
   missing screen by screen.

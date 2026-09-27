@@ -619,7 +619,7 @@ def test_a_trace_step_names_the_screen_showing_the_same_data():
         if step.screen is not None
     }
     assert routes <= {
-        "/", "/transactions", "/budgets", "/tresorerie", "/recurrences",
+        "/", "/transactions", "/budgets", "/avenir", "/recurrences",
         "/objectifs", "/analyse", "/dettes", "/patrimoine", "/projection",
         "/faisabilite", "/suivi",
     }

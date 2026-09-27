@@ -829,7 +829,7 @@ def _months_step(ctx: ChatContext) -> AnswerStep:
         tool="engines/capacity",
         label="Mesure des rythmes mensuels",
         source=f"{len(ctx.months)} mois observés",
-        screen="/tresorerie",
+        screen="/avenir",
     )
 
 
@@ -907,7 +907,7 @@ def trace_query(query: ParsedQuery, ctx: ChatContext) -> tuple[AnswerStep, ...]:
                 tool="solde",
                 label="Relevé du solde disponible",
                 source=f"{_fmt_eur(ctx.balance_cents)} disponibles",
-                screen="/tresorerie",
+                screen="/avenir",
             ),
             AnswerStep(
                 tool="engines/feasibility",

@@ -1,5 +1,5 @@
 import { Suspense, lazy, type ComponentType } from "react";
-import { createBrowserRouter } from "react-router";
+import { Navigate, createBrowserRouter } from "react-router";
 
 import { PageSkeleton } from "../design/PageSkeleton";
 import { loadOrReload } from "./lazyScreen";
@@ -45,7 +45,7 @@ const recurrences = screen(
   (m) => m.RecurrencesPage,
 );
 const plan = screen(() => import("../features/plan/PlanPage"), (m) => m.PlanPage);
-const cashflow = screen(() => import("../features/cashflow/CashflowPage"), (m) => m.CashflowPage);
+const avenir = screen(() => import("../features/avenir/AvenirPage"), (m) => m.AvenirPage);
 const analysis = screen(() => import("../features/analysis/AnalysisPage"), (m) => m.AnalysisPage);
 const debts = screen(() => import("../features/debts/DebtsPage"), (m) => m.DebtsPage);
 const goals = screen(() => import("../features/goals/GoalsPage"), (m) => m.GoalsPage);
@@ -148,7 +148,9 @@ export const router = createBrowserRouter([
           { path: "budgets", element: budgets },
           { path: "recurrences", element: recurrences },
           { path: "plan", element: plan },
-          { path: "tresorerie", element: cashflow },
+          { path: "avenir", element: avenir },
+          // Trésorerie became Avenir: old bookmarks and links land on it.
+          { path: "tresorerie", element: <Navigate to="/avenir" replace /> },
           { path: "analyse", element: analysis },
           { path: "dettes", element: debts },
           { path: "objectifs", element: goals },

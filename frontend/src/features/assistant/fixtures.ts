@@ -123,7 +123,7 @@ export const REFUSED: ChatMessage = {
         tool: "engines/capacity",
         label: "Mesure des rythmes mensuels",
         source: "3 mois observés",
-        screen: "/tresorerie",
+        screen: "/avenir",
       },
     ],
   },
@@ -161,7 +161,7 @@ export const REFUSED_GOAL: ChatMessage = {
         tool: "engines/capacity",
         label: "Mesure des rythmes mensuels",
         source: "3 mois observés",
-        screen: "/tresorerie",
+        screen: "/avenir",
       },
       {
         tool: "engines/goal",

@@ -3007,3 +3007,110 @@ export interface InvestReplay {
   provider: string;
   verdict: string;
 }
+
+// --- Avenir (GET /outlook, POST /outlook/scenario, GET /outlook/reliability) ---
+
+export type OutlookScope = "checking" | "liquid";
+export type OutlookSource = "detected" | "declared" | "planned" | "scenario";
+export type OutlookRisk = "none" | "possible" | "probable";
+
+export interface OutlookDay {
+  on: string;
+  p10_cents: number;
+  p50_cents: number;
+  p90_cents: number;
+}
+
+export interface OutlookEvent {
+  on: string;
+  amount_cents: number;
+  label: string;
+  source: OutlookSource;
+  /** What a scenario targets: "detected:<clé>", "declared:<id>", "planned:<id>". */
+  series: string;
+  category_id: number | null;
+  /** The median balance at the end of that day. */
+  balance_after_cents: number;
+}
+
+export interface OutlookMonth {
+  key: string;
+  p10_cents: number;
+  p50_cents: number;
+  p90_cents: number;
+  low_on: string;
+  low_p50_cents: number;
+}
+
+export interface OutlookSeries {
+  id: string;
+  label: string;
+  source: OutlookSource;
+  amount_cents: number;
+  periodicity: string;
+}
+
+export interface Outlook {
+  scope: OutlookScope;
+  as_of: string;
+  today: string;
+  stale_days: number;
+  horizon_end: string;
+  opening_balance_cents: number;
+  threshold_cents: number;
+  threshold_source: "alert" | "zero";
+  days: OutlookDay[];
+  events: OutlookEvent[];
+  months: OutlookMonth[];
+  low_point: { on: string; p50_cents: number; p10_cents: number } | null;
+  risk: OutlookRisk;
+  first_breach_on: string | null;
+  variable_daily_cents: number | null;
+  band: boolean;
+  band_unavailable_reason: string | null;
+  residual_months: number;
+  profile_measured: boolean;
+  warnings: string[];
+  series: OutlookSeries[];
+  counts: { detected: number; declared: number; planned: number; reconciled: number };
+  empty_reason: string | null;
+}
+
+export interface OutlookAdjustment {
+  kind: "one_off" | "cancel" | "change_amount";
+  on: string;
+  label?: string | null;
+  amount_cents?: number | null;
+  series?: string | null;
+}
+
+export interface OutlookScenario {
+  base: Outlook;
+  scenario: Outlook;
+}
+
+export interface OutlookHorizonScore {
+  horizon_months: number;
+  replays: number;
+  mean_abs_error_cents: number;
+  median_abs_error_cents: number;
+  bias_cents: number;
+  inside_band: number;
+}
+
+export interface OutlookReliability {
+  scope: OutlookScope;
+  horizons: OutlookHorizonScore[];
+  refusal: string | null;
+}
+
+export interface PlannedEvent {
+  id: number;
+  label: string;
+  due_on: string;
+  amount_cents: number;
+  account_id: number | null;
+  category_id: number | null;
+  notes: string | null;
+  created_at: string;
+}

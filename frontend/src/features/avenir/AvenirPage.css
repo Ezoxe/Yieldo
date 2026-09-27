@@ -1,0 +1,111 @@
+/* Avenir: the three answers first, then the curve, what is coming, and « Et si… ». */
+
+.yd-avenir {
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-lg);
+}
+
+.yd-avenir__controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--yd-space-xs);
+}
+
+.yd-avenir__segmented {
+  display: inline-flex;
+  padding: 2px;
+  border: 1px solid var(--yd-border-control);
+  border-radius: var(--yd-radius-sm);
+  background: var(--yd-surface);
+}
+
+.yd-avenir__segmented button {
+  border: 0;
+  border-radius: calc(var(--yd-radius-sm) - 2px);
+  background: transparent;
+  color: var(--yd-text-muted);
+  padding: var(--yd-space-2xs) var(--yd-space-sm);
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.yd-avenir__segmented button.is-active {
+  background: color-mix(in srgb, var(--yd-accent) 16%, transparent);
+  color: var(--yd-text);
+}
+
+.yd-avenir__segmented button:focus-visible {
+  outline: 2px solid var(--yd-accent);
+  outline-offset: 1px;
+}
+
+.yd-avenir__tile {
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-2xs);
+}
+
+.yd-avenir__figure {
+  margin: var(--yd-space-xs) 0 0;
+  font-size: clamp(1.6rem, 3vw, 2.1rem);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--yd-text);
+}
+
+.yd-avenir__sub {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--yd-text-muted);
+}
+
+.yd-avenir__pill {
+  align-self: flex-start;
+  margin-top: var(--yd-space-xs);
+  padding: 2px 10px;
+  border: 1px solid var(--yd-border);
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1.6;
+}
+
+.yd-avenir__pill--positive {
+  color: var(--yd-positive);
+  border-color: color-mix(in srgb, var(--yd-positive) 40%, transparent);
+}
+
+.yd-avenir__pill--warning {
+  color: var(--yd-warning);
+  border-color: color-mix(in srgb, var(--yd-warning) 40%, transparent);
+}
+
+.yd-avenir__pill--negative {
+  color: var(--yd-negative);
+  border-color: color-mix(in srgb, var(--yd-negative) 40%, transparent);
+}
+
+.yd-avenir__stale,
+.yd-avenir__empty,
+.yd-avenir__error {
+  margin: 0;
+  padding: var(--yd-space-sm) var(--yd-space-md);
+  border: 1px solid color-mix(in srgb, var(--yd-info) 35%, transparent);
+  border-radius: var(--yd-radius-sm);
+  background: color-mix(in srgb, var(--yd-info) 8%, transparent);
+  color: var(--yd-text);
+  font-size: 0.9rem;
+}
+
+.yd-avenir__error {
+  border-color: color-mix(in srgb, var(--yd-negative) 35%, transparent);
+  background: color-mix(in srgb, var(--yd-negative) 8%, transparent);
+}
+
+.yd-avenir__stale a {
+  margin-left: var(--yd-space-2xs);
+  color: var(--yd-accent);
+  font-weight: 600;
+}

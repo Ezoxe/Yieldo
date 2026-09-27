@@ -92,23 +92,41 @@ export const AI_TARGETS: AiTarget[] = [
     terms: ["pas encore passe", "reste a passer", "reel complete"],
   },
 
-  // Trésorerie
+  // Avenir (formerly Trésorerie)
+  {
+    id: "kpi-fin-de-mois",
+    label: "Fin de mois prévue",
+    route: "/avenir",
+    terms: ["fin de mois", "fin du mois", "solde prevu"],
+  },
+  {
+    id: "kpi-point-bas",
+    label: "Point bas",
+    route: "/avenir",
+    terms: ["point bas", "decouvert", "a decouvert"],
+  },
+  {
+    id: "kpi-fiabilite",
+    label: "Fiabilité mesurée",
+    route: "/avenir",
+    terms: ["fiabilite de la prevision"],
+  },
   {
     id: "kpi-solde-disponible",
     label: "Solde disponible",
-    route: "/tresorerie",
+    route: "/avenir",
     terms: ["solde disponible"],
   },
   {
     id: "kpi-autonomie",
     label: "Autonomie",
-    route: "/tresorerie",
+    route: "/avenir",
     terms: ["autonomie", "combien de temps sans revenu", "mois de reserve"],
   },
   {
     id: "panel-prevision",
     label: "Prévision",
-    route: "/tresorerie",
+    route: "/avenir",
     terms: ["prevision", "projection sur douze mois"],
   },
 

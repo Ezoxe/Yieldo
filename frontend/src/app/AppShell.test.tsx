@@ -44,7 +44,7 @@ function renderShell(initialPath: string) {
             <Route path="transactions" element={<p>Écran transactions</p>} />
             <Route path="budgets" element={<p>Écran budgets</p>} />
             <Route path="recurrences" element={<p>Écran récurrences</p>} />
-            <Route path="tresorerie" element={<p>Écran trésorerie</p>} />
+            <Route path="avenir" element={<p>Écran avenir</p>} />
             <Route path="analyse" element={<p>Écran analyse</p>} />
             <Route path="categories" element={<p>Écran catégories</p>} />
             <Route path="import" element={<p>Écran import</p>} />
@@ -131,7 +131,7 @@ describe("AppShell", () => {
       // The forecast plan sits with the everyday screens rather than with the
       // horizon ones: it is about the month in hand, not about ten years out.
       "Plan prévisionnel",
-      "Trésorerie",
+      "Avenir",
       "Analyse",
       "Dettes",
       "Objectifs",
@@ -182,14 +182,14 @@ describe("AppShell", () => {
     );
   });
 
-  it("routes the Trésorerie nav entry to the treasury screen", async () => {
+  it("routes the Avenir nav entry to the forecast screen", async () => {
     const user = userEvent.setup();
     renderShell("/");
 
-    await user.click(screen.getByRole("link", { name: "Trésorerie" }));
+    await user.click(screen.getByRole("link", { name: "Avenir" }));
 
-    expect(screen.getByRole("main")).toHaveTextContent("Écran trésorerie");
-    expect(screen.getByRole("link", { name: "Trésorerie" })).toHaveAttribute(
+    expect(screen.getByRole("main")).toHaveTextContent("Écran avenir");
+    expect(screen.getByRole("link", { name: "Avenir" })).toHaveAttribute(
       "aria-current",
       "page",
     );

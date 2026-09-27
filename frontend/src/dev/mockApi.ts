@@ -28,6 +28,7 @@ import {
 
 import { CONNECTIONS as MARKET_CONNECTIONS, LLM_LOCAL } from "../features/connections/fixtures";
 import type { GoalProgress, GoalReport, LlmSettings } from "../lib/types";
+import { OUTLOOK, RELIABILITY } from "../features/avenir/fixtures";
 
 const FLAG = "yd-apercu";
 
@@ -1190,6 +1191,9 @@ const ROUTES: Record<string, (params: Params) => unknown> = {
   "/api/auth/refresh": () => ({ access_token: "apercu", token_type: "bearer", user: MUTABLE_USER }),
   "/api/auth/me": () => MUTABLE_USER,
   "/api/auth/registration": () => ({ open: true, first_account: false }),
+  "/api/outlook": () => OUTLOOK,
+  "/api/outlook/reliability": () => RELIABILITY,
+  "/api/planned-events": () => [],
   "/api/admin/settings": () => instanceSettings,
   "/api/access-key": () => {
     // A read issues one when there is none, and never rotates an existing one
@@ -1545,13 +1549,13 @@ const WRITES: Record<string, (body: Record<string, unknown>) => Response> = {
               tool: "engines/capacity",
               label: "Mesure des rythmes mensuels",
               source: "11 mois observés",
-              screen: "/tresorerie",
+              screen: "/avenir",
             },
             {
               tool: "solde",
               label: "Relevé du solde disponible",
               source: "4 182,60 € disponibles",
-              screen: "/tresorerie",
+              screen: "/avenir",
             },
             {
               tool: "engines/feasibility",

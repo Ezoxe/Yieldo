@@ -480,3 +480,13 @@
 }
 
 .yd-nextdays__events .is-income { color: var(--yd-positive); }
+
+/* On a phone the date takes its own line above the label, as on Avenir's own
+   list: a 7rem column left a label four words wide. */
+@media (max-width: 639px) {
+  .yd-nextdays__events li {
+    grid-template-columns: minmax(0, 1fr) auto;
+    row-gap: 0;
+  }
+  .yd-nextdays__events li > :first-child { grid-column: 1 / -1; font-size: 0.8rem; }
+}

@@ -1,10 +1,11 @@
-import * as echarts from "echarts";
+import type { ECharts, EChartsOption } from "echarts";
 import { useEffect, useRef, useState } from "react";
 
 import { useTheme } from "../app/ThemeProvider";
 import { DownloadIcon } from "../design/icons";
 import { useReducedMotion } from "../design/motion/useReducedMotion";
 import "./Chart.css";
+import { echarts } from "./echarts";
 import { buildEchartsTheme, chartTokens } from "./theme";
 
 const THEME_NAME = "yieldo";
@@ -20,7 +21,7 @@ export interface ChartExportData {
 }
 
 interface ChartProps {
-  option: echarts.EChartsOption;
+  option: EChartsOption;
   height?: number;
   ariaLabel: string;
   onEvents?: Record<string, (params: unknown) => void>;
@@ -71,7 +72,7 @@ function downloadDataUrl(filename: string, dataUrl: string): void {
 // re-inits whenever `resolved` changes rather than trying to hot-swap it.
 export function Chart({ option, height = 320, ariaLabel, onEvents, dataForExport }: ChartProps) {
   const container = useRef<HTMLDivElement>(null);
-  const instance = useRef<echarts.ECharts | null>(null);
+  const instance = useRef<ECharts | null>(null);
   const { resolved } = useTheme();
   const reducedMotion = useReducedMotion();
   const [menuOpen, setMenuOpen] = useState(false);

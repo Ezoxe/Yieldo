@@ -4,6 +4,18 @@ import { defineConfig } from "vite";
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  // ECharts is imported module by module (charts/echarts.ts). Named here so
+  // the dev server bundles those entry points up front, instead of
+  // discovering them on the first chart and reloading the page mid-session.
+  optimizeDeps: {
+    include: [
+      "echarts/core",
+      "echarts/charts",
+      "echarts/components",
+      "echarts/features",
+      "echarts/renderers",
+    ],
+  },
   server: {
     // 5173 unless the environment names another. Two agent sessions open on
     // the same checkout were fighting over the port: the second silently fell

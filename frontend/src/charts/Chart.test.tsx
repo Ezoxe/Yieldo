@@ -1,5 +1,5 @@
 import { fireEvent, render, screen } from "@testing-library/react";
-import * as echarts from "echarts";
+import { echarts } from "./echarts";
 import type { ComponentProps } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 

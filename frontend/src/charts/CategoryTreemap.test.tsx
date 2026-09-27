@@ -1,5 +1,5 @@
 import { render, screen } from "@testing-library/react";
-import * as echarts from "echarts";
+import { echarts } from "./echarts";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 
 import { ThemeProvider } from "../app/ThemeProvider";

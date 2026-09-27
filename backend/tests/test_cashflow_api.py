@@ -416,3 +416,69 @@ def test_the_operators_own_data_shape_forecast_refuses_and_runway_computes(
     assert "6 mois" in forecast_body["insufficient_reason"]
     assert runway_body["months_observed"] == 3
     assert runway_body["ledger_span_months"] == 13
+
+
+# -- What the liquid perimeter actually loses and keeps ----------------------
+#
+# The forecast projects the liquid balance (checking, savings, cash). A monthly
+# transfer to a PEA leaves that perimeter every month and must be projected; a
+# transfer to a livret stays inside it and must not. And « ce n'est pas un
+# abonnement » takes a label out of the DETECTION, never out of the spending.
+
+
+def _mark_transfers(db, label_prefix):
+    from app.models import Transaction
+
+    db.query(Transaction).filter(Transaction.label_raw.like(f"{label_prefix}%")).update(
+        {"is_transfer": True, "transfer_source": "manual"}, synchronize_session=False)
+    db.commit()
+
+
+def _account(client, headers, name, kind):
+    return client.post("/api/accounts", headers=headers,
+                       json={"name": name, "kind": kind}).json()["id"]
+
+
+def test_a_monthly_transfer_to_a_pea_is_projected_as_leaving(client, imported, db):
+    headers, checking = imported
+    _import_unique_months(client, headers, checking, "ACHAT DIVERS", _VARIED_AMOUNTS, (2025, 1))
+    pea = _account(client, headers, "PEA", "pea")
+    _import_months(client, headers, checking, "VIR VERS PEA", -30000, (2025, 1), 10, day=2)
+    _import_months(client, headers, pea, "VIR DEPUIS COURANT", 30000, (2025, 1), 10, day=2)
+    _mark_transfers(db, "VIR ")
+
+    body = client.get("/api/cashflow/forecast", headers=headers).json()
+
+    assert body["insufficient_reason"] is None
+    assert body["months"][0]["recurring_cents"] == -30000
+
+
+def test_a_transfer_to_a_livret_stays_inside_the_liquid_perimeter(client, imported, db):
+    headers, checking = imported
+    _import_unique_months(client, headers, checking, "ACHAT DIVERS", _VARIED_AMOUNTS, (2025, 1))
+    livret = _account(client, headers, "Livret A", "savings")
+    _import_months(client, headers, checking, "VIR VERS LIVRET", -30000, (2025, 1), 10, day=2)
+    _import_months(client, headers, livret, "VIR DEPUIS COURANT", 30000, (2025, 1), 10, day=2)
+    _mark_transfers(db, "VIR ")
+
+    body = client.get("/api/cashflow/forecast", headers=headers).json()
+
+    assert body["months"][0]["recurring_cents"] == 0
+
+
+def test_a_dismissed_label_leaves_the_detection_not_the_spending(client, imported):
+    headers, checking = imported
+    _import_unique_months(client, headers, checking, "ACHAT DIVERS", _VARIED_AMOUNTS, (2025, 1))
+    _import_months(client, headers, checking, "CB CARREFOUR", -10000, (2025, 1), 10, day=20)
+    before = client.get("/api/cashflow/forecast", headers=headers).json()["months"][0]
+
+    detected = client.get("/api/recurrences", headers=headers).json()["recurrences"]
+    carrefour = next(item for item in detected if "carrefour" in item["label_key"])
+    client.post("/api/recurrences/dismissals", headers=headers, json={
+        "label_key": carrefour["label_key"], "label": "CB CARREFOUR"})
+    after = client.get("/api/cashflow/forecast", headers=headers).json()["months"][0]
+
+    assert before["recurring_cents"] == -10000
+    assert after["recurring_cents"] == 0
+    assert after["residual_cents"] == before["residual_cents"] - 10000
+    assert after["net_p50_cents"] == before["net_p50_cents"]

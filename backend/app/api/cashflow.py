@@ -40,7 +40,12 @@ from datetime import date
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
-from app.api.common import liquid_balance_cents, recurrence_points
+from app.api.common import (
+    dismissed_label_keys,
+    liquid_balance_cents,
+    perimeter_points,
+    recurrence_points,
+)
 from app.api.history import user_history
 from app.db import get_db
 from app.engines.capacity import MeasuredRate, MonthlyEntry, MonthObservation, complete_months
@@ -123,8 +128,12 @@ def forecast(
     history = user_history(db, user.id)
     today = history.date_to if history is not None else date.today()
 
-    points = recurrence_points(db, user.id)
-    detected = detect_recurrences(points, today)
+    # The liquid perimeter's own movements: what leaves it for a PEA included,
+    # what moves between two of its accounts cancelled. Dismissed labels leave
+    # the detection only -- their spending stays in the residual.
+    points = perimeter_points(db, user.id)
+    dismissed = dismissed_label_keys(db, user.id)
+    detected = detect_recurrences([p for p in points if p.label_key not in dismissed], today)
     start, end = _ledger_bounds(history, today)
 
     observations = build_observations(

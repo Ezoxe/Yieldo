@@ -46,6 +46,7 @@ from app.engines.plan import (
 )
 from app.engines.plan import PlanLine as PlanLinePoint
 from app.engines.recurrence import RecurringTx
+from app.engines.transfer import TransferLeg, paired_within
 from app.importers.dedup import normalize_label
 from app.models import (
     Account,
@@ -253,12 +254,7 @@ def recurrence_points(db: Session, user_id: int) -> list[RecurringTx]:
     # engine groups by. Filtered here rather than on the report: a dismissed
     # label must leave every reading of the detection — the alerts, the
     # assistant's tools — not only the screen that offered the button.
-    dismissed = {
-        key
-        for (key,) in db.query(RecurrenceDismissal.label_key)
-        .filter(RecurrenceDismissal.user_id == user_id)
-        .all()
-    }
+    dismissed = dismissed_label_keys(db, user_id)
     if dismissed:
         rows = [row for row in rows if normalize_label(row.label_raw) not in dismissed]
     return [
@@ -270,6 +266,68 @@ def recurrence_points(db: Session, user_id: int) -> list[RecurringTx]:
             category_id=row.category_id,
         )
         for row in rows
+    ]
+
+
+def dismissed_label_keys(db: Session, user_id: int) -> frozenset[str]:
+    """The labels the household said are not a subscription (« Ce n'est pas un
+    abonnement »), by the key the detection groups on."""
+    return frozenset(
+        key
+        for (key,) in db.query(RecurrenceDismissal.label_key)
+        .filter(RecurrenceDismissal.user_id == user_id)
+        .all()
+    )
+
+
+def perimeter_points(
+    db: Session, user_id: int, kinds: tuple[str, ...] = LIQUID_ACCOUNT_KINDS
+) -> list[RecurringTx]:
+    """Every movement in or out of one perimeter of this user's accounts.
+
+    The perimeter is the non-archived accounts of `kinds` -- the liquid one by
+    default, the balance the cash-flow forecast projects. Its movements are the
+    rows on those accounts, transfers included, MINUS the transfers whose other
+    leg is on another account of the same perimeter: those two rows cancel in
+    its balance. A transfer to a PEA stays -- the money leaves, every month, and
+    a forecast that dropped it (as `recurrence_points` does, by design, for the
+    subscription screen) would be optimistic by exactly that amount.
+
+    Dismissed labels are NOT removed here. « Ce n'est pas un abonnement » is a
+    statement about the detection; the spending behind the label is still
+    spending. Callers take `dismissed_label_keys` out of what they detect on,
+    and keep every row in what they measure.
+    """
+    account_ids = [
+        row.id
+        for row in db.query(Account.id)
+        .filter(Account.user_id == user_id, Account.kind.in_(kinds),
+                Account.archived.is_(False))
+        .all()
+    ]
+    if not account_ids:
+        return []
+    rows = (
+        db.query(Transaction)
+        .filter(Transaction.user_id == user_id, Transaction.account_id.in_(account_ids))
+        .order_by(Transaction.date, Transaction.id)
+        .all()
+    )
+    internal = paired_within([
+        TransferLeg(id=row.id, on=row.date, amount_cents=row.amount_cents,
+                    account_id=row.account_id)
+        for row in rows if row.is_transfer
+    ])
+    return [
+        RecurringTx(
+            on=row.date,
+            amount_cents=row.amount_cents,
+            label_key=normalize_label(row.label_raw),
+            label_raw=row.label_raw,
+            category_id=row.category_id,
+        )
+        for row in rows
+        if row.id not in internal
     ]
 
 

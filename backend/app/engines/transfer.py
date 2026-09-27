@@ -159,3 +159,57 @@ def measure_set_aside(
             moved += row.amount_cents
         totals[key] = moved
     return totals
+
+
+# -- The two legs of one movement inside a perimeter --------------------------
+#
+# A perimeter is a set of the household's accounts read as one balance: the
+# liquid one (checking, savings, cash) for the cash-flow forecast, the current
+# accounts alone for the overdraft question. A transfer between two accounts of
+# the same perimeter is two rows that cancel in its balance; a transfer to an
+# account outside it -- a PEA, a life-insurance contract -- is one row, and the
+# money really leaves. `is_transfer` cannot tell the two apart: it says "own
+# money", not "where to". The pairing below does, from the rows themselves.
+
+# Banks book the two legs of one transfer up to a few days apart (a Friday debit
+# credited on Monday). Three days covers that and no more: two unrelated
+# movements of the same amount a week apart are not one transfer.
+PAIRING_WINDOW_DAYS = 3
+
+
+@dataclass(frozen=True)
+class TransferLeg:
+    id: int
+    on: date
+    amount_cents: int
+    account_id: int
+
+
+def paired_within(
+    legs: list[TransferLeg], window_days: int = PAIRING_WINDOW_DAYS
+) -> frozenset[int]:
+    """Ids of the legs whose opposite leg is among `legs`, on ANOTHER account.
+
+    Opposite means the same amount with the other sign, within `window_days`.
+    Greedy in date order, each leg used at most once, the nearest candidate
+    first: three legs of 300 € cannot make two transfers, and the one left over
+    is money that came from, or went to, somewhere outside the set.
+    """
+    ordered = sorted(legs, key=lambda leg: (leg.on, leg.id))
+    used: set[int] = set()
+    for leg in ordered:
+        if leg.id in used:
+            continue
+        candidates = [
+            other for other in ordered
+            if other.id not in used
+            and other.id != leg.id
+            and other.account_id != leg.account_id
+            and other.amount_cents == -leg.amount_cents
+            and abs((other.on - leg.on).days) <= window_days
+        ]
+        if not candidates:
+            continue
+        match = min(candidates, key=lambda other: (abs((other.on - leg.on).days), other.id))
+        used.update({leg.id, match.id})
+    return frozenset(used)

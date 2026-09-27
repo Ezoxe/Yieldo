@@ -208,3 +208,53 @@ def test_a_versement_filed_under_a_child_of_epargne_still_counts():
         )
     ]
     assert measure_set_aside(rows) == {"2025-03": 30_000}
+
+
+# -- paired_within: the two legs of a movement inside one perimeter -----------
+
+
+def _leg(id_, on, cents, account):
+    from app.engines.transfer import TransferLeg
+
+    return TransferLeg(id=id_, on=on, amount_cents=cents, account_id=account)
+
+
+def test_two_opposite_legs_on_two_accounts_pair():
+    from app.engines.transfer import paired_within
+
+    legs = [_leg(1, date(2026, 3, 2), -30000, 10), _leg(2, date(2026, 3, 3), 30000, 11)]
+    assert paired_within(legs) == frozenset({1, 2})
+
+
+def test_a_leg_whose_other_side_is_elsewhere_stays_alone():
+    from app.engines.transfer import paired_within
+
+    # Money leaving for an account outside the set: nothing to pair with.
+    assert paired_within([_leg(1, date(2026, 3, 2), -30000, 10)]) == frozenset()
+
+
+def test_legs_on_the_same_account_never_pair():
+    from app.engines.transfer import paired_within
+
+    legs = [_leg(1, date(2026, 3, 2), -30000, 10), _leg(2, date(2026, 3, 2), 30000, 10)]
+    assert paired_within(legs) == frozenset()
+
+
+def test_legs_too_far_apart_do_not_pair():
+    from app.engines.transfer import paired_within
+
+    legs = [_leg(1, date(2026, 3, 2), -30000, 10), _leg(2, date(2026, 3, 6), 30000, 11)]
+    assert paired_within(legs) == frozenset()
+
+
+def test_each_leg_is_used_once():
+    from app.engines.transfer import paired_within
+
+    legs = [
+        _leg(1, date(2026, 3, 2), -30000, 10),
+        _leg(2, date(2026, 3, 2), 30000, 11),
+        _leg(3, date(2026, 3, 2), 30000, 12),
+    ]
+    paired = paired_within(legs)
+    assert 1 in paired
+    assert len(paired) == 2

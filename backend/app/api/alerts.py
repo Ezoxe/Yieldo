@@ -41,7 +41,9 @@ from sqlalchemy.orm import Session
 
 from app.api.common import (
     anomaly_points,
+    dismissed_label_keys,
     liquid_balance_cents,
+    perimeter_points,
     period_range,
     recurrence_points,
     rolled_budget_spend,
@@ -110,8 +112,12 @@ def _recurrences(db: Session, user_id: int, ledger_last: date) -> list[Recurrenc
 def _forecast(
     db: Session, user_id: int, ledger_last: date, floor_cents: int, start: date, end: date
 ) -> ForecastReport:
-    points = recurrence_points(db, user_id)
-    detected = detect_recurrences(points, ledger_last)
+    # The same perimeter and the same split as /cashflow/forecast.
+    points = perimeter_points(db, user_id)
+    dismissed = dismissed_label_keys(db, user_id)
+    detected = detect_recurrences(
+        [p for p in points if p.label_key not in dismissed], ledger_last
+    )
     observations = build_observations(
         entries=[
             LedgerEntry(on=p.on, amount_cents=p.amount_cents, label_key=p.label_key)

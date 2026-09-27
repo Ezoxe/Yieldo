@@ -32,6 +32,7 @@ import type {
 } from "../../lib/types";
 import { HeroTrend } from "./HeroTrend";
 import { RecentTransactions } from "./RecentTransactions";
+import { NextDaysPanel } from "./NextDaysPanel";
 import { SetAsidePanel } from "./SetAsidePanel";
 import { WhatChangedPanel } from "./WhatChangedPanel";
 import { StatTile } from "./StatTile";
@@ -203,6 +204,11 @@ function DashboardSkeleton() {
           <Skeleton variant="caption" />
           <Skeleton variant="spark" />
         </div>
+      </BentoCell>
+
+      <BentoCell span={SPAN.hero} className="yd-panel">
+        <Skeleton variant="title" />
+        <Skeleton variant="meta" />
       </BentoCell>
 
       <BentoCell span={SPAN.cashflow} rows={CASHFLOW_ROWS} className="yd-panel">
@@ -535,6 +541,18 @@ export function OverviewPage() {
     body = (
       <BentoGrid as={motion.div} {...staggerProps(reduced)}>
         {summary ? <NetHero summary={summary} series={series} reduced={reduced} /> : null}
+
+        {/* The one look forward on a page about the period: the low point of
+            the next thirty days. The rest lives on Avenir. */}
+        <BentoCell
+          as={motion.div}
+          span={SPAN.hero}
+          className="yd-panel"
+          data-ai-target="panel-trente-jours"
+          {...entryProps(reduced)}
+        >
+          <NextDaysPanel />
+        </BentoCell>
 
         <BentoCell
           as={motion.div}

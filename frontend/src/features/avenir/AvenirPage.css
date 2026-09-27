@@ -423,3 +423,60 @@
   line-height: 1.5;
   color: var(--yd-text);
 }
+
+/* -- Vue d'ensemble : les 30 prochains jours --------------------------------- */
+
+.yd-nextdays {
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-sm);
+}
+
+.yd-nextdays__link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--yd-space-2xs);
+  color: var(--yd-accent);
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.yd-nextdays__body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--yd-space-md);
+}
+
+@media (min-width: 900px) {
+  .yd-nextdays__body {
+    grid-template-columns: minmax(12rem, 1fr) minmax(0, 2fr);
+    align-items: start;
+  }
+}
+
+.yd-nextdays__low {
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-2xs);
+}
+
+.yd-nextdays__events {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.yd-nextdays__events li {
+  display: grid;
+  grid-template-columns: 7rem minmax(0, 1fr) auto;
+  gap: var(--yd-space-sm);
+  padding: var(--yd-space-2xs) 0;
+  border-bottom: 1px solid var(--yd-border);
+  font-size: 0.9rem;
+  overflow-wrap: anywhere;
+}
+
+.yd-nextdays__events .is-income { color: var(--yd-positive); }

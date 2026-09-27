@@ -31,6 +31,7 @@ from app.models.plan_line import (
     PlanLine,
 )
 from app.models.plan_settings import PlanSettings
+from app.models.planned_event import PlannedEvent
 from app.models.position import Position
 from app.models.price_index import PriceIndexPoint
 from app.models.price_point import PricePoint
@@ -72,7 +73,8 @@ __all__ = [
     "Goal", "HealthSnapshot", "ImportBatch", "InstanceSettings", "Instrument",
     "InvestmentAccount", "LlmSettings",
     "NetWorthSnapshot",
-    "Lot", "PlanLine", "PlanSettings", "Position", "PriceIndexPoint", "PricePoint", "QuotaWindow",
+    "Lot", "PlanLine", "PlanSettings", "PlannedEvent", "Position", "PriceIndexPoint",
+    "PricePoint", "QuotaWindow",
     "RecurrenceCheckin", "RecurrenceDismissal", "Scenario",
     "TradeAuditEvent", "TradeDecision", "TradeOrder",
     "TradingAccount", "TradingPolicy", "TradingPosition", "TradingSession", "TradingVenue",

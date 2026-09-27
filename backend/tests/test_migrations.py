@@ -1716,7 +1716,8 @@ def test_the_investment_migration_is_the_single_head(migration_db):
 
     script = ScriptDirectory.from_config(migration_db.config)
     assert len(script.get_heads()) == 1
-    assert script.get_current_head() == INSTANCE_SETTINGS_REVISION
+    assert script.get_current_head() == PLANNED_EVENTS_REVISION
+    assert INSTANCE_SETTINGS_REVISION in {rev.revision for rev in script.walk_revisions()}
     assert SESSION_VERSION_REVISION in {rev.revision for rev in script.walk_revisions()}
     assert LEARNED_MODEL_REVISION in {rev.revision for rev in script.walk_revisions()}
     on_path = {rev.revision for rev in script.walk_revisions()}
@@ -2123,3 +2124,27 @@ def test_the_instance_settings_table_matches_the_model_and_downgrades(migration_
     tables = {row[0] for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
     conn.close()
     assert "instance_settings" not in tables
+
+
+# ---------------------------------------------------------------------------
+# c5e7a9b1d3f5 -- one-off events a household knows are coming
+# ---------------------------------------------------------------------------
+
+PLANNED_EVENTS_REVISION = "c5e7a9b1d3f5"
+
+
+def test_the_planned_events_table_matches_the_model_and_downgrades(migration_db):
+    command.upgrade(migration_db.config, PLANNED_EVENTS_REVISION)
+    conn = _connect(migration_db)
+    columns = _table_columns(conn, "planned_events")
+    indexes = _index_names(conn, "planned_events")
+    conn.close()
+    reference_columns, reference_indexes = _reference_schema("planned_events")
+    assert columns == reference_columns
+    assert indexes == reference_indexes
+
+    command.downgrade(migration_db.config, INSTANCE_SETTINGS_REVISION)
+    conn = _connect(migration_db)
+    tables = {row[0] for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+    conn.close()
+    assert "planned_events" not in tables

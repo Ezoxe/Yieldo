@@ -33,6 +33,7 @@ from app.api import invest_run as invest_run_routes
 from app.api import invest_session as invest_session_routes
 from app.api import invest_venues as invest_venue_routes
 from app.api import plan as plan_routes
+from app.api import planned_events as planned_event_routes
 from app.api import portfolio as portfolio_routes
 from app.api import projection as projection_routes
 from app.api import recurrences as recurrence_routes
@@ -93,6 +94,7 @@ api.include_router(analytics_routes.router)
 api.include_router(budget_routes.router)
 api.include_router(recurrence_routes.router)
 api.include_router(plan_routes.router)
+api.include_router(planned_event_routes.router)
 api.include_router(agent_routes.router)
 api.include_router(cashflow_routes.router)
 api.include_router(debt_routes.router)

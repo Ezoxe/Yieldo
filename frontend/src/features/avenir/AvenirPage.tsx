@@ -21,6 +21,7 @@ import {
   riskPill,
 } from "./answers";
 import "./AvenirPage.css";
+import { UpcomingPanel } from "./UpcomingPanel";
 
 const GENERIC_ERROR = "Une erreur inattendue est survenue.";
 // Past a week without a statement, the reader is told the projection starts in
@@ -79,6 +80,8 @@ export function AvenirPage() {
   const [reliability, setReliability] = useState<OutlookReliability | null>(null);
   const [errors, setErrors] = useState<{ outlook?: string; reliability?: string }>({});
   const [loading, setLoading] = useState(true);
+  // Bumped after a planned event is added or removed: the projection is asked again.
+  const [reload, setReload] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -100,7 +103,7 @@ export function AvenirPage() {
     return () => {
       cancelled = true;
     };
-  }, [scope, zoom]);
+  }, [scope, zoom, reload]);
 
   const controls = (
     <div className="yd-avenir__controls">
@@ -167,6 +170,9 @@ export function AvenirPage() {
                 Solde prévu, jour après jour
               </PanelHead>
               <OutlookChart outlook={outlook} />
+            </BentoCell>
+            <BentoCell span={SPAN.full} className="yd-panel" data-ai-target="panel-a-venir">
+              <UpcomingPanel outlook={outlook} onChanged={() => setReload((value) => value + 1)} />
             </BentoCell>
           </BentoGrid>
         </>

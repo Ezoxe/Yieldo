@@ -11,6 +11,7 @@ from app.engines.forecast import (
     build_observations,
     project_cashflow,
     residual_entries,
+    residual_model,
 )
 from app.engines.recurrence import Recurrence, RecurringTx, detect_recurrences
 from app.engines.robust import P90_SIGMAS, quantile_offset_cents
@@ -901,3 +902,51 @@ def test_no_breach_reports_no_breach_rather_than_the_first_month():
     assert report.first_breach_key is None
     assert all(month.below_threshold is False for month in report.months)
     assert report.threshold_cents == 0
+
+
+# --------------------------------------------------------------------------
+# residual_model: the variable part on its own, shared with engines/outlook
+# --------------------------------------------------------------------------
+
+_KEYS = ["2026-01", "2026-02", "2026-03", "2026-04"]
+
+
+def test_the_model_projects_nothing_below_six_months():
+    model = residual_model(_history(5, -150_000), _KEYS)
+    assert model.status == "insufficient"
+    assert model.months == []
+    assert model.observed == 5
+
+
+def test_a_residual_that_repeats_to_the_cent_is_flat_with_no_variance():
+    observations = complete_months(
+        [MonthlyEntry(on=date(2025, month, 15), amount_cents=-150_000) for month in range(1, 9)],
+        date(2025, 1, 1), date(2025, 12, 31),
+    )
+    model = residual_model(ResidualHistory(observations=observations, ledger_months_observed=8),
+                           _KEYS)
+    assert model.status == "flat"
+    assert [month.centre_cents for month in model.months] == [-150_000] * 4
+    assert all(month.cumulative_variance == 0 for month in model.months)
+
+
+def test_the_measured_variance_grows_with_every_month():
+    model = residual_model(_history(12, -150_000), _KEYS)
+    assert model.status == "measured"
+    variances = [month.cumulative_variance for month in model.months]
+    assert variances == sorted(variances)
+    assert len(set(variances)) == len(variances)
+
+
+def test_the_model_is_what_the_projection_is_built_on():
+    history = _history(12, -150_000)
+    report = project_cashflow(balance_cents=500_000, history=history, recurrences=[],
+                              today=date(2025, 12, 31), horizon_months=4)
+    model = residual_model(history, [month.key for month in report.months])
+    assert [month.residual_cents for month in report.months] == [
+        month.centre_cents for month in model.months
+    ]
+    first = report.months[0]
+    half_width = first.balance_p50_cents - first.balance_p10_cents
+    assert half_width == quantile_offset_cents(
+        round(model.months[0].cumulative_variance ** 0.5), P90_SIGMAS)

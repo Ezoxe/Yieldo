@@ -19,6 +19,7 @@ Pure: no session, no network, no implicit clock -- `today` is a parameter.
 import math
 from dataclasses import dataclass
 from datetime import date, timedelta
+from typing import Literal
 
 from app.engines.aggregate import bucket_bounds, bucket_key
 from app.engines.capacity import MonthlyEntry, MonthObservation, complete_months
@@ -533,6 +534,141 @@ def _bandless(
     )
 
 
+@dataclass(frozen=True)
+class ResidualMonth:
+    """One projected month of the variable part, and what it is uncertain by."""
+
+    key: str
+    # The month's residual centre: the median of its own calendar month when the
+    # history supports a seasonal claim, the pooled median otherwise. Signed.
+    centre_cents: int
+    seasonal: bool
+    # Variance accumulated from the first projected month to the END of this
+    # one, in cents squared: the noise term (grows as k) plus the centre-error
+    # term (grows as k squared). A float because it is a sum of squares under a
+    # square root, never a monetary amount; `project_cashflow` and
+    # `engines/outlook` round its square root back to whole cents.
+    cumulative_variance: float
+
+
+@dataclass(frozen=True)
+class ResidualModel:
+    """The variable part of a ledger, projected over a list of months.
+
+    * `measured` -- centres and a variance for every month;
+    * `flat` -- the residual repeats to the cent: centres, and no variance;
+    * `insufficient` -- fewer than `MIN_MONTHS_FOR_FORECAST` residual months:
+      nothing is projected, and `months` is empty rather than filled with zeros.
+    """
+
+    status: Literal["measured", "flat", "insufficient"]
+    months: list[ResidualMonth]
+    observed: int
+    pooled_scale_cents: int
+    seasonal_scale_cents: int | None
+
+
+def residual_model(history: ResidualHistory, keys: list[str]) -> ResidualModel:
+    """Everything the projection knows about the variable part of `keys`.
+
+    Extracted from `project_cashflow`, whose docstring explains the two scales
+    and the two variance terms; `engines/outlook` spreads the same months over
+    their days. Same arithmetic, one place.
+    """
+    observations = history.observations
+    observed = len(observations)
+    if observed < MIN_MONTHS_FOR_FORECAST:
+        return ResidualModel(status="insufficient", months=[], observed=observed,
+                             pooled_scale_cents=0, seasonal_scale_cents=None)
+
+    nets = [observation.net_cents for observation in observations]
+    pooled = median_cents(nets)
+    # What a month varies by, month to month. Seasonal swing is *included*: for a
+    # calendar month we cannot explain, "how much does a month cost" is exactly
+    # the uncertainty we carry.
+    pooled_scale = describe(nets).sigma
+
+    if pooled_scale == 0:
+        # Every observed month is identical to the cent, so there is no scale to
+        # measure against anywhere and any band drawn would be manufactured. The
+        # months are exact; only the margin of error is missing.
+        return ResidualModel(
+            status="flat",
+            months=[ResidualMonth(key=key, centre_cents=pooled, seasonal=False,
+                                  cumulative_variance=0.0) for key in keys],
+            observed=observed, pooled_scale_cents=0, seasonal_scale_cents=None,
+        )
+
+    by_calendar_month: dict[int, list[int]] = {}
+    for observation in observations:
+        by_calendar_month.setdefault(observation.start.month, []).append(
+            observation.net_cents
+        )
+
+    def eligible(calendar_month: int) -> bool:
+        """Whether this calendar month has been seen often enough to have a
+        centre of its own. Eligibility is about sample *count*; whether a usable
+        scale came out of those samples is decided once, below."""
+        samples = by_calendar_month.get(calendar_month, [])
+        return len(samples) >= MIN_OBSERVATIONS_FOR_SEASONALITY
+
+    # What a calendar month varies by against *itself*, measured only over the
+    # observations that have such a centre. Measuring one scale across both
+    # populations would let these tight, seasonally-explained deviations dominate
+    # the MAD and then price the fallback months -- the least known months in the
+    # horizon -- with it.
+    seasonal_deviations = [
+        observation.net_cents - median_cents(by_calendar_month[observation.start.month])
+        for observation in observations
+        if eligible(observation.start.month)
+    ]
+    seasonal_scale: int | None = None
+    if seasonal_deviations:
+        # A zero here means every doubled calendar month repeated to the cent:
+        # there is no seasonal estimate to price such a month against, and it
+        # belongs on the pooled centre and scale like any other month the model
+        # cannot explain.
+        seasonal_scale = describe(seasonal_deviations).sigma or None
+
+    def centre_of(calendar_month: int) -> tuple[int, bool, int]:
+        """(residual, seasonal, sample size) for one calendar month."""
+        if seasonal_scale is not None and eligible(calendar_month):
+            samples = by_calendar_month[calendar_month]
+            return median_cents(samples), True, len(samples)
+        return pooled, False, observed
+
+    months: list[ResidualMonth] = []
+    # Months so far drawing on the single pooled estimate: their centre errors
+    # are the same error, so they add before squaring.
+    pooled_months = 0
+    # Accumulated variance, in cents squared. Two scales flow into it, so
+    # neither can be factored out of the sqrt the way a single one could.
+    noise_variance = 0.0
+    seasonal_centre_variance = 0.0
+    for key in keys:
+        start, _ = bucket_bounds(key, "month")
+        residual, seasonal, samples = centre_of(start.month)
+        # Each month is priced against the scale of the centre it actually got.
+        if seasonal:
+            month_scale = seasonal_scale
+            seasonal_centre_variance += MEDIAN_VARIANCE_FACTOR * month_scale**2 / samples
+        else:
+            month_scale = pooled_scale
+            pooled_months += 1
+        noise_variance += month_scale**2
+        centre_variance = (
+            MEDIAN_VARIANCE_FACTOR * pooled_months**2 * pooled_scale**2 / observed
+            + seasonal_centre_variance
+        )
+        months.append(ResidualMonth(
+            key=key, centre_cents=residual, seasonal=seasonal,
+            cumulative_variance=noise_variance + centre_variance,
+        ))
+
+    return ResidualModel(status="measured", months=months, observed=observed,
+                         pooled_scale_cents=pooled_scale, seasonal_scale_cents=seasonal_scale)
+
+
 def project_cashflow(
     balance_cents: int,
     history: ResidualHistory,
@@ -642,127 +778,37 @@ def project_cashflow(
             True, 0, recurrences, keys, horizon_start, horizon_end,
         )
 
-    nets = [observation.net_cents for observation in residual_observations]
-    pooled = median_cents(nets)
-    # What a month varies by, month to month. Seasonal swing is *included*: for a
-    # calendar month we cannot explain, "how much does a month cost" is exactly
-    # the uncertainty we carry.
-    pooled_scale = describe(nets).sigma
-
-    by_calendar_month: dict[int, list[int]] = {}
-    for observation in residual_observations:
-        by_calendar_month.setdefault(observation.start.month, []).append(
-            observation.net_cents
-        )
-
-    if pooled_scale == 0:
-        # Every observed month is identical to the cent, so there is no scale to
-        # measure against anywhere and any band drawn would be manufactured.
-        # `robust.modified_z` refuses the same input for the same reason.
-        #
-        # It no longer refuses the whole projection, though. A residual measured
-        # over a dozen months that repeats to the cent is not unmeasurable -- it
-        # is measured, and it does not move. The months are exact; only the
-        # margin of error is missing, and `band_unavailable_reason` says so.
+    model = residual_model(history, keys)
+    if model.status == "flat":
         # `pooled_scale == 0` implies every seasonal deviation is 0 too, so this
         # branch subsumes the degenerate-seasonal case.
         return _bandless(
             balance_cents, observed, ledger_months, threshold_cents,
             _reason_no_dispersion(observed),
-            False, pooled, recurrences, keys, horizon_start, horizon_end,
+            False, model.months[0].centre_cents, recurrences, keys, horizon_start, horizon_end,
         )
-
-    def eligible(calendar_month: int) -> bool:
-        """Whether this calendar month has been seen often enough to have a
-        centre of its own. Eligibility is about sample *count*; whether a usable
-        scale came out of those samples is decided once, below."""
-        samples = by_calendar_month.get(calendar_month, [])
-        return len(samples) >= MIN_OBSERVATIONS_FOR_SEASONALITY
-
-    # What a calendar month varies by against *itself*, measured only over the
-    # observations that have such a centre. Measuring one scale across both
-    # populations would let these tight, seasonally-explained deviations dominate
-    # the MAD and then price the fallback months -- the least known months in the
-    # horizon -- with it.
-    seasonal_deviations = [
-        observation.net_cents - median_cents(by_calendar_month[observation.start.month])
-        for observation in residual_observations
-        if eligible(observation.start.month)
-    ]
-    seasonal_scale: int | None = None
-    if seasonal_deviations:
-        # `describe(...).sigma` is 0 only when every value is identical, so a zero
-        # here means every doubled calendar month repeated to the cent. A calendar
-        # month whose samples never move tells us nothing about how *that* month
-        # varies, so there is no seasonal estimate to price it against and it
-        # belongs on the pooled centre and scale like any other month the model
-        # cannot explain. Refusing the whole projection instead would be a total
-        # feature loss over a condition that says nothing about the validity of
-        # the other months -- and it is reachable at thirteen observed months,
-        # where a single doubled calendar month decides it.
-        seasonal_scale = describe(seasonal_deviations).sigma or None
-
-    def centre_of(calendar_month: int) -> tuple[int, bool, int]:
-        """(residual, seasonal, sample size) for one calendar month."""
-        if seasonal_scale is not None and eligible(calendar_month):
-            samples = by_calendar_month[calendar_month]
-            return median_cents(samples), True, len(samples)
-        return pooled, False, observed
 
     recurring = _recurring_by_month(recurrences, keys, horizon_start, horizon_end)
 
     months: list[ForecastMonth] = []
-    seasonality_used = False
     running = balance_cents
     first_breach: str | None = None
-    # Months so far drawing on the single pooled estimate: their centre errors
-    # are the same error, so they add before squaring.
-    pooled_months = 0
-    # Accumulated variance, in cents squared. Two scales now flow into it, so
-    # neither can be factored out of the sqrt the way a single one could.
-    noise_variance = 0.0
-    seasonal_centre_variance = 0.0
 
-    for key in keys:
-        start, end = bucket_bounds(key, "month")
-        residual, seasonal, samples = centre_of(start.month)
-        seasonality_used = seasonality_used or seasonal
-        # Each month is priced against the scale of the centre it actually got:
-        # a month with no seasonal estimate is projected from the pooled median,
-        # so its uncertainty is the full month-to-month spread, not the tight
-        # year-on-year one that belongs to months the model did explain.
-        if seasonal:
-            month_scale = seasonal_scale
-            seasonal_centre_variance += (
-                MEDIAN_VARIANCE_FACTOR * month_scale**2 / samples
-            )
-        else:
-            month_scale = pooled_scale
-            pooled_months += 1
-        noise_variance += month_scale**2
-
-        recurring_cents = recurring[key]
-        net = recurring_cents + residual
+    for month in model.months:
+        start, end = bucket_bounds(month.key, "month")
+        recurring_cents = recurring[month.key]
+        net = recurring_cents + month.centre_cents
         running += net
 
-        centre_variance = (
-            MEDIAN_VARIANCE_FACTOR * pooled_months**2 * pooled_scale**2 / observed
-            + seasonal_centre_variance
-        )
         # Back to integer cents at the combined standard deviation, which is
         # itself a cents quantity, before `quantile_offset_cents` turns it into a
         # band half-width. No monetary value is ever stored as a float.
         #
         # Bare `round()` is banker's rounding, which this repository otherwise
-        # avoids -- `robust._half` and `recurrence._divide` both exist because
-        # rounding a signed amount to even biases a series of expenses one way
-        # and a series of incomes the other. Nothing to bias here: this is a
-        # square root of a sum of squares, so it is non-negative by construction
-        # and never a signed amount. A half-cent tie resolves to even rather than
-        # away from zero, which moves a band edge by at most one cent and cannot
-        # accumulate a direction. `robust.describe` rounds its own sigma the same
-        # way, for the same reason.
-        combined_scale = round(math.sqrt(noise_variance + centre_variance))
+        # avoids for signed amounts. Nothing to bias here: this is a square root
+        # of a sum of squares, non-negative by construction, and a half-cent tie
+        # moves a band edge by at most one cent without a direction.
+        combined_scale = round(math.sqrt(month.cumulative_variance))
         half_width = quantile_offset_cents(combined_scale, P90_SIGMAS)
         low = running - half_width
         high = running + half_width
@@ -772,28 +818,28 @@ def project_cashflow(
         # already has.
         breached = low < threshold_cents
         if breached and first_breach is None:
-            first_breach = key
+            first_breach = month.key
 
         months.append(ForecastMonth(
-            key=key, start=start, end=end,
+            key=month.key, start=start, end=end,
             recurring_cents=recurring_cents,
-            residual_cents=residual,
+            residual_cents=month.centre_cents,
             net_p50_cents=net,
             balance_p10_cents=low,
             balance_p50_cents=running,
             balance_p90_cents=high,
             below_threshold=breached,
-            seasonal=seasonal,
+            seasonal=month.seasonal,
         ))
 
     return ForecastReport(
         months=months,
         months_observed=observed,
         ledger_months_observed=ledger_months,
-        seasonality_used=seasonality_used,
+        seasonality_used=any(month.seasonal for month in model.months),
         recurrences_projected=sum(1 for item in recurrences if _is_projected(item)),
-        pooled_scale_cents=pooled_scale,
-        seasonal_scale_cents=seasonal_scale,
+        pooled_scale_cents=model.pooled_scale_cents,
+        seasonal_scale_cents=model.seasonal_scale_cents,
         threshold_cents=threshold_cents,
         first_breach_key=first_breach,
         opening_balance_cents=balance_cents,

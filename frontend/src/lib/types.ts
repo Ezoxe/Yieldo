@@ -2110,7 +2110,7 @@ export interface ChatStep {
 
 export interface ChatAnswer {
   /** `false` when the question could not be parsed at all. `query_description`
-   *  is then null and `supported_formulations` carries the ten phrasings the
+   *  is then null and `supported_formulations` carries the phrasings the
    *  parser does understand. */
   recognised: boolean;
   /** The executed query, in clear French. Design §8.1 requires it beside every

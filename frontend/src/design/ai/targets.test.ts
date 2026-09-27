@@ -83,6 +83,22 @@ describe("targetsMentionedIn", () => {
   it("says nothing about a sentence that names nothing on screen", () => {
     expect(targetsMentionedIn("Bonjour.")).toEqual([]);
   });
+
+  // The two sentences `engines/answer.py` writes about what is to come.
+  it("points an answer about the days to come at Avenir", () => {
+    const balance = targetsMentionedIn(
+      "Le 30 septembre 2026, vos comptes courants devraient afficher 2 700,00 €. " +
+        "Point bas d'ici là : 200,00 € le 5 septembre. Pas de découvert prévu d'ici là.",
+    ).map((target) => target.id);
+    expect(balance).toEqual(["kpi-point-bas"]);
+
+    const upcoming = targetsMentionedIn(
+      "Du 2 septembre au 2 octobre 2026, 2 échéances connues pour un total de +1 700,00 € : " +
+        "5 septembre, PRLV LOYER, -800,00 €.",
+    ).map((target) => target.id);
+    // Avenir's list first; the calendar of the recurring charges is named too.
+    expect(upcoming[0]).toBe("panel-a-venir");
+  });
 });
 
 describe("the target list itself", () => {

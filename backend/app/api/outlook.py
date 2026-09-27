@@ -13,6 +13,10 @@ Two perimeters: « Comptes courants » (the overdraft question, the default) and
 « Tout le disponible » (checking, savings, cash, like the liquid balance).
 Declarations and planned events without an account belong to both; with one,
 to the perimeters holding it.
+
+`Perimeter`, `project` and `avenir_facts` are shared: the assistant
+(`api/chat`) and the agent's `lire_avenir` read the future through them, so the
+three never project it three different ways.
 """
 
 from datetime import date, timedelta
@@ -23,11 +27,14 @@ from sqlalchemy.orm import Session
 
 from app.api.common import LIQUID_ACCOUNT_KINDS, dismissed_label_keys
 from app.db import get_db
+from app.engines.answer import AvenirFacts
 from app.engines.backtest import measure_reliability
 from app.engines.forecast import residual_model
 from app.engines.outlook import (
+    MAX_HORIZON_DAYS,
     Adjustment,
     Outlook,
+    OutlookInputs,
     apply_adjustments,
     month_profile_bps,
     outlook_keys,
@@ -65,13 +72,13 @@ router = APIRouter(prefix="/outlook", tags=["avenir"])
 
 Scope = Literal["checking", "liquid"]
 _KINDS: dict[str, tuple[str, ...]] = {"checking": ("checking",), "liquid": LIQUID_ACCOUNT_KINDS}
-_EMPTY = {
+EMPTY_REASONS = {
     "checking": "Aucun compte courant : créez-en un dans Import pour voir votre avenir.",
     "liquid": "Aucun compte disponible : créez-en un dans Import pour voir votre avenir.",
 }
 
 
-class _Perimeter:
+class Perimeter:
     """Everything the engines need about one perimeter, read once."""
 
     def __init__(self, db: Session, user: User, scope: Scope, today: date) -> None:
@@ -150,26 +157,55 @@ class _Perimeter:
                         ledger_start=self.ledger_start, ledger_end=self.as_of)
 
 
-def _perimeter(db: Session, user: User, scope: Scope) -> _Perimeter:
-    return _Perimeter(db, user, scope, date.today())
+def _perimeter(db: Session, user: User, scope: Scope) -> Perimeter:
+    return Perimeter(db, user, scope, date.today())
 
 
-def _project(perimeter: _Perimeter, horizon_days: int,
-             adjustments: list[Adjustment] | None = None) -> tuple[Outlook, Sources, bool]:
-    horizon_end = perimeter.as_of + timedelta(days=horizon_days)
+def _inputs(perimeter: Perimeter, horizon_end: date) -> tuple[OutlookInputs, Sources]:
     sources = perimeter.sources(horizon_end)
-    model = residual_model(sources.history, outlook_keys(perimeter.as_of, horizon_end))
-    profile = month_profile_bps(sources.residual_rows, sources.history.observations)
-    events = apply_adjustments(sources.events, adjustments) if adjustments else sources.events
-    outlook = project_outlook(
-        opening_balance_cents=perimeter.balance, as_of=perimeter.as_of,
-        horizon_days=horizon_days, events=events, model=model, profile_bps=profile,
+    inputs = OutlookInputs(
+        as_of=perimeter.as_of, covered_until=horizon_end,
+        opening_balance_cents=perimeter.balance, events=tuple(sources.events),
+        model=residual_model(sources.history, outlook_keys(perimeter.as_of, horizon_end)),
+        profile_bps=month_profile_bps(sources.residual_rows, sources.history.observations),
         threshold_cents=perimeter.threshold,
     )
-    return outlook, sources, profile != uniform_profile_bps()
+    return inputs, sources
 
 
-def _out(perimeter: _Perimeter, outlook: Outlook, sources: Sources,
+def project(perimeter: Perimeter, horizon_days: int,
+            adjustments: list[Adjustment] | None = None) -> tuple[Outlook, Sources, bool]:
+    """The perimeter's days up to `horizon_days`, the sources behind them, and
+    whether the month profile was measured rather than even."""
+    inputs, sources = _inputs(perimeter, perimeter.as_of + timedelta(days=horizon_days))
+    events = list(inputs.events)
+    if adjustments:
+        events = apply_adjustments(events, adjustments)
+    outlook = project_outlook(
+        opening_balance_cents=inputs.opening_balance_cents, as_of=inputs.as_of,
+        horizon_days=horizon_days, events=events, model=inputs.model,
+        profile_bps=inputs.profile_bps, threshold_cents=inputs.threshold_cents,
+    )
+    return outlook, sources, inputs.profile_bps != uniform_profile_bps()
+
+
+def avenir_facts(db: Session, user: User, today: date) -> AvenirFacts | None:
+    """The « Comptes courants » perimeter, assembled over the longest horizon
+    the screen allows, for the assistant: each question then projects its own
+    days of it. None when the household has no current account."""
+    perimeter = Perimeter(db, user, "checking", today)
+    if not perimeter.account_ids:
+        return None
+    inputs, sources = _inputs(perimeter, perimeter.as_of + timedelta(days=MAX_HORIZON_DAYS))
+    return AvenirFacts(
+        inputs=inputs, threshold_source=perimeter.threshold_source,
+        detected=sources.detected_projected, declared=sources.declared_projected,
+        planned=sources.planned_projected,
+        residual_months=len(sources.history.observations),
+    )
+
+
+def _out(perimeter: Perimeter, outlook: Outlook, sources: Sources,
          profile_measured: bool) -> OutlookOut:
     return OutlookOut(
         scope=perimeter.scope, as_of=perimeter.as_of, today=perimeter.today,
@@ -206,7 +242,7 @@ def _out(perimeter: _Perimeter, outlook: Outlook, sources: Sources,
     )
 
 
-def _empty(perimeter: _Perimeter) -> OutlookOut:
+def _empty(perimeter: Perimeter) -> OutlookOut:
     return OutlookOut(
         scope=perimeter.scope, as_of=perimeter.as_of, today=perimeter.today, stale_days=0,
         horizon_end=perimeter.as_of, opening_balance_cents=0, threshold_cents=perimeter.threshold,
@@ -215,21 +251,21 @@ def _empty(perimeter: _Perimeter) -> OutlookOut:
         band=False, band_unavailable_reason=None, residual_months=0, profile_measured=False,
         warnings=[], series=[],
         counts=SourceCountsOut(detected=0, declared=0, planned=0, reconciled=0),
-        empty_reason=_EMPTY[perimeter.scope],
+        empty_reason=EMPTY_REASONS[perimeter.scope],
     )
 
 
 @router.get("", response_model=OutlookOut)
 def read_outlook(
     scope: Scope = "checking",
-    horizon_days: int = Query(default=90, ge=1, le=730),
+    horizon_days: int = Query(default=90, ge=1, le=MAX_HORIZON_DAYS),
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> OutlookOut:
     perimeter = _perimeter(db, user, scope)
     if not perimeter.account_ids:
         return _empty(perimeter)
-    outlook, sources, measured = _project(perimeter, horizon_days)
+    outlook, sources, measured = project(perimeter, horizon_days)
     return _out(perimeter, outlook, sources, measured)
 
 
@@ -243,8 +279,8 @@ def scenario(
     adjustments applied. Nothing is written."""
     perimeter = _perimeter(db, user, payload.scope)
     if not perimeter.account_ids:
-        raise HTTPException(status_code=422, detail=_EMPTY[payload.scope])
-    base, sources, measured = _project(perimeter, payload.horizon_days)
+        raise HTTPException(status_code=422, detail=EMPTY_REASONS[payload.scope])
+    base, sources, measured = project(perimeter, payload.horizon_days)
     known_series = {item.id for item in sources.series}
     adjustments: list[Adjustment] = []
     for item in payload.adjustments:
@@ -264,7 +300,7 @@ def scenario(
                 "Un montant nul ne change rien : indiquez ce qui entre ou ce qui sort."))
         adjustments.append(Adjustment(kind=item.kind, on=item.on, label=item.label,
                                       amount_cents=item.amount_cents, series=item.series))
-    changed, _, _ = _project(perimeter, payload.horizon_days, adjustments)
+    changed, _, _ = project(perimeter, payload.horizon_days, adjustments)
     return ScenarioOut(base=_out(perimeter, base, sources, measured),
                        scenario=_out(perimeter, changed, sources, measured))
 

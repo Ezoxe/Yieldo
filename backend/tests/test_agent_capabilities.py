@@ -269,3 +269,30 @@ def test_approving_an_opening_balance_corrects_the_figure_under_every_solde(clie
     assert response.status_code == 200
     db.expire_all()
     assert db.get(Account, account["id"]).opening_balance_cents == 0
+
+
+def test_reading_the_future_names_the_low_point_and_what_is_due(client, db):
+    headers = _register(client)
+    account = client.post("/api/accounts", headers=headers, json={
+        "name": "Courant", "kind": "checking", "opening_balance_cents": 100_000}).json()
+    _row(db, _user(db).id, account["id"], -25_000, on="2026-09-01")
+    client.post("/api/planned-events", headers=headers, json={
+        "label": "Assurance auto", "due_on": "2026-09-10", "amount_cents": -30_000})
+
+    answer = BY_NAME["lire_avenir"].run(_context(db, today="2026-09-02"), {})
+
+    assert "Point bas" in answer
+    # 1 000 € declared, 250 € spent, the 300 € insurance to come.
+    assert "450,00 €" in answer
+    assert "Assurance auto" in answer
+
+
+def test_reading_the_future_without_a_current_account_says_how_to_start(client, db):
+    _register(client)
+    assert "Aucun compte courant" in BY_NAME["lire_avenir"].run(_context(db), {})
+
+
+def test_the_future_is_a_read_the_chat_may_offer():
+    from app.llm.tools import READ_TOOLS
+
+    assert "lire_avenir" in {tool.name for tool in READ_TOOLS}

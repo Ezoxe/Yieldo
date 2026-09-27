@@ -1,6 +1,7 @@
 from datetime import date
 
 from app.engines.intent import (
+    INTENTS,
     SUPPORTED_FORMULATIONS,
     ParsedQuery,
     UnrecognisedQuery,
@@ -408,3 +409,139 @@ def test_raw_text_preserves_exactly_what_was_typed():
     original = "Combien j'ai DÉPENSÉ en Restaurant en Mars ?"
     query = _parse(original)
     assert query.raw_text == original
+
+
+def test_every_supported_formulation_parses_and_every_intent_has_one():
+    """The refusal hands these back as "try this instead": one that does not
+    parse would send the reader from one refusal to another."""
+    assert {_parse(text).intent for text in SUPPORTED_FORMULATIONS} == set(INTENTS)
+
+
+# --------------------------------------------------------------------------
+# balance_forecast -- what the current accounts will hold on a day to come.
+# TODAY is Wednesday 2 September 2026.
+# --------------------------------------------------------------------------
+
+
+def test_balance_forecast_at_the_end_of_the_month():
+    query = _parse("Combien j'aurai à la fin du mois ?")
+    assert query.intent == "balance_forecast"
+    assert query.mode == "balance"
+    assert query.period.end == date(2026, 9, 30)
+    assert "30 septembre 2026" in query.period.label
+
+
+def test_balance_forecast_at_the_end_of_a_named_month():
+    query = _parse("Combien il me restera fin décembre ?")
+    assert query.intent == "balance_forecast"
+    assert query.period.end == date(2026, 12, 31)
+
+
+def test_a_named_month_already_behind_us_is_next_year_s():
+    """"Fin janvier" asked in September can only mean the January to come."""
+    assert _parse("Combien j'aurai fin janvier ?").period.end == date(2027, 1, 31)
+
+
+def test_balance_forecast_in_a_number_of_months():
+    query = _parse("Quel sera mon solde dans 3 mois ?")
+    assert query.intent == "balance_forecast"
+    assert query.period.end == date(2026, 12, 2)
+
+
+def test_balance_forecast_on_a_named_day():
+    query = _parse("Combien aurai-je le 15 octobre ?")
+    assert query.intent == "balance_forecast"
+    assert query.period.end == date(2026, 10, 15)
+
+
+def test_balance_forecast_at_the_end_of_the_year():
+    assert _parse("Combien j'aurai à la fin de l'année ?").period.end == date(2026, 12, 31)
+
+
+def test_an_overdraft_question_is_a_balance_forecast_led_by_the_risk():
+    query = _parse("Serai-je à découvert ?")
+    assert query.intent == "balance_forecast"
+    assert query.mode == "overdraft"
+    # No day was named: the default is the answering engine's to state.
+    assert query.period is None
+
+
+def test_an_overdraft_question_with_a_deadline():
+    query = _parse("Est-ce que je vais être à découvert avant la fin du mois ?")
+    assert query.intent == "balance_forecast"
+    assert query.mode == "overdraft"
+    assert query.period.end == date(2026, 9, 30)
+
+
+def test_the_low_point_is_an_overdraft_question():
+    query = _parse("Quel est mon point bas ?")
+    assert query.intent == "balance_forecast"
+    assert query.mode == "overdraft"
+
+
+def test_a_savings_simulation_keeps_its_own_combien_aurai_je():
+    """"Combien aurai-je" is also how a savings simulation ends."""
+    query = _parse("Si j'épargne 200 € par mois pendant 24 mois, combien aurai-je ?")
+    assert query.intent == "savings_simulation"
+
+
+def test_future_spending_is_not_a_balance():
+    result = parse_intent("Combien j'aurai dépensé à la fin du mois ?", TODAY)
+    assert getattr(result, "intent", None) != "balance_forecast"
+
+
+def test_the_price_of_something_later_is_not_a_balance():
+    _refused("Combien me coûtera mon crédit dans 3 mois ?")
+
+
+# --------------------------------------------------------------------------
+# upcoming -- what is due, and when.
+# --------------------------------------------------------------------------
+
+
+def test_upcoming_debits():
+    query = _parse("Quels sont mes prochains prélèvements ?")
+    assert query.intent == "upcoming"
+    assert query.mode == "outflows"
+    assert query.period is None
+
+
+def test_what_falls_this_week_is_every_known_event_until_sunday():
+    query = _parse("Qu'est-ce qui tombe cette semaine ?")
+    assert query.intent == "upcoming"
+    assert query.mode == "all"
+    assert (query.period.start, query.period.end) == (date(2026, 9, 2), date(2026, 9, 6))
+
+
+def test_upcoming_within_a_number_of_days():
+    query = _parse("Qu'est-ce qui tombe dans les 10 prochains jours ?")
+    assert (query.period.start, query.period.end) == (date(2026, 9, 2), date(2026, 9, 12))
+
+
+def test_upcoming_until_the_end_of_this_month():
+    query = _parse("Mes échéances à venir ce mois-ci ?")
+    assert query.intent == "upcoming"
+    assert (query.period.start, query.period.end) == (date(2026, 9, 2), date(2026, 9, 30))
+
+
+def test_upcoming_next_month_is_the_whole_calendar_month():
+    query = _parse("Quels prélèvements tombent le mois prochain ?")
+    assert query.intent == "upcoming"
+    assert (query.period.start, query.period.end) == (date(2026, 10, 1), date(2026, 10, 31))
+
+
+def test_an_overdraft_question_about_the_next_debits_is_about_the_balance():
+    query = _parse("Serai-je à découvert après les prochains prélèvements ?")
+    assert query.intent == "balance_forecast"
+
+
+def test_before_payday_is_anchored_on_the_pay_not_on_a_date():
+    query = _parse("Combien il me restera avant la paie ?")
+    assert query.intent == "balance_forecast"
+    assert query.entity == "paie"
+    assert query.period is None
+
+
+def test_a_payment_is_not_a_payday():
+    query = _parse("Combien j'aurai après le paiement du loyer ?")
+    assert query.entity is None

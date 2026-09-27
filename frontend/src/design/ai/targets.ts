@@ -112,6 +112,27 @@ export const AI_TARGETS: AiTarget[] = [
     terms: ["fiabilite de la prevision"],
   },
   {
+    id: "panel-avenir-courbe",
+    label: "Solde jour par jour",
+    route: "/avenir",
+    terms: ["jour par jour", "courbe du solde"],
+  },
+  {
+    id: "panel-a-venir",
+    label: "À venir",
+    route: "/avenir",
+    terms: [
+      "a venir", "echeances connues", "sorties connues", "entrees connues",
+      "echeance connue", "sortie connue", "entree connue", "prochains prelevements",
+    ],
+  },
+  {
+    id: "panel-et-si",
+    label: "Et si…",
+    route: "/avenir",
+    terms: ["scenario", "scenarios"],
+  },
+  {
     id: "kpi-solde-disponible",
     label: "Solde disponible",
     route: "/avenir",

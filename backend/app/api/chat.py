@@ -50,11 +50,13 @@ from sqlalchemy.orm import Session
 from app.api.common import liquid_balance_cents, recurrence_points
 from app.api.goals import observed_months
 from app.api.history import user_history
+from app.api.outlook import avenir_facts
 from app.api.portfolio import valuation_inputs
 from app.config import settings as app_settings
 from app.db import get_db
 from app.engines import portfolio as portfolio_engine
 from app.engines.answer import (
+    OUTLOOK_INTENTS,
     AnswerChart,
     AnswerStep,
     ChatContext,
@@ -139,11 +141,22 @@ def _portfolio_snapshot(db: Session, user: User, now: datetime) -> PortfolioSnap
     )
 
 
-def _build_context(db: Session, user: User, today: date) -> ChatContext:
+def _reads_the_future(texts: list[str], today: date) -> bool:
+    """Whether any of these questions is one Avenir answers -- the only ones
+    worth assembling its sources for."""
+    for text in texts:
+        parsed = parse_intent(text, today)
+        if not isinstance(parsed, UnrecognisedQuery) and parsed.intent in OUTLOOK_INTENTS:
+            return True
+    return False
+
+
+def _build_context(db: Session, user: User, today: date, *, future: bool = False) -> ChatContext:
     """Every primitive `engines/answer.py` might need, fetched once per
     request -- one context, reused across every stored question on a
     `GET /api/chat`, exactly as `api/engagement.py` fetches its own inputs
-    once and reuses them across four engines."""
+    once and reuses them across four engines. Avenir's sources only when
+    `future`: see `OUTLOOK_INTENTS`."""
     history = user_history(db, user.id)
     return ChatContext(
         ledger_start=None if history is None else history.date_from,
@@ -158,6 +171,7 @@ def _build_context(db: Session, user: User, today: date) -> ChatContext:
         existing_debt_payments_cents=_existing_debt_payments_cents(db, user.id),
         goals=_goal_inputs(db, user.id),
         portfolio=_portfolio_snapshot(db, user, datetime.now(UTC)),
+        avenir=avenir_facts(db, user, today) if future else None,
     )
 
 
@@ -393,7 +407,7 @@ def ask(
     when there was one. See the module docstring.
     """
     today = date.today()
-    ctx = _build_context(db, user, today)
+    ctx = _build_context(db, user, today, future=_reads_the_future([payload.text], today))
 
     conversation_id = _resolve_conversation(db, user.id, payload.conversation_id)
     message = ChatMessage(user_id=user.id, conversation_id=conversation_id, text=payload.text)
@@ -466,7 +480,6 @@ def history_list(
     once and reused for every row, so a hundred questions cost one fetch of
     the ledger, not a hundred."""
     today = date.today()
-    ctx = _build_context(db, user, today)
     query = db.query(ChatMessage).filter(ChatMessage.user_id == user.id)
     if conversation_id is not None:
         # No 404 for an unknown id here, and deliberately: a GET that filters
@@ -474,6 +487,9 @@ def history_list(
         # one another household's thread gets. Only a WRITE has to refuse.
         query = query.filter(ChatMessage.conversation_id == conversation_id)
     rows = query.order_by(ChatMessage.id).limit(MAX_HISTORY).all()
+    ctx = _build_context(
+        db, user, today, future=_reads_the_future([row.text for row in rows], today)
+    )
 
     # The runs behind whichever of these questions a model answered, fetched in
     # one query rather than one per row — and no model is called here at all.

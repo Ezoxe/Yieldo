@@ -25,7 +25,7 @@ Pure: no session, no network, no implicit clock -- `today` is a parameter.
 
 import unicodedata
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal
 from typing import Literal
 
@@ -43,7 +43,9 @@ from app.engines.feasibility import (
     assess_feasibility,
 )
 from app.engines.goal import GoalInput, GoalProgress, evaluate_goals
-from app.engines.intent import MONTH_NAMES_FR, ParsedPeriod, ParsedQuery
+from app.engines.intent import MONTH_NAMES_FR, ParsedPeriod, ParsedQuery, day_label
+from app.engines.outlook import MAX_HORIZON_DAYS, Outlook, OutlookInputs, project_until
+from app.engines.outlook_sources import KnownEvent
 from app.engines.ownership import DEFAULT_OWNERSHIP_YEARS
 from app.engines.period import resolve_range
 from app.engines.recurrence import RecurringTx, detect_recurrences
@@ -64,6 +66,21 @@ DEFAULT_LOAN_MONTHS = 60
 DEFAULT_SAVINGS_HORIZON_MONTHS = 12
 DEFAULT_PROJECTION_HORIZON_MONTHS = LIQUID_HORIZON_MONTHS
 
+# The two questions about what is to come, answered from Avenir's projection.
+# The caller assembles `ChatContext.avenir` for these and for no other: it walks
+# the ledger once more, and a question about last month's spending must not pay
+# for it.
+OUTLOOK_INTENTS: tuple[str, ...] = ("balance_forecast", "upcoming")
+# "Serai-je à découvert ?" names no day: the Avenir screen's own default.
+DEFAULT_OVERDRAFT_HORIZON_DAYS = 90
+# "Mes prochains prélèvements ?" names no window: the dashboard's thirty days.
+DEFAULT_UPCOMING_DAYS = 30
+# A sentence, not a statement: beyond eight, the rest are counted and the
+# screen that lists them all is named.
+MAX_UPCOMING_LISTED = 8
+# A monthly pay lands within this many days of any day.
+PAYDAY_SEARCH_DAYS = 35
+
 VERDICT_FR: dict[str, str] = {
     "comfortable": "atteignable confortablement",
     "tight": "atteignable en serrant",
@@ -81,6 +98,22 @@ class PortfolioSnapshot:
     market_value_cents: int
     positions_total: int
     positions_valued: int
+
+
+@dataclass(frozen=True)
+class AvenirFacts:
+    """The « Comptes courants » perimeter as the Avenir screen reads it,
+    assembled once by the caller over the longest horizon the screen allows.
+    Each question then projects the days it asks about (`project_until`)."""
+
+    inputs: OutlookInputs
+    # The floor set in Alertes, or zero when none is: the sentences name it.
+    threshold_source: Literal["alert", "zero"]
+    # What `engines/outlook_sources` found, for the trace.
+    detected: int
+    declared: int
+    planned: int
+    residual_months: int
 
 
 @dataclass(frozen=True)
@@ -109,6 +142,9 @@ class ChatContext:
     existing_debt_payments_cents: int
     goals: list[GoalInput]
     portfolio: PortfolioSnapshot
+    # Assembled only when the question is one of `OUTLOOK_INTENTS`; for those,
+    # None means the household has no current account to project.
+    avenir: AvenirFacts | None = None
 
 
 ChartKind = Literal["bars", "line"]
@@ -762,6 +798,255 @@ def _answer_patrimoine_projection(query: ParsedQuery, ctx: ChatContext, today: d
     )
 
 
+# --------------------------------------------------------------------------
+# balance_forecast / upcoming
+# --------------------------------------------------------------------------
+
+_NO_CURRENT_ACCOUNT = "Aucun compte courant : créez-en un dans Import pour voir votre avenir."
+
+
+def _short_day(on: date) -> str:
+    """`date(2026, 10, 1)` to `"1er octobre"` -- inside a sentence that already
+    names the year."""
+    return f"{'1er' if on.day == 1 else on.day} {MONTH_NAMES_FR[on.month]}"
+
+
+def _signed_eur(cents: int) -> str:
+    """An income carries its plus: in a list of charges it must not read as one."""
+    return f"+{_fmt_eur(cents)}" if cents > 0 else _fmt_eur(cents)
+
+
+def _statements_cover(inputs: OutlookInputs, day: date) -> str:
+    return (
+        f"Vos relevés vont déjà jusqu'au {day_label(inputs.as_of)} : le {day_label(day)} "
+        "n'est plus à venir. Consultez l'écran Transactions, ou demandez un jour après le "
+        f"{day_label(inputs.as_of)}."
+    )
+
+
+def _beyond_horizon(inputs: OutlookInputs) -> str:
+    return (
+        f"L'avenir se projette sur {MAX_HORIZON_DAYS} jours au plus après vos derniers "
+        f"relevés, soit jusqu'au {day_label(inputs.covered_until)}. Demandez une date plus "
+        "proche."
+    )
+
+
+def _next_pay(inputs: OutlookInputs, today: date) -> KnownEvent | None:
+    """The biggest income known over the next `PAYDAY_SEARCH_DAYS` -- the pay,
+    not the refund that happens to land first. From today on: with statements
+    weeks behind, a pay that has already come is not the one asked about."""
+    after = max(inputs.as_of, today - timedelta(days=1))
+    until = after + timedelta(days=PAYDAY_SEARCH_DAYS)
+    incomes = [event for event in inputs.events
+               if event.amount_cents > 0 and after < event.on <= until]
+    if not incomes:
+        return None
+    return max(incomes, key=lambda event: (event.amount_cents, -event.on.toordinal()))
+
+
+def _forecast_target(
+    query: ParsedQuery, inputs: OutlookInputs, today: date
+) -> tuple[date, str] | str:
+    """The day asked about and what the description calls it -- or, when no
+    such day can be found, the French refusal saying why."""
+    if query.period is not None:
+        return query.period.end, query.period.label
+    if query.entity == "paie":
+        pay = _next_pay(inputs, today)
+        if pay is None:
+            return (
+                "Aucune rentrée d'argent n'est connue dans les "
+                f"{PAYDAY_SEARCH_DAYS} prochains jours : je ne sais pas quand tombe votre "
+                "paie. Déclarez-la dans Récurrences, ou demandez une date."
+            )
+        eve = pay.on - timedelta(days=1)
+        return eve, f"la veille de « {pay.label} » ({day_label(eve)})"
+    if query.mode == "overdraft":
+        end = inputs.as_of + timedelta(days=DEFAULT_OVERDRAFT_HORIZON_DAYS)
+        return end, (
+            f"les {DEFAULT_OVERDRAFT_HORIZON_DAYS} jours après vos relevés, horizon par "
+            f"défaut ({day_label(end)})"
+        )
+    start = max(today, inputs.as_of + timedelta(days=1))
+    end = date(start.year, start.month, 1)
+    end = date(end.year + (end.month == 12), end.month % 12 + 1, 1) - timedelta(days=1)
+    return end, f"la fin du mois, par défaut ({day_label(end)})"
+
+
+def _risk_sentence(outlook: Outlook, threshold_source: str) -> str:
+    """The same three levels the Avenir screen's pill names, in a sentence."""
+    threshold = outlook.threshold_cents
+    floor = threshold_source == "alert"
+    if outlook.risk == "probable":
+        first = next(day.on for day in outlook.days if day.p50_cents < threshold)
+        if floor:
+            return (
+                f"Seuil franchi : le solde prévu passe sous votre seuil de "
+                f"{_fmt_eur(threshold)} le {_short_day(first)}."
+            )
+        return f"Découvert probable : le solde prévu passe sous zéro le {_short_day(first)}."
+    if outlook.risk == "possible":
+        breach = _short_day(outlook.first_breach_on)
+        if floor:
+            return (
+                f"Seuil menacé : le solde prévu reste au-dessus de votre seuil de "
+                f"{_fmt_eur(threshold)}, mais le bas de la fourchette passe dessous à partir "
+                f"du {breach}."
+            )
+        return (
+            "Découvert possible : le solde prévu reste au-dessus de zéro, mais le bas de la "
+            f"fourchette passe dessous à partir du {breach}."
+        )
+    tail = ", même dans le bas de la fourchette" if outlook.band else ""
+    if floor:
+        return f"Seuil respecté : le solde prévu reste au-dessus de {_fmt_eur(threshold)}{tail}."
+    return f"Pas de découvert prévu d'ici là{tail}."
+
+
+def _outlook_line(outlook: Outlook) -> AnswerChart | None:
+    """The median balance, day by day -- the engine's own days, each one. The
+    year joins the label only when the line crosses one."""
+    if len(outlook.days) < MIN_CHART_POINTS:
+        return None
+    crosses_year = outlook.days[0].on.year != outlook.days[-1].on.year
+    return AnswerChart(
+        kind="line", title="Solde prévu des comptes courants, jour par jour",
+        points=tuple(
+            AnswerPoint(label=day_label(day.on) if crosses_year else _short_day(day.on),
+                        amount_cents=day.p50_cents)
+            for day in outlook.days
+        ),
+    )
+
+
+def _answer_balance_forecast(query: ParsedQuery, ctx: ChatContext, today: date) -> Answer:
+    overdraft = query.mode == "overdraft"
+    subject = (
+        "Risque de découvert sur les comptes courants" if overdraft
+        else "Solde prévu des comptes courants"
+    )
+    facts = ctx.avenir
+    if facts is None:
+        return Answer(query_description=f"{subject}.", text=_NO_CURRENT_ACCOUNT,
+                      is_refusal=True)
+    inputs = facts.inputs
+    target = _forecast_target(query, inputs, today)
+    if isinstance(target, str):
+        return Answer(query_description=f"{subject} : la veille de la paie.", text=target,
+                      is_refusal=True)
+    day, label = target
+    description = (
+        f"{subject} : {label}, à partir des relevés arrêtés au {day_label(inputs.as_of)}."
+    )
+    if day <= inputs.as_of:
+        return Answer(query_description=description, text=_statements_cover(inputs, day),
+                      is_refusal=True)
+    if day > inputs.covered_until:
+        return Answer(query_description=description, text=_beyond_horizon(inputs),
+                      is_refusal=True)
+
+    outlook = project_until(inputs, day)
+    last, low = outlook.days[-1], outlook.low_point
+    balance = (
+        f"Le {day_label(day)}, vos comptes courants devraient afficher "
+        f"{_fmt_eur(last.p50_cents)}"
+        + (f" (entre {_fmt_eur(last.p10_cents)} et {_fmt_eur(last.p90_cents)})"
+           if outlook.band else "")
+        + "."
+    )
+    lowest = (
+        f"Point bas d'ici là : {_fmt_eur(low.p50_cents)} le {_short_day(low.on)}"
+        + (f" (bas de fourchette {_fmt_eur(low.p10_cents)})"
+           if outlook.band and low.p10_cents != low.p50_cents else "")
+        + "."
+    )
+    risk = _risk_sentence(outlook, facts.threshold_source)
+    sentences = [risk, lowest, balance] if overdraft else [balance, lowest, risk]
+    if outlook.band_unavailable_reason is not None:
+        # Without a band the figure leaves the everyday spending out, or has no
+        # margin: the engine's own words say which.
+        sentences.append(outlook.band_unavailable_reason)
+    return Answer(
+        query_description=description,
+        text=" ".join(sentences),
+        amount_cents=low.p50_cents if overdraft else last.p50_cents,
+        chart=_outlook_line(outlook),
+    )
+
+
+_UPCOMING_NOUNS: dict[str, tuple[str, str]] = {
+    "outflows": ("sortie", "sorties"),
+    "inflows": ("entrée", "entrées"),
+    "all": ("échéance", "échéances"),
+}
+
+
+def _answer_upcoming(query: ParsedQuery, ctx: ChatContext, today: date) -> Answer:
+    mode = query.mode or "all"
+    singular, plural = _UPCOMING_NOUNS[mode]
+    facts = ctx.avenir
+    if facts is None:
+        return Answer(query_description=f"Prochaines {plural} des comptes courants.",
+                      text=_NO_CURRENT_ACCOUNT, is_refusal=True)
+    inputs = facts.inputs
+    if query.period is not None:
+        start, end, label = query.period.start, query.period.end, query.period.label
+    else:
+        start, end = today, today + timedelta(days=DEFAULT_UPCOMING_DAYS)
+        label = (
+            f"les {DEFAULT_UPCOMING_DAYS} prochains jours, par défaut (du {day_label(start)} "
+            f"au {day_label(end)})"
+        )
+    description = (
+        f"{plural.capitalize()} connues des comptes courants : {label}, relevés arrêtés au "
+        f"{day_label(inputs.as_of)}."
+    )
+    if end <= inputs.as_of:
+        return Answer(query_description=description, text=_statements_cover(inputs, end),
+                      is_refusal=True)
+    if end > inputs.covered_until:
+        return Answer(query_description=description, text=_beyond_horizon(inputs),
+                      is_refusal=True)
+
+    # What the statements already show is not to come.
+    first = max(start, inputs.as_of + timedelta(days=1))
+    events = [
+        event for event in inputs.events
+        if first <= event.on <= end
+        and (mode == "all" or (event.amount_cents < 0) == (mode == "outflows"))
+    ]
+    span = (
+        f"le {day_label(first)}" if first == end
+        else f"du {_short_day(first) if first.year == end.year else day_label(first)} au "
+             f"{day_label(end)}"
+    )
+    if not events:
+        return Answer(
+            query_description=description,
+            text=f"Aucune {singular} connue {span}.",
+            amount_cents=0,
+        )
+
+    total = sum(event.amount_cents for event in events)
+    listed = " ; ".join(
+        f"{_short_day(event.on)}, {event.label}, {_signed_eur(event.amount_cents)}"
+        for event in events[:MAX_UPCOMING_LISTED]
+    )
+    rest = len(events) - MAX_UPCOMING_LISTED
+    more = f" ; et {rest} autre{'s' if rest > 1 else ''}, sur l'écran Avenir" if rest > 0 else ""
+    count = f"{len(events)} {singular if len(events) == 1 else plural}"
+    known = "connue" if len(events) == 1 else "connues"
+    return Answer(
+        query_description=description,
+        text=(
+            f"{span[0].upper()}{span[1:]}, {count} {known} pour un total de "
+            f"{_signed_eur(total)} : {listed}{more}."
+        ),
+        amount_cents=total,
+    )
+
+
 _HANDLERS = {
     "total_by_category": _answer_total_by_category,
     "period_comparison": _answer_period_comparison,
@@ -772,6 +1057,8 @@ _HANDLERS = {
     "goal_status": _answer_goal_status,
     "transaction_search": _answer_transaction_search,
     "patrimoine_projection": _answer_patrimoine_projection,
+    "balance_forecast": _answer_balance_forecast,
+    "upcoming": _answer_upcoming,
 }
 
 
@@ -1000,6 +1287,53 @@ def trace_query(query: ParsedQuery, ctx: ChatContext) -> tuple[AnswerStep, ...]:
                 screen="/projection",
             ),
         )
+
+    if query.intent in OUTLOOK_INTENTS:
+        facts = ctx.avenir
+        known = (
+            "aucun compte courant" if facts is None
+            else (
+                f"comptes courants, relevés arrêtés au {day_label(facts.inputs.as_of)} ; "
+                f"séries connues : {facts.detected} détectées, {facts.declared} déclarées, "
+                f"{facts.planned} événements prévus"
+            )
+        )
+        steps = [
+            read,
+            AnswerStep(tool="engines/outlook_sources", label="Ce qui est connu de l'avenir",
+                       source=known, screen="/avenir"),
+        ]
+        if query.intent == "balance_forecast":
+            if query.period is not None:
+                until = f"jusqu'au {day_label(query.period.end)}"
+            elif query.entity == "paie":
+                until = "jusqu'à la veille de la paie"
+            elif query.mode == "overdraft":
+                until = f"sur {DEFAULT_OVERDRAFT_HORIZON_DAYS} jours, horizon par défaut"
+            else:
+                until = "jusqu'à la fin du mois, par défaut"
+            steps += [
+                AnswerStep(
+                    tool="engines/forecast", label="Mesure de la part variable",
+                    source=(
+                        "aucun historique" if facts is None
+                        else f"{facts.residual_months} mois observés"
+                    ),
+                    screen="/avenir",
+                ),
+                AnswerStep(tool="engines/outlook", label="Projection jour par jour",
+                           source=until, screen="/avenir"),
+            ]
+        else:
+            steps.append(AnswerStep(
+                tool="engines/outlook", label="Échéances de la période",
+                source=(
+                    query.period.label if query.period is not None
+                    else f"les {DEFAULT_UPCOMING_DAYS} prochains jours, par défaut"
+                ),
+                screen="/avenir",
+            ))
+        return tuple(steps)
 
     # Unreachable while `_HANDLERS` and this function agree, which is what
     # `test_every_intent_declares_a_trace` measures. Never a silent empty

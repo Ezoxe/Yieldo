@@ -140,7 +140,7 @@ describe("the unrecognised-intent state", () => {
       "Je n'ai pas compris cette question. Voici des formulations que je sais traiter :",
     );
     const suggestions = within(exchange).getAllByTestId(/^yd-suggestion-/);
-    expect(suggestions).toHaveLength(10);
+    expect(suggestions).toHaveLength(SUPPORTED_FORMULATIONS.length);
     expect(suggestions.map((node) => node.textContent)).toEqual(SUPPORTED_FORMULATIONS);
   });
 
@@ -227,11 +227,12 @@ describe("asking", () => {
 });
 
 describe("the empty conversation", () => {
-  it("offers the ten formulations rather than an empty box", async () => {
+  it("offers every formulation rather than an empty box", async () => {
     mockApi([]);
     renderPage();
     const empty = await screen.findByTestId("yd-assistant-empty");
-    expect(within(empty).getAllByTestId(/^yd-suggestion-/)).toHaveLength(10);
+    expect(within(empty).getAllByTestId(/^yd-suggestion-/).map((node) => node.textContent))
+      .toEqual(SUPPORTED_FORMULATIONS);
   });
 
   it("asks a formulation when it is clicked", async () => {

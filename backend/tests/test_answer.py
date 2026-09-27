@@ -1,9 +1,17 @@
-from datetime import date
+from datetime import date, timedelta
 
-from app.engines.answer import ChatContext, PortfolioSnapshot, answer_query
+from app.engines.answer import (
+    AvenirFacts,
+    ChatContext,
+    PortfolioSnapshot,
+    _fmt_eur,
+    answer_query,
+)
 from app.engines.capacity import MonthObservation
 from app.engines.goal import GoalInput
 from app.engines.intent import ParsedQuery, parse_intent
+from app.engines.outlook import MAX_HORIZON_DAYS, OutlookInputs, uniform_profile_bps
+from app.engines.outlook_sources import KnownEvent
 from app.engines.recurrence import RecurringTx
 
 TODAY = date(2026, 9, 2)
@@ -625,3 +633,176 @@ def test_a_trace_step_names_the_screen_showing_the_same_data():
     }
     assert "/objectifs" in routes
     assert "/recurrences" in routes
+
+
+# --------------------------------------------------------------------------
+# balance_forecast / upcoming: Avenir's projection, asked in a sentence.
+# --------------------------------------------------------------------------
+
+AS_OF = date(2026, 9, 1)
+
+
+def _event(on: date, cents: int, label: str, source: str = "detected") -> KnownEvent:
+    return KnownEvent(on=on, amount_cents=cents, label=label, source=source,
+                      series=f"{source}:{label}", category_id=None)
+
+
+RENT = _event(date(2026, 9, 5), -80_000, "PRLV LOYER")
+PAY = _event(date(2026, 9, 28), 250_000, "VIR SALAIRE")
+
+
+def _avenir(events=(RENT, PAY), opening=100_000, as_of=AS_OF, threshold=0,
+            source="zero", model=None, **counts) -> AvenirFacts:
+    inputs = OutlookInputs(
+        as_of=as_of, covered_until=as_of + timedelta(days=MAX_HORIZON_DAYS),
+        opening_balance_cents=opening, events=tuple(events), model=model,
+        profile_bps=uniform_profile_bps(), threshold_cents=threshold,
+    )
+    base = dict(detected=len(events), declared=0, planned=0, residual_months=0)
+    base.update(counts)
+    return AvenirFacts(inputs=inputs, threshold_source=source, **base)
+
+
+def test_balance_forecast_quotes_the_median_on_the_day_asked():
+    ctx = _ctx(avenir=_avenir())
+    answer = answer_query(_q("Combien j'aurai à la fin du mois ?"), ctx, TODAY)
+
+    assert answer.is_refusal is False
+    # 1 000 € on hand, the rent on the 5th, the pay on the 28th.
+    assert answer.amount_cents == 270_000
+    assert _fmt_eur(270_000) in answer.text
+    assert f"{_fmt_eur(20_000)} le 5 septembre" in answer.text
+    assert "Pas de découvert prévu" in answer.text
+    assert "30 septembre 2026" in answer.query_description
+    assert "1er septembre 2026" in answer.query_description
+
+
+def test_balance_forecast_without_a_band_says_why_in_the_engines_words():
+    """Six months of history are missing: only the known events are projected,
+    and a figure that leaves out the everyday spending must say so."""
+    answer = answer_query(_q("Combien j'aurai à la fin du mois ?"), _ctx(avenir=_avenir()), TODAY)
+    assert "Pas assez d'historique" in answer.text
+    assert "entre" not in answer.text
+
+
+def test_balance_forecast_names_a_probable_overdraft_and_its_first_day():
+    ctx = _ctx(avenir=_avenir(opening=10_000))
+    answer = answer_query(_q("Serai-je à découvert ?"), ctx, TODAY)
+
+    assert answer.text.startswith("Découvert probable")
+    assert "5 septembre" in answer.text
+    assert answer.amount_cents == -70_000
+    # No day was named: the default horizon is stated, never silent.
+    assert "90 jours" in answer.query_description
+
+
+def test_balance_forecast_measures_against_the_alert_floor_when_one_is_set():
+    ctx = _ctx(avenir=_avenir(threshold=50_000, source="alert"))
+    answer = answer_query(_q("Vais-je être à découvert avant la fin du mois ?"), ctx, TODAY)
+    assert answer.text.startswith("Seuil franchi")
+    assert _fmt_eur(50_000) in answer.text
+
+
+def test_balance_forecast_draws_the_median_day_by_day():
+    answer = answer_query(_q("Combien j'aurai à la fin du mois ?"), _ctx(avenir=_avenir()), TODAY)
+    assert answer.chart is not None
+    assert answer.chart.kind == "line"
+    # From the day after the statements to the day asked, one point a day.
+    assert len(answer.chart.points) == 29
+    assert answer.chart.points[-1].amount_cents == answer.amount_cents
+
+
+def test_balance_forecast_without_a_current_account_is_refused():
+    answer = answer_query(_q("Combien j'aurai à la fin du mois ?"), _ctx(), TODAY)
+    assert answer.is_refusal is True
+    assert "Aucun compte courant" in answer.text
+    assert answer.chart is None
+
+
+def test_balance_forecast_on_a_day_the_statements_already_cover_is_refused():
+    ctx = _ctx(avenir=_avenir(as_of=date(2026, 10, 5)))
+    answer = answer_query(_q("Combien j'aurai à la fin du mois ?"), ctx, TODAY)
+    assert answer.is_refusal is True
+    assert "5 octobre 2026" in answer.text
+
+
+def test_balance_forecast_past_two_years_is_refused():
+    answer = answer_query(_q("Quel sera mon solde dans 30 mois ?"), _ctx(avenir=_avenir()), TODAY)
+    assert answer.is_refusal is True
+    assert "730 jours" in answer.text
+
+
+def test_upcoming_lists_the_window_s_events_in_order_with_their_total():
+    later = _event(date(2026, 10, 20), -9_000, "PRLV EDF")
+    ctx = _ctx(avenir=_avenir(events=(RENT, PAY, later)))
+    answer = answer_query(_q("Quelles sont mes échéances à venir ?"), ctx, TODAY)
+
+    assert answer.is_refusal is False
+    assert answer.amount_cents == 170_000
+    assert answer.text.index("PRLV LOYER") < answer.text.index("VIR SALAIRE")
+    assert "PRLV EDF" not in answer.text
+    assert "30 prochains jours" in answer.query_description
+    assert answer.chart is None
+
+
+def test_upcoming_debits_leave_the_income_out():
+    answer = answer_query(_q("Quels sont mes prochains prélèvements ?"),
+                          _ctx(avenir=_avenir()), TODAY)
+    assert answer.amount_cents == -80_000
+    assert "VIR SALAIRE" not in answer.text
+
+
+def test_upcoming_names_eight_and_counts_the_rest():
+    events = tuple(_event(date(2026, 9, 3 + day), -1_000, f"PRLV {day}") for day in range(10))
+    answer = answer_query(_q("Quels sont mes prochains prélèvements ?"),
+                          _ctx(avenir=_avenir(events=events)), TODAY)
+    assert answer.amount_cents == -10_000
+    assert "PRLV 7" in answer.text
+    assert "PRLV 8" not in answer.text
+    assert "2 autres" in answer.text
+
+
+def test_upcoming_with_nothing_known_is_an_answer_not_a_refusal():
+    answer = answer_query(_q("Qu'est-ce qui tombe cette semaine ?"),
+                          _ctx(avenir=_avenir(events=())), TODAY)
+    assert answer.is_refusal is False
+    assert answer.amount_cents == 0
+    assert "Aucune échéance connue" in answer.text
+
+
+def test_upcoming_without_a_current_account_is_refused():
+    answer = answer_query(_q("Quels sont mes prochains prélèvements ?"), _ctx(), TODAY)
+    assert answer.is_refusal is True
+    assert "Aucun compte courant" in answer.text
+
+
+def test_the_avenir_trace_counts_what_it_read():
+    from app.engines.answer import trace_query
+
+    ctx = _ctx(avenir=_avenir(detected=3, declared=1, planned=2, residual_months=14))
+    steps = trace_query(_q("Combien j'aurai à la fin du mois ?"), ctx)
+    tools = [step.tool for step in steps]
+    assert tools[0] == "engines/intent"
+    assert "engines/outlook" in tools
+    sources = " ".join(step.source for step in steps)
+    assert "3 détectées" in sources
+    assert "14 mois" in sources
+    assert {step.screen for step in steps if step.screen} == {"/avenir"}
+
+
+def test_before_payday_reads_the_eve_of_the_biggest_income_to_come():
+    refund = _event(date(2026, 9, 10), 3_000, "REMB MUTUELLE")
+    ctx = _ctx(avenir=_avenir(events=(RENT, refund, PAY)))
+    answer = answer_query(_q("Combien il me restera avant la paie ?"), ctx, TODAY)
+
+    # The eve of the pay on the 28th, not of the small refund on the 10th.
+    assert answer.amount_cents == 23_000
+    assert "27 septembre 2026" in answer.query_description
+    assert "VIR SALAIRE" in answer.query_description
+
+
+def test_before_payday_with_no_income_in_sight_says_what_to_declare():
+    ctx = _ctx(avenir=_avenir(events=(RENT,)))
+    answer = answer_query(_q("Combien il me restera avant la paie ?"), ctx, TODAY)
+    assert answer.is_refusal is True
+    assert "Récurrences" in answer.text

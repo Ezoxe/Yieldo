@@ -30,7 +30,7 @@ Pure: no session, no network, no implicit clock -- `today` is a parameter.
 import re
 import unicodedata
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, timedelta
 from decimal import ROUND_HALF_UP, Decimal
 from typing import Literal
 
@@ -47,12 +47,14 @@ Intent = Literal[
     "goal_status",
     "transaction_search",
     "patrimoine_projection",
+    "balance_forecast",
+    "upcoming",
 ]
 
 INTENTS: tuple[Intent, ...] = (
     "total_by_category", "period_comparison", "recurrence_evolution",
     "subscription_cost", "feasibility", "savings_simulation", "goal_status",
-    "transaction_search", "patrimoine_projection",
+    "transaction_search", "patrimoine_projection", "balance_forecast", "upcoming",
 )
 
 MONTH_NAMES_FR: dict[int, str] = {
@@ -80,6 +82,8 @@ NUMBER_WORDS: dict[str, int] = {
 # an unrecognised question comes back with something the reader can actually
 # try next -- the whole point of refusing rather than guessing.
 SUPPORTED_FORMULATIONS: tuple[str, ...] = (
+    "Combien j'aurai sur mon compte à la fin du mois ?",
+    "Quels sont mes prochains prélèvements ?",
     "Combien j'ai dépensé en restaurant en mars ?",
     "Quelle est ma moyenne mensuelle de dépenses depuis janvier ?",
     "Ai-je dépensé plus ce mois-ci que le mois dernier ?",
@@ -108,6 +112,9 @@ class ParsedPeriod:
 class ParsedQuery:
     intent: Intent
     raw_text: str
+    # `balance_forecast`: from today to the day asked about, which is `end`.
+    # `upcoming`: the window asked about. Both future-facing, and None when the
+    # sentence named no day -- the default is `engines/answer.py`'s to state.
     period: ParsedPeriod | None = None
     # Set only for `period_comparison`: the second period being weighed
     # against `period`.
@@ -117,8 +124,12 @@ class ParsedQuery:
     category_hint: str | None = None
     # `recurrence_evolution`, `goal_status`, `transaction_search`: a merchant,
     # subscription or goal name. None means "no filter" / "every goal".
+    # `balance_forecast`: "paie" when the day asked about is the eve of the
+    # next pay rather than a date.
     entity: str | None = None
     # `total_by_category`: "total" or "average". Never None on that intent.
+    # `balance_forecast`: "balance" (what will be left) or "overdraft" (will it
+    # go under). `upcoming`: "outflows", "inflows" or "all".
     mode: str | None = None
     # `feasibility`: target price. `savings_simulation`: monthly contribution.
     amount_cents: int | None = None
@@ -303,6 +314,152 @@ def _build_period(kind: str, match: re.Match, today: date) -> ParsedPeriod:
     raise AssertionError(f"Type de période inconnu : {kind}")  # pragma: no cover
 
 
+def day_label(on: date) -> str:
+    """`date(2026, 10, 1)` to `"1er octobre 2026"`."""
+    return f"{'1er' if on.day == 1 else on.day} {MONTH_NAMES_FR[on.month]} {on.year}"
+
+
+def _last_day(year: int, month: int) -> date:
+    return _month_bounds(year, month)[1]
+
+
+def _add_months(on: date, count: int) -> date:
+    """The same day `count` months later, pulled back to the month's last day
+    when it has none (31 January + 1 month = 28 or 29 February)."""
+    years, index = divmod(on.month - 1 + count, 12)
+    year, month = on.year + years, index + 1
+    return date(year, month, min(on.day, _last_day(year, month).day))
+
+
+def _coming(month: int, today: date) -> int:
+    """The year of the next `month` from `today` on, this one included: "fin
+    janvier" asked in September can only mean the January to come."""
+    return today.year if month >= today.month else today.year + 1
+
+
+_NUMBER_RE = r"(\d+|" + "|".join(NUMBER_WORDS) + r")"
+_UNIT_RE = r"(jours?|semaines?|mois|ans?|annees?)"
+
+# The days a question about what is to come can name. Tried in this order,
+# the first that matches wins: "fin du mois prochain" must be read before
+# "le mois prochain" or "fin du mois" could claim half of it.
+_FUTURE_PATTERNS: list[tuple[str, re.Pattern]] = [
+    ("end_next_month", re.compile(r"\bfin (?:du |de )?mois prochain\b")),
+    ("next_month", re.compile(r"\bmois prochain\b")),
+    ("end_month", re.compile(r"\bfin (?:du|de) mois\b")),
+    ("end_year", re.compile(r"\bfin (?:de l'?|d'?)annee\b")),
+    ("end_named_month", re.compile(rf"\bfin (?:de |d')?({_MONTH_NAME_RE})(?: (\d{{4}}))?\b")),
+    ("day_month", re.compile(rf"\b(1er|\d{{1,2}}) ({_MONTH_NAME_RE})(?: (\d{{4}}))?\b")),
+    ("next_week", re.compile(r"\bsemaine prochaine\b")),
+    ("this_week", re.compile(r"\bcette semaine\b")),
+    ("this_month", re.compile(r"\bce mois(?:-ci| ci|ci)?\b")),
+    ("within", re.compile(
+        rf"\b(?:dans|d'?ici|sous|pendant|sur) (?:les )?{_NUMBER_RE} "
+        rf"(?:prochain(?:e)?s? )?{_UNIT_RE}")),
+    ("within", re.compile(rf"\bles {_NUMBER_RE} prochain(?:e)?s {_UNIT_RE}")),
+    ("named_month", re.compile(rf"\ben ({_MONTH_NAME_RE})(?: (\d{{4}}))?\b")),
+    ("tomorrow", re.compile(r"\bdemain\b")),
+    ("today", re.compile(r"\baujourd'?hui\b")),
+]
+
+# The kinds that can only point forward. "Ce mois-ci", "aujourd'hui" and "en
+# mars" can as well describe the past, so on their own they never turn a
+# sentence about a balance into a forecast.
+_STRICTLY_FUTURE = frozenset({
+    "end_next_month", "next_month", "end_month", "end_year", "end_named_month",
+    "day_month", "next_week", "within", "tomorrow",
+})
+
+
+def _future_kind(text: str) -> str | None:
+    for kind, pattern in _FUTURE_PATTERNS:
+        if pattern.search(text):
+            return kind
+    return None
+
+
+def _find_future(text: str, today: date) -> tuple[bool, ParsedPeriod | None]:
+    """The day or the window a question about what is to come names, as
+    `(found, period)`. `found` with no period is a phrase naming a day that
+    does not exist ("le 31 septembre"): refused by the caller, never moved to
+    the nearest real day."""
+    for kind, pattern in _FUTURE_PATTERNS:
+        match = pattern.search(text)
+        if match is None:
+            continue
+        try:
+            return True, _build_future(kind, match, today)
+        except ValueError:
+            return True, None
+    return False, None
+
+
+def _until(today: date, end: date, phrase: str) -> ParsedPeriod:
+    return ParsedPeriod(today, end, f"{phrase} ({day_label(end)})")
+
+
+def _window(start: date, end: date, phrase: str) -> ParsedPeriod:
+    return ParsedPeriod(start, end, f"{phrase} (du {day_label(start)} au {day_label(end)})")
+
+
+def _build_future(kind: str, match: re.Match, today: date) -> ParsedPeriod:
+    if kind in ("end_next_month", "next_month"):
+        next_start = _add_months(today.replace(day=1), 1)
+        end = _last_day(next_start.year, next_start.month)
+        if kind == "end_next_month":
+            return _until(today, end, "la fin du mois prochain")
+        return _window(next_start, end, "le mois prochain")
+    if kind in ("end_month", "this_month"):
+        end = _last_day(today.year, today.month)
+        return _until(today, end, "la fin du mois" if kind == "end_month" else "ce mois-ci")
+    if kind == "end_year":
+        return _until(today, date(today.year, 12, 31), "la fin de l'année")
+    if kind == "end_named_month":
+        month = MONTHS[match.group(1)]
+        year = int(match.group(2)) if match.group(2) else _coming(month, today)
+        return _until(today, _last_day(year, month), f"fin {MONTH_NAMES_FR[month]} {year}")
+    if kind == "day_month":
+        day = 1 if match.group(1) == "1er" else int(match.group(1))
+        month = MONTHS[match.group(2)]
+        if match.group(3):
+            on = date(int(match.group(3)), month, day)
+        else:
+            on = date(today.year, month, day)
+            if on < today:
+                on = date(today.year + 1, month, day)
+        return ParsedPeriod(today, on, f"le {day_label(on)}")
+    if kind in ("next_week", "this_week"):
+        sunday = today + timedelta(days=6 - today.weekday())
+        if kind == "this_week":
+            return _window(today, sunday, "cette semaine")
+        return _window(sunday + timedelta(days=1), sunday + timedelta(days=7),
+                       "la semaine prochaine")
+    if kind == "within":
+        raw, unit = match.group(1), match.group(2)
+        count = NUMBER_WORDS[raw] if raw in NUMBER_WORDS else int(raw)
+        if unit.startswith("jour"):
+            end, noun = today + timedelta(days=count), "jour"
+        elif unit.startswith("semaine"):
+            end, noun = today + timedelta(days=7 * count), "semaine"
+        elif unit == "mois":
+            end, noun = _add_months(today, count), "mois"
+        else:
+            end, noun = _add_months(today, 12 * count), "an"
+        plural = "s" if count > 1 and noun != "mois" else ""
+        return _until(today, end, f"dans {count} {noun}{plural}")
+    if kind == "named_month":
+        month = MONTHS[match.group(1)]
+        year = int(match.group(2)) if match.group(2) else _coming(month, today)
+        start = today if (year, month) == (today.year, today.month) else date(year, month, 1)
+        return _window(start, _last_day(year, month), f"{MONTH_NAMES_FR[month]} {year}")
+    if kind == "tomorrow":
+        tomorrow = today + timedelta(days=1)
+        return ParsedPeriod(tomorrow, tomorrow, f"demain ({day_label(tomorrow)})")
+    if kind == "today":
+        return ParsedPeriod(today, today, f"aujourd'hui ({day_label(today)})")
+    raise AssertionError(f"Type d'échéance inconnu : {kind}")  # pragma: no cover
+
+
 def _blank(text: str, span_start: int, span_end: int) -> str:
     """`text` with `[span_start:span_end)` replaced by spaces, so a matched
     period phrase is never re-read as an entity or a second period."""
@@ -401,6 +558,45 @@ _TOTAL_MARKERS = ("depense", "depenser")
 _TOTAL_COST_PHRASES = ("m'a coute", "m a coute", "m'ont coute", "m ont coute")
 
 
+# What the balance will be. Written out rather than guessed at: "combien
+# aurai-je" also ends a savings simulation, and "combien me coûtera" asks the
+# price of something, not what will be left.
+_BALANCE_MARKERS = (
+    "combien j'aurai", "combien j aurai", "combien jaurai", "combien aurai-je",
+    "combien aurai je", "combien vais-je avoir", "combien vais je avoir",
+    "combien je vais avoir", "combien il me restera", "combien me restera",
+    "combien restera", "il me restera combien", "quel sera mon solde",
+    "quel sera le solde", "mon solde sera", "solde prevu", "solde previsionnel",
+    "point bas",
+)
+# Will it go under: a verb looking forward, then "découvert" within the clause.
+_OVERDRAFT_RE = re.compile(
+    r"\b(?:serai|serais|serons|sera|vais etre|vais-je etre|vais je etre|va etre|"
+    r"allons etre|passer|passerai|passe|risque|risquer|risquons|tomber|tomberai)\b"
+    r"[^?.!]{0,30}\bdecouvert\b"
+)
+# A sentence in the past is about the statements, not about what is to come.
+_PAST_MARKERS = ("etait", "avait", "avais", "ai eu")
+_UPCOMING_RES: tuple[re.Pattern, ...] = (
+    re.compile(r"\bprochain(?:e)?s? (?:prelevements?|echeances?|paiements?|factures?|"
+               r"debits?|virements?|depenses?|sorties?|entrees?|rentrees?)\b"),
+    re.compile(r"\b(?:prelevements?|echeances?|paiements?|factures?|debits?|virements?|"
+               r"depenses?|sorties?|entrees?|rentrees?) (?:a venir|prevus?|prevues?)\b"),
+    re.compile(r"\b(?:qu'?est-ce qui|qu'?est ce qui|ce qui|qui) (?:va |vont )?"
+               r"tomb(?:e|ent|er)\b"),
+    re.compile(r"\b(?:prelevements?|echeances?|paiements?|factures?|debits?)\b.{0,20}"
+               r"\btomb(?:e|ent|era|eront)\b"),
+    re.compile(r"\bqu'?est-ce (?:que je|qu'on) (?:vais|va|dois|doit) payer\b"),
+    re.compile(r"\bque (?:vais-je|dois-je|vais je|dois je) payer\b"),
+    re.compile(r"\b(?:qu'?est-ce qui|qu'?est ce qui) (?:va etre|sera) preleve\b"),
+)
+# "Avant la paie": the question is anchored on an income, not on a date.
+_PAYDAY_RE = re.compile(r"\b(?:paie|paye|salaire)\b")
+_OUTFLOW_WORDS = ("prelevement", "paiement", "facture", "debit", "depense", "sortie",
+                  "payer", "preleve")
+_INFLOW_WORDS = ("entree", "rentree")
+
+
 def _has_any(text: str, markers: tuple[str, ...]) -> bool:
     return any(marker in text for marker in markers)
 
@@ -440,6 +636,30 @@ def _gate_patrimoine_projection(text: str) -> bool:
                "vaut", "aurai", "sera"))
 
 
+def _asks_about_something_else(text: str) -> bool:
+    """A question another intent owns, or one about spending or the past --
+    never a forecast of the balance, whatever else it says."""
+    return (_gate_savings_simulation(text) or _gate_feasibility(text)
+            or "patrimoine" in text or "objectif" in text
+            or _has_any(text, _TOTAL_MARKERS) or _has_any(text, _TOTAL_COST_PHRASES)
+            or _has_any(text, _PAST_MARKERS))
+
+
+def _gate_balance_forecast(text: str) -> bool:
+    if _asks_about_something_else(text):
+        return False
+    return (_has_any(text, _BALANCE_MARKERS) or _OVERDRAFT_RE.search(text) is not None
+            or ("solde" in text and _future_kind(text) in _STRICTLY_FUTURE))
+
+
+def _gate_upcoming(text: str) -> bool:
+    # "Serai-je à découvert après les prochains prélèvements ?" asks about the
+    # balance; the debits are its circumstance, not its subject.
+    if _gate_balance_forecast(text) or _has_any(text, _PAST_MARKERS):
+        return False
+    return any(pattern.search(text) for pattern in _UPCOMING_RES)
+
+
 def _gate_transaction_search(text: str) -> bool:
     # A merchant paired with a price-change word ("chez Free a augmenté")
     # is asking about that price, not listing transactions -- recurrence
@@ -471,6 +691,8 @@ _GATES: tuple[tuple[Intent, "callable"], ...] = (
     ("savings_simulation", _gate_savings_simulation),
     ("goal_status", _gate_goal_status),
     ("patrimoine_projection", _gate_patrimoine_projection),
+    ("balance_forecast", _gate_balance_forecast),
+    ("upcoming", _gate_upcoming),
     ("transaction_search", _gate_transaction_search),
     ("total_by_category", _gate_total_by_category),
 )
@@ -605,6 +827,30 @@ def _build_subscription_cost(raw_text: str, normalized: str, today: date) -> Par
     return ParsedQuery(intent="subscription_cost", raw_text=raw_text)
 
 
+def _build_balance_forecast(raw_text: str, normalized: str, today: date) -> ParsedQuery | None:
+    found, period = _find_future(normalized, today)
+    if found and period is None:
+        return None
+    overdraft = "point bas" in normalized or _OVERDRAFT_RE.search(normalized) is not None
+    payday = period is None and _PAYDAY_RE.search(normalized) is not None
+    return ParsedQuery(intent="balance_forecast", raw_text=raw_text, period=period,
+                       mode="overdraft" if overdraft else "balance",
+                       entity="paie" if payday else None)
+
+
+def _build_upcoming(raw_text: str, normalized: str, today: date) -> ParsedQuery | None:
+    found, period = _find_future(normalized, today)
+    if found and period is None:
+        return None
+    if _has_any(normalized, _OUTFLOW_WORDS):
+        mode = "outflows"
+    elif _has_any(normalized, _INFLOW_WORDS):
+        mode = "inflows"
+    else:
+        mode = "all"
+    return ParsedQuery(intent="upcoming", raw_text=raw_text, period=period, mode=mode)
+
+
 _BUILDERS: dict[Intent, "callable"] = {
     "total_by_category": _build_total_by_category,
     "period_comparison": _build_period_comparison,
@@ -615,6 +861,8 @@ _BUILDERS: dict[Intent, "callable"] = {
     "goal_status": _build_goal_status,
     "transaction_search": _build_transaction_search,
     "patrimoine_projection": _build_patrimoine_projection,
+    "balance_forecast": _build_balance_forecast,
+    "upcoming": _build_upcoming,
 }
 
 

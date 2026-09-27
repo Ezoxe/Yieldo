@@ -24,11 +24,13 @@ const SPAN = {
   full: { base: 1, md: 6, lg: 12 },
 } satisfies Record<string, BentoSpan>;
 
-/** The ten phrasings the parser understands, offered before anything has been
+/** The phrasings the parser understands, offered before anything has been
  *  asked. `engines/intent.py` owns the list and sends it back with every
  *  unrecognised question; this is the same set, for the state where nothing
  *  has been asked yet and there is no answer to carry it. */
 const OPENING_FORMULATIONS = [
+  "Combien j'aurai sur mon compte à la fin du mois ?",
+  "Quels sont mes prochains prélèvements ?",
   "Combien j'ai dépensé en restaurant en mars ?",
   "Quelle est ma moyenne mensuelle de dépenses depuis janvier ?",
   "Ai-je dépensé plus ce mois-ci que le mois dernier ?",
@@ -386,7 +388,7 @@ export function AssistantPage() {
             <div data-testid="yd-assistant-empty">
               <EmptyState
                 title="Aucune question posée pour l'instant."
-                detail="Voici les dix formulations que Yieldo sait traiter aujourd'hui. Cliquez-en une pour la poser telle quelle."
+                detail="Voici les formulations que Yieldo sait traiter aujourd'hui. Cliquez-en une pour la poser telle quelle."
               />
               <Suggestions
                 formulations={OPENING_FORMULATIONS}

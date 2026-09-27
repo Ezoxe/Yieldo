@@ -8,8 +8,9 @@ the ledger underneath it changes, which is only possible if nothing was ever
 cached.
 """
 
-from datetime import date
+from datetime import date, timedelta
 
+from app.engines.intent import SUPPORTED_FORMULATIONS
 from app.models import Account, User
 
 
@@ -215,7 +216,7 @@ def test_an_unrecognised_question_carries_no_chart(client):
     assert body["answer"]["recognised"] is False
     assert body["answer"]["chart"] is None
     # The refusal still names what it DOES understand, and it is not empty.
-    assert len(body["answer"]["supported_formulations"]) == 10
+    assert body["answer"]["supported_formulations"] == list(SUPPORTED_FORMULATIONS)
 
 
 # --------------------------------------------------------------------------
@@ -391,3 +392,74 @@ def test_another_household_s_conversation_cannot_be_read_or_deleted(client):
     assert client.get(f"/api/chat?conversation_id={cid}", headers=mine).json() == []
     assert client.delete(f"/api/chat?conversation_id={cid}", headers=mine).status_code == 204
     assert len(client.get("/api/chat/conversations", headers=theirs).json()) == 1
+
+
+# --------------------------------------------------------------------------
+# Avenir, asked in a sentence.
+# --------------------------------------------------------------------------
+
+
+def _checking_with_one_row(db, user_id: int, opening: int = 100_000) -> Account:
+    """A current account whose statements stop two days ago -- dated from the
+    real clock, because the route reads it."""
+    account = _account(db, user_id)
+    account.opening_balance_cents = opening
+    _tx(db, user_id, account.id, date.today() - timedelta(days=2), -5_000, "CARTE BOULANGERIE")
+    db.commit()
+    return account
+
+
+def test_a_balance_question_is_answered_from_the_current_accounts(client, db):
+    headers = _register(client)
+    _checking_with_one_row(db, _user_id(db, "chat@example.fr"))
+
+    answer = client.post("/api/chat", headers=headers,
+                         json={"text": "Combien j'aurai dans 10 jours ?"}).json()["answer"]
+
+    assert answer["recognised"] is True
+    assert answer["is_refusal"] is False
+    assert answer["amount_cents"] == 95_000
+    assert any(step["tool"] == "engines/outlook" for step in answer["steps"])
+    assert answer["chart"]["kind"] == "line"
+
+
+def test_the_next_debits_include_a_planned_event(client, db):
+    headers = _register(client)
+    _checking_with_one_row(db, _user_id(db, "chat@example.fr"))
+    due = (date.today() + timedelta(days=5)).isoformat()
+    client.post("/api/planned-events", headers=headers,
+                json={"label": "Assurance auto", "due_on": due, "amount_cents": -30_000})
+
+    answer = client.post("/api/chat", headers=headers,
+                         json={"text": "Quels sont mes prochains prélèvements ?"}).json()["answer"]
+
+    assert answer["amount_cents"] == -30_000
+    assert "Assurance auto" in answer["text"]
+
+
+def test_only_the_avenir_questions_assemble_the_future(client, db, monkeypatch):
+    """Assembling Avenir's sources walks the ledger once more: a spending
+    question must not pay for it."""
+    import app.api.chat as chat
+
+    def refuse(*args, **kwargs):
+        raise AssertionError("Avenir assembled for a question that does not read it")
+
+    monkeypatch.setattr(chat, "avenir_facts", refuse)
+    headers = _register(client)
+    response = client.post("/api/chat", headers=headers,
+                           json={"text": "Combien j'ai dépensé en mars 2026 ?"})
+    assert response.status_code == 201
+    assert client.get("/api/chat", headers=headers).status_code == 200
+
+
+def test_a_future_question_of_another_household_reads_only_its_own_accounts(client, db):
+    _register(client)
+    _checking_with_one_row(db, _user_id(db, "chat@example.fr"), opening=900_000)
+    other = _register(client, email="autre@example.fr")
+
+    answer = client.post("/api/chat", headers=other,
+                         json={"text": "Combien j'aurai dans 10 jours ?"}).json()["answer"]
+
+    assert answer["is_refusal"] is True
+    assert "Aucun compte courant" in answer["text"]

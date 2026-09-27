@@ -6,10 +6,12 @@ from app.engines.capacity import MonthlyEntry, MonthObservation
 from app.engines.forecast import ResidualModel, ResidualMonth
 from app.engines.outlook import (
     Adjustment,
+    OutlookInputs,
     apply_adjustments,
     month_profile_bps,
     outlook_keys,
     project_outlook,
+    project_until,
     uniform_profile_bps,
 )
 from app.engines.outlook_sources import KnownEvent
@@ -212,3 +214,43 @@ def test_changing_an_amount_reprices_the_series_from_the_given_day():
                    amount_cents=240_000)])
     salaries = [(event.on, event.amount_cents) for event in events if event.label == "salaire"]
     assert salaries == [(date(2026, 9, 28), 261_000), (date(2026, 10, 28), 240_000)]
+
+
+# -- Assembled once, projected to any day ----------------------------------------------
+
+
+def _inputs(events, model, covered_days=730):
+    return OutlookInputs(
+        as_of=AS_OF, covered_until=AS_OF + timedelta(days=covered_days),
+        opening_balance_cents=100_000, events=tuple(events), model=model,
+        profile_bps=UNIFORM, threshold_cents=0,
+    )
+
+
+def test_projecting_until_a_day_matches_an_assembly_made_for_that_day_alone():
+    """The assistant assembles two years once and asks any day of them: the
+    days, low point and risk must be those of a projection built for that day."""
+    far_keys = outlook_keys(AS_OF, AS_OF + timedelta(days=730))
+    near_keys = outlook_keys(AS_OF, AS_OF + timedelta(days=45))
+    events = [_event(date(2026, 9, 5), -92_000), _event(date(2026, 9, 28), 261_000),
+              _event(date(2027, 3, 5), -92_000)]
+
+    far = project_until(_inputs(events, _model(-150_000, 40_000, far_keys)),
+                        AS_OF + timedelta(days=45))
+    near = _project(events=events[:2], model=_model(-150_000, 40_000, near_keys),
+                    horizon_days=45)
+
+    assert far.days == near.days
+    assert far.low_point == near.low_point
+    assert far.risk == near.risk
+
+
+def test_projecting_outside_what_was_assembled_is_refused():
+    inputs = _inputs([], None, covered_days=30)
+    for until in (AS_OF, AS_OF + timedelta(days=31)):
+        try:
+            project_until(inputs, until)
+        except ValueError as exc:
+            assert "relevés" in str(exc) or "horizon" in str(exc)
+        else:
+            raise AssertionError(f"{until} should have been refused")

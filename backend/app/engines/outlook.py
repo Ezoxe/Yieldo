@@ -111,6 +111,27 @@ class Adjustment:
     series: str | None = None
 
 
+@dataclass(frozen=True)
+class OutlookInputs:
+    """What `project_outlook` reads about one perimeter, assembled once up to
+    `covered_until`.
+
+    For a caller that asks several days of the same data -- the assistant, one
+    question after another. A projection to any day up to `covered_until` is
+    the one an assembly made for that day alone would give: the events are
+    dated, and a residual month's centre and variance accumulate from the first
+    month, never from the last.
+    """
+
+    as_of: date
+    covered_until: date
+    opening_balance_cents: int
+    events: tuple[KnownEvent, ...]
+    model: ResidualModel | None
+    profile_bps: tuple[int, ...]
+    threshold_cents: int
+
+
 def outlook_keys(as_of: date, horizon_end: date) -> list[str]:
     """Every month from `as_of`'s to `horizon_end`'s, inclusive: the months a
     residual model must cover for `project_outlook`."""
@@ -354,4 +375,24 @@ def project_outlook(
         threshold_cents=threshold_cents, days=days, events=placed, months=month_ends,
         low_point=low_point, risk=risk, first_breach_on=first_breach,
         variable_daily_cents=variable_daily, band=band, band_unavailable_reason=reason,
+    )
+
+
+def project_until(inputs: OutlookInputs, until: date) -> Outlook:
+    """The projection from the day after `inputs.as_of` to `until`, inclusive."""
+    if until <= inputs.as_of:
+        raise ValueError(
+            f"Vos relevés vont déjà jusqu'au {inputs.as_of.isoformat()} : l'avenir commence "
+            "le lendemain."
+        )
+    if until > inputs.covered_until:
+        raise ValueError(
+            f"L'horizon assemblé s'arrête au {inputs.covered_until.isoformat()} "
+            f"(reçu : {until.isoformat()})."
+        )
+    return project_outlook(
+        opening_balance_cents=inputs.opening_balance_cents, as_of=inputs.as_of,
+        horizon_days=(until - inputs.as_of).days, events=list(inputs.events),
+        model=inputs.model, profile_bps=inputs.profile_bps,
+        threshold_cents=inputs.threshold_cents,
     )

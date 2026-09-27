@@ -10,10 +10,12 @@
  */
 import type { ChatMessage } from "../../lib/types";
 
-/** The ten phrasings `engines/intent.py` ships in SUPPORTED_FORMULATIONS, in
- *  order. Mirrored here so a test can assert the screen renders all ten and
+/** The phrasings `engines/intent.py` ships in SUPPORTED_FORMULATIONS, in
+ *  order. Mirrored here so a test can assert the screen renders every one and
  *  makes every one of them clickable. */
 export const SUPPORTED_FORMULATIONS = [
+  "Combien j'aurai sur mon compte à la fin du mois ?",
+  "Quels sont mes prochains prélèvements ?",
   "Combien j'ai dépensé en restaurant en mars ?",
   "Quelle est ma moyenne mensuelle de dépenses depuis janvier ?",
   "Ai-je dépensé plus ce mois-ci que le mois dernier ?",

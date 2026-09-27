@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router";
 
+import { OutlookChart } from "../../charts/OutlookChart";
+
 import { BentoCell, type BentoSpan } from "../../design/bento/BentoCell";
 import { BentoGrid } from "../../design/bento/BentoGrid";
 import { PanelHead } from "../../design/bento/PanelHead";
@@ -145,6 +147,28 @@ export function AvenirPage() {
           ) : null}
           <Answers outlook={outlook} reliability={reliability}
                    reliabilityError={errors.reliability} />
+          <BentoGrid>
+            <BentoCell span={SPAN.full} className="yd-panel" data-ai-target="panel-avenir-courbe">
+              <PanelHead
+                icon={CashflowIcon}
+                subtitle={`Au ${dayLabel(outlook.as_of)} : ${formatCents(outlook.opening_balance_cents, { signed: true })}`}
+                actions={
+                  <InfoTip label="Comment la courbe est tracée">
+                    La médiane additionne vos échéances connues et vos dépenses courantes,
+                    réparties selon {outlook.profile_measured
+                      ? "votre propre façon de dépenser au fil du mois"
+                      : "un rythme régulier (pas encore assez de mois pour mesurer le vôtre)"}.
+                    {outlook.band
+                      ? ` La bande couvre huit cas sur dix, mesurée sur ${outlook.residual_months} mois de relevés ; elle s'élargit avec la distance.`
+                      : ` ${outlook.band_unavailable_reason ?? ""}`}
+                  </InfoTip>
+                }
+              >
+                Solde prévu, jour après jour
+              </PanelHead>
+              <OutlookChart outlook={outlook} />
+            </BentoCell>
+          </BentoGrid>
         </>
       ) : null}
     </section>

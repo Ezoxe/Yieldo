@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { ThemeProvider } from "../../app/ThemeProvider";
 import type { Outlook } from "../../lib/types";
 import { AvenirPage } from "./AvenirPage";
 import { OUTLOOK, RELIABILITY } from "./fixtures";
@@ -34,7 +35,9 @@ beforeEach(() => {
 function renderPage() {
   return render(
     <MemoryRouter>
-      <AvenirPage />
+      <ThemeProvider>
+        <AvenirPage />
+      </ThemeProvider>
     </MemoryRouter>,
   );
 }

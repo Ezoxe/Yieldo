@@ -13,7 +13,7 @@ deliberate rather than an oversight:
   "cancelled" from "no recent import" -- it only ever sees the clock it is
   given. The operator's ledger stops 2026-01-09, months before the real
   calendar date; passing the real clock here would silently mark every live
-  subscription "ended", drop it from `_is_projected`, and understate every
+  subscription "ended", drop it from `forecast.is_projected`, and understate every
   projected month's recurring charges by however much rent and subscriptions
   actually cost. The horizon itself starts the month after "today"
   (`_future_month_keys`), so this same choice also decides which calendar

@@ -187,7 +187,7 @@ class ForecastReport:
     recurring_only: bool = False
 
 
-def _is_projected(recurrence: Recurrence) -> bool:
+def is_projected(recurrence: Recurrence) -> bool:
     """Whether this recurrence is carried into the future at all.
 
     Two gates, and both are inherited rather than invented here:
@@ -230,7 +230,7 @@ def residual_entries(
     """
     windows: dict[str, list[tuple[date, date]]] = {}
     for item in recurrences:
-        if not _is_projected(item):
+        if not is_projected(item):
             continue
         windows.setdefault(item.label_key, []).append((item.first_on, item.last_on))
 
@@ -318,7 +318,7 @@ def _recurring_by_month(
     totals = dict.fromkeys(keys, 0)
     indexed = [(key, _month_index(bucket_bounds(key, "month")[0])) for key in keys]
     for item in recurrences:
-        if not _is_projected(item):
+        if not is_projected(item):
             continue
         step_months = CALENDAR_MONTHS_PER_PERIOD.get(item.periodicity)
         if step_months is not None:
@@ -520,7 +520,7 @@ def _bandless(
         months_observed=observed,
         ledger_months_observed=ledger_months,
         seasonality_used=False,
-        recurrences_projected=sum(1 for item in recurrences if _is_projected(item)),
+        recurrences_projected=sum(1 for item in recurrences if is_projected(item)),
         # Nothing was measured, so nothing is published. Never a zero standing
         # in for a scale nobody computed.
         pooled_scale_cents=0,
@@ -764,7 +764,7 @@ def project_cashflow(
             # built on two months would be the invention this engine refuses.
             return _refusal(balance_cents, observed, ledger_months, threshold_cents,
                             _reason_short_ledger(observed, ledger_months))
-        if not any(_is_projected(item) for item in recurrences):
+        if not any(is_projected(item) for item in recurrences):
             # A long ledger with no residual AND no recurrence is not a regular
             # household, it is an empty one. There is nothing to draw.
             return _refusal(balance_cents, observed, ledger_months, threshold_cents,
@@ -837,7 +837,7 @@ def project_cashflow(
         months_observed=observed,
         ledger_months_observed=ledger_months,
         seasonality_used=any(month.seasonal for month in model.months),
-        recurrences_projected=sum(1 for item in recurrences if _is_projected(item)),
+        recurrences_projected=sum(1 for item in recurrences if is_projected(item)),
         pooled_scale_cents=model.pooled_scale_cents,
         seasonal_scale_cents=model.seasonal_scale_cents,
         threshold_cents=threshold_cents,

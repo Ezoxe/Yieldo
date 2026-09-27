@@ -87,6 +87,24 @@ export const AGENT_ROUTES: AgentRoute[] = [
   { method: "GET", path: "/api/recurrences", what: "Les prélèvements réguliers détectés" },
   { method: "GET", path: "/api/cashflow/runway", what: "Solde disponible et autonomie en mois" },
   { method: "GET", path: "/api/cashflow/forecast", what: "Prévision de trésorerie" },
+  {
+    method: "GET",
+    path: "/api/outlook",
+    what: "Avenir : le solde jour par jour, son point bas, le risque de découvert, les échéances connues",
+    params: "scope (checking ou liquid), horizon_days",
+  },
+  {
+    method: "POST",
+    path: "/api/outlook/scenario",
+    what: "« Et si… » : la même projection avec des changements, sans rien enregistrer",
+  },
+  {
+    method: "GET",
+    path: "/api/outlook/reliability",
+    what: "La prévision rejouée sur l'historique du foyer",
+    params: "scope",
+  },
+  { method: "GET", path: "/api/planned-events", what: "Les événements ponctuels prévus" },
   { method: "GET", path: "/api/debts", what: "Les dettes" },
   {
     method: "GET",
@@ -117,12 +135,24 @@ export const AGENT_ROUTES: AgentRoute[] = [
 export const SESSION_ONLY_ROUTES: string[] = [
   "PATCH /api/auth/me",
   "POST /api/auth/password",
+  "POST /api/auth/sessions/revoke-others",
+  "GET /api/admin/settings",
+  "PATCH /api/admin/settings",
   "GET /api/access-key",
   "POST /api/access-key/rotate",
   "DELETE /api/access-key",
   "GET /api/connections",
   "POST /api/connections/{provider}",
   "DELETE /api/connections/{provider}",
+  "GET /api/invest/model",
+  "PUT /api/invest/model",
+  "DELETE /api/invest/model",
+  "POST /api/invest/model/apprendre",
+  "GET /api/invest/policy",
+  "PUT /api/invest/policy",
+  "POST /api/invest/policy/arm",
+  "POST /api/invest/policy/disarm",
+  "POST /api/invest/policy/resume",
 ];
 
 /** `2026-09-05T15:42:00Z` as a French operator reads it. */

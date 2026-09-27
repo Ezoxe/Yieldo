@@ -77,7 +77,7 @@ def _checking(rng: random.Random) -> list[tuple[date, str, int]]:
     for year, month in _months():
         winter = month in (11, 12, 1, 2, 3)
         summer = month in (6, 7, 8)
-        add(_day(year, month, 28), "VIR SEPA ACME SAS SALAIRE", 261_000)
+        add(_day(year, month, 28), "VIR SEPA ACME SAS SALAIRE", 281_000)
         add(_day(year, month, 5), "PRLV SEPA FONCIA LOYER", -92_000)
         edf = 11_800 if winter else 5_200 if summer else 7_800
         add(_day(year, month, 8), "PRLV SEPA EDF CLIENTS PARTICULIERS", -(edf + rng.randint(-600, 600)))
@@ -205,7 +205,7 @@ def main() -> int:
             response.raise_for_status()
             return response.json()["id"]
 
-        checking = account("Compte courant", "checking", 185_000)
+        checking = account("Compte courant", "checking", 80_000)
         livret = account("Livret A", "savings", 420_000)
         pea = account("PEA", "pea", 300_000)
         counts = {

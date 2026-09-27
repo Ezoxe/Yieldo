@@ -8,7 +8,7 @@ in the import, not a missed payment, and saying otherwise is this project's
 single most repeated defect.
 """
 
-from datetime import date
+from datetime import date, timedelta
 
 import pytest
 
@@ -24,7 +24,9 @@ from app.engines.alert import (
 )
 from app.engines.anomaly import Anomaly
 from app.engines.budget import BudgetLine
-from app.engines.forecast import ForecastMonth, ForecastReport
+from app.engines.forecast import ResidualModel, ResidualMonth
+from app.engines.outlook import outlook_keys, project_outlook, uniform_profile_bps
+from app.engines.outlook_sources import KnownEvent
 from app.engines.recurrence import PriceChange, Recurrence
 
 # The operator's own ledger, month by month: 2025-01, 02, 03, then nothing at
@@ -60,25 +62,33 @@ def _recurrence(**overrides) -> Recurrence:
     return Recurrence(**base)
 
 
-def _forecast_month(key: str, low: int, mid: int, breached: bool) -> ForecastMonth:
-    year, month = (int(part) for part in key.split("-"))
-    return ForecastMonth(
-        key=key, start=date(year, month, 1), end=date(year, month, 28),
-        recurring_cents=-80000, residual_cents=-60000, net_p50_cents=-140000,
-        balance_p10_cents=low, balance_p50_cents=mid, balance_p90_cents=mid + 50000,
-        below_threshold=breached, seasonal=False,
-    )
+# The current accounts' last statement, and the days the floor is watched over.
+AS_OF = date(2026, 1, 9)
+FLOOR_DAYS = 90
+RENT = KnownEvent(on=date(2026, 2, 5), amount_cents=-50_000, label="PRLV LOYER",
+                  source="detected", series="detected:prlv loyer", category_id=None)
 
 
-def _forecast(months: list[ForecastMonth], *, threshold: int = 0,
-              breach: str | None = None, reason: str | None = None) -> ForecastReport:
-    return ForecastReport(
-        months=months, months_observed=3, ledger_months_observed=3,
-        seasonality_used=False, recurrences_projected=2,
-        pooled_scale_cents=120000, seasonal_scale_cents=None,
-        threshold_cents=threshold, first_breach_key=breach,
-        opening_balance_cents=-220963, insufficient_reason=reason,
+def _outlook(*, opening: int, floor: int, events=(RENT,), model: str | None = "flat",
+             variance: float = 0.0):
+    """The current accounts, day by day, as `engines/outlook` projects them.
+
+    `model="flat"` is an everyday spending measured and exactly steady (no band),
+    `"measured"` one with a band `variance` wide per month, None one that could
+    not be measured at all.
+    """
+    keys = outlook_keys(AS_OF, AS_OF + timedelta(days=FLOOR_DAYS))
+    residual = None if model is None else ResidualModel(
+        status=model,
+        months=[ResidualMonth(key=key, centre_cents=0, seasonal=False,
+                              cumulative_variance=variance * (index + 1))
+                for index, key in enumerate(keys)],
+        observed=12, pooled_scale_cents=0 if model == "flat" else 10_000,
+        seasonal_scale_cents=None,
     )
+    return project_outlook(opening_balance_cents=opening, as_of=AS_OF,
+                           horizon_days=FLOOR_DAYS, events=list(events), model=residual,
+                           profile_bps=uniform_profile_bps(), threshold_cents=floor)
 
 
 def _empty(**overrides):
@@ -87,7 +97,7 @@ def _empty(**overrides):
     base = dict(
         today=date(2026, 1, 9),
         coverage=OPERATOR_COVERAGE,
-        balance=BalanceFloorInput(floor_cents=None, forecast=None),
+        balance=BalanceFloorInput(floor_cents=None, outlook=None),
         recurrences=[],
         budgets=BudgetInput(month_start=None, lines=()),
         anomalies=AnomalyInput(window=None, scored_groups=0, anomalies=()),
@@ -226,11 +236,9 @@ def test_an_active_or_ended_recurrence_raises_no_missing_debit_alert():
 def test_no_stored_threshold_means_no_balance_alert_however_deep_the_projection():
     """`None` is never a fallback. A projection deep in the red raises nothing
     while no floor has been stored, and the condition says why."""
-    months = [_forecast_month("2026-02", -900000, -400000, True)]
     report = evaluate_alerts(**_empty(
-        balance=BalanceFloorInput(
-            floor_cents=None, forecast=_forecast(months, breach="2026-02")
-        ),
+        balance=BalanceFloorInput(floor_cents=None,
+                                  outlook=_outlook(opening=-900_000, floor=0)),
     ))
 
     assert report.alerts == []
@@ -241,60 +249,101 @@ def test_no_stored_threshold_means_no_balance_alert_however_deep_the_projection(
 
 def test_a_threshold_stored_at_zero_is_a_real_threshold_and_does_fire():
     """Proves the test above is about *absence*, not about the number 0."""
-    months = [
-        _forecast_month("2026-02", 40000, 90000, False),
-        _forecast_month("2026-03", -30000, 20000, True),
-    ]
     report = evaluate_alerts(**_empty(
-        balance=BalanceFloorInput(
-            floor_cents=0, forecast=_forecast(months, breach="2026-03")
-        ),
+        balance=BalanceFloorInput(floor_cents=0, outlook=_outlook(opening=20_000, floor=0)),
     ))
 
     assert [alert.kind for alert in report.alerts] == ["balance_floor"]
     alert = report.alerts[0]
     assert alert.severity == "critical"
-    assert "mars 2026" in alert.title
-    # The figure named is the one the engine actually tested: the P10.
-    assert "pire dixième" in alert.measured
-    assert "−300,00 €" in alert.measured
-    assert "0,00 €" in alert.measured
-    assert "février 2026 à mars 2026" in alert.period
+    # The low point day by day, not a month's end: the rent on the 5th.
+    assert alert.title == (
+        "Point bas prévu sous votre seuil : −300,00 € le 5 février 2026 (seuil 0,00 €)"
+    )
+    assert alert.key == "balance_floor:2026-02-05"
+    assert (alert.amount_cents, alert.on) == (-30_000, date(2026, 2, 5))
+    assert "comptes courants" in alert.measured
+    assert "jour par jour" in alert.period
+    assert "10 janvier 2026" in alert.period
     assert "seuil" in alert.clears_when
 
 
 def test_a_projection_that_stays_above_the_stored_floor_is_measured_and_silent():
-    months = [_forecast_month("2026-02", 40000, 90000, False)]
     report = evaluate_alerts(**_empty(
-        balance=BalanceFloorInput(
-            floor_cents=-100000, forecast=_forecast(months, threshold=-100000)
-        ),
+        balance=BalanceFloorInput(floor_cents=-100_000,
+                                  outlook=_outlook(opening=40_000, floor=-100_000)),
     ))
     assert report.alerts == []
     state = _condition(report, "balance_floor")
     assert state.measured is True
     assert state.alert_count == 0
+    assert "−100,00 €" in state.detail
 
 
-def test_a_forecast_refusal_travels_through_unchanged():
-    refusal = "Pas assez d'historique pour projeter : il faut au moins 6 mois complets."
+def test_only_the_low_edge_under_the_floor_is_a_warning_not_a_certainty():
+    outlook = _outlook(opening=60_000, floor=0, model="measured", variance=1e9)
+    assert outlook.risk == "possible"
+
     report = evaluate_alerts(**_empty(
-        balance=BalanceFloorInput(
-            floor_cents=0, forecast=_forecast([], reason=refusal)
-        ),
+        balance=BalanceFloorInput(floor_cents=0, outlook=outlook),
+    ))
+
+    alert = report.alerts[0]
+    assert alert.severity == "warning"
+    assert alert.title.startswith("Seuil menacé")
+    assert alert.key == f"balance_floor:{outlook.first_breach_on.isoformat()}"
+    assert "bas de la fourchette" in alert.measured
+
+
+def test_with_the_everyday_spending_unmeasured_staying_above_is_not_a_clean_bill():
+    """Only the known charges were projected: an outlook that stays above the
+    floor without the everyday spending says nothing about the floor."""
+    report = evaluate_alerts(**_empty(
+        balance=BalanceFloorInput(floor_cents=-100_000,
+                                  outlook=_outlook(opening=40_000, floor=-100_000, model=None)),
     ))
     state = _condition(report, "balance_floor")
+    assert report.alerts == []
     assert state.measured is False
-    assert state.detail == refusal
+    assert "Pas assez d'historique" in state.detail
 
 
-def test_a_stored_floor_with_no_forecast_at_all_is_refused_rather_than_guessed():
+def test_with_the_everyday_spending_unmeasured_the_known_charges_can_still_breach():
+    """The everyday spending can only take the balance lower: a breach by the
+    known charges alone is a breach."""
+    report = evaluate_alerts(**_empty(
+        balance=BalanceFloorInput(floor_cents=0,
+                                  outlook=_outlook(opening=20_000, floor=0, model=None)),
+    ))
+    assert [alert.severity for alert in report.alerts] == ["critical"]
+    assert "Pas assez d'historique" in _condition(report, "balance_floor").detail
+
+
+def test_a_stored_floor_with_no_outlook_at_all_is_refused_rather_than_guessed():
     """A ledger EXISTS (the operator's coverage) and no projection came with
     the floor: that is a caller bug, not a state to render, and inventing a
     "measured, nothing found" for it would hide it forever."""
     with pytest.raises(ValueError):
         evaluate_alerts(**_empty(
-            balance=BalanceFloorInput(floor_cents=0, forecast=None)
+            balance=BalanceFloorInput(floor_cents=0, outlook=None)
+        ))
+
+
+def test_a_floor_without_a_current_account_says_where_to_create_one():
+    report = evaluate_alerts(**_empty(
+        balance=BalanceFloorInput(floor_cents=0, outlook=None, no_current_account=True),
+    ))
+    state = _condition(report, "balance_floor")
+    assert state.measured is False
+    assert "aucun compte courant" in state.detail
+    assert "Import" in state.detail
+
+
+def test_an_outlook_projected_against_another_threshold_is_refused():
+    with pytest.raises(ValueError):
+        evaluate_alerts(**_empty(
+            balance=BalanceFloorInput(floor_cents=-50_000,
+                                      outlook=_outlook(opening=20_000, floor=0)),
         ))
 
 
@@ -302,15 +351,16 @@ def test_a_floor_stored_before_any_statement_says_so_in_its_own_words():
     """Its own sentence, because the cause is neither "no floor" nor "the
     ledger is too short": there is no ledger at all yet, and the remedy is to
     import a statement rather than to lengthen one."""
-    report = evaluate_alerts(**_empty(
-        coverage=measure_coverage([]),
-        balance=BalanceFloorInput(floor_cents=-50000, forecast=None),
-    ))
-    state = _condition(report, "balance_floor")
-    assert state.measured is False
-    assert "−500,00 €" in state.detail
-    assert "aucun relevé n'a encore été importé" in state.detail
-    assert "Un seuil absent" not in state.detail
+    for outlook in (None, _outlook(opening=0, floor=-50_000, events=())):
+        report = evaluate_alerts(**_empty(
+            coverage=measure_coverage([]),
+            balance=BalanceFloorInput(floor_cents=-50000, outlook=outlook),
+        ))
+        state = _condition(report, "balance_floor")
+        assert state.measured is False
+        assert "−500,00 €" in state.detail
+        assert "aucun relevé n'a encore été importé" in state.detail
+        assert "Un seuil absent" not in state.detail
 
 
 # -- Price rise -------------------------------------------------------------
@@ -485,11 +535,7 @@ def test_a_gapless_ledger_carries_no_gap_notice():
 
 def test_every_alert_says_what_was_measured_over_what_period_and_what_clears_it():
     report = evaluate_alerts(**_empty(
-        balance=BalanceFloorInput(
-            floor_cents=0,
-            forecast=_forecast([_forecast_month("2026-03", -30000, 20000, True)],
-                               breach="2026-03"),
-        ),
+        balance=BalanceFloorInput(floor_cents=0, outlook=_outlook(opening=20_000, floor=0)),
         recurrences=[
             _recurrence(),
             _recurrence(

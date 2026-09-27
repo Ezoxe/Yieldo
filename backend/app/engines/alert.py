@@ -49,8 +49,8 @@ from typing import Literal
 from app.engines.aggregate import bucket_key
 from app.engines.anomaly import MIN_HISTORY, Anomaly
 from app.engines.budget import BudgetLine
-from app.engines.forecast import ForecastReport
 from app.engines.intent import MONTH_NAMES_FR
+from app.engines.outlook import Outlook
 from app.engines.recurrence import Periodicity, Recurrence
 
 AlertKind = Literal[
@@ -82,6 +82,10 @@ SEVERITY_LABELS: dict[Severity, str] = {
 }
 
 _SEVERITY_RANK: dict[Severity, int] = {"critical": 0, "warning": 1, "info": 2}
+
+# The days the floor is watched over: the Avenir screen's own default view, so
+# the alert and the curve the reader opens to check it say the same thing.
+FLOOR_HORIZON_DAYS = 90
 
 # How much a charge may wobble around its own level and still read as ONE
 # price. `detect_recurrences`' own docstring is explicit that this gate is the
@@ -211,17 +215,21 @@ def measure_coverage(dates: Iterable[date]) -> LedgerCoverage:
 
 @dataclass(frozen=True)
 class BalanceFloorInput:
-    """The stored floor, and the projection to test it against.
+    """The stored floor, and the current accounts' days to test it against.
 
     `floor_cents` is `None` -- never 0 -- until the household has actually
-    stored one. `forecast` is required whenever a floor exists, and
-    `evaluate_alerts` raises rather than inventing a projection for it: a
-    silently absent forecast would read on screen as "measured, nothing
-    found", which is the opposite of the truth.
+    stored one. `outlook` is the « Comptes courants » perimeter as Avenir
+    projects it (`engines/outlook`), against that floor. It is required
+    whenever a floor exists and statements were imported, and
+    `evaluate_alerts` raises rather than inventing one: a silently absent
+    projection would read on screen as "measured, nothing found", which is the
+    opposite of the truth. The one legitimate absence is a household with no
+    current account at all, which says so with `no_current_account`.
     """
 
     floor_cents: int | None
-    forecast: ForecastReport | None
+    outlook: Outlook | None
+    no_current_account: bool = False
 
 
 @dataclass(frozen=True)
@@ -311,92 +319,137 @@ class AlertReport:
 def _balance_floor(
     balance: BalanceFloorInput, coverage: LedgerCoverage
 ) -> tuple[list[Alert], bool, str]:
-    """`(alerts, measured, detail)` for the projected-balance floor."""
+    """`(alerts, measured, detail)` for the floor, read on the low point day by day.
+
+    `probable` -- the median goes under -- is critical; `possible` -- only the
+    low edge of the band does -- is a warning. Both are the levels the Avenir
+    screen's own pill names, from the same projection.
+    """
     if balance.floor_cents is None:
-        if balance.forecast is not None and balance.forecast.first_breach_key is not None:
-            # Deliberately still silent. The forecast was handed a threshold of
-            # its own (0 by default) and may well report a breach against it;
-            # that is not the household's floor, and treating it as one is the
-            # exact "None as a fallback" failure this module refuses.
-            pass
+        # Deliberately silent however deep the projection goes: it was handed a
+        # threshold of its own (0 by default), and that is not the household's
+        # floor. Treating it as one is the "None as a fallback" failure this
+        # module refuses.
         return [], False, (
             "Aucun seuil de solde n'est enregistré. Un seuil absent n'est pas un "
             "seuil à 0 € : tant que vous n'en avez pas fixé un, Yieldo ne surveille "
             "aucun plancher et ne lève aucune alerte sur le solde projeté. "
             "Enregistrez-en un pour activer cette surveillance."
         )
+    floor = balance.floor_cents
 
-    if balance.forecast is None:
-        if coverage.last_on is None:
-            # A floor stored before a single statement was imported. Nothing
-            # went wrong -- there is simply nothing to project from, and that
-            # is a different sentence from "no floor is set" and from "the
-            # ledger is too short", each with its own remedy.
+    if coverage.last_on is None:
+        # A floor stored before a single statement was imported. Nothing went
+        # wrong -- there is simply nothing measured to project from, and that is
+        # a different sentence from "no floor is set", with its own remedy.
+        return [], False, (
+            f"Un seuil de {_fmt_eur(floor)} est enregistré, mais "
+            "aucun relevé n'a encore été importé : il n'y a aucun solde à projeter, "
+            "et donc rien à comparer à ce seuil. Importez un relevé pour activer "
+            "cette surveillance."
+        )
+
+    if balance.outlook is None:
+        if balance.no_current_account:
             return [], False, (
-                f"Un seuil de {_fmt_eur(balance.floor_cents)} est enregistré, mais "
-                "aucun relevé n'a encore été importé : il n'y a aucun solde à projeter, "
-                "et donc rien à comparer à ce seuil. Importez un relevé pour activer "
-                "cette surveillance."
+                f"Un seuil de {_fmt_eur(floor)} est enregistré, mais aucun compte courant "
+                "n'existe : le point bas se mesure sur les comptes courants. Créez-en un "
+                "dans Import pour activer cette surveillance."
             )
         raise ValueError(
             "Un seuil de solde est enregistré mais aucune projection n'a été "
             "fournie : impossible de dire si le seuil est franchi."
         )
 
-    forecast = balance.forecast
-    if forecast.insufficient_reason is not None:
-        # An engine refusal travels through unchanged -- never softened, never
-        # rephrased. `engines/answer.py` holds the same rule for the assistant.
-        return [], False, forecast.insufficient_reason
-
-    if forecast.threshold_cents != balance.floor_cents:
+    outlook = balance.outlook
+    if outlook.threshold_cents != floor:
         raise ValueError(
             "La projection n'a pas été calculée contre le seuil enregistré "
-            f"({_fmt_eur(forecast.threshold_cents)} au lieu de "
-            f"{_fmt_eur(balance.floor_cents)})."
+            f"({_fmt_eur(outlook.threshold_cents)} au lieu de {_fmt_eur(floor)})."
         )
 
-    horizon = (
-        f"{_fmt_month(forecast.months[0].key)} à {_fmt_month(forecast.months[-1].key)}"
-        if forecast.months else "aucun mois"
-    )
+    low = outlook.low_point
+    span = f"du {_fmt_date(outlook.days[0].on)} au {_fmt_date(outlook.horizon_end)}"
     detail = (
-        f"Seuil surveillé : {_fmt_eur(balance.floor_cents)}. Projection mesurée sur "
-        f"{forecast.ledger_months_observed} mois complets de relevés, horizon "
-        f"{horizon}."
+        f"Seuil surveillé : {_fmt_eur(floor)}. Solde des comptes courants projeté jour "
+        f"par jour {span} : point bas prévu {_fmt_eur(low.p50_cents)} le "
+        f"{_fmt_date(low.on)}."
     )
+    if outlook.band_unavailable_reason is not None:
+        # The engine's own words: whether the everyday spending is left out or
+        # simply has no margin changes how the figure above reads.
+        detail = f"{detail} {outlook.band_unavailable_reason}"
 
-    breach = next((m for m in forecast.months if m.below_threshold), None)
-    if breach is None:
+    if outlook.risk == "none":
+        if outlook.variable_daily_cents is None:
+            # Only the known charges were projected. Staying above the floor
+            # without the everyday spending is not a clean bill of health; a
+            # breach by the known charges alone, below, still is a breach.
+            return [], False, detail
         return [], True, detail
 
-    month_label = _fmt_month(breach.key)
+    period = (
+        f"Projection jour par jour des comptes courants {span}, à partir d'un solde de "
+        f"{_fmt_eur(outlook.opening_balance_cents)} au {_fmt_date(outlook.as_of)}, date de "
+        "leur dernier relevé."
+    )
+    if outlook.risk == "probable":
+        first = next(day.on for day in outlook.days if day.p50_cents < floor)
+        alert = Alert(
+            kind="balance_floor",
+            severity="critical",
+            key=f"balance_floor:{low.on.isoformat()}",
+            title=(
+                f"Point bas prévu sous votre seuil : {_fmt_eur(low.p50_cents)} le "
+                f"{_fmt_date(low.on)} (seuil {_fmt_eur(floor)})"
+            ),
+            measured=(
+                f"Sur vos comptes courants, le solde médian prévu passe sous le seuil de "
+                f"{_fmt_eur(floor)} que vous avez enregistré le {_fmt_date(first)}, et "
+                f"touche {_fmt_eur(low.p50_cents)} le {_fmt_date(low.on)}."
+                + (
+                    f" Dans le bas de la fourchette, il descend ce jour-là à "
+                    f"{_fmt_eur(low.p10_cents)}."
+                    if outlook.band else ""
+                )
+            ),
+            period=period,
+            clears_when=(
+                f"Elle disparaîtra quand le point bas prévu repassera au-dessus de "
+                f"{_fmt_eur(floor)} — en décalant une dépense ou en ajoutant une rentrée "
+                "(écran Avenir, « Et si… »), ou en important des relevés plus récents. "
+                "Abaisser le seuil change la question posée, pas la trajectoire."
+            ),
+            amount_cents=low.p50_cents,
+            on=low.on,
+        )
+        return [alert], True, detail
+
+    breach_on = outlook.first_breach_on
+    breach = next(day for day in outlook.days if day.on == breach_on)
     alert = Alert(
         kind="balance_floor",
-        severity="critical",
-        key=f"balance_floor:{breach.key}",
-        title=f"Solde projeté sous votre seuil en {month_label}",
+        severity="warning",
+        key=f"balance_floor:{breach_on.isoformat()}",
+        title=(
+            f"Seuil menacé : le bas de la fourchette passe sous {_fmt_eur(floor)} le "
+            f"{_fmt_date(breach_on)}"
+        ),
         measured=(
-            f"Le pire dixième de la projection (P10) descend à "
-            f"{_fmt_eur(breach.balance_p10_cents)} en {month_label}, sous le seuil de "
-            f"{_fmt_eur(balance.floor_cents)} que vous avez enregistré. L'estimation "
-            f"médiane du même mois est de {_fmt_eur(breach.balance_p50_cents)}."
+            f"Le solde médian prévu de vos comptes courants reste au-dessus de votre seuil "
+            f"de {_fmt_eur(floor)} (point bas {_fmt_eur(low.p50_cents)} le "
+            f"{_fmt_date(low.on)}), mais le bas de la fourchette passe dessous le "
+            f"{_fmt_date(breach_on)}, à {_fmt_eur(breach.p10_cents)}."
         ),
-        period=(
-            f"Horizon projeté : {horizon}, à partir d'un solde de "
-            f"{_fmt_eur(forecast.opening_balance_cents)} et de "
-            f"{forecast.ledger_months_observed} mois complets de relevés. Premier mois "
-            f"sous le seuil : {month_label}."
-        ),
+        period=period,
         clears_when=(
-            f"Elle disparaîtra quand le pire dixième de {month_label} repassera "
-            f"au-dessus de {_fmt_eur(balance.floor_cents)} — en important des relevés "
-            "plus récents, ou en réduisant les dépenses que la projection reconduit. "
-            "Vous pouvez aussi abaisser le seuil, ce qui change la question posée, pas "
-            "la trajectoire."
+            f"Elle disparaîtra quand le bas de la fourchette restera au-dessus de "
+            f"{_fmt_eur(floor)} — une marge à garder avant le {_fmt_date(breach_on)}, ou des "
+            "relevés plus récents qui resserrent la fourchette. Abaisser le seuil change la "
+            "question posée, pas la trajectoire."
         ),
-        amount_cents=breach.balance_p10_cents,
-        on=breach.end,
+        amount_cents=breach.p10_cents,
+        on=breach_on,
     )
     return [alert], True, detail
 

@@ -7,10 +7,10 @@ no engine in this project imports `date.today`.
 **Which "today" each half of this route uses, and why they differ.** The same
 distinction `api/cashflow.py` documents for its own two routes:
 
-* recurrences and the cash-flow projection are handed the LEDGER's own last
-  transaction date. `detect_recurrences` marks a recurrence `ended` once its
-  last occurrence is old enough relative to whatever `today` it receives, and
-  it cannot tell "cancelled" from "no recent import". The operator's ledger
+* recurrences are handed the LEDGER's own last transaction date.
+  `detect_recurrences` marks a recurrence `ended` once its last occurrence is
+  old enough relative to whatever `today` it receives, and it cannot tell
+  "cancelled" from "no recent import". The operator's ledger
   stops 2026-01-09, months before the real calendar date; passing the real
   clock would mark every live subscription "ended", and there would be no
   missing-debit condition left to measure at all.
@@ -18,6 +18,11 @@ distinction `api/cashflow.py` documents for its own two routes:
   which reserves the ledger's own date for picking which MONTH to display and
   never for the computation. A month already in the past is fully elapsed,
   which is the honest reading.
+
+**The floor reads Avenir.** The « Comptes courants » perimeter projected day
+by day by `api/outlook.project` -- the curve the reader opens to check the
+alert -- over `FLOOR_HORIZON_DAYS`, from the day after those accounts' last
+statement.
 
 **The import-gap gate lives in the engine, not here.** This module's only job
 on that front is to measure the coverage truthfully -- from every transaction
@@ -41,18 +46,17 @@ from sqlalchemy.orm import Session
 
 from app.api.common import (
     anomaly_points,
-    dismissed_label_keys,
-    liquid_balance_cents,
-    perimeter_points,
     period_range,
     recurrence_points,
     rolled_budget_spend,
     tx_points,
 )
 from app.api.history import user_history
+from app.api.outlook import Perimeter, project
 from app.db import get_db
 from app.engines.aggregate import aggregate_by_category
 from app.engines.alert import (
+    FLOOR_HORIZON_DAYS,
     SEVERITY_LABELS,
     AlertReport,
     AnomalyInput,
@@ -66,13 +70,7 @@ from app.engines.alert import (
 )
 from app.engines.anomaly import detect_anomalies
 from app.engines.budget import BudgetEntry, days_in_month, evaluate_budgets
-from app.engines.forecast import (
-    DEFAULT_HORIZON_MONTHS,
-    ForecastReport,
-    LedgerEntry,
-    build_observations,
-    project_cashflow,
-)
+from app.engines.outlook import Outlook
 from app.engines.recurrence import Recurrence, detect_recurrences
 from app.models import AlertSettings, Category, Transaction, User
 from app.schemas.alerts import (
@@ -109,35 +107,15 @@ def _recurrences(db: Session, user_id: int, ledger_last: date) -> list[Recurrenc
     return detect_recurrences(recurrence_points(db, user_id), ledger_last).recurrences
 
 
-def _forecast(
-    db: Session, user_id: int, ledger_last: date, floor_cents: int, start: date, end: date
-) -> ForecastReport:
-    # The same perimeter and the same split as /cashflow/forecast.
-    points = perimeter_points(db, user_id)
-    dismissed = dismissed_label_keys(db, user_id)
-    detected = detect_recurrences(
-        [p for p in points if p.label_key not in dismissed], ledger_last
-    )
-    observations = build_observations(
-        entries=[
-            LedgerEntry(on=p.on, amount_cents=p.amount_cents, label_key=p.label_key)
-            for p in points
-        ],
-        recurrences=detected.recurrences,
-        ledger_start=start,
-        ledger_end=end,
-    )
-    return project_cashflow(
-        balance_cents=liquid_balance_cents(db, user_id),
-        history=observations,
-        recurrences=detected.recurrences,
-        today=ledger_last,
-        horizon_months=DEFAULT_HORIZON_MONTHS,
-        # The stored floor, and never a default: the engine refuses a
-        # projection built against a threshold other than the one being
-        # tested, which is what stops a 0 sneaking in as "no floor".
-        threshold_cents=floor_cents,
-    )
+def _floor_outlook(db: Session, user: User, today: date) -> tuple[Outlook | None, bool]:
+    """The current accounts' days against the stored floor, and whether there
+    are no current accounts at all. `Perimeter` reads the floor itself, so the
+    projection is always made against the threshold being tested."""
+    perimeter = Perimeter(db, user, "checking", today)
+    if not perimeter.account_ids:
+        return None, True
+    outlook, _, _ = project(perimeter, FLOOR_HORIZON_DAYS)
+    return outlook, False
 
 
 def _budgets(db: Session, user: User, ledger_last: date | None, today: date) -> BudgetInput:
@@ -234,18 +212,18 @@ def _build(db: Session, user: User, today: date) -> tuple[AlertReport, AlertSett
     ledger_last = history.date_to if history is not None else None
 
     recurrences: list[Recurrence] = []
-    forecast: ForecastReport | None = None
+    outlook: Outlook | None = None
+    no_current_account = False
     if ledger_last is not None:
         recurrences = _recurrences(db, user.id, ledger_last)
         if floor_cents is not None:
-            forecast = _forecast(
-                db, user.id, ledger_last, floor_cents, history.date_from, history.date_to
-            )
+            outlook, no_current_account = _floor_outlook(db, user, today)
 
     report = evaluate_alerts(
         today=today,
         coverage=coverage,
-        balance=BalanceFloorInput(floor_cents=floor_cents, forecast=forecast),
+        balance=BalanceFloorInput(floor_cents=floor_cents, outlook=outlook,
+                                  no_current_account=no_current_account),
         recurrences=recurrences,
         budgets=_budgets(db, user, ledger_last, today),
         anomalies=_anomalies(db, user),

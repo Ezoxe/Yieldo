@@ -124,7 +124,8 @@ export const EMPTY_REPORT: AlertReport = {
   ledger_last_on: null,
 };
 
-/** The same ledger with a floor stored and the projection breaching it. */
+/** The same ledger with a floor stored and the current accounts' low point
+ *  under it -- the sentences `engines/alert._balance_floor` writes. */
 export const REPORT_WITH_FLOOR: AlertReport = {
   ...OPERATOR_REPORT,
   alerts: [
@@ -132,16 +133,16 @@ export const REPORT_WITH_FLOOR: AlertReport = {
       kind: "balance_floor",
       severity: "critical",
       severity_label: "Critique",
-      key: "balance_floor:2026-03",
-      title: "Solde projeté sous votre seuil en mars 2026",
+      key: "balance_floor:2026-02-05",
+      title: "Point bas prévu sous votre seuil : −1 180,45 € le 5 février 2026 (seuil −500,00 €)",
       measured:
-        "Le pire dixième de la projection (P10) descend à −4 210,45 € en mars 2026, sous le seuil de −500,00 € que vous avez enregistré. L'estimation médiane du même mois est de −2 980,12 €.",
+        "Sur vos comptes courants, le solde médian prévu passe sous le seuil de −500,00 € que vous avez enregistré le 5 février 2026, et touche −1 180,45 € le 5 février 2026. Dans le bas de la fourchette, il descend ce jour-là à −1 642,10 €.",
       period:
-        "Horizon projeté : février 2026 à janvier 2027, à partir d'un solde de −2 209,63 € et de 3 mois complets de relevés. Premier mois sous le seuil : mars 2026.",
+        "Projection jour par jour des comptes courants du 10 janvier 2026 au 9 avril 2026, à partir d'un solde de −220,96 € au 9 janvier 2026, date de leur dernier relevé.",
       clears_when:
-        "Elle disparaîtra quand le pire dixième de mars 2026 repassera au-dessus de −500,00 € — en important des relevés plus récents, ou en réduisant les dépenses que la projection reconduit.",
-      amount_cents: -421045,
-      on: "2026-03-31",
+        "Elle disparaîtra quand le point bas prévu repassera au-dessus de −500,00 € — en décalant une dépense ou en ajoutant une rentrée (écran Avenir, « Et si… »), ou en important des relevés plus récents. Abaisser le seuil change la question posée, pas la trajectoire.",
+      amount_cents: -118045,
+      on: "2026-02-05",
     },
     ...OPERATOR_REPORT.alerts,
   ],

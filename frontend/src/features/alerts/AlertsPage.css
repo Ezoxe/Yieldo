@@ -217,6 +217,22 @@
   color: var(--yd-text-muted);
 }
 
+.yd-alert__link {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  gap: var(--yd-space-2xs);
+  color: var(--yd-accent);
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.yd-alert__link:hover,
+.yd-alert__link:focus-visible {
+  text-decoration: underline;
+}
+
 .yd-alert__claims {
   display: flex;
   flex-direction: column;

@@ -256,10 +256,18 @@ describe("AlertsPage — the threshold", () => {
     // patched settings object would leave a stale sentence beside a new one.
     await waitFor(() =>
       expect(screen.getByTestId("yd-alert-balance_floor")).toHaveTextContent(
-        "Le pire dixième de la projection (P10)",
+        "le solde médian prévu passe sous le seuil",
       ),
     );
     expect(screen.getByTestId("yd-alert-balance_floor")).toHaveTextContent("Critique");
+  });
+
+  it("sends the reader to Avenir's curve to check the floor alert", async () => {
+    mockApi([REPORT_WITH_FLOOR]);
+    renderPage();
+    const card = await screen.findByTestId("yd-alert-balance_floor");
+    expect(within(card).getByRole("link", { name: /Voir la courbe sur Avenir/ }))
+      .toHaveAttribute("href", "/avenir");
   });
 });
 

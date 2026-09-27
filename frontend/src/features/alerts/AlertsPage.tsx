@@ -1,10 +1,11 @@
 import { motion } from "motion/react";
 import { useEffect, useState } from "react";
+import { Link } from "react-router";
 
 import { BentoCell, type BentoSpan } from "../../design/bento/BentoCell";
 import { BentoGrid } from "../../design/bento/BentoGrid";
 import { PanelHead } from "../../design/bento/PanelHead";
-import { AlertsIcon, CoinsIcon, InfoIcon, ListIcon } from "../../design/icons";
+import { AlertsIcon, ChevronIcon, CoinsIcon, InfoIcon, ListIcon } from "../../design/icons";
 import { PageHead } from "../../design/PageHead";
 import { useReducedMotion } from "../../design/motion/useReducedMotion";
 import { entryProps, staggerProps } from "../../design/motion/variants";
@@ -71,6 +72,13 @@ function AlertCard({ alert }: { alert: Alert }) {
           ) : null}
           {on !== null ? <span className="yd-alert__on">{on}</span> : null}
         </p>
+      ) : null}
+      {/* The floor is read on Avenir's own curve: the reader checks it there. */}
+      {alert.kind === "balance_floor" ? (
+        <Link className="yd-alert__link" to="/avenir">
+          Voir la courbe sur Avenir
+          <ChevronIcon />
+        </Link>
       ) : null}
       {/* Three claims, still three labelled blocks. The first is the alert's
           substance and stays in sight; the window and the way out fold under
@@ -351,9 +359,10 @@ export function AlertsPage() {
           >
             <PanelHead icon={CoinsIcon}>Seuil de solde projeté</PanelHead>
             <p className="yd-alerts__note">
-              Le seul réglage de cet écran. Yieldo projette votre solde sur douze mois et vous
-              prévient si le <strong>pire dixième</strong> de cette projection passe sous le seuil
-              que vous fixez ici. Un découvert autorisé se saisit en négatif.
+              Le seul réglage de cet écran. Yieldo projette vos comptes courants jour par jour
+              sur les 90 prochains jours — la courbe de l'écran Avenir — et vous prévient quand le
+              <strong> point bas prévu</strong> passe sous le seuil fixé ici, ou quand seul le bas
+              de la fourchette y passe. Un découvert autorisé se saisit en négatif.
             </p>
             <p className="yd-alerts__rule" data-testid="yd-alerts-floor-rule">
               <strong>Un seuil non renseigné n'est pas un seuil à 0&nbsp;€.</strong> Tant que vous

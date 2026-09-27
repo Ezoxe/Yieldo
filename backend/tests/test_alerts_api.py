@@ -192,11 +192,34 @@ def test_storing_a_threshold_persists_it_and_clearing_it_removes_it(
         "settings"]["balance_floor_cents"] is None
 
 
-def test_a_threshold_stored_on_a_ledger_too_short_to_project_carries_the_engines_refusal(
+def test_a_threshold_kept_on_a_ledger_too_short_to_measure_carries_the_engines_refusal(
     client, tmp_path, monkeypatch
 ):
-    """An engine refusal travels through unchanged: the condition explains that
-    the PROJECTION could not be built, never that no threshold was set."""
+    """An engine refusal travels through unchanged: with the everyday spending
+    not yet measurable, staying above the floor is not a clean bill -- the
+    condition says the projection lacks history, never that no floor was set."""
+    headers, account_id = _register(client, tmp_path, monkeypatch)
+    _commit(client, headers, account_id, [
+        "date;libelle;montant",
+        _row(date(2025, 4, 5), "CARTE X1234 UNE COURSE", -4200),
+        _row(date(2025, 5, 5), "CARTE X1234 UNE AUTRE", -8200),
+    ])
+    client.put("/api/alerts/settings", headers=headers,
+               json={"balance_floor_cents": -50_000})
+
+    body = client.get("/api/alerts", headers=headers).json()
+    state = _condition(body, "balance_floor")
+    assert _alerts(body, "balance_floor") == []
+    assert state["measured"] is False
+    assert "6 mois" in state["detail"]
+    assert "Un seuil absent" not in state["detail"]
+
+
+def test_a_balance_already_under_the_floor_fires_however_short_the_ledger(
+    client, tmp_path, monkeypatch
+):
+    """The everyday spending can only take the balance lower: two statements
+    already 124 € in the red are under a floor of zero, measured or not."""
     headers, account_id = _register(client, tmp_path, monkeypatch)
     _commit(client, headers, account_id, [
         "date;libelle;montant",
@@ -205,10 +228,9 @@ def test_a_threshold_stored_on_a_ledger_too_short_to_project_carries_the_engines
     ])
     client.put("/api/alerts/settings", headers=headers, json={"balance_floor_cents": 0})
 
-    state = _condition(client.get("/api/alerts", headers=headers).json(), "balance_floor")
-    assert state["measured"] is False
-    assert "6 mois" in state["detail"]
-    assert "Un seuil absent" not in state["detail"]
+    fired = _alerts(client.get("/api/alerts", headers=headers).json(), "balance_floor")
+    assert [alert["severity"] for alert in fired] == ["critical"]
+    assert fired[0]["key"].startswith("balance_floor:2025-05-")
 
 
 def test_a_long_ledger_under_a_high_floor_raises_the_balance_alert(
@@ -239,11 +261,59 @@ def test_a_long_ledger_under_a_high_floor_raises_the_balance_alert(
     assert len(fired) == 1
     alert = fired[0]
     assert alert["severity"] == "critical"
-    assert "pire dixième" in alert["measured"]
+    assert alert["title"].startswith("Point bas prévu sous votre seuil")
     assert "500 000,00 €" in alert["measured"]
-    assert "Horizon projeté" in alert["period"]
+    assert "jour par jour" in alert["period"]
     assert "seuil" in alert["clears_when"]
     assert _condition(body, "balance_floor")["measured"] is True
+
+
+def test_the_floor_alert_is_the_low_point_avenir_draws(client, tmp_path, monkeypatch):
+    """The alert and the curve the reader opens to check it are one projection:
+    the same day, the same figure."""
+    headers, account_id = _register(client, tmp_path, monkeypatch)
+    rows = ["date;libelle;montant"]
+    year, month = 2025, 1
+    for index in range(11):
+        rows.append(_row(date(year, month, 5), "PRELEVEMENT SEPA LOYER", -78000))
+        rows.append(
+            _row(date(year, month, 12), f"CARTE X1234 COURSES {_MONTH_NAMES[index % 12]}",
+                 -30000 - index * 1500)
+        )
+        month += 1
+        if month > 12:
+            month, year = 1, year + 1
+    _commit(client, headers, account_id, rows)
+    client.put("/api/alerts/settings", headers=headers,
+               json={"balance_floor_cents": 500_000_00})
+
+    alert = _alerts(client.get("/api/alerts", headers=headers).json(), "balance_floor")[0]
+    outlook = client.get("/api/outlook", headers=headers,
+                         params={"scope": "checking", "horizon_days": 90}).json()
+    assert alert["on"] == outlook["low_point"]["on"]
+    assert alert["amount_cents"] == outlook["low_point"]["p50_cents"]
+    assert alert["key"] == f"balance_floor:{outlook['low_point']['on']}"
+
+
+def test_a_floor_with_statements_only_on_a_savings_account_says_where_to_look(
+    client, tmp_path, monkeypatch
+):
+    monkeypatch.setattr(settings, "data_dir", tmp_path)
+    settings.uploads_dir.mkdir(parents=True, exist_ok=True)
+    body = client.post("/api/auth/register", json={
+        "name": "Max", "email": "livret@example.fr", "password": "motdepasse123"}).json()
+    headers = {"Authorization": f"Bearer {body['access_token']}"}
+    livret = client.post("/api/accounts", headers=headers,
+                         json={"name": "Livret A", "kind": "savings"}).json()
+    _commit(client, headers, livret["id"], [
+        "date;libelle;montant",
+        _row(date(2025, 4, 5), "VIR INTERETS", 1200),
+    ])
+    client.put("/api/alerts/settings", headers=headers, json={"balance_floor_cents": 0})
+
+    state = _condition(client.get("/api/alerts", headers=headers).json(), "balance_floor")
+    assert state["measured"] is False
+    assert "aucun compte courant" in state["detail"]
 
 
 # -- Budgets ----------------------------------------------------------------

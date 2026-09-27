@@ -8,11 +8,13 @@ import { BentoGrid } from "../../design/bento/BentoGrid";
 import { PanelHead } from "../../design/bento/PanelHead";
 import { CalendarIcon, CashflowIcon, ClockIcon, ProjectionIcon } from "../../design/icons";
 import { InfoTip } from "../../design/InfoTip";
+import { Method } from "../../design/Method";
 import { PageHead } from "../../design/PageHead";
 import "../../design/Skeleton.css";
 import { formatCents } from "../../design/theme";
 import { ApiError, api } from "../../lib/api";
-import type { Outlook, OutlookReliability, OutlookScope } from "../../lib/types";
+import type { Outlook, OutlookReliability, OutlookScope, Runway } from "../../lib/types";
+import { BalanceBreakdown } from "../balance/BalanceBreakdown";
 import {
   dayLabel,
   endOfMonthAnswer,
@@ -21,6 +23,7 @@ import {
   riskPill,
 } from "./answers";
 import "./AvenirPage.css";
+import { RunwayPanel } from "./RunwayPanel";
 import { ScenarioPanel } from "./ScenarioPanel";
 import { UpcomingPanel } from "./UpcomingPanel";
 
@@ -87,6 +90,8 @@ export function AvenirPage() {
   const [reload, setReload] = useState(0);
   // The « Et si… » projection, drawn beside the household's own.
   const [scenario, setScenario] = useState<Outlook | null>(null);
+  const [runway, setRunway] = useState<Runway | null>(null);
+  const [runwayError, setRunwayError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -109,6 +114,23 @@ export function AvenirPage() {
       cancelled = true;
     };
   }, [scope, zoom, reload]);
+
+  // « Combien de temps sans revenu » does not depend on the perimeter or the
+  // horizon: it is asked once.
+  useEffect(() => {
+    let cancelled = false;
+    api
+      .get<Runway>("/cashflow/runway")
+      .then((value) => {
+        if (!cancelled) setRunway(value);
+      })
+      .catch((err: unknown) => {
+        if (!cancelled) setRunwayError(messageFor(err));
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const controls = (
     <div className="yd-avenir__controls">
@@ -190,7 +212,44 @@ export function AvenirPage() {
                 onSaved={() => setReload((value) => value + 1)}
               />
             </BentoCell>
+            <BentoCell span={SPAN.full} className="yd-panel" data-ai-target="kpi-autonomie">
+              <PanelHead icon={ClockIcon}>Combien de temps sans revenu</PanelHead>
+              {runwayError ? <p role="alert" className="yd-avenir__sub">{runwayError}</p> : null}
+              {runway ? (
+                <>
+                  <p className="yd-avenir__sub">
+                    Si tout revenu s'arrêtait, au rythme de dépenses mesuré dans vos relevés, à
+                    partir d'un solde disponible de{" "}
+                    {formatCents(runway.balance_cents, { signed: true })}.
+                  </p>
+                  <div className="yd-avenir__scenarios">
+                    <RunwayPanel scenario={runway.normal} label="Rythme actuel"
+                      unavailableReason={runway.normal_unavailable_reason} />
+                    <RunwayPanel scenario={runway.essentials} label="Dépenses réduites à l'essentiel"
+                      unavailableReason={runway.essentials_unavailable_reason} />
+                  </div>
+                </>
+              ) : null}
+            </BentoCell>
           </BentoGrid>
+          <Method>
+            <p>
+              Avenir additionne trois choses, et chaque euro de vos relevés n'en nourrit qu'une :
+              vos récurrences détectées, projetées à leurs dates ; ce que vous avez déclaré
+              (récurrences déclarées, événements prévus), qui remplace la détection qu'il
+              recouvre ; et vos dépenses courantes, mesurées sur ce qui reste de vos relevés.
+            </p>
+            <p>
+              Les virements entre deux comptes du même périmètre s'annulent ; un virement vers
+              un PEA ou une assurance-vie sort bien de votre argent disponible et compte comme
+              une sortie.
+            </p>
+            <p>
+              La fiabilité rejoue cette méthode sur votre propre historique, à chaque fin de mois,
+              avec les seuls relevés connus ce jour-là.
+            </p>
+            <BalanceBreakdown />
+          </Method>
         </>
       ) : null}
     </section>

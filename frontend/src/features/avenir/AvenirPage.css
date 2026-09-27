@@ -238,3 +238,60 @@
   .yd-upcoming__date { grid-column: 1 / -1; font-size: 0.8rem; }
   .yd-upcoming__after { display: none; }
 }
+
+/* -- Et si… ----------------------------------------------------------------- */
+
+.yd-scenario {
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-sm);
+}
+
+.yd-scenario__kinds {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--yd-space-2xs);
+}
+
+.yd-scenario__kinds button {
+  border: 1px solid var(--yd-border-control);
+  border-radius: 999px;
+  background: var(--yd-surface);
+  color: var(--yd-text);
+  padding: 2px var(--yd-space-sm);
+  font: inherit;
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+
+.yd-scenario__kinds button.is-active {
+  border-color: var(--yd-warning);
+  color: var(--yd-warning);
+}
+
+.yd-scenario__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-2xs);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.yd-scenario__list li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--yd-space-xs);
+  font-size: 0.88rem;
+}
+
+.yd-scenario__list li > span { flex: 1 1 12rem; }
+
+.yd-scenario__result {
+  margin: 0;
+  padding: var(--yd-space-sm);
+  border-left: 3px solid var(--yd-warning);
+  color: var(--yd-text);
+  font-size: 0.9rem;
+}

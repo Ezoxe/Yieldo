@@ -21,6 +21,7 @@ import {
   riskPill,
 } from "./answers";
 import "./AvenirPage.css";
+import { ScenarioPanel } from "./ScenarioPanel";
 import { UpcomingPanel } from "./UpcomingPanel";
 
 const GENERIC_ERROR = "Une erreur inattendue est survenue.";
@@ -42,6 +43,8 @@ const ZOOMS: { value: Zoom; label: string }[] = [
 const SPAN = {
   tile: { base: 1, md: 6, lg: 4 },
   full: { base: 1, md: 6, lg: 12 },
+  wide: { base: 1, md: 6, lg: 7 },
+  side: { base: 1, md: 6, lg: 5 },
 } satisfies Record<string, BentoSpan>;
 
 function messageFor(err: unknown): string {
@@ -82,6 +85,8 @@ export function AvenirPage() {
   const [loading, setLoading] = useState(true);
   // Bumped after a planned event is added or removed: the projection is asked again.
   const [reload, setReload] = useState(0);
+  // The « Et si… » projection, drawn beside the household's own.
+  const [scenario, setScenario] = useState<Outlook | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -169,10 +174,21 @@ export function AvenirPage() {
               >
                 Solde prévu, jour après jour
               </PanelHead>
-              <OutlookChart outlook={outlook} />
+              <OutlookChart outlook={outlook} scenario={scenario} />
             </BentoCell>
-            <BentoCell span={SPAN.full} className="yd-panel" data-ai-target="panel-a-venir">
+            <BentoCell span={SPAN.wide} className="yd-panel" data-ai-target="panel-a-venir">
               <UpcomingPanel outlook={outlook} onChanged={() => setReload((value) => value + 1)} />
+            </BentoCell>
+            <BentoCell span={SPAN.side} className="yd-panel" data-ai-target="panel-et-si">
+              {/* Keyed so a new perimeter, horizon or saved event starts a clean scenario. */}
+              <ScenarioPanel
+                key={`${scope}-${zoom}-${reload}`}
+                outlook={outlook}
+                scope={scope}
+                horizonDays={zoom}
+                onScenario={setScenario}
+                onSaved={() => setReload((value) => value + 1)}
+              />
             </BentoCell>
           </BentoGrid>
         </>

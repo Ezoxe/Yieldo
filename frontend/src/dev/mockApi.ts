@@ -1749,6 +1749,25 @@ const WRITES: Record<string, (body: Record<string, unknown>) => Response> = {
       { status: 200, headers: { "Content-Type": "application/json" } },
     );
   },
+  // « Et si… » in the preview: one-off amounts shift every day from their date;
+  // cancellations and new amounts are not simulated here.
+  "POST /api/outlook/scenario": (body) => {
+    const adjustments = (body.adjustments ?? []) as Array<{ kind: string; on: string; amount_cents?: number }>;
+    const days = OUTLOOK.days.map((day) => {
+      const shift = adjustments
+        .filter((item) => item.kind === "one_off" && item.on <= day.on)
+        .reduce((sum, item) => sum + (item.amount_cents ?? 0), 0);
+      return { ...day, p10_cents: day.p10_cents + shift, p50_cents: day.p50_cents + shift,
+               p90_cents: day.p90_cents + shift };
+    });
+    const lowest = days.reduce((low, day) => (day.p50_cents < low.p50_cents ? day : low), days[0]);
+    const scenario = { ...OUTLOOK, days,
+      low_point: { on: lowest.on, p50_cents: lowest.p50_cents, p10_cents: lowest.p10_cents } };
+    return new Response(JSON.stringify({ base: OUTLOOK, scenario }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  },
   "PATCH /api/admin/settings": (body) => {
     instanceSettings = { registration_open: Boolean(body.registration_open), source: "instance" };
     return new Response(JSON.stringify(instanceSettings), {

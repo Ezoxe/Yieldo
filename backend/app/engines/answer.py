@@ -811,6 +811,21 @@ def _short_day(on: date) -> str:
     return f"{'1er' if on.day == 1 else on.day} {MONTH_NAMES_FR[on.month]}"
 
 
+# An axis label is read beside forty others: the month, abbreviated as French
+# prints it on a calendar.
+_MONTH_ABBR_FR: dict[int, str] = {
+    1: "janv.", 2: "févr.", 3: "mars", 4: "avr.", 5: "mai", 6: "juin",
+    7: "juil.", 8: "août", 9: "sept.", 10: "oct.", 11: "nov.", 12: "déc.",
+}
+
+
+def _axis_day(on: date, with_year: bool) -> str:
+    """`date(2026, 9, 30)` to `"30 sept."` -- `"30 sept. 2026"` when the line
+    crosses a year."""
+    label = f"{'1er' if on.day == 1 else on.day} {_MONTH_ABBR_FR[on.month]}"
+    return f"{label} {on.year}" if with_year else label
+
+
 def _signed_eur(cents: int) -> str:
     """An income carries its plus: in a list of charges it must not read as one."""
     return f"+{_fmt_eur(cents)}" if cents > 0 else _fmt_eur(cents)
@@ -913,8 +928,7 @@ def _outlook_line(outlook: Outlook) -> AnswerChart | None:
     return AnswerChart(
         kind="line", title="Solde prévu des comptes courants, jour par jour",
         points=tuple(
-            AnswerPoint(label=day_label(day.on) if crosses_year else _short_day(day.on),
-                        amount_cents=day.p50_cents)
+            AnswerPoint(label=_axis_day(day.on, crosses_year), amount_cents=day.p50_cents)
             for day in outlook.days
         ),
     )
@@ -956,10 +970,14 @@ def _answer_balance_forecast(query: ParsedQuery, ctx: ChatContext, today: date) 
         + "."
     )
     lowest = (
-        f"Point bas d'ici là : {_fmt_eur(low.p50_cents)} le {_short_day(low.on)}"
-        + (f" (bas de fourchette {_fmt_eur(low.p10_cents)})"
-           if outlook.band and low.p10_cents != low.p50_cents else "")
-        + "."
+        # The day asked is itself the lowest: its figure is already printed.
+        "C'est le point bas d'ici là." if low.on == day
+        else (
+            f"Point bas d'ici là : {_fmt_eur(low.p50_cents)} le {_short_day(low.on)}"
+            + (f" (bas de fourchette {_fmt_eur(low.p10_cents)})"
+               if outlook.band and low.p10_cents != low.p50_cents else "")
+            + "."
+        )
     )
     risk = _risk_sentence(outlook, facts.threshold_source)
     sentences = [risk, lowest, balance] if overdraft else [balance, lowest, risk]

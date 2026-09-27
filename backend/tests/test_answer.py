@@ -710,6 +710,8 @@ def test_balance_forecast_draws_the_median_day_by_day():
     # From the day after the statements to the day asked, one point a day.
     assert len(answer.chart.points) == 29
     assert answer.chart.points[-1].amount_cents == answer.amount_cents
+    assert (answer.chart.points[0].label, answer.chart.points[-1].label) == (
+        "2 sept.", "30 sept.")
 
 
 def test_balance_forecast_without_a_current_account_is_refused():
@@ -806,3 +808,11 @@ def test_before_payday_with_no_income_in_sight_says_what_to_declare():
     answer = answer_query(_q("Combien il me restera avant la paie ?"), ctx, TODAY)
     assert answer.is_refusal is True
     assert "Récurrences" in answer.text
+
+
+def test_a_day_that_is_itself_the_low_point_is_not_quoted_twice():
+    ctx = _ctx(avenir=_avenir(events=(RENT,)))
+    answer = answer_query(_q("Combien j'aurai le 5 septembre ?"), ctx, TODAY)
+    assert answer.amount_cents == 20_000
+    assert answer.text.count(_fmt_eur(20_000)) == 1
+    assert "C'est le point bas d'ici là." in answer.text

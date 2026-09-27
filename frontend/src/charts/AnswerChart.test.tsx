@@ -52,6 +52,15 @@ describe("the option a chat answer's chart builds", () => {
     expect((option.series as Array<{ type: string }>)[0].type).toBe("line");
   });
 
+  // A line starts and ends on the axis' edges: centred there, its first and
+  // last labels would hang half outside the canvas and be cut.
+  it("keeps a line's first and last labels inside the canvas", () => {
+    const axis = buildAnswerOption(LINE, "dark").xAxis as {
+      axisLabel?: { alignMinLabel?: string; alignMaxLabel?: string };
+    };
+    expect(axis.axisLabel).toMatchObject({ alignMinLabel: "left", alignMaxLabel: "right" });
+  });
+
   it("keeps every amount in integer cents, sign intact, all the way to the series", () => {
     // A spend of −60,00 € must reach the axis as −6000. Dividing by 100 on the
     // way in is how a float gets into a money value.

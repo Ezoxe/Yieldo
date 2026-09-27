@@ -63,6 +63,9 @@ export function buildAnswerOption(chart: ChatChart, theme: Resolved): EChartsOpt
       // axis rather than one half-step inside it.
       boundaryGap: bars,
       data: chart.points.map((point) => point.label),
+      // A line's first and last points sit on the edges: their labels align
+      // inward rather than hang half outside the canvas.
+      axisLabel: bars ? {} : { alignMinLabel: "left", alignMaxLabel: "right" },
     },
     yAxis: {
       type: "value",

@@ -91,6 +91,14 @@ describe("PlanPage", () => {
     expect(await screen.findByText(/vos relevés ne sont jamais modifiés/i)).toBeInTheDocument();
   });
 
+  it("says what the plan is for, and sends the balance to come to Avenir", async () => {
+    routeFetch();
+    renderPage();
+
+    expect(await screen.findByText(/« Estimé » et « Réel complété »/)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Avenir" })).toHaveAttribute("href", "/avenir");
+  });
+
   it("sends the reader to Réglages to change the mode, not to the header", async () => {
     routeFetch();
     renderPage();

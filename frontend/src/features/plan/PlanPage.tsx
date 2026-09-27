@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { Link } from "react-router";
 
 import { BentoCell, type BentoSpan } from "../../design/bento/BentoCell";
 import { BentoGrid } from "../../design/bento/BentoGrid";
@@ -245,15 +246,18 @@ export function PlanPage() {
         }
         shortLead={
           <p>
-            Ce que vous savez déjà d'un mois dont le relevé n'existe pas encore. Vos relevés
-            ne sont jamais modifiés.
+            Ce que vous savez déjà d'un mois sans relevé, pour les lectures « Estimé » et « Réel
+            complété ». Vos relevés ne sont jamais modifiés. Le solde à venir est sur{" "}
+            <Link to="/avenir">Avenir</Link>.
           </p>
         }
       >
         <p>
           Ce que vous savez déjà d'un mois dont le relevé n'existe pas encore : le loyer, les
-          forfaits, les abonnements. Rien ici n'est une opération — vos relevés ne sont jamais
-          modifiés.
+          forfaits, les abonnements. Les lectures « Estimé » et « Réel complété » s'en servent
+          pour compléter vos écrans ; rien ici n'est une opération — vos relevés ne sont jamais
+          modifiés. Pour voir votre solde évoluer jour par jour, c'est l'écran{" "}
+          <Link to="/avenir">Avenir</Link>.
         </p>
       </PageHead>
 

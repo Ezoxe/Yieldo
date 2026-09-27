@@ -48,6 +48,19 @@
   color: var(--yd-text-muted);
 }
 
+/* A screen named in a lead is a way there, in the interactive accent -- never
+   the browser's own blue, which no theme here defines. */
+.yd-page-head__text > p a {
+  color: var(--yd-accent);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.yd-page-head__text > p a:hover,
+.yd-page-head__text > p a:focus-visible {
+  text-decoration: underline;
+}
+
 .yd-page-head__actions {
   display: flex;
   align-items: center;

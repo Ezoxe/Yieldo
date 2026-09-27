@@ -119,58 +119,58 @@ Routes (Tasks AV6–AV7): `GET/POST/PATCH/DELETE /api/planned-events`,
 
 ## Tasks
 
-- [ ] **AV1 — The two defects of today's forecast.** `api/common.scope_flow_points(db, user_id, kinds)`
+- [x] **AV1 — The two defects of today's forecast.** `api/common.scope_flow_points(db, user_id, kinds)`
   returns the recurrence points of the liquid perimeter with transfers leaving
   it kept and transfers inside it removed; `/cashflow/forecast` and the alert
   detect on those points minus dismissed labels, and measure the residual on
   all of them. Tests: a monthly transfer to a PEA lowers the projected months;
   a dismissed label's spending stays in the residual. Commit
   `fix(cashflow): the forecast counts money leaving for a PEA, and keeps dismissed labels' spending`.
-- [ ] **AV2 — `residual_model`, extracted.** `project_cashflow` rebuilt on it;
+- [x] **AV2 — `residual_model`, extracted.** `project_cashflow` rebuilt on it;
   every existing `test_forecast.py` test passes unchanged; new tests pin the
   model's months, statuses and variance growth. Commit
   `refactor(forecast): the residual model, on its own`.
-- [ ] **AV3 — `outlook_sources`.** Tests: transfer pairing inside a scope and
+- [x] **AV3 — `outlook_sources`.** Tests: transfer pairing inside a scope and
   not across it; dismissed keys not detected but kept in the residual;
   declaration ↔ detection by label, by amount ±15 % and day ±5, one detection
   at most; check-in and label linking remove rows from the residual; the
   « compté deux fois » warning; expansion of monthly (day clamped), quarterly,
   yearly, weekly, biweekly, declared and planned events, strictly after
   `as_of`. Commit `feat(avenir): what is known about the future, one euro one source`.
-- [ ] **AV4 — `outlook`.** Tests: day sums equal opening + events + residual
+- [x] **AV4 — `outlook`.** Tests: day sums equal opening + events + residual
   shares; band non-decreasing; profile monotone, uniform under six months;
   partial first month; low point, three risk levels, threshold; each
   adjustment kind; band-less statuses with their sentences. Commit
   `feat(avenir): the balance day by day, its band and its low point`.
-- [ ] **AV5 — `backtest`.** Tests: a deterministic household replays with zero
+- [x] **AV5 — `backtest`.** Tests: a deterministic household replays with zero
   error and all inside; noise gives counts; fewer than three replays refuses
   with the month count. Commit `feat(avenir): the forecast replayed on the household's own history`.
-- [ ] **AV6 — Planned events.** Model, migration (+ `test_migrations.py`),
+- [x] **AV6 — Planned events.** Model, migration (+ `test_migrations.py`),
   schemas, CRUD with ownership 404s and French 422s. Commit
   `feat(avenir): planned one-off events`.
-- [ ] **AV7 — Outlook routes.** Scope accounts, as_of = last row of the scope
+- [x] **AV7 — Outlook routes.** Scope accounts, as_of = last row of the scope
   (today when none), threshold from `alert_settings`, declarations and planned
   events filtered by scope, stale days; isolation test with two households.
   Commit `feat(avenir): /outlook, its scenarios and its reliability`.
-- [ ] **AV8 — The screen, head and tiles.** `features/avenir/AvenirPage.tsx`,
+- [x] **AV8 — The screen, head and tiles.** `features/avenir/AvenirPage.tsx`,
   route `/avenir`, `/tresorerie` redirect, navigation entry, targets,
   `lib/types.ts`, mock payloads; tiles « Fin <mois> prévue », « Point bas »,
   « Fiabilité mesurée »; stale banner. Commit `feat(avenir): the screen, and the three answers first`.
-- [ ] **AV9 — `charts/OutlookChart.tsx`.** Band, median, threshold, event
+- [x] **AV9 — `charts/OutlookChart.tsx`.** Band, median, threshold, event
   marks, stale zone, scenario line; escaped tooltip. Commit
   `feat(avenir): the balance drawn day by day`.
-- [ ] **AV10 — Les 30 prochains jours + événements prévus.** Commit
+- [x] **AV10 — Les 30 prochains jours + événements prévus.** Commit
   `feat(avenir): the next thirty days, and one-off events declared in place`.
-- [ ] **AV11 — Et si….** Commit `feat(avenir): what if`.
-- [ ] **AV12 — Runway and method move in; Trésorerie leaves.** Delete
+- [x] **AV11 — Et si….** Commit `feat(avenir): what if`.
+- [x] **AV12 — Runway and method move in; Trésorerie leaves.** Delete
   `features/cashflow/CashflowPage*` and `charts/ForecastFanChart*` once unused.
   Commit `refactor(avenir): runway and method on Avenir, Trésorerie retired`.
-- [ ] **AV13 — Vue d'ensemble : « Les 30 prochains jours ».** Commit
+- [x] **AV13 — Vue d'ensemble : « Les 30 prochains jours ».** Commit
   `feat(overview): the next thirty days on the dashboard`.
-- [ ] **AV14 — Assistant and agent.** Intents `balance_forecast`, `upcoming`
+- [x] **AV14 — Assistant and agent.** Intents `balance_forecast`, `upcoming`
   with their traces; `lire_avenir` read tool. Commit
   `feat(assistant): what the balance will be, and what is coming`.
-- [ ] **AV15 — Alert on the daily low point.** Commit
+- [x] **AV15 — Alert on the daily low point.** Commit
   `feat(alerts): the floor alert reads the low point day by day`.
-- [ ] **AV16 / U — Browser pass, Plan pointer, CLAUDE.md.** Commit
+- [x] **AV16 / U — Browser pass, Plan pointer, CLAUDE.md.** Commit
   `docs: Avenir in CLAUDE.md` and `fix(avenir): what the browser showed`.

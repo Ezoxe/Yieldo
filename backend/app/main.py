@@ -32,6 +32,7 @@ from app.api import invest_policy as invest_policy_routes
 from app.api import invest_run as invest_run_routes
 from app.api import invest_session as invest_session_routes
 from app.api import invest_venues as invest_venue_routes
+from app.api import outlook as outlook_routes
 from app.api import plan as plan_routes
 from app.api import planned_events as planned_event_routes
 from app.api import portfolio as portfolio_routes
@@ -97,6 +98,7 @@ api.include_router(plan_routes.router)
 api.include_router(planned_event_routes.router)
 api.include_router(agent_routes.router)
 api.include_router(cashflow_routes.router)
+api.include_router(outlook_routes.router)
 api.include_router(debt_routes.router)
 api.include_router(goal_routes.router)
 api.include_router(feasibility_routes.router)

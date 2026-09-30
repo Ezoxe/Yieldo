@@ -108,6 +108,30 @@ describe("universeFor — the house", () => {
   });
 });
 
+describe("universeFor — the living room", () => {
+  const abonnements = { slug: "abonnements", name: "Abonnements" };
+
+  it("opens the living room on the seeded Abonnements family", () => {
+    expect(universeFor({ ...abonnements, parent: null })).toEqual({ universe: "salon", focus: null });
+  });
+
+  it("puts each seeded subscription on what it is used on", () => {
+    const cases: Array<[string, string, string]> = [
+      ["abonnements-streaming", "Streaming", "tv"],
+      ["abonnements-logiciels", "Logiciels et services", "laptop"],
+      ["abonnements-presse", "Presse", "press"],
+      ["abonnements-salle", "Salle de sport", "gym"],
+    ];
+    for (const [slug, name, part] of cases) {
+      expect(universeFor({ slug, name, parent: abonnements })).toEqual({ universe: "salon", focus: part });
+    }
+  });
+
+  it("leaves the Loisirs family's sport alone", () => {
+    expect(universeFor({ slug: "loisirs-sport", name: "Sport", parent: { slug: "loisirs", name: "Loisirs" } })).toBeNull();
+  });
+});
+
 describe("partFor", () => {
   it("prefers the seeded slug to the words of the name", () => {
     expect(partFor("car", { slug: "transport-entretien", name: "Assurance (renommée)" })).toBe("engine");

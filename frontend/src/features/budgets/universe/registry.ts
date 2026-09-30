@@ -20,10 +20,11 @@
  * household's to change.
  */
 
-export type UniverseId = "car" | "house";
+export type UniverseId = "car" | "house" | "salon";
 export type CarPart = "fuel" | "engine" | "cage" | "toll";
 export type HousePart = "roof" | "door" | "net" | "power" | "water" | "workshop";
-export type PartId = CarPart | HousePart;
+export type SalonPart = "tv" | "laptop" | "press" | "gym";
+export type PartId = CarPart | HousePart | SalonPart;
 
 export interface Named {
   slug: string;
@@ -133,7 +134,40 @@ const HOUSE: UniverseRule = {
   ],
 };
 
-const UNIVERSES: readonly UniverseRule[] = [CAR, HOUSE];
+/** The Abonnements family as a living room: what each subscription is used on. */
+const SALON: UniverseRule = {
+  id: "salon",
+  slugs: ["abonnements"],
+  words: /\b(abonnements?|souscriptions?)\b/i,
+  parts: [
+    {
+      id: "tv",
+      slugs: ["abonnements-streaming"],
+      words: /streaming|vid[ée]o|musique|t[ée]l[ée]vision|\bvod\b/i,
+      strong: /streaming|vid[ée]o [àa] la demande/i,
+    },
+    {
+      id: "laptop",
+      slugs: ["abonnements-logiciels"],
+      words: /logiciels?|services?|cloud|stockage|applications?/i,
+      strong: /logiciels?|cloud/i,
+    },
+    {
+      id: "press",
+      slugs: ["abonnements-presse"],
+      words: /presse|journa(l|ux)|magazines?|quotidiens?/i,
+      strong: /presse|journa(l|ux)|magazines?/i,
+    },
+    {
+      id: "gym",
+      slugs: ["abonnements-salle"],
+      words: /salle de sport|sport|gym|fitness|club/i,
+      strong: /salle de sport|fitness/i,
+    },
+  ],
+};
+
+const UNIVERSES: readonly UniverseRule[] = [CAR, HOUSE, SALON];
 
 function isUniverse(rule: UniverseRule, category: Named): boolean {
   return rule.slugs.includes(category.slug) || rule.words.test(category.name);

@@ -271,13 +271,17 @@ month with nothing spent counts as 0, no mean under three).
 - `readings.ts` is the one place a figure becomes a picture: the dial is the
   page's own ceiling, a part's level its own ceiling or else its monthly mean
   (said as such on its label). Both are a share still unspent, in [0, 1].
-- A scene (`scenes/car/`) draws. Its colours are physical and live in its
-  stylesheet, never in a component; its labels are HTML (`SceneLabels`),
+- A scene draws: `scenes/car/` (Transport, a white GT) and `scenes/house/`
+  (Logement, a pavillon — at dusk in the dark theme, by day in the light
+  one). Its colours are physical and live in its stylesheet, never in a
+  component. The lens frame, the dial, the labels and leaders and the motion
+  switches are shared (`scenes/shared/`); labels are HTML (`SceneLabels`),
   pinned on the drawing from 900px of scene width and listed under it below;
-  its motion rests on the true values and stops under both motion switches.
+  motion rests on the true values and stops under both motion switches.
 - A new universe starts as a mockup the operator validates (the car's:
-  `docs/superpowers/specs/assets/2026-09-30-voiture-maquette.html`), then a
-  scene, its rule in `registry.ts`, and its branch in `UniversePage`.
+  `docs/superpowers/specs/assets/2026-09-30-voiture-maquette.html`), then its
+  rule in `registry.ts`, a scene on `SceneProps`, and its entry in
+  `scenes/UniverseScene.tsx`.
 
 ## The assistant
 

@@ -341,3 +341,57 @@ export const abonnementsDetail: BudgetDetail = {
   parts: subParts,
   siblings: [],
 };
+
+/* -- Alimentation over the same nineteen months, for the kitchen ----------- */
+
+const FOOD_PARTS: typeof PARTS = [
+  {
+    id: 21, name: "Courses", slug: "alimentation-courses", color: "#4fd6a8",
+    flow: (key, index) => (key === CURRENT ? { cents: -31250, count: 7 } : { cents: -(38000 + ((index * 41) % 7) * 1300), count: 9 }),
+  },
+  {
+    id: 22, name: "Restaurants", slug: "alimentation-restaurant", color: "#4fd6a8",
+    flow: (_key, index) => ({ cents: -(6800 + ((index * 29) % 5) * 1100), count: 3 }),
+  },
+  {
+    id: 23, name: "Livraison", slug: "alimentation-livraison", color: "#4fd6a8",
+    flow: (_key, index) => (index % 2 === 0 ? { cents: -3240, count: 2 } : { cents: -1620, count: 1 }),
+  },
+  { id: 24, name: "Cafés et bars", slug: "alimentation-cafe", color: "#4fd6a8", flow: () => ({ cents: -1860, count: 6 }) },
+];
+
+const FOOD_BUDGET = 60000;
+const GROCERIES_BUDGET = 45000;
+const foodParts = FOOD_PARTS.map((part) => partOut(part, part.slug === "alimentation-courses" ? GROCERIES_BUDGET : null));
+const foodSeries: BudgetDetailMonth[] = KEYS.map((key, index) => {
+  const flows = FOOD_PARTS.map((part) => part.flow(key, index));
+  return {
+    month: key,
+    spent_cents: flows.reduce((sum, flow) => sum + flow.cents, 0),
+    count: flows.reduce((sum, flow) => sum + flow.count, 0),
+    complete: key !== CURRENT,
+  };
+});
+const foodNow = foodSeries[foodSeries.length - 1];
+const foodCounted = foodNow.spent_cents - foodParts[0].spent_cents;
+
+export const alimentationDetail: BudgetDetail = {
+  ...transportDetail,
+  category: { id: 20, name: "Alimentation", slug: "alimentation", color: "#4fd6a8", is_essential: true, parent: null },
+  spent_cents: foodNow.spent_cents,
+  count: foodNow.count,
+  average_ticket_cents: foodNow.count > 0 ? mean(foodNow.spent_cents, foodNow.count) : null,
+  budget: {
+    budget_cents: FOOD_BUDGET,
+    spent_cents: foodCounted,
+    remaining_cents: FOOD_BUDGET + foodCounted,
+    consumed_ratio: -foodCounted / FOOD_BUDGET,
+    projected_cents: null,
+    status: "ok",
+  },
+  ...averageOf(foodSeries),
+  years: yearsOf(foodSeries),
+  series: foodSeries,
+  parts: foodParts,
+  siblings: [],
+};

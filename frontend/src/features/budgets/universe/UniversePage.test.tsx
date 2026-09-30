@@ -6,7 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ThemeProvider } from "../../../app/ThemeProvider";
 import { formatCents } from "../../../design/theme";
-import { abonnementsDetail, fuelDetail, giftsDetail, logementDetail, transportDetail } from "./fixtures";
+import { abonnementsDetail, alimentationDetail, fuelDetail, giftsDetail, logementDetail, transportDetail } from "./fixtures";
 import { UniversePage } from "./UniversePage";
 
 const fetchMock = vi.fn();
@@ -21,6 +21,7 @@ const DETAILS: Record<string, unknown> = {
   "50": giftsDetail,
   "10": logementDetail,
   "40": abonnementsDetail,
+  "20": alimentationDetail,
 };
 
 beforeEach(() => {
@@ -112,6 +113,12 @@ describe("UniversePage", () => {
     const { container } = renderPage("/budgets/40?mois=2026-09");
     expect(await screen.findByRole("heading", { level: 1, name: "Abonnements" })).toBeInTheDocument();
     expect(container.querySelector(".yd-salon")).not.toBeNull();
+  });
+
+  it("draws the kitchen for Alimentation", async () => {
+    const { container } = renderPage("/budgets/20?mois=2026-09");
+    expect(await screen.findByRole("heading", { level: 1, name: "Alimentation" })).toBeInTheDocument();
+    expect(container.querySelector(".yd-kitchen")).not.toBeNull();
   });
 
   it("keeps a category no universe covers, with its figures and without a scene", async () => {

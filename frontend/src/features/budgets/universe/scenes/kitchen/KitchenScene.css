@@ -1,0 +1,138 @@
+/* The kitchen scene. Physical colours only — oak cabinets, a steel fridge, a
+   pale tiled splashback — kept here, never in a component. The theme sets the
+   time of day: evening in the dark theme (night at the window, the cabinets
+   lit from below), day in the light one. The lenses stay dark screens. */
+
+@container scene (max-width: 899px) {
+  .yd-kitchen .yd-scene__stage { overflow: hidden; }
+  .yd-kitchen .yd-scene__svg { margin-top: -6%; }
+  .yd-kitchen .yd-dial { display: none; }
+}
+
+/* Gradient stops — evening --------------------------------------------------- */
+
+.yd-kitchen__wall-0 { stop-color: #26241f; }
+.yd-kitchen__wall-1 { stop-color: #34302a; }
+.yd-kitchen__steel-0 { stop-color: #a7adb7; }
+.yd-kitchen__steel-1 { stop-color: #dfe3e8; }
+.yd-kitchen__steel-2 { stop-color: #9aa1ab; }
+.yd-kitchen__wood-0 { stop-color: #7a5536; }
+.yd-kitchen__wood-1 { stop-color: #553a24; }
+.yd-kitchen__window-0 { stop-color: #0b1026; }
+.yd-kitchen__window-1 { stop-color: #2b2a55; }
+.yd-kitchen__under-0 { stop-color: #ffcf7a; stop-opacity: 0.5; }
+.yd-kitchen__under-1 { stop-color: #ffcf7a; stop-opacity: 0; }
+
+/* Room --------------------------------------------------------------------------- */
+
+.yd-kitchen__tile { fill: #d9d4ca; }
+.yd-kitchen__tile-joint { stroke: #b9b2a5; }
+.yd-kitchen__splash { opacity: 0.85; }
+.yd-kitchen__splash-shade { fill: #0b0e1a; opacity: 0.35; }
+.yd-kitchen__floor-tile { fill: #3b3f46; }
+.yd-kitchen__floor-joint { stroke: #2c2f35; stroke-width: 1.2; }
+.yd-kitchen__floor-shade { fill: #000; opacity: 0.25; }
+.yd-kitchen__night-sky { fill: #eef2ff; }
+.yd-kitchen__moon { fill: #f5f1d8; opacity: 0.9; }
+.yd-kitchen__window-bars { stroke: #e7e2d8; stroke-width: 3; }
+.yd-kitchen__window-frame { fill: none; stroke: #e7e2d8; stroke-width: 4; }
+.yd-kitchen__sill { fill: #d8ccb8; }
+.yd-kitchen__herb { fill: #3f6b48; }
+.yd-kitchen__pot { fill: #b07a45; }
+.yd-kitchen__wood-lines { stroke: #3a2718; stroke-width: 1.5; }
+.yd-kitchen__handles { stroke: #c9a26b; stroke-width: 2.4; stroke-linecap: round; }
+.yd-kitchen__under-light { animation: yd-kitchen-glow 5s ease-in-out infinite; }
+.yd-kitchen__cabinet-edge { stroke: #2a1b10; stroke-width: 3; }
+.yd-kitchen__fridge-split { stroke: #7c838e; stroke-width: 2; }
+.yd-kitchen__fridge-handles { stroke: #5b6270; stroke-width: 3; stroke-linecap: round; }
+.yd-kitchen__fridge-shade { fill: #0b0e1a; opacity: 0.22; }
+.yd-kitchen__worktop { fill: #cfc8bb; }
+.yd-kitchen__oven { fill: #15161a; }
+.yd-kitchen__oven-glass { fill: #1f2a3a; }
+.yd-kitchen__hob { stroke: #2a2b30; stroke-width: 3; }
+.yd-kitchen__pan { fill: #2a2b30; }
+.yd-kitchen__box { fill: #c79a5b; }
+.yd-kitchen__box-lid { fill: #d8ad6d; }
+.yd-kitchen__steam {
+  fill: #e5e7eb;
+  opacity: 0;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: yd-kitchen-steam 2.4s ease-out infinite;
+}
+.yd-kitchen__machine-panel { fill: #15161a; }
+.yd-kitchen__spout { fill: #2a2b30; }
+.yd-kitchen__cup { fill: #f2ede4; }
+.yd-kitchen__table-legs { stroke: #3a2718; stroke-width: 5; }
+.yd-kitchen__plate { fill: #f2ede4; }
+.yd-kitchen__dish { fill: #c2553a; }
+.yd-kitchen__cutlery { stroke: #cfd6e6; stroke-width: 1.6; stroke-linecap: round; }
+.yd-kitchen__glass { fill: #e8f0ff; stroke: #cfd6e6; stroke-width: 0.8; opacity: 0.8; }
+.yd-kitchen__chair { fill: #553a24; }
+
+/* Lens insides ------------------------------------------------------------------- */
+
+.yd-lens__shelf { stroke: #93c5fd; stroke-opacity: 0.55; stroke-width: 1.2; }
+.yd-lens__slot { fill: none; stroke: #93c5fd; stroke-opacity: 0.35; stroke-dasharray: 2 2; }
+/* Resting on the true count; the entrance only brings the items in turn. */
+.yd-lens__item { animation: yd-kitchen-item 0.5s ease-out both; }
+.yd-lens__item--bottle { fill: #34d399; }
+.yd-lens__item--apple { fill: #fb7185; }
+.yd-lens__item--carton { fill: #fef3c7; }
+.yd-lens__item--jar { fill: #fbbf24; }
+.yd-lens__fridge { fill: none; stroke-width: 1.1; }
+.yd-lens__box { fill: #1c2238; stroke: #c7d2fe; stroke-width: 0.8; }
+.yd-lens__pizza { fill: #fbbf24; opacity: 0.85; }
+.yd-lens__topping { fill: #c2553a; }
+.yd-lens__rider { animation: yd-kitchen-ride 3s ease-in-out infinite alternate; }
+.yd-lens__rider-frame { stroke: #60a5fa; stroke-width: 1.4; stroke-linecap: round; }
+.yd-lens__wheel { fill: none; stroke: #60a5fa; }
+.yd-lens__clock { fill: none; stroke: #93c5fd; }
+.yd-lens__group { fill: #8e97ad; }
+.yd-lens__drip { fill: #b07a45; animation: yd-kitchen-drip 1.2s ease-in infinite; }
+.yd-lens__cup { fill: #f2ede4; stroke: #0b1224; stroke-width: 0.6; }
+.yd-lens__coffee { animation: yd-kitchen-fill 2.4s ease-in-out infinite alternate; }
+.yd-lens__coffee-fill { fill: #6b3f1e; }
+.yd-lens__cup-handle { fill: none; stroke: #f2ede4; stroke-width: 1.2; }
+.yd-lens__plate { fill: #1c2238; stroke: #c7d2fe; stroke-width: 0.9; }
+.yd-lens__dish { fill: #c2553a; opacity: 0.85; }
+.yd-lens__cutlery { fill: none; stroke: #e0dfff; stroke-width: 1.2; stroke-linecap: round; }
+.yd-lens__vapour {
+  fill: none;
+  stroke: #e5e7eb;
+  stroke-width: 1.2;
+  opacity: 0;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: yd-kitchen-steam 2.4s ease-out infinite;
+}
+
+/* Day: the light theme's kitchen --------------------------------------------------- */
+
+:root[data-theme="light"] .yd-kitchen__wall-0 { stop-color: #efe9df; }
+:root[data-theme="light"] .yd-kitchen__wall-1 { stop-color: #e2d9cb; }
+:root[data-theme="light"] .yd-kitchen__splash-shade { opacity: 0; }
+:root[data-theme="light"] .yd-kitchen__floor-tile { fill: #b9bcc3; }
+:root[data-theme="light"] .yd-kitchen__floor-joint { stroke: #9ea2aa; }
+:root[data-theme="light"] .yd-kitchen__floor-shade { opacity: 0.05; }
+:root[data-theme="light"] .yd-kitchen__window-0 { stop-color: #7fb2e5; }
+:root[data-theme="light"] .yd-kitchen__window-1 { stop-color: #cfe2f4; }
+:root[data-theme="light"] .yd-kitchen__night-sky { display: none; }
+:root[data-theme="light"] .yd-kitchen__under-0 { stop-opacity: 0; }
+:root[data-theme="light"] .yd-kitchen__fridge-shade { opacity: 0; }
+:root[data-theme="light"] .yd-kitchen__oven-glass { fill: #3a4a62; }
+
+/* Motion -------------------------------------------------------------------------- */
+
+@keyframes yd-kitchen-glow { 50% { opacity: 0.8; } }
+@keyframes yd-kitchen-steam {
+  0% { transform: translateY(0) scaleX(0.6); opacity: 0.6; }
+  100% { transform: translateY(-12px) scaleX(1.3); opacity: 0; }
+}
+@keyframes yd-kitchen-item { from { opacity: 0; transform: translateY(-3px); } }
+@keyframes yd-kitchen-ride { to { transform: translateX(6px); } }
+@keyframes yd-kitchen-drip {
+  0% { transform: translateY(0); opacity: 1; }
+  100% { transform: translateY(10px); opacity: 0; }
+}
+@keyframes yd-kitchen-fill { from { transform: translateY(2px); } }

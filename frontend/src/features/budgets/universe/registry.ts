@@ -20,11 +20,12 @@
  * household's to change.
  */
 
-export type UniverseId = "car" | "house" | "salon";
+export type UniverseId = "car" | "house" | "salon" | "kitchen";
 export type CarPart = "fuel" | "engine" | "cage" | "toll";
 export type HousePart = "roof" | "door" | "net" | "power" | "water" | "workshop";
 export type SalonPart = "tv" | "laptop" | "press" | "gym";
-export type PartId = CarPart | HousePart | SalonPart;
+export type KitchenPart = "fridge" | "delivery" | "coffee" | "plate";
+export type PartId = CarPart | HousePart | SalonPart | KitchenPart;
 
 export interface Named {
   slug: string;
@@ -167,7 +168,40 @@ const SALON: UniverseRule = {
   ],
 };
 
-const UNIVERSES: readonly UniverseRule[] = [CAR, HOUSE, SALON];
+/** The Alimentation family as a kitchen: the fridge is the groceries. */
+const KITCHEN: UniverseRule = {
+  id: "kitchen",
+  slugs: ["alimentation"],
+  words: /\b(alimentation|nourriture|repas|cuisine)\b/i,
+  parts: [
+    {
+      id: "fridge",
+      slugs: ["alimentation-courses"],
+      words: /courses|supermarch|[ée]picerie|alimentaire|march[ée]/i,
+      strong: /courses|supermarch|[ée]picerie/i,
+    },
+    {
+      id: "plate",
+      slugs: ["alimentation-restaurant"],
+      words: /restaurants?|resto|brasserie|d[îi]ner/i,
+      strong: /restaurants?/i,
+    },
+    {
+      id: "delivery",
+      slugs: ["alimentation-livraison"],
+      words: /livraison|[àa] emporter|traiteur/i,
+      strong: /livraison/i,
+    },
+    {
+      id: "coffee",
+      slugs: ["alimentation-cafe"],
+      words: /caf[ée]s?|\bbars?\b|boulangerie|p[âa]tisserie/i,
+      strong: /caf[ée]s? et bars?|boulangerie/i,
+    },
+  ],
+};
+
+const UNIVERSES: readonly UniverseRule[] = [CAR, HOUSE, SALON, KITCHEN];
 
 function isUniverse(rule: UniverseRule, category: Named): boolean {
   return rule.slugs.includes(category.slug) || rule.words.test(category.name);

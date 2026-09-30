@@ -132,6 +132,26 @@ describe("universeFor — the living room", () => {
   });
 });
 
+describe("universeFor — the kitchen", () => {
+  const alimentation = { slug: "alimentation", name: "Alimentation" };
+
+  it("opens the kitchen on the seeded Alimentation family", () => {
+    expect(universeFor({ ...alimentation, parent: null })).toEqual({ universe: "kitchen", focus: null });
+  });
+
+  it("puts each seeded child where it is eaten", () => {
+    const cases: Array<[string, string, string]> = [
+      ["alimentation-courses", "Courses", "fridge"],
+      ["alimentation-restaurant", "Restaurants", "plate"],
+      ["alimentation-livraison", "Livraison", "delivery"],
+      ["alimentation-cafe", "Cafés et bars", "coffee"],
+    ];
+    for (const [slug, name, part] of cases) {
+      expect(universeFor({ slug, name, parent: alimentation })).toEqual({ universe: "kitchen", focus: part });
+    }
+  });
+});
+
 describe("partFor", () => {
   it("prefers the seeded slug to the words of the name", () => {
     expect(partFor("car", { slug: "transport-entretien", name: "Assurance (renommée)" })).toBe("engine");

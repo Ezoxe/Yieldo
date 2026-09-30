@@ -19,7 +19,6 @@ import {
   BreakdownIcon,
   BudgetsIcon,
   CalendarIcon,
-  ChevronIcon,
   CoinsIcon,
   ListIcon,
   PlusIcon,
@@ -33,6 +32,7 @@ import { Swap } from "../../design/motion/Swap";
 import { SpendingDonut, type DonutSlice } from "../../charts/SpendingDonut";
 import { PageHead } from "../../design/PageHead";
 import { BudgetBar } from "./BudgetBar";
+import { MonthNav } from "./MonthNav";
 import "./BudgetsPage.css";
 
 /**
@@ -173,32 +173,7 @@ function messageFor(err: unknown): string {
   return err instanceof ApiError ? err.detail : GENERIC_ERROR;
 }
 
-/**
- * The month arrows. One glyph, mirrored — `design/icons` owns the drawing, and
- * a second copy of it here is how two chevrons in one application end up on two
- * different grids. Rotated in CSS rather than redrawn (see `--yd-flip`).
- */
-function MonthArrow({ direction }: { direction: "left" | "right" }) {
-  return (
-    <span className={`yd-budgets__arrow yd-budgets__arrow--${direction}`}>
-      <ChevronIcon />
-    </span>
-  );
-}
-
-/** "2026-01" → "janvier 2026". The month key is the API's, the words are ours. */
-export function monthLabel(key: string): string {
-  const [year, month] = key.split("-").map(Number);
-  const date = new Date(Date.UTC(year, month - 1, 1));
-  return date.toLocaleDateString("fr-FR", { month: "long", year: "numeric", timeZone: "UTC" });
-}
-
-/** The month `offset` months away from `key`, in the same "AAAA-MM" shape. */
-export function shiftMonth(key: string, offset: number): string {
-  const [year, month] = key.split("-").map(Number);
-  const shifted = new Date(Date.UTC(year, month - 1 + offset, 1));
-  return `${shifted.getUTCFullYear()}-${String(shifted.getUTCMonth() + 1).padStart(2, "0")}`;
-}
+export { monthLabel, shiftMonth } from "./MonthNav";
 
 /**
  * One source of truth for the shape of this screen, so the loading skeletons
@@ -571,27 +546,7 @@ export function BudgetsPage() {
         title="Budgets"
         className="yd-budgets__header"
         actions={
-          <div className="yd-budgets__month-nav">
-          <button
-            type="button"
-            onClick={() => goToMonth(shiftMonth(current, -1))}
-            disabled={!current}
-          >
-            <span className="sr-only">Mois précédent</span>
-            <MonthArrow direction="left" />
-          </button>
-          <span className="yd-budgets__month" aria-live="polite">
-            {current ? monthLabel(current) : ""}
-          </span>
-          <button
-            type="button"
-            onClick={() => goToMonth(shiftMonth(current, 1))}
-            disabled={!current}
-          >
-            <span className="sr-only">Mois suivant</span>
-            <MonthArrow direction="right" />
-          </button>
-          </div>
+          <MonthNav current={current} onChange={goToMonth} />
         }
       >
         <p className="yd-budgets__lead">

@@ -20,9 +20,9 @@ function TvContents({ reading }: { reading: PartReading }) {
   const width = level === null ? 0 : Math.max(0, Math.min(1, level.share)) * PROGRESS.width;
   return (
     <>
-      <path d="M322,128 H358 M322,136 H352 M322,154 H362" className="yd-lens__scan-rows" />
-      <circle cx="340" cy="138" r="11" className="yd-lens__play-ring" />
-      <path d="M336,132 L346,138 L336,144 Z" className="yd-lens__play" />
+      <path d="M322,124 H358 M322,160 H356" className="yd-lens__scan-rows" />
+      <circle cx="340" cy="135" r="11" className="yd-lens__play-ring" />
+      <path d="M336,129 L346,135 L336,141 Z" className="yd-lens__play" />
       <rect x={PROGRESS.x} y={PROGRESS.y} width={PROGRESS.width} height={PROGRESS.height} rx="2" className="yd-lens__track" />
       {level !== null ? (
         <>

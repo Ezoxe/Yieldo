@@ -29,4 +29,4 @@ export const LENSES: Record<SalonPart, LensGeometry> = {
 };
 
 /** The progress bar on the television, inside its lens: the streaming gauge. */
-export const PROGRESS = { x: 316, y: 158, width: 48, height: 4 } as const;
+export const PROGRESS = { x: 318, y: 151, width: 44, height: 4 } as const;

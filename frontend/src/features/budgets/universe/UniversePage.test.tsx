@@ -6,7 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ThemeProvider } from "../../../app/ThemeProvider";
 import { formatCents } from "../../../design/theme";
-import { fuelDetail, giftsDetail, transportDetail } from "./fixtures";
+import { fuelDetail, giftsDetail, logementDetail, transportDetail } from "./fixtures";
 import { UniversePage } from "./UniversePage";
 
 const fetchMock = vi.fn();
@@ -19,6 +19,7 @@ const DETAILS: Record<string, unknown> = {
   "30": transportDetail,
   "31": fuelDetail,
   "50": giftsDetail,
+  "10": logementDetail,
 };
 
 beforeEach(() => {
@@ -97,6 +98,13 @@ describe("UniversePage", () => {
     const siblings = within(screen.getByRole("region", { name: "Les autres postes de Transport" }));
     expect(siblings.getByRole("link", { name: "Entretien véhicule" })).toBeInTheDocument();
     expect(siblings.queryByRole("link", { name: "Carburant" })).toBeNull();
+  });
+
+  it("draws the house for Logement", async () => {
+    const { container } = renderPage("/budgets/10?mois=2026-09");
+    expect(await screen.findByRole("heading", { level: 1, name: "Logement" })).toBeInTheDocument();
+    expect(container.querySelector(".yd-house")).not.toBeNull();
+    expect(container.querySelector(".yd-car")).toBeNull();
   });
 
   it("keeps a category no universe covers, with its figures and without a scene", async () => {

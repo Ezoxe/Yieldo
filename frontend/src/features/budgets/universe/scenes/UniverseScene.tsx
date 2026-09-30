@@ -3,6 +3,7 @@ import type { ComponentType } from "react";
 import type { UniverseId } from "../registry";
 import type { Gauge, PartReading } from "../readings";
 import { CarScene } from "./car/CarScene";
+import { HouseScene } from "./house/HouseScene";
 
 /** What every scene is handed: the page's ceiling, the parts, and the way to a part's page. */
 export interface SceneProps {
@@ -17,6 +18,7 @@ export interface SceneProps {
  *  drawn, and the page then shows its figures without a scene. */
 const SCENES: Partial<Record<UniverseId, ComponentType<SceneProps>>> = {
   car: CarScene,
+  house: HouseScene,
 };
 
 /** The scene of `universe`: one component per universe, all on the same props. */

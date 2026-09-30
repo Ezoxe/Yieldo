@@ -1,0 +1,264 @@
+/* The house scene. Its colours are PHYSICAL — cream render, terracotta
+   tiles, green shutters, a teal door — and live here, never in a component.
+   The theme sets the time of day: dusk in the dark theme (stars, moon, lit
+   windows, a lamp by the door), a clear day in the light one (sun, bright
+   lawn, glass reflecting the sky). The lenses stay dark screens in both. */
+
+/* A narrow scene drops the sky band where the labels sit on a wide one; the
+   dial goes too, its reading being the first label of the list. */
+@container scene (max-width: 899px) {
+  .yd-house .yd-scene__stage { overflow: hidden; }
+  .yd-house .yd-scene__svg { margin-top: -7%; }
+  .yd-house .yd-dial { display: none; }
+}
+
+/* Gradient stops — dusk ------------------------------------------------------ */
+
+.yd-house__sky-0 { stop-color: #070b1c; }
+.yd-house__sky-1 { stop-color: #141b3f; }
+.yd-house__sky-2 { stop-color: #2d2a55; }
+.yd-house__sky-3 { stop-color: #4a3560; }
+.yd-house__lawn-0 { stop-color: #1d3624; }
+.yd-house__lawn-1 { stop-color: #0c1710; }
+.yd-house__roof-shade-0 { stop-color: #000; stop-opacity: 0.35; }
+.yd-house__roof-shade-1 { stop-color: #000; stop-opacity: 0.1; }
+.yd-house__roof-shade-2 { stop-color: #000; stop-opacity: 0.3; }
+.yd-house__wall-shade-0 { stop-color: #000; stop-opacity: 0.45; }
+.yd-house__wall-shade-1 { stop-color: #000; stop-opacity: 0.12; }
+.yd-house__wall-shade-2 { stop-color: #000; stop-opacity: 0.22; }
+.yd-house__glass-0 { stop-color: #ffd98a; }
+.yd-house__glass-1 { stop-color: #e8912a; }
+.yd-house__door-0 { stop-color: #23413f; }
+.yd-house__door-1 { stop-color: #2f5552; }
+.yd-house__door-2 { stop-color: #1f3937; }
+.yd-house__garage-0 { stop-color: #c9c6c0; }
+.yd-house__garage-1 { stop-color: #8f8c86; }
+.yd-house__lamp-0 { stop-color: #ffcf7a; stop-opacity: 0.75; }
+.yd-house__lamp-1 { stop-color: #ffcf7a; stop-opacity: 0; }
+.yd-house__moon-glow-0 { stop-color: #f5f1d8; stop-opacity: 0.35; }
+.yd-house__moon-glow-1 { stop-color: #f5f1d8; stop-opacity: 0; }
+.yd-house__sun-glow-0 { stop-color: #fff3c4; stop-opacity: 0.8; }
+.yd-house__sun-glow-1 { stop-color: #fff3c4; stop-opacity: 0; }
+
+/* Materials ------------------------------------------------------------------ */
+
+.yd-house__tile { fill: #96462e; }
+.yd-house__tile-curve { fill: none; stroke: #b9613f; stroke-width: 1.1; }
+.yd-house__tile-joint { stroke: #5e2618; }
+.yd-house__render { fill: #e6dac6; }
+.yd-house__render-dot { fill: #d4c6ae; }
+.yd-house__render-light { fill: #f2e9d9; }
+.yd-house__brick { fill: #8c3f2b; }
+.yd-house__mortar { stroke: #caa58c; stroke-width: 0.6; }
+
+/* Backdrop -------------------------------------------------------------------- */
+
+.yd-house__star { fill: #eef2ff; }
+.yd-house__star--twinkle { animation: yd-house-twinkle 3s ease-in-out infinite; }
+.yd-house__moon-disc { fill: #f5f1d8; }
+.yd-house__moon-shadow { fill: #1a2146; opacity: 0.55; }
+.yd-house__sun { display: none; }
+.yd-house__sun-disc { fill: #ffd76a; }
+.yd-house__hills { fill: #12163a; }
+.yd-house__trunk { fill: #241a14; }
+.yd-house__foliage { fill: #16291c; }
+.yd-house__foliage-light { fill: #20382a; opacity: 0.85; }
+.yd-house__lawn-edge { stroke: #2c4a33; }
+.yd-house__grass { fill: none; stroke: #2f5238; stroke-linecap: round; }
+.yd-house__path { fill: #5d564d; }
+.yd-house__path-joints { stroke: #3d3833; stroke-width: 1.2; }
+.yd-house__hedge { fill: #1c3322; }
+.yd-house__wall { fill: #8f8577; }
+.yd-house__wall-cap { stroke: #b9ad9b; stroke-width: 3; }
+.yd-house__coffret { fill: #6d665c; stroke: #4c463f; }
+.yd-house__coffret-line { stroke: #4c463f; }
+.yd-house__gate-bars { stroke: #1b1c20; stroke-width: 2.2; }
+.yd-house__gate-rail { stroke: #1b1c20; stroke-width: 2.6; }
+.yd-house__gate-post { fill: #b9ad9b; }
+
+/* House ----------------------------------------------------------------------- */
+
+.yd-house__roof-edge { fill: none; stroke: #c07048; stroke-width: 2.2; stroke-linecap: round; }
+.yd-house__roof-edge--thin { stroke-width: 1.2; }
+.yd-house__roof-edge--dormer { stroke-width: 2; }
+.yd-house__garage-lines { stroke: #7c7973; }
+.yd-house__garage-veil { fill: #0a0d1f; opacity: 0.45; }
+.yd-house__garage-handle { fill: #55524d; }
+.yd-house__night-veil { fill: #0b1030; opacity: 0.4; }
+.yd-house__plinth { fill: #9c8f7c; }
+.yd-house__quoins rect { fill: #efe6d6; stroke: #bfb29d; stroke-width: 0.6; }
+.yd-house__chimney-cap { fill: #6b6259; }
+.yd-house__smoke {
+  fill: #aeb3c6;
+  opacity: 0;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: yd-house-smoke 5s ease-out infinite;
+}
+.yd-house__zinc { fill: #8a9098; }
+.yd-house__downspout { stroke: #8a9098; stroke-width: 3.5; }
+.yd-house__window { animation: yd-house-flicker 4s ease-in-out infinite; }
+.yd-house__window-dark { fill: #1b2346; }
+.yd-house__mullion { stroke: #f4ecdb; stroke-width: 1.8; }
+.yd-house__sill { fill: #d8ccb8; }
+.yd-house__shutter { fill: #57786a; }
+.yd-house__slats { stroke: #3f5a4f; }
+.yd-house__transom { opacity: 0.85; }
+.yd-house__door-panel { fill: none; stroke: #1a302e; stroke-width: 1.2; }
+.yd-house__knob { fill: #d9b86a; }
+.yd-house__canopy { fill: none; stroke: #2a2b30; stroke-width: 3; }
+.yd-house__canopy-glass { fill: #cfd8e3; opacity: 0.35; }
+.yd-house__lamp-body { fill: #2a2b30; }
+.yd-house__lamp-bulb { fill: #ffd98a; }
+.yd-house__step { fill: #8d8174; }
+
+/* Lens insides ---------------------------------------------------------------- */
+
+.yd-lens__frame { animation: yd-lens-pulse 2.6s ease-in-out infinite; }
+.yd-lens__timber { fill: none; stroke: #b07a45; stroke-width: 3.1; stroke-linecap: round; }
+.yd-lens__timber-core { fill: none; stroke: #f0c98a; stroke-width: 1.15; stroke-linecap: round; }
+.yd-lens__steel { fill: #cfd6e6; stroke: #0b1224; stroke-width: 0.6; }
+.yd-lens__bolt { animation: yd-house-bolt 4s ease-in-out infinite; }
+.yd-lens__lock { fill: #8e97ad; stroke: #0b1224; stroke-width: 0.8; }
+.yd-lens__cylinder { fill: #d9b86a; stroke: #0b1224; stroke-width: 0.8; }
+.yd-lens__key {
+  transform-box: view-box;
+  transform-origin: 262px 236px;
+  animation: yd-house-key 4s ease-in-out infinite;
+}
+.yd-lens__key-blade { fill: none; stroke: #f4d98a; stroke-width: 2; stroke-linecap: round; }
+.yd-lens__key-bow { fill: none; stroke: #f4d98a; stroke-width: 2; }
+.yd-lens__shelf { fill: #6f7b93; }
+.yd-lens__box { fill: #1c2238; stroke: #93c5fd; stroke-width: 0.8; }
+.yd-lens__led { fill: #34d399; }
+.yd-lens__led--slow { animation: yd-house-blink 1.1s steps(2) infinite; }
+.yd-lens__led--fast { animation: yd-house-blink 0.7s steps(2) infinite; }
+.yd-lens__led--blue { fill: #60a5fa; animation: yd-house-blink 1.1s steps(2) 0.3s infinite; }
+.yd-lens__wifi {
+  fill: none;
+  stroke: #60a5fa;
+  stroke-width: 1.4;
+  stroke-linecap: round;
+  opacity: 0;
+  animation: yd-house-wifi 2s ease-out infinite;
+}
+.yd-lens__phone { fill: #0b1224; stroke: #c7d2fe; stroke-width: 0.8; }
+.yd-lens__phone-screen { fill: #60a5fa; opacity: 0.7; }
+.yd-lens__cable { fill: none; stroke: #fbbf24; stroke-opacity: 0.25; stroke-width: 2; }
+.yd-lens__current {
+  fill: none;
+  stroke: #fbbf24;
+  stroke-width: 1.8;
+  stroke-dasharray: 3 6;
+  stroke-linecap: round;
+  animation: yd-lens-flow 0.9s linear infinite;
+}
+.yd-lens__meter { fill: #cfe3b8; stroke: #0b1224; stroke-width: 0.8; }
+.yd-lens__display { fill: #0b1224; }
+.yd-lens__bar { fill: #3a3a4c; }
+/* Resting on the true count; the entrance only switches them on in turn. */
+.yd-lens__bar--lit { fill: #93c5fd; animation: yd-house-bar 0.4s ease-out both; }
+.yd-lens__bar--ok { fill: #34d399; }
+.yd-lens__bar--at_risk { fill: #fbbf24; }
+.yd-lens__bar--over { fill: #fb7185; }
+.yd-lens__pulse { fill: #34d399; filter: drop-shadow(0 0 3px #34d399); animation: yd-house-blink 1.1s steps(2) infinite; }
+.yd-lens__meter-label { fill: #8aa072; }
+.yd-lens__meter-edge { fill: none; stroke-width: 1.1; }
+.yd-lens__pipe { stroke: #60a5fa; stroke-opacity: 0.25; stroke-width: 4; }
+.yd-lens__water {
+  stroke: #93c5fd;
+  stroke-width: 2;
+  stroke-dasharray: 3 6;
+  stroke-linecap: round;
+  animation: yd-lens-flow 0.9s linear infinite;
+}
+.yd-lens__gauge { fill: #1c2238; stroke: #c7d2fe; }
+.yd-lens__spin { transform-box: view-box; animation: yd-scene-spin 2.4s linear infinite; }
+.yd-lens__spin--fast { animation-duration: 0.25s; }
+.yd-lens__vanes { stroke: #60a5fa; stroke-width: 1.2; stroke-linecap: round; }
+.yd-lens__hub { fill: #eef2ff; }
+.yd-lens__board { fill: #1c2238; stroke: #93c5fd; stroke-opacity: 0.6; }
+.yd-lens__tool { fill: none; stroke: #d6d4ff; stroke-width: 1.6; stroke-linecap: round; }
+.yd-lens__bench { fill: #b07a45; }
+.yd-lens__bench-legs { stroke: #b07a45; stroke-width: 2.2; }
+.yd-lens__drill { fill: #f5c518; stroke: #a88208; stroke-width: 0.7; }
+.yd-lens__chuck { fill: #8e97ad; }
+.yd-lens__bit { stroke: #e5e7eb; stroke-width: 1.6; }
+.yd-lens__drill-grip { fill: #a88208; }
+.yd-lens__dust {
+  fill: #f0c98a;
+  opacity: 0;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: yd-house-dust 1.4s ease-out infinite;
+}
+
+/* Day: the light theme's house ------------------------------------------------- */
+
+:root[data-theme="light"] .yd-house__sky-0 { stop-color: #6fa7de; }
+:root[data-theme="light"] .yd-house__sky-1 { stop-color: #9cc5ec; }
+:root[data-theme="light"] .yd-house__sky-2 { stop-color: #cfe2f4; }
+:root[data-theme="light"] .yd-house__sky-3 { stop-color: #eaf2fa; }
+:root[data-theme="light"] .yd-house__lawn-0 { stop-color: #7fae6a; }
+:root[data-theme="light"] .yd-house__lawn-1 { stop-color: #5d8f4f; }
+:root[data-theme="light"] .yd-house__glass-0 { stop-color: #d9e8f6; }
+:root[data-theme="light"] .yd-house__glass-1 { stop-color: #8fb0cf; }
+:root[data-theme="light"] .yd-house__lamp-0 { stop-opacity: 0; }
+:root[data-theme="light"] .yd-house__wall-shade-0 { stop-opacity: 0.25; }
+:root[data-theme="light"] .yd-house__wall-shade-2 { stop-opacity: 0.08; }
+:root[data-theme="light"] .yd-house__roof-shade-0 { stop-opacity: 0.15; }
+:root[data-theme="light"] .yd-house__stars,
+:root[data-theme="light"] .yd-house__moon { display: none; }
+:root[data-theme="light"] .yd-house__sun { display: inline; }
+:root[data-theme="light"] .yd-house__hills { fill: #a8c4a2; }
+:root[data-theme="light"] .yd-house__trunk { fill: #5b4330; }
+:root[data-theme="light"] .yd-house__foliage { fill: #4f7d4a; }
+:root[data-theme="light"] .yd-house__foliage-light { fill: #6a9a5f; }
+:root[data-theme="light"] .yd-house__lawn-edge { stroke: #6a9a5a; }
+:root[data-theme="light"] .yd-house__grass { stroke: #4e7e43; }
+:root[data-theme="light"] .yd-house__path { fill: #b9ad9c; }
+:root[data-theme="light"] .yd-house__path-joints { stroke: #8f8474; }
+:root[data-theme="light"] .yd-house__hedge { fill: #3f6b3b; }
+:root[data-theme="light"] .yd-house__wall { fill: #cfc3b1; }
+:root[data-theme="light"] .yd-house__wall-cap { stroke: #e6dccb; }
+:root[data-theme="light"] .yd-house__coffret { fill: #a39a8c; }
+:root[data-theme="light"] .yd-house__gate-bars,
+:root[data-theme="light"] .yd-house__gate-rail { stroke: #2b2c30; }
+:root[data-theme="light"] .yd-house__garage-veil,
+:root[data-theme="light"] .yd-house__night-veil { opacity: 0; }
+:root[data-theme="light"] .yd-house__window-dark { fill: #9fb7cf; }
+:root[data-theme="light"] .yd-house__window { animation: none; }
+:root[data-theme="light"] .yd-house__lamp-bulb { fill: #e8e2d0; }
+:root[data-theme="light"] .yd-house__smoke { fill: #e9ecf3; }
+
+/* Motion ------------------------------------------------------------------------ */
+
+@keyframes yd-house-twinkle { 50% { opacity: 0.25; } }
+@keyframes yd-house-smoke {
+  0% { transform: translate(0, 0) scale(0.5); opacity: 0.45; }
+  100% { transform: translate(18px, -46px) scale(2.4); opacity: 0; }
+}
+@keyframes yd-house-flicker {
+  0%, 100% { opacity: 1; }
+  45% { opacity: 0.86; }
+  55% { opacity: 0.95; }
+}
+@keyframes yd-house-key {
+  0%, 30%, 100% { transform: rotate(0); }
+  45%, 75% { transform: rotate(-90deg); }
+}
+@keyframes yd-house-bolt {
+  0%, 30%, 100% { transform: translateX(0); }
+  45%, 75% { transform: translateX(-7px); }
+}
+@keyframes yd-house-blink { 50% { opacity: 0.2; } }
+@keyframes yd-house-wifi {
+  0% { opacity: 0; }
+  30% { opacity: 1; }
+  100% { opacity: 0; }
+}
+@keyframes yd-house-bar { from { opacity: 0; } }
+@keyframes yd-house-dust {
+  0% { transform: translate(0, 0); opacity: 0.8; }
+  100% { transform: translate(-8px, 10px); opacity: 0; }
+}

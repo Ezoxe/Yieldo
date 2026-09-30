@@ -200,3 +200,93 @@ export const giftsDetail: BudgetDetail = {
   parts: [],
   siblings: [],
 };
+
+/* -- Logement over the same nineteen months, for the house ---------------- */
+
+const HOME_PARTS: typeof PARTS = [
+  { id: 11, name: "Loyer", slug: "logement-loyer", color: "#8ab4f8", flow: () => ({ cents: -92000, count: 1 }) },
+  { id: 12, name: "Crédit immobilier", slug: "logement-credit", color: "#8ab4f8", flow: () => ({ cents: 0, count: 0 }) },
+  {
+    id: 13, name: "Charges et copropriété", slug: "logement-charges", color: "#8ab4f8",
+    flow: (key) => ([1, 4, 7, 10].includes(monthOf(key)) && key !== CURRENT ? { cents: -9500, count: 1 } : { cents: 0, count: 0 }),
+  },
+  {
+    id: 14, name: "Énergie", slug: "logement-energie", color: "#8ab4f8",
+    flow: (key) => {
+      const month = monthOf(key);
+      const cents = [11, 12, 1, 2, 3].includes(month) ? -11800 : [6, 7, 8].includes(month) ? -5200 : -7800;
+      return { cents, count: 1 };
+    },
+  },
+  { id: 15, name: "Internet et téléphone", slug: "logement-internet", color: "#8ab4f8", flow: () => ({ cents: -4598, count: 2 }) },
+  {
+    id: 16, name: "Assurance habitation", slug: "logement-assurance", color: "#8ab4f8",
+    flow: (key) => (monthOf(key) === 3 ? { cents: -28000, count: 1 } : { cents: 0, count: 0 }),
+  },
+  {
+    id: 17, name: "Travaux et entretien", slug: "logement-travaux", color: "#8ab4f8",
+    flow: (_key, index) => (index % 5 === 2 ? { cents: -8600, count: 1 } : { cents: 0, count: 0 }),
+  },
+];
+
+const HOME_BUDGET = 125000;
+const ENERGY_BUDGET = 15000;
+const homeParts = HOME_PARTS.map((part) => partOut(part, part.slug === "logement-energie" ? ENERGY_BUDGET : null));
+const homeSeries: BudgetDetailMonth[] = KEYS.map((key, index) => {
+  const flows = HOME_PARTS.map((part) => part.flow(key, index));
+  return {
+    month: key,
+    spent_cents: flows.reduce((sum, flow) => sum + flow.cents, 0),
+    count: flows.reduce((sum, flow) => sum + flow.count, 0),
+    complete: key !== CURRENT,
+  };
+});
+const homeNow = homeSeries[homeSeries.length - 1];
+// Énergie has its own ceiling: the Logement line counts everything else.
+const homeCounted = homeNow.spent_cents - homeParts[3].spent_cents;
+
+export const logementDetail: BudgetDetail = {
+  ...transportDetail,
+  category: { id: 10, name: "Logement", slug: "logement", color: "#8ab4f8", is_essential: true, parent: null },
+  spent_cents: homeNow.spent_cents,
+  count: homeNow.count,
+  average_ticket_cents: homeNow.count > 0 ? mean(homeNow.spent_cents, homeNow.count) : null,
+  budget: {
+    budget_cents: HOME_BUDGET,
+    spent_cents: homeCounted,
+    remaining_cents: HOME_BUDGET + homeCounted,
+    consumed_ratio: -homeCounted / HOME_BUDGET,
+    projected_cents: null,
+    status: "ok",
+  },
+  ...averageOf(homeSeries),
+  years: yearsOf(homeSeries),
+  series: homeSeries,
+  parts: homeParts,
+  siblings: [],
+};
+
+/** The page of one of Logement's children, the house around it. */
+export function logementChildDetail(categoryId: number): BudgetDetail | null {
+  const index = HOME_PARTS.findIndex((part) => part.id === categoryId);
+  if (index === -1) return null;
+  const part = homeParts[index];
+  const series = seriesOf(HOME_PARTS[index].flow);
+  return {
+    ...logementDetail,
+    category: {
+      id: part.category_id, name: part.name, slug: part.slug, color: part.color, is_essential: true,
+      parent: { id: 10, name: "Logement", slug: "logement" },
+    },
+    spent_cents: part.spent_cents,
+    count: part.count,
+    average_ticket_cents: part.average_ticket_cents,
+    budget: part.budget,
+    average_cents: part.average_cents,
+    months_counted: part.months_counted,
+    years: yearsOf(series),
+    series,
+    parts: [],
+    siblings: homeParts,
+  };
+}

@@ -1,0 +1,341 @@
+/* The car scene. Its colours are PHYSICAL — white paint, black rubber, gold
+   rims, yellow calipers, an amber fuel — and live here, never in a component.
+   What changes with the theme is the studio around the car (light, road,
+   shadows) and the hairline that keeps a white car visible on a light page;
+   the X-ray lenses and the dial are screens and stay dark in both themes.
+   Status colours inside the lenses and the dial are the dark theme's own
+   (they sit on a dark screen whatever the page's theme). */
+
+.yd-car {
+  container: scene / inline-size;
+  margin: 0;
+}
+
+.yd-car__stage {
+  position: relative;
+}
+
+.yd-car__svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* Gradient stops ---------------------------------------------------------- */
+
+.yd-car__paint-0 { stop-color: #e6e8ee; }
+.yd-car__paint-1 { stop-color: #f7f8fb; }
+.yd-car__paint-2 { stop-color: #ffffff; }
+.yd-car__paint-3 { stop-color: #f1f2f6; }
+.yd-car__paint-4 { stop-color: #e3e5eb; }
+.yd-car__paint-5 { stop-color: #e9ebf0; }
+.yd-car__paint-6 { stop-color: #eef0f4; }
+.yd-car__paint-7 { stop-color: #fbfbfd; }
+.yd-car__paint-8 { stop-color: #f3f4f7; }
+.yd-car__paint-9 { stop-color: #c8cbd4; }
+.yd-car__paint-10 { stop-color: #aeb2bd; }
+.yd-car__paint-11 { stop-color: #8e939f; }
+
+.yd-car__volume-0 { stop-color: #000; stop-opacity: 0.3; }
+.yd-car__volume-1 { stop-color: #000; stop-opacity: 0.12; }
+.yd-car__volume-2 { stop-color: #000; stop-opacity: 0; }
+.yd-car__volume-3 { stop-color: #000; stop-opacity: 0; }
+.yd-car__volume-4 { stop-color: #000; stop-opacity: 0.06; }
+.yd-car__volume-5 { stop-color: #000; stop-opacity: 0.22; }
+
+.yd-car__rear-glass-0 { stop-color: #2c2f38; }
+.yd-car__rear-glass-1 { stop-color: #0e0f13; }
+.yd-car__door-glass-0 { stop-color: #4b4f5b; }
+.yd-car__door-glass-1 { stop-color: #2c2f38; }
+.yd-car__door-glass-2 { stop-color: #18191e; }
+.yd-car__windshield-0 { stop-color: #15171d; }
+.yd-car__windshield-1 { stop-color: #3a3e4a; }
+.yd-car__windshield-2 { stop-color: #9aa0ae; }
+.yd-car__carbon-0 { stop-color: #26272e; }
+.yd-car__carbon-1 { stop-color: #0c0c10; }
+.yd-car__tire-0 { stop-color: #0b0b0d; }
+.yd-car__tire-1 { stop-color: #1c1c21; }
+.yd-car__tire-2 { stop-color: #101013; }
+.yd-car__tire-3 { stop-color: #060607; }
+.yd-car__disc-0 { stop-color: #6d6d76; }
+.yd-car__disc-1 { stop-color: #4a4a52; }
+.yd-car__disc-2 { stop-color: #2d2d33; }
+.yd-car__rim-shade-0 { stop-color: #000; stop-opacity: 0; }
+.yd-car__rim-shade-1 { stop-color: #000; stop-opacity: 0.35; }
+.yd-car__lamp-0 { stop-color: #ffffff; }
+.yd-car__lamp-1 { stop-color: #a9b8d9; }
+.yd-car__handle-0 { stop-color: #cfd2da; }
+.yd-car__handle-1 { stop-color: #f6f7f9; }
+.yd-car__road-0 { stop-color: #15151d; }
+.yd-car__road-1 { stop-color: #0a0a0f; }
+.yd-car__steel-0 { stop-color: #2c2c3c; }
+.yd-car__steel-1 { stop-color: #14141d; }
+.yd-car__studio-0 { stop-color: #262646; stop-opacity: 0.65; }
+.yd-car__studio-1 { stop-color: #07070b; stop-opacity: 0; }
+.yd-car__fuel-0 { stop-color: #fde68a; }
+.yd-car__fuel-1 { stop-color: #f59e0b; }
+.yd-car__engine-0 { stop-color: #ebeaff; }
+.yd-car__engine-1 { stop-color: #9794f9; }
+.yd-car__engine-2 { stop-color: #4d49c6; }
+.yd-car__vignette-0 { stop-color: #040814; stop-opacity: 0; }
+.yd-car__vignette-1 { stop-color: #040814; stop-opacity: 0.85; }
+
+/* Backdrop ---------------------------------------------------------------- */
+
+.yd-car__gantry { animation: yd-car-gantry 8s linear infinite; }
+.yd-car__gantry-head { fill: #23233a; stroke: #3a3a56; }
+.yd-car__gantry-lamp { fill: #60a5fa; }
+.yd-car__road-edge { stroke: #2c2c3a; }
+.yd-car__road-dash {
+  stroke: #3a3a4c;
+  stroke-width: 2;
+  stroke-dasharray: 22 18;
+  animation: yd-car-road 0.4s linear infinite;
+}
+.yd-car__beam { fill: #fff7e0; fill-opacity: 0.05; }
+.yd-car__shadow { fill: #000; fill-opacity: 0.85; }
+.yd-car__contact { fill: #000; }
+.yd-car__well { fill: #0a0a0c; }
+
+/* Body -------------------------------------------------------------------- */
+
+.yd-car__outline { stroke: #9aa0ad; stroke-opacity: 0.5; stroke-width: 0.8; stroke-linejoin: round; }
+.yd-car__shade { fill: #000; }
+.yd-car__shade--haunch { fill-opacity: 0.1; }
+.yd-car__shade--shoulder { fill-opacity: 0.06; }
+.yd-car__shade--nose { fill-opacity: 0.08; }
+.yd-car__arch-shade { fill: none; stroke: #000; stroke-opacity: 0.16; stroke-width: 9; }
+.yd-car__door-band { fill: #8e93a0; fill-opacity: 0.1; }
+.yd-car__belt-shade { stroke: #000; stroke-opacity: 0.12; stroke-width: 2.5; }
+.yd-car__rear-glass-edge { fill: none; stroke: #2b2e37; stroke-width: 1.6; }
+.yd-car__black { fill: #0c0c10; }
+.yd-car__black-edge { fill: none; stroke: #5a5e69; stroke-width: 0.8; }
+.yd-car__intake { fill: #0b0b0e; }
+.yd-car__slats { stroke: #24242c; }
+.yd-car__shut-line { fill: none; stroke: #aeb2bd; stroke-width: 0.9; }
+.yd-car__handle { stroke: #b7bbc5; stroke-width: 0.6; }
+.yd-car__handle-shade { stroke: #9ea2ad; stroke-opacity: 0.6; stroke-width: 0.8; }
+.yd-car__flap { fill: #f8f9fb; stroke: #b5b9c4; stroke-width: 0.8; }
+.yd-car__flap-shade { fill: none; stroke: #9aa0ad; stroke-opacity: 0.5; stroke-width: 0.7; }
+.yd-car__crest { fill: none; stroke: #ffffff; stroke-width: 1.4; }
+.yd-car__glass { stroke: #050507; stroke-width: 1.6; stroke-linejoin: round; }
+.yd-car__cage-hint { stroke: #7d818d; stroke-width: 2.2; stroke-linecap: round; }
+.yd-car__pillar { fill: #050507; }
+.yd-car__hoop-hint { fill: #8d919c; fill-opacity: 0.7; }
+.yd-car__reflection { fill: #ffffff; fill-opacity: 0.12; }
+.yd-car__sky { fill: #c7d2ff; fill-opacity: 0.1; }
+.yd-car__sky--faint { fill-opacity: 0.08; }
+.yd-car__mirror-base { fill: #dfe1e7; stroke: #b5b9c4; stroke-width: 0.6; }
+.yd-car__mirror { fill: #15161b; }
+.yd-car__mirror-gleam { fill: none; stroke: #6a6e7a; stroke-width: 0.9; }
+.yd-car__mirror-lip { fill: none; stroke: #c9ccd4; stroke-width: 1.6; stroke-linecap: round; }
+.yd-car__lamp-bezel { fill: #121318; }
+.yd-car__drl { fill: #ffffff; filter: drop-shadow(0 0 2px #ffffff); }
+.yd-car__marker-edge { stroke: #8c909b; stroke-width: 3.2; stroke-linecap: round; }
+.yd-car__marker { stroke: #eef0f4; stroke-width: 2; stroke-linecap: round; }
+.yd-car__tail-band { fill: #120c0f; }
+.yd-car__tail-light { fill: #ff2d4a; filter: drop-shadow(0 0 3px rgba(255, 45, 74, 0.9)); }
+.yd-car__tail-gleam { stroke: #ffffff; stroke-opacity: 0.7; stroke-width: 0.8; }
+.yd-car__reflector { fill: #c8102e; stroke: #5a0a14; stroke-width: 0.6; }
+.yd-car__lip-shade { fill: none; stroke: #b0b4bf; stroke-width: 0.8; }
+.yd-car__wing-neck { fill: #101014; }
+.yd-car__wing-gleam { fill: none; stroke: #4a4d58; stroke-width: 0.9; }
+.yd-car__wing { stroke: #2c2e36; stroke-width: 0.8; }
+.yd-car__wing-profile { fill: none; stroke: #5a5d69; stroke-width: 1.1; }
+
+/* Wheels ------------------------------------------------------------------ */
+
+.yd-car__tread { fill: none; stroke: #34343c; stroke-opacity: 0.7; }
+.yd-car__barrel { fill: #141417; }
+.yd-car__holes { fill: none; stroke: #26262c; stroke-width: 1.6; stroke-linecap: round; }
+.yd-car__hat { fill: #5b5b63; }
+.yd-car__caliper { fill: #f5c518; stroke: #a88208; stroke-width: 0.8; }
+.yd-car__caliper-gleam { fill: none; stroke: #fff3b0; stroke-opacity: 0.7; }
+.yd-car__spokes-shadow { fill: none; stroke: #5d4c2e; stroke-width: 4; stroke-linecap: round; }
+.yd-car__spokes { fill: none; stroke: #cdb98c; stroke-width: 2.6; stroke-linecap: round; }
+.yd-car__nut { fill: #2a2a2e; stroke: #cdb98c; stroke-width: 1.2; }
+.yd-car__nut-core { fill: #101012; }
+.yd-car__rim-lip { fill: none; stroke: #dccb9f; stroke-width: 1.8; }
+.yd-car__rim-inner { fill: none; stroke: #7a6641; stroke-width: 0.8; }
+.yd-car__rim-gleam { fill: none; stroke: #ffffff; stroke-opacity: 0.12; stroke-width: 2; }
+.yd-car__spin {
+  transform-box: view-box;
+  animation: yd-car-spin 0.8s linear infinite;
+}
+
+/* Lenses ------------------------------------------------------------------ */
+
+.yd-car__lens[data-selectable] { cursor: pointer; }
+.yd-car__lens--dimmed { opacity: 0.45; }
+.yd-lens__base { fill: #040814; fill-opacity: 0.95; }
+.yd-lens__scanline { stroke: #93c5fd; stroke-opacity: 0.09; }
+.yd-lens__ghost { fill: none; stroke: #93c5fd; stroke-opacity: 0.35; }
+.yd-lens__ghost--strong { stroke-width: 1.2; }
+.yd-lens__sweep {
+  fill: #93c5fd;
+  fill-opacity: 0.45;
+  animation: yd-lens-sweep 2.6s ease-in-out infinite alternate;
+}
+.yd-lens__ring {
+  fill: none;
+  stroke: #93c5fd;
+  stroke-width: 1.3;
+  filter: drop-shadow(0 0 5px rgba(147, 197, 253, 0.7));
+}
+.yd-car__lens--focused .yd-lens__ring { stroke-width: 2.2; }
+.yd-lens__orbit {
+  fill: none;
+  stroke: #93c5fd;
+  stroke-opacity: 0.5;
+  stroke-dasharray: 2 7;
+  transform-box: view-box;
+  animation: yd-car-spin 14s linear infinite;
+}
+.yd-lens__ticks { stroke: #93c5fd; stroke-width: 1.2; }
+
+.yd-lens__fuel-pipe { fill: none; stroke: #fbbf24; stroke-opacity: 0.25; stroke-width: 2; }
+.yd-lens__fuel-flow {
+  fill: none;
+  stroke: #fbbf24;
+  stroke-width: 1.8;
+  stroke-dasharray: 3 6;
+  stroke-linecap: round;
+  animation: yd-lens-flow 0.8s linear infinite;
+}
+.yd-lens__fuel-neck { fill: none; stroke: #fbbf24; stroke-opacity: 0.85; stroke-width: 2; }
+.yd-lens__tank-shell { fill: #0b1224; }
+/* Resting on the true level; the entrance only drains it there from full. */
+.yd-lens__fuel {
+  transform: translateY(var(--drop));
+  animation: yd-lens-drain 2.2s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.yd-lens__wave { animation: yd-lens-wave 2.4s linear infinite; }
+.yd-lens__tank { fill: none; stroke-width: 1.2; }
+.yd-lens__tank--neutral { stroke: #93c5fd; filter: drop-shadow(0 0 4px rgba(147, 197, 253, 0.6)); }
+.yd-lens__tank--ok { stroke: #34d399; filter: drop-shadow(0 0 4px rgba(52, 211, 153, 0.6)); }
+.yd-lens__tank--at_risk { stroke: #fbbf24; filter: drop-shadow(0 0 4px rgba(251, 191, 36, 0.7)); }
+.yd-lens__tank--over { stroke: #fb7185; filter: drop-shadow(0 0 4px rgba(251, 113, 133, 0.7)); }
+.yd-lens__tank-gleam { stroke: #ffffff; stroke-opacity: 0.18; stroke-width: 1.5; stroke-linecap: round; }
+.yd-lens__marks { stroke: #93c5fd; stroke-opacity: 0.5; }
+
+.yd-lens__metal-edge { stroke: #0b1224; stroke-width: 0.8; }
+.yd-lens__head { fill: #cfcdff; stroke: #0b1224; stroke-width: 0.8; }
+.yd-lens__block {
+  stroke: #0b1224;
+  stroke-width: 0.8;
+  filter: drop-shadow(0 0 5px rgba(151, 148, 249, 0.5));
+}
+.yd-lens__bore { fill: #0b1224; }
+.yd-lens__piston {
+  fill: #f1f0ff;
+  animation: yd-lens-piston 0.45s ease-in-out infinite alternate;
+}
+.yd-lens__pulley { animation-duration: 0.6s; }
+.yd-lens__pulley circle { fill: #d6d4ff; stroke: #0b1224; }
+.yd-lens__pulley path { stroke: #0b1224; stroke-width: 1.4; }
+.yd-lens__header-heat { fill: none; stroke: #fb923c; stroke-opacity: 0.55; stroke-width: 3.5; stroke-linecap: round; }
+.yd-lens__header { fill: none; stroke: #e6e4f5; stroke-width: 1.6; stroke-linecap: round; }
+
+.yd-lens__cage { animation: yd-lens-pulse 2.6s ease-in-out infinite; }
+.yd-lens__tube { fill: none; stroke: #5b57d6; stroke-width: 4.2; stroke-linecap: round; }
+.yd-lens__tube-core { fill: none; stroke: #eceaff; stroke-width: 1.5; stroke-linecap: round; }
+
+.yd-lens__mirror-stem { stroke: #93c5fd; stroke-opacity: 0.6; stroke-width: 1.2; }
+.yd-lens__mirror { fill: #1c2238; stroke: #93c5fd; stroke-opacity: 0.6; }
+.yd-lens__badge { fill: #0b1224; stroke: #60a5fa; }
+/* In step with the gantry: it lights as the gantry passes over the badge. */
+.yd-lens__beep {
+  fill: #34d399;
+  opacity: 0.3;
+  filter: drop-shadow(0 0 3px #34d399);
+  animation: yd-lens-beep 8s linear infinite;
+}
+
+/* Leaders: only when the labels are pinned on the drawing ----------------- */
+
+.yd-car__leaders { display: none; }
+.yd-car__leader { fill: none; stroke: var(--yd-text-muted); stroke-opacity: 0.7; stroke-dasharray: 2 3; }
+.yd-car__leader--ok { stroke: var(--yd-positive); }
+.yd-car__leader--at_risk { stroke: var(--yd-warning); }
+.yd-car__leader--over { stroke: var(--yd-negative); }
+.yd-car__leader--dimmed { stroke-opacity: 0.35; }
+
+@container scene (min-width: 900px) {
+  .yd-car__leaders { display: inline; }
+}
+
+/* Dial -------------------------------------------------------------------- */
+
+.yd-dial__face { fill: #0e0e17; stroke: #2a2a3c; stroke-width: 1.5; }
+.yd-dial__track { fill: none; stroke: #2a2a3c; stroke-width: 4; stroke-linecap: round; }
+.yd-dial__level { fill: none; stroke: #34d399; stroke-width: 4; stroke-linecap: round; }
+.yd-dial__hub { fill: #34d399; }
+.yd-car__dial--at_risk .yd-dial__level { stroke: #fbbf24; }
+.yd-car__dial--at_risk .yd-dial__hub { fill: #fbbf24; }
+.yd-car__dial--over .yd-dial__level { stroke: #fb7185; }
+.yd-car__dial--over .yd-dial__hub { fill: #fb7185; }
+.yd-dial__ticks { stroke: #6f6e8c; stroke-width: 1.3; stroke-linecap: round; }
+/* Resting on the reading; the entrance only brings it down from full. */
+.yd-dial__needle {
+  fill: #f1f1f6;
+  transform-box: view-box;
+  transform: rotate(var(--needle));
+  animation: yd-dial-needle 2.2s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.yd-dial__reserve {
+  fill: #fbbf24;
+  filter: drop-shadow(0 0 5px rgba(251, 191, 36, 0.9));
+  animation: yd-dial-blink 1.2s steps(2) infinite;
+}
+.yd-car__dial--over .yd-dial__reserve { fill: #fb7185; filter: drop-shadow(0 0 5px rgba(251, 113, 133, 0.9)); }
+.yd-dial__letter { fill: #a1a1b5; font-size: 11px; font-family: var(--yd-font); }
+
+/* Light theme: the studio turns light, the white car gets a hairline ------ */
+
+:root[data-theme="light"] .yd-car__studio-0 { stop-color: #ffffff; stop-opacity: 0.9; }
+:root[data-theme="light"] .yd-car__studio-1 { stop-color: #eaebf0; stop-opacity: 0; }
+:root[data-theme="light"] .yd-car__road-0 { stop-color: #d7d9e0; }
+:root[data-theme="light"] .yd-car__road-1 { stop-color: #c9ccd4; }
+:root[data-theme="light"] .yd-car__steel-0 { stop-color: #a4a8b3; }
+:root[data-theme="light"] .yd-car__steel-1 { stop-color: #858a96; }
+:root[data-theme="light"] .yd-car__gantry-head { fill: #c3c6cf; stroke: #9ea2ad; }
+:root[data-theme="light"] .yd-car__road-edge { stroke: #b9bcc6; }
+:root[data-theme="light"] .yd-car__road-dash { stroke: #f5f6f9; }
+:root[data-theme="light"] .yd-car__beam { fill-opacity: 0; }
+:root[data-theme="light"] .yd-car__shadow { fill-opacity: 0.35; }
+:root[data-theme="light"] .yd-car__contact { fill: #2c2e36; fill-opacity: 0.7; }
+:root[data-theme="light"] .yd-car__outline { stroke: #5f6472; stroke-opacity: 0.75; }
+
+/* Motion ------------------------------------------------------------------ */
+
+@keyframes yd-car-spin { to { transform: rotate(360deg); } }
+@keyframes yd-car-road { to { stroke-dashoffset: 40; } }
+@keyframes yd-car-gantry {
+  from { transform: translateX(60px); }
+  to { transform: translateX(-700px); }
+}
+@keyframes yd-lens-drain { from { transform: translateY(0); } }
+@keyframes yd-lens-wave { to { transform: translateX(-31px); } }
+@keyframes yd-lens-flow { to { stroke-dashoffset: -9; } }
+@keyframes yd-lens-piston { to { transform: translateY(11px); } }
+@keyframes yd-lens-sweep { to { transform: translateY(var(--d)); } }
+@keyframes yd-lens-pulse { 50% { opacity: 0.6; } }
+@keyframes yd-lens-beep {
+  0%, 31% { opacity: 0.3; }
+  33%, 38% { opacity: 1; }
+  40%, 100% { opacity: 0.3; }
+}
+@keyframes yd-dial-needle { from { transform: rotate(90deg); } }
+@keyframes yd-dial-blink { 50% { opacity: 0.2; } }
+
+/* Everything stops on its resting state: the tank at its level, the needle
+   on its reading, the rest where it stands. */
+@media (prefers-reduced-motion: reduce) {
+  .yd-car * {
+    animation: none !important;
+  }
+}
+
+:root[data-motion="off"] .yd-car * {
+  animation: none !important;
+}

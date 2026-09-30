@@ -1,0 +1,146 @@
+/* The words of a scene. A list under the drawing by default; pinned on it at
+   the end of each leader once the scene itself is 900px wide or more — a
+   container query on the scene, not a viewport query, because what decides
+   whether a label fits is the drawing's own width. */
+
+.yd-scene-labels {
+  list-style: none;
+  margin: 0;
+  padding: var(--yd-space-sm) 0 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--yd-space-xs);
+}
+
+.yd-scene-label__box {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 10px;
+  border: 1px solid var(--yd-border);
+  border-radius: var(--yd-radius-sm);
+  background: var(--yd-surface-raised);
+  color: var(--yd-text);
+  font: inherit;
+  text-align: left;
+  line-height: 1.25;
+}
+
+button.yd-scene-label__box {
+  cursor: pointer;
+  transition: border-color var(--yd-motion-fast) var(--yd-ease);
+}
+
+button.yd-scene-label__box:hover {
+  border-color: var(--yd-accent);
+}
+
+button.yd-scene-label__box:focus-visible {
+  outline: 2px solid var(--yd-accent);
+  outline-offset: 2px;
+}
+
+.yd-scene-label--current .yd-scene-label__box {
+  border-color: var(--yd-border-strong);
+}
+
+.yd-scene-label__title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78rem;
+  color: var(--yd-text-muted);
+}
+
+.yd-scene-label__dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex: none;
+  background: var(--yd-text-muted);
+}
+
+.yd-scene-label--ok .yd-scene-label__dot {
+  background: var(--yd-positive);
+}
+
+.yd-scene-label--at_risk .yd-scene-label__dot {
+  background: var(--yd-warning);
+}
+
+.yd-scene-label--over .yd-scene-label__dot {
+  background: var(--yd-negative);
+}
+
+.yd-scene-label__figures {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 2px 8px;
+}
+
+.yd-scene-label__amount {
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.yd-scene-label__detail {
+  font-size: 0.78rem;
+  color: var(--yd-text-muted);
+}
+
+.yd-scene-label--at_risk .yd-scene-label__detail {
+  color: var(--yd-warning);
+}
+
+.yd-scene-label--over .yd-scene-label__detail {
+  color: var(--yd-negative-text);
+}
+
+.yd-scene-label--dimmed {
+  opacity: 0.62;
+}
+
+@container scene (min-width: 900px) {
+  .yd-scene-labels {
+    position: absolute;
+    inset: 0;
+    display: block;
+    padding: 0;
+    pointer-events: none;
+  }
+
+  .yd-scene-label {
+    position: absolute;
+    left: var(--x);
+    top: var(--y);
+    pointer-events: auto;
+  }
+
+  .yd-scene-label--above {
+    transform: translate(-50%, calc(-100% - 4px));
+  }
+
+  .yd-scene-label--left {
+    transform: translate(calc(-100% - 4px), -50%);
+  }
+
+  .yd-scene-label--below {
+    transform: translate(-50%, 4px);
+  }
+
+  .yd-scene-label__box {
+    white-space: nowrap;
+    box-shadow: var(--yd-shadow-raised);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  button.yd-scene-label__box {
+    transition: none;
+  }
+}
+
+:root[data-motion="off"] button.yd-scene-label__box {
+  transition: none;
+}

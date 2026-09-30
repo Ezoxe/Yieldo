@@ -30,6 +30,7 @@ import { CONNECTIONS as MARKET_CONNECTIONS, LLM_LOCAL } from "../features/connec
 import type { GoalProgress, GoalReport, LlmSettings } from "../lib/types";
 import { OUTLOOK, RELIABILITY } from "../features/avenir/fixtures";
 import {
+  abonnementsDetail,
   giftsDetail,
   logementChildDetail,
   logementDetail,
@@ -468,6 +469,9 @@ function budgetDetailFor(id: number) {
   }
   const room = logementChildDetail(id);
   if (room !== null) return { ...room, category: { ...room.category, parent: home } };
+  if (id === 4) {
+    return { ...abonnementsDetail, category: { ...abonnementsDetail.category, id: 4 } };
+  }
   const category = CATEGORY_PAYLOAD.find((row) => row.id === id);
   if (category === undefined) return null;
   return {

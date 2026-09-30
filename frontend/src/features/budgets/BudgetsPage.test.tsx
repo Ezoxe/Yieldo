@@ -363,3 +363,22 @@ describe("monthLabel / shiftMonth", () => {
     expect(shiftMonth("2025-12", 1)).toBe("2026-01");
   });
 });
+
+describe("every category opens its universe", () => {
+  it("links each budget line, each spending row and each unbudgeted category to its page", async () => {
+    setupFetch();
+    renderPage("/budgets?mois=2026-01");
+    await screen.findAllByText("Courses");
+    expect(inBudgetPanel().getByRole("link", { name: "Courses" })).toHaveAttribute(
+      "href",
+      "/budgets/1?mois=2026-01",
+    );
+
+    const split = within(document.querySelector('[data-ai-target="budget-split"]') as HTMLElement);
+    expect(split.getByRole("link", { name: "Restaurants" })).toHaveAttribute("href", "/budgets/3?mois=2026-01");
+
+    expect(screen.getAllByRole("link", { name: "Énergie" }).map((link) => link.getAttribute("href"))).toContain(
+      "/budgets/4?mois=2026-01",
+    );
+  });
+});

@@ -103,7 +103,15 @@ export function categoryIcon(name: string): IconComponent {
  * overspends everywhere would otherwise see shares summing past 100 %, which
  * is a different claim and a confusing one.
  */
-function SpendingList({ slices, totalCents }: { slices: DonutSlice[]; totalCents: number }) {
+function SpendingList({
+  slices,
+  totalCents,
+  month,
+}: {
+  slices: DonutSlice[];
+  totalCents: number;
+  month: string;
+}) {
   const total = Math.abs(totalCents);
   if (slices.length === 0) {
     return (
@@ -127,7 +135,13 @@ function SpendingList({ slices, totalCents }: { slices: DonutSlice[]; totalCents
                 return <Glyph />;
               })()}
             </span>
-            <span className="yd-split__name">{slice.name}</span>
+            {slice.categoryId === null ? (
+              <span className="yd-split__name">{slice.name}</span>
+            ) : (
+              <Link to={`/budgets/${slice.categoryId}?mois=${month}`} className="yd-split__name yd-budgets__link">
+                {slice.name}
+              </Link>
+            )}
             <span className="yd-split__amount yd-num">{formatCents(-slice.amountCents)}</span>
             <span className="yd-split__share yd-num">{`${share} %`}</span>
           </li>
@@ -204,6 +218,8 @@ const SPAN = {
 interface BudgetInputProps {
   categoryId: number;
   name: string;
+  /** The month on screen, carried to the category's page. */
+  month: string;
   spentCents: number;
   onSaved: () => void;
 }
@@ -236,7 +252,7 @@ export function suggestedCeiling(spentCents: number): string {
   return String(rounded);
 }
 
-function BudgetInput({ categoryId, name, spentCents, onSaved }: BudgetInputProps) {
+function BudgetInput({ categoryId, name, month, spentCents, onSaved }: BudgetInputProps) {
   // Collapsed until asked for. A text field and a "Définir" button on every
   // row turned this panel into an unfinished spreadsheet — twelve inputs
   // nobody was filling in. The row now states what the category cost and
@@ -276,7 +292,9 @@ function BudgetInput({ categoryId, name, spentCents, onSaved }: BudgetInputProps
 
   return (
     <li className="yd-budgets__suggestion">
-      <span className="yd-budgets__suggestion-name">{name}</span>
+      <Link to={`/budgets/${categoryId}?mois=${month}`} className="yd-budgets__suggestion-name yd-budgets__link">
+        {name}
+      </Link>
       <span className="yd-budgets__suggestion-spent yd-num">
         {formatCents(Math.abs(spentCents))}
       </span>
@@ -478,7 +496,7 @@ export function BudgetsPage() {
           >
             Où va l'argent
           </PanelHead>
-          <SpendingList slices={spending.slices} totalCents={spending.totalCents} />
+          <SpendingList slices={spending.slices} totalCents={spending.totalCents} month={current} />
         </BentoCell>
 
         <BentoCell as={motion.div} span={SPAN.lines}
@@ -504,6 +522,7 @@ export function BudgetsPage() {
                   line={line}
                   onSaved={afterSave}
                   history={historyByCategory.get(line.category_id)}
+                  detailHref={`/budgets/${line.category_id}?mois=${current}`}
                 />
               ))}
             </div>
@@ -528,6 +547,7 @@ export function BudgetsPage() {
                   key={entry.category_id}
                   categoryId={entry.category_id}
                   name={entry.name}
+                  month={current}
                   spentCents={entry.spent_cents}
                   onSaved={afterSave}
                 />

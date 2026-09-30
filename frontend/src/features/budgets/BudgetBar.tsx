@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { Link } from "react-router";
 
 import { AlertsIcon, AnomalyIcon, CheckIcon, EditIcon, type IconComponent } from "../../design/icons";
 import { categoryTargetId } from "../../design/ai/targets";
@@ -53,6 +54,8 @@ interface BudgetBarProps {
   onSaved?: () => void;
   /** The last months of this line, for the strip under the bar. */
   history?: BudgetHistoryLine;
+  /** The category's own page; absent, the name is plain text. */
+  detailHref?: string;
 }
 
 /**
@@ -211,7 +214,7 @@ function BudgetSpark({ history }: { history: BudgetHistoryLine }) {
   );
 }
 
-export function BudgetBar({ line, onSaved, history }: BudgetBarProps) {
+export function BudgetBar({ line, onSaved, history, detailHref }: BudgetBarProps) {
   const spent = Math.abs(line.spent_cents);
   const percent = consumedPercent(line.consumed_ratio);
   const StatusIcon = STATUS_ICON[line.status];
@@ -220,7 +223,13 @@ export function BudgetBar({ line, onSaved, history }: BudgetBarProps) {
   return (
     <div className={`yd-budget yd-budget--${line.status}`} data-ai-target={categoryTargetId(line.name)}>
       <div className="yd-budget__head">
-        <span className="yd-budget__name">{line.name}</span>
+        {detailHref ? (
+          <Link to={detailHref} className="yd-budget__name yd-budgets__link">
+            {line.name}
+          </Link>
+        ) : (
+          <span className="yd-budget__name">{line.name}</span>
+        )}
         {line.is_essential ? (
           <span className="yd-budget__essential" title="Dépense essentielle">
             Essentiel

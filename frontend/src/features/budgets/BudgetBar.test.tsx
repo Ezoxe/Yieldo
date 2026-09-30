@@ -216,3 +216,21 @@ describe("BudgetBar — six months under the line", () => {
     expect(screen.queryByRole("img", { name: /derniers mois/ })).not.toBeInTheDocument();
   });
 });
+
+describe("BudgetBar link", () => {
+  it("names its category with a link to the category's page when given one", async () => {
+    const { MemoryRouter } = await import("react-router");
+    render(
+      <MemoryRouter>
+        <BudgetBar line={line} detailHref="/budgets/1?mois=2026-01" />
+      </MemoryRouter>,
+    );
+    expect(screen.getByRole("link", { name: "Courses" })).toHaveAttribute("href", "/budgets/1?mois=2026-01");
+  });
+
+  it("keeps a plain name without one", () => {
+    render(<BudgetBar line={line} />);
+    expect(screen.queryByRole("link")).toBeNull();
+    expect(screen.getByText("Courses")).toBeInTheDocument();
+  });
+});

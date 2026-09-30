@@ -290,3 +290,54 @@ export function logementChildDetail(categoryId: number): BudgetDetail | null {
     siblings: homeParts,
   };
 }
+
+/* -- Abonnements over the same nineteen months, for the living room -------- */
+
+const SUB_PARTS: typeof PARTS = [
+  {
+    id: 41, name: "Streaming", slug: "abonnements-streaming", color: "#7ee2d6",
+    flow: (key) => ({ cents: key >= "2026-01" ? -2711 : -2461, count: 2 }),
+  },
+  { id: 42, name: "Logiciels et services", slug: "abonnements-logiciels", color: "#7ee2d6", flow: () => ({ cents: -1199, count: 1 }) },
+  {
+    id: 43, name: "Presse", slug: "abonnements-presse", color: "#7ee2d6",
+    flow: (key, index) => (index % 2 === 0 && key !== CURRENT ? { cents: -900, count: 1 } : { cents: 0, count: 0 }),
+  },
+  { id: 44, name: "Salle de sport", slug: "abonnements-salle", color: "#7ee2d6", flow: () => ({ cents: -2999, count: 1 }) },
+];
+
+const SUB_BUDGET = 9000;
+const STREAMING_BUDGET = 3000;
+const subParts = SUB_PARTS.map((part) => partOut(part, part.slug === "abonnements-streaming" ? STREAMING_BUDGET : null));
+const subSeries: BudgetDetailMonth[] = KEYS.map((key, index) => {
+  const flows = SUB_PARTS.map((part) => part.flow(key, index));
+  return {
+    month: key,
+    spent_cents: flows.reduce((sum, flow) => sum + flow.cents, 0),
+    count: flows.reduce((sum, flow) => sum + flow.count, 0),
+    complete: key !== CURRENT,
+  };
+});
+const subNow = subSeries[subSeries.length - 1];
+const subCounted = subNow.spent_cents - subParts[0].spent_cents;
+
+export const abonnementsDetail: BudgetDetail = {
+  ...transportDetail,
+  category: { id: 40, name: "Abonnements", slug: "abonnements", color: "#7ee2d6", is_essential: false, parent: null },
+  spent_cents: subNow.spent_cents,
+  count: subNow.count,
+  average_ticket_cents: subNow.count > 0 ? mean(subNow.spent_cents, subNow.count) : null,
+  budget: {
+    budget_cents: SUB_BUDGET,
+    spent_cents: subCounted,
+    remaining_cents: SUB_BUDGET + subCounted,
+    consumed_ratio: -subCounted / SUB_BUDGET,
+    projected_cents: null,
+    status: "ok",
+  },
+  ...averageOf(subSeries),
+  years: yearsOf(subSeries),
+  series: subSeries,
+  parts: subParts,
+  siblings: [],
+};

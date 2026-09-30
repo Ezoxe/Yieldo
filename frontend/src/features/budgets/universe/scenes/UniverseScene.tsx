@@ -4,6 +4,7 @@ import type { UniverseId } from "../registry";
 import type { Gauge, PartReading } from "../readings";
 import { CarScene } from "./car/CarScene";
 import { HouseScene } from "./house/HouseScene";
+import { SalonScene } from "./salon/SalonScene";
 
 /** What every scene is handed: the page's ceiling, the parts, and the way to a part's page. */
 export interface SceneProps {
@@ -19,6 +20,7 @@ export interface SceneProps {
 const SCENES: Partial<Record<UniverseId, ComponentType<SceneProps>>> = {
   car: CarScene,
   house: HouseScene,
+  salon: SalonScene,
 };
 
 /** The scene of `universe`: one component per universe, all on the same props. */

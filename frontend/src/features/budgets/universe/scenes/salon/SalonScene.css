@@ -1,0 +1,164 @@
+/* The living-room scene. Physical colours only — papered wall, oak parquet,
+   a slate sofa, a film on the television — kept here, never in a component.
+   The theme sets the time of day: evening in the dark theme (night at the
+   window, the floor lamp lit, the television glowing), day in the light one.
+   The lenses stay dark screens in both. */
+
+@container scene (max-width: 899px) {
+  .yd-salon .yd-scene__stage { overflow: hidden; }
+  .yd-salon .yd-scene__svg { margin-top: -6%; }
+  .yd-salon .yd-dial { display: none; }
+}
+
+/* Gradient stops — evening ----------------------------------------------------- */
+
+.yd-salon__wall-0 { stop-color: #2a2622; }
+.yd-salon__wall-1 { stop-color: #3b342d; }
+.yd-salon__screen-0 { stop-color: #1e2b5c; }
+.yd-salon__screen-1 { stop-color: #c2553a; }
+.yd-salon__screen-2 { stop-color: #f3a35a; }
+.yd-salon__screen-3 { stop-color: #2a1a1a; }
+.yd-salon__window-0 { stop-color: #0b1026; }
+.yd-salon__window-1 { stop-color: #2b2a55; }
+.yd-salon__wood-0 { stop-color: #6b4a30; }
+.yd-salon__wood-1 { stop-color: #4a3220; }
+.yd-salon__sofa-0 { stop-color: #5d6a78; }
+.yd-salon__sofa-1 { stop-color: #3a4450; }
+.yd-salon__lamp-0 { stop-color: #ffcf7a; stop-opacity: 0.55; }
+.yd-salon__lamp-1 { stop-color: #ffcf7a; stop-opacity: 0; }
+.yd-salon__tv-light-0 { stop-color: #f3a35a; stop-opacity: 0.22; }
+.yd-salon__tv-light-1 { stop-color: #f3a35a; stop-opacity: 0; }
+
+/* Room ---------------------------------------------------------------------------- */
+
+.yd-salon__plank { fill: #5a3d27; }
+.yd-salon__plank-joint { stroke: #3e2a1b; }
+.yd-salon__plank-grain { stroke: #6b4a30; stroke-width: 0.8; }
+.yd-salon__paper { fill: #332e29; }
+.yd-salon__paper-stripe { stroke: #3a342e; stroke-width: 1.2; }
+.yd-salon__wall-tone { opacity: 0.55; }
+.yd-salon__wainscot { fill: #2e2924; }
+.yd-salon__rail { stroke: #4a4038; stroke-width: 2; }
+.yd-salon__floor-shade { fill: #000; opacity: 0.28; }
+.yd-salon__skirting { stroke: #1f1813; stroke-width: 3; }
+.yd-salon__night-sky { fill: #eef2ff; }
+.yd-salon__moon { fill: #f5f1d8; opacity: 0.9; }
+.yd-salon__window-bars { stroke: #d8ccb8; stroke-width: 3; }
+.yd-salon__window-frame { fill: none; stroke: #d8ccb8; stroke-width: 4; }
+.yd-salon__curtain { fill: #6b3f45; }
+.yd-salon__curtain-rod { stroke: #8d8174; stroke-width: 3; }
+.yd-salon__lamp-stand { stroke: #2a2b30; stroke-width: 3; }
+.yd-salon__lamp-foot { stroke: #2a2b30; stroke-width: 4; stroke-linecap: round; }
+.yd-salon__lampshade { fill: #e8dcc4; }
+.yd-salon__lamp-bulb { stroke: #ffcf7a; stroke-width: 2; }
+.yd-salon__tv-glow,
+.yd-salon__screen { animation: yd-salon-glow 5s ease-in-out infinite; }
+.yd-salon__tv-bezel { fill: #0b0b0e; }
+.yd-salon__film-land { fill: #1a1216; opacity: 0.85; }
+.yd-salon__film-sun { fill: #ffd98a; opacity: 0.85; }
+.yd-salon__wood-lines { stroke: #3a2718; stroke-width: 1.2; }
+.yd-salon__soundbar { fill: #15161a; }
+.yd-salon__box { fill: #1c1d22; }
+.yd-salon__box-led { fill: #34d399; animation: yd-salon-blink 1.2s steps(2) infinite; }
+.yd-salon__feet { stroke: #2a1b10; stroke-width: 3; }
+.yd-salon__desk { fill: #4a3220; }
+.yd-salon__desk-top { stroke: #6b4a30; stroke-width: 4; stroke-linecap: round; }
+.yd-salon__desk-legs { stroke: #3a2718; stroke-width: 4; }
+.yd-salon__laptop-lid { fill: #1c1f26; }
+.yd-salon__laptop-screen { fill: #2d3a55; }
+.yd-salon__laptop-base { stroke: #9aa0ae; stroke-width: 3; stroke-linecap: round; }
+.yd-salon__mug { fill: #d8ccb8; }
+.yd-salon__steam { fill: none; stroke: #d8ccb8; stroke-width: 1.5; }
+.yd-salon__seat { fill: #4b5663; }
+.yd-salon__seams { fill: none; stroke: #2f3943; stroke-width: 1.5; }
+.yd-salon__cushion { fill: #c9a26b; }
+.yd-salon__table-legs { stroke: #3a2718; stroke-width: 4; }
+.yd-salon__magazine { fill: #e9e3d6; }
+.yd-salon__remote { fill: #15161a; }
+.yd-salon__candle { fill: #e8dcc4; }
+.yd-salon__candle-top { fill: #f0e9dc; }
+.yd-salon__bag { fill: #2c3440; }
+.yd-salon__bag-handle { fill: none; stroke: #1c222b; stroke-width: 3; }
+.yd-salon__bag-stripe { stroke: #e5606b; stroke-width: 2; }
+.yd-salon__bar { fill: #6f7b93; }
+.yd-salon__plate { fill: #2a2b30; }
+.yd-salon__leaf { fill: #2f5238; }
+.yd-salon__leaf-light { fill: #3f6b48; }
+.yd-salon__pot { fill: #b07a45; }
+
+/* Lens insides ------------------------------------------------------------------------ */
+
+.yd-lens__scan-rows { stroke: #93c5fd; stroke-opacity: 0.18; stroke-width: 3; }
+.yd-lens__play-ring { fill: none; stroke: #e0dfff; stroke-width: 1.5; animation: yd-salon-pulse 2s ease-in-out infinite; }
+.yd-lens__play { fill: #e0dfff; animation: yd-salon-pulse 2s ease-in-out infinite; }
+.yd-lens__track { fill: #2a2a3c; }
+.yd-lens__progress { fill: #93c5fd; }
+.yd-lens__progress--ok { fill: #34d399; }
+.yd-lens__progress--at_risk { fill: #fbbf24; filter: drop-shadow(0 0 3px rgba(251, 191, 36, 0.9)); }
+.yd-lens__progress--over { fill: #fb7185; filter: drop-shadow(0 0 3px rgba(251, 113, 133, 0.9)); }
+.yd-lens__playhead { fill: #fef3c7; }
+.yd-lens__cloud { fill: #1c2238; stroke: #c7d2fe; }
+.yd-lens__sync { transform-box: view-box; animation: yd-scene-spin 3s linear infinite; }
+.yd-lens__sync-arrow { fill: none; stroke: #60a5fa; stroke-width: 1.4; stroke-linecap: round; }
+.yd-lens__sync-arrow--faint { opacity: 0.5; }
+.yd-lens__magazine { fill: #1c2238; stroke: #c7d2fe; stroke-width: 0.8; }
+.yd-lens__spine { stroke: #c7d2fe; stroke-width: 0.8; }
+.yd-lens__text { stroke: #93c5fd; stroke-linecap: round; }
+.yd-lens__page {
+  transform-box: view-box;
+  transform-origin: 300px 306px;
+  animation: yd-salon-page 3.2s ease-in-out infinite;
+}
+.yd-lens__page-sheet { fill: #e9e3d6; opacity: 0.35; }
+.yd-lens__lift { animation: yd-salon-lift 1.4s ease-in-out infinite alternate; }
+.yd-lens__handle-bar { fill: #c7d2fe; }
+.yd-lens__weight { fill: #5b57d6; stroke: #e0dfff; stroke-width: 0.6; }
+.yd-lens__beat {
+  fill: none;
+  stroke: #34d399;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 60;
+  stroke-dashoffset: 60;
+  animation: yd-salon-beat 1.6s linear infinite;
+}
+
+/* Day: the light theme's living room ----------------------------------------------- */
+
+:root[data-theme="light"] .yd-salon__paper { fill: #e6ddcf; }
+:root[data-theme="light"] .yd-salon__paper-stripe { stroke: #ddd2c1; }
+:root[data-theme="light"] .yd-salon__wall-0 { stop-color: #f2ece2; }
+:root[data-theme="light"] .yd-salon__wall-1 { stop-color: #e2d8c8; }
+:root[data-theme="light"] .yd-salon__wall-tone { opacity: 0.4; }
+:root[data-theme="light"] .yd-salon__wainscot { fill: #d6cbb9; }
+:root[data-theme="light"] .yd-salon__rail { stroke: #bfb29d; }
+:root[data-theme="light"] .yd-salon__plank { fill: #a8774c; }
+:root[data-theme="light"] .yd-salon__plank-joint { stroke: #86593a; }
+:root[data-theme="light"] .yd-salon__plank-grain { stroke: #b88a5c; }
+:root[data-theme="light"] .yd-salon__floor-shade { opacity: 0.08; }
+:root[data-theme="light"] .yd-salon__window-0 { stop-color: #7fb2e5; }
+:root[data-theme="light"] .yd-salon__window-1 { stop-color: #cfe2f4; }
+:root[data-theme="light"] .yd-salon__night-sky { display: none; }
+:root[data-theme="light"] .yd-salon__lamp-0 { stop-opacity: 0; }
+:root[data-theme="light"] .yd-salon__tv-light-0 { stop-opacity: 0.1; }
+:root[data-theme="light"] .yd-salon__sofa-0 { stop-color: #8795a5; }
+:root[data-theme="light"] .yd-salon__sofa-1 { stop-color: #6a7786; }
+:root[data-theme="light"] .yd-salon__seat { fill: #7a8796; }
+:root[data-theme="light"] .yd-salon__curtain { fill: #9a5c64; }
+
+/* Motion ---------------------------------------------------------------------------- */
+
+@keyframes yd-salon-glow {
+  0%, 100% { opacity: 1; }
+  40% { opacity: 0.82; }
+  60% { opacity: 0.93; }
+}
+@keyframes yd-salon-blink { 50% { opacity: 0.2; } }
+@keyframes yd-salon-pulse { 50% { opacity: 0.5; } }
+@keyframes yd-salon-page {
+  0%, 40% { transform: scaleX(1); }
+  55%, 100% { transform: scaleX(-1); }
+}
+@keyframes yd-salon-lift { to { transform: translateY(-5px); } }
+@keyframes yd-salon-beat { to { stroke-dashoffset: -60; } }

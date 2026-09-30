@@ -53,9 +53,12 @@ describe("universeFor", () => {
     expect(universeFor({ slug: "entretien", name: "Entretien", parent: null })).toBeNull();
   });
 
-  it("does not take a home insurance for the car", () => {
+  it("does not take a home insurance for the car: it is the house's roof", () => {
     const logement = { slug: "logement", name: "Logement" };
-    expect(universeFor({ slug: "logement-assurance", name: "Assurance habitation", parent: logement })).toBeNull();
+    expect(universeFor({ slug: "logement-assurance", name: "Assurance habitation", parent: logement })).toEqual({
+      universe: "house",
+      focus: "roof",
+    });
   });
 
   it("does not read « autoroute » or « autres » as a car family", () => {
@@ -64,6 +67,44 @@ describe("universeFor", () => {
       universe: "car",
       focus: "toll",
     });
+  });
+});
+
+describe("universeFor — the house", () => {
+  const logement = { slug: "logement", name: "Logement" };
+
+  it("opens the house on the seeded Logement family", () => {
+    expect(universeFor({ ...logement, parent: null })).toEqual({ universe: "house", focus: null });
+  });
+
+  it("puts each seeded child where it lives in the house", () => {
+    const cases: Array<[string, string, string]> = [
+      ["logement-loyer", "Loyer", "door"],
+      ["logement-credit", "Crédit immobilier", "door"],
+      ["logement-charges", "Charges et copropriété", "water"],
+      ["logement-energie", "Énergie", "power"],
+      ["logement-internet", "Internet et téléphone", "net"],
+      ["logement-assurance", "Assurance habitation", "roof"],
+      ["logement-travaux", "Travaux et entretien", "workshop"],
+    ];
+    for (const [slug, name, part] of cases) {
+      expect(universeFor({ slug, name, parent: logement })).toEqual({ universe: "house", focus: part });
+    }
+  });
+
+  it("places the household's own names under Logement", () => {
+    expect(universeFor({ slug: "eau", name: "Eau", parent: logement })).toEqual({ universe: "house", focus: "water" });
+    expect(universeFor({ slug: "gaz", name: "Gaz", parent: logement })).toEqual({ universe: "house", focus: "power" });
+  });
+
+  it("opens a lone root part of the house on unambiguous words", () => {
+    expect(universeFor({ slug: "electricite", name: "Électricité", parent: null })).toEqual({ universe: "house", focus: "power" });
+    expect(universeFor({ slug: "internet", name: "Internet", parent: null })).toEqual({ universe: "house", focus: "net" });
+    expect(universeFor({ slug: "assurance-habitation", name: "Assurance habitation", parent: null })).toEqual({
+      universe: "house",
+      focus: "roof",
+    });
+    expect(universeFor({ slug: "loyer", name: "Loyer", parent: null })).toEqual({ universe: "house", focus: "door" });
   });
 });
 

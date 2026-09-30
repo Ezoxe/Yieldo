@@ -102,4 +102,18 @@ describe("partReadings", () => {
     expect(fuels).toHaveLength(1);
     expect(fuels[0].categoryId).toBe(fuelDetail.category.id);
   });
+
+  it("draws the heavier of two categories sharing a part when neither is the page", () => {
+    const home = {
+      ...transportDetail,
+      category: { id: 1, name: "Logement", slug: "logement", color: "#3b82f6", is_essential: true, parent: null },
+      parts: [
+        part({ category_id: 2, name: "Crédit immobilier", slug: "logement-credit", spent_cents: 0, average_cents: 0 }),
+        part({ category_id: 3, name: "Loyer", slug: "logement-loyer", spent_cents: -92000, average_cents: -92000 }),
+      ],
+    };
+    const doors = partReadings(home, { universe: "house", focus: null }).filter((entry) => entry.part === "door");
+    expect(doors).toHaveLength(1);
+    expect(doors[0].name).toBe("Loyer");
+  });
 });

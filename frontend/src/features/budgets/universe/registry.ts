@@ -20,9 +20,10 @@
  * household's to change.
  */
 
-export type UniverseId = "car";
+export type UniverseId = "car" | "house";
 export type CarPart = "fuel" | "engine" | "cage" | "toll";
-export type PartId = CarPart;
+export type HousePart = "roof" | "door" | "net" | "power" | "water" | "workshop";
+export type PartId = CarPart | HousePart;
 
 export interface Named {
   slug: string;
@@ -83,7 +84,56 @@ const CAR: UniverseRule = {
   ],
 };
 
-const UNIVERSES: readonly UniverseRule[] = [CAR];
+/**
+ * The Logement family as a traditional house. The rent and the mortgage are
+ * the same thing to it — the key in the door — and when a household has both,
+ * the one it actually pays is drawn (see `readings.partReadings`).
+ */
+const HOUSE: UniverseRule = {
+  id: "house",
+  slugs: ["logement"],
+  words: /\b(logements?|maisons?|appartements?|domicile)\b/i,
+  parts: [
+    {
+      id: "door",
+      slugs: ["logement-loyer", "logement-credit"],
+      words: /loyer|cr[ée]dit immobilier|pr[êe]t immobilier|hypoth/i,
+      strong: /loyer|cr[ée]dit immobilier|pr[êe]t immobilier/i,
+    },
+    {
+      id: "power",
+      slugs: ["logement-energie"],
+      words: /[ée]nergie|[ée]lectricit[ée]|\bgaz\b|chauffage|fioul|\bedf\b/i,
+      strong: /[ée]lectricit[ée]|chauffage|fioul/i,
+    },
+    {
+      id: "net",
+      slugs: ["logement-internet"],
+      words: /internet|t[ée]l[ée]phone|\bbox\b|mobile|forfait|fibre/i,
+      strong: /internet|t[ée]l[ée]phone|forfait|fibre/i,
+    },
+    {
+      id: "roof",
+      slugs: ["logement-assurance"],
+      words: /assurance/i,
+      strong: /assurance habitation|multirisque/i,
+    },
+    {
+      id: "water",
+      slugs: ["logement-charges"],
+      words: /charges|copropri[ée]t[ée]|syndic|\beau\b/i,
+      strong: /copropri[ée]t[ée]|syndic/i,
+    },
+    {
+      id: "workshop",
+      slugs: ["logement-travaux"],
+      words: /travaux|entretien|bricolage|jardin|r[ée]paration/i,
+      strong: /travaux|bricolage/i,
+    },
+  ],
+};
+
+const UNIVERSES: readonly UniverseRule[] = [CAR, HOUSE];
 
 function isUniverse(rule: UniverseRule, category: Named): boolean {
   return rule.slugs.includes(category.slug) || rule.words.test(category.name);

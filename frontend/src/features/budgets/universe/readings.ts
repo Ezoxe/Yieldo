@@ -100,9 +100,15 @@ function pageAsPart(detail: BudgetDetail): BudgetDetailPart {
  * siblings around a child (the child in front, the rest dimmed), or the page
  * itself when a root category is recognised as one part. A child the universe
  * has no part for is left to the « Postes » panel. When two categories map to
- * one part, one of them is drawn — the page's own if it is one of the two —
- * and the other stays in the panel.
+ * one part (rent and mortgage are both the key in the door), one is drawn —
+ * the page's own if it is one of the two, else the one the household actually
+ * pays, by its mean or else this month — and the other stays in the panel.
  */
+/** How much a part weighs, to pick between two categories sharing it. */
+function weight(reading: PartReading): number {
+  return Math.abs(reading.averageCents ?? reading.spentCents);
+}
+
 export function partReadings(detail: BudgetDetail, match: UniverseMatch): PartReading[] {
   const source =
     match.focus === null
@@ -129,7 +135,10 @@ export function partReadings(detail: BudgetDetail, match: UniverseMatch): PartRe
       focused,
       dimmed: match.focus !== null && !focused,
     };
-    if (!byPart.has(part) || focused) byPart.set(part, reading);
+    const drawn = byPart.get(part);
+    if (drawn === undefined || focused || (!drawn.focused && weight(reading) > weight(drawn))) {
+      byPart.set(part, reading);
+    }
   }
   return source
     .map((entry) => byPart.get(partFor(match.universe, entry) as PartId))

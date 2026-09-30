@@ -13,12 +13,14 @@ export interface SceneProps {
   onSelect: (categoryId: number) => void;
 }
 
-const SCENES: Record<UniverseId, ComponentType<SceneProps>> = {
+/** Partial on purpose: the registry may know a universe before its scene is
+ *  drawn, and the page then shows its figures without a scene. */
+const SCENES: Partial<Record<UniverseId, ComponentType<SceneProps>>> = {
   car: CarScene,
 };
 
 /** The scene of `universe`: one component per universe, all on the same props. */
 export function UniverseScene({ universe, ...props }: SceneProps & { universe: UniverseId }) {
   const Scene = SCENES[universe];
-  return <Scene {...props} />;
+  return Scene === undefined ? null : <Scene {...props} />;
 }

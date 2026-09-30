@@ -31,6 +31,7 @@ import type { GoalProgress, GoalReport, LlmSettings } from "../lib/types";
 import { OUTLOOK, RELIABILITY } from "../features/avenir/fixtures";
 import {
   abonnementsDetail,
+  alimentationDetail,
   giftsDetail,
   logementChildDetail,
   logementDetail,
@@ -471,6 +472,9 @@ function budgetDetailFor(id: number) {
   if (room !== null) return { ...room, category: { ...room.category, parent: home } };
   if (id === 4) {
     return { ...abonnementsDetail, category: { ...abonnementsDetail.category, id: 4 } };
+  }
+  if (id === 2) {
+    return { ...alimentationDetail, category: { ...alimentationDetail.category, id: 2 } };
   }
   const category = CATEGORY_PAYLOAD.find((row) => row.id === id);
   if (category === undefined) return null;

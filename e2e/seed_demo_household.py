@@ -252,6 +252,7 @@ def main() -> int:
             "transport": 35_000, "transport-carburant": 15_000,
             "logement": 125_000, "logement-energie": 15_000,
             "abonnements": 9_000, "abonnements-streaming": 3_000,
+            "alimentation": 60_000, "alimentation-courses": 45_000,
         })
     for name, count in counts.items():
         print(f"{name} : {count} opérations importées")

@@ -118,13 +118,13 @@ export interface LensGeometry {
 /** Each lens sits where its part really is in a rear-engined GT. */
 export const LENSES: Record<PartId, LensGeometry> = {
   // The tank: behind the front axle, under the front lid.
-  fuel: { cx: 487.8, cy: 150.5, r: 30, leader: { from: [509, 129.3], to: [560, 42] }, align: "above" },
+  fuel: { cx: 487.8, cy: 150.5, r: 30, leader: { from: [509, 129.3], to: [566, 42] }, align: "above" },
   // The flat-six: behind the rear axle.
   engine: { cx: 212.3, cy: 160.4, r: 32, leader: { from: [180.3, 160.4], to: [112, 160] }, align: "left" },
   // The roll cage, seen through the rear quarter window.
-  cage: { cx: 298.4, cy: 106.2, r: 22, leader: { from: [314, 90.6], to: [340, 42] }, align: "above" },
+  cage: { cx: 298.4, cy: 106.2, r: 22, leader: { from: [292, 84.2], to: [286, 42] }, align: "above" },
   // The toll badge, behind the interior mirror.
-  toll: { cx: 405, cy: 93.1, r: 14, leader: { from: [405, 79.1], to: [450, 42] }, align: "above" },
+  toll: { cx: 405, cy: 93.1, r: 14, leader: { from: [405, 79.1], to: [426, 42] }, align: "above" },
 };
 
 /** The fuel tank inside its lens: a rounded box behind the front wheel. */
@@ -136,5 +136,6 @@ export const TANK = {
   height: 24,
 } as const;
 
-/** The gauge dial, top left: centre, arc radius, and where its label hangs. */
-export const DIAL = { cx: 40, cy: 40, r: 30, arc: 24, label: [40, 74] as [number, number] } as const;
+/** The gauge dial, top left: centre, arc radius, and where its label hangs
+ *  (from the dial's left edge, so it never runs off the scene). */
+export const DIAL = { cx: 40, cy: 40, r: 30, arc: 24, label: [10, 74] as [number, number] } as const;

@@ -129,6 +129,10 @@ button.yd-scene-label__box:focus-visible {
     transform: translate(-50%, 4px);
   }
 
+  .yd-scene-label--below-start {
+    transform: translate(0, 4px);
+  }
+
   .yd-scene-label__box {
     white-space: nowrap;
     box-shadow: var(--yd-shadow-raised);

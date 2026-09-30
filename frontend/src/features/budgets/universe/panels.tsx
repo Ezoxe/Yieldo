@@ -131,7 +131,16 @@ export function AveragePanel({ detail, span }: { detail: BudgetDetail; span: Ben
 export function MonthsPanel({ detail, span }: { detail: BudgetDetail; span: BentoSpan }) {
   return (
     <BentoCell as="section" span={span} className="yd-panel" aria-label="Mois par mois">
-      <PanelHead icon={AnalysisIcon}>Mois par mois</PanelHead>
+      <PanelHead
+        icon={AnalysisIcon}
+        subtitle={
+          detail.average_cents === null
+            ? "Pas encore de moyenne à tracer"
+            : `En pointillés : la moyenne, ${formatCents(Math.abs(detail.average_cents))} par mois`
+        }
+      >
+        Mois par mois
+      </PanelHead>
       <CategoryMonthsChart series={detail.series} current={detail.month} averageCents={detail.average_cents} />
     </BentoCell>
   );

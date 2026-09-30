@@ -98,11 +98,9 @@ export function buildCategoryMonthsOption(
                 symbol: "none",
                 silent: true,
                 lineStyle: { type: "dashed", color: tokens.text, opacity: 0.55 },
-                label: {
-                  formatter: `Moyenne ${formatCents(Math.abs(averageCents))}`,
-                  position: "insideEndTop",
-                  color: tokens.muted,
-                },
+                // Named in the panel's subtitle rather than on the line: a
+                // label on the plot always ends up over some month's bar.
+                label: { show: false },
                 data: [{ yAxis: Math.abs(averageCents) }],
               },
       },

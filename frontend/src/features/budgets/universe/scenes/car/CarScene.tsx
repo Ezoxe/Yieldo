@@ -59,7 +59,7 @@ export function CarScene({ gauge, gaugeTitle, parts, onSelect }: CarSceneProps) 
           : `Dépassé de ${formatCents(-gauge.remainingCents)}`,
       detail: `sur ${formatCents(gauge.budgetCents)}`,
       tone: gauge.status,
-      anchor: { x: DIAL.label[0], y: DIAL.label[1], align: "below" },
+      anchor: { x: DIAL.label[0], y: DIAL.label[1], align: "below-start" },
     });
   }
   for (const reading of parts) {

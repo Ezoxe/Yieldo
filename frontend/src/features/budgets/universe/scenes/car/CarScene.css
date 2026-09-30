@@ -21,6 +21,21 @@
   height: auto;
 }
 
+/* A narrow scene frames the car alone: the dial (its reading is the first
+   label of the list) and the empty band where the labels sit on a wide scene
+   are cropped off, so on a phone the car is drawn a quarter larger. */
+@container scene (max-width: 899px) {
+  .yd-car__stage {
+    overflow: hidden;
+  }
+
+  .yd-car__svg {
+    width: 126%;
+    max-width: none;
+    margin: -11% 0 0 -21%;
+  }
+}
+
 /* Gradient stops ---------------------------------------------------------- */
 
 .yd-car__paint-0 { stop-color: #e6e8ee; }
@@ -166,7 +181,9 @@
 /* Lenses ------------------------------------------------------------------ */
 
 .yd-car__lens[data-selectable] { cursor: pointer; }
-.yd-car__lens--dimmed { opacity: 0.45; }
+/* Dimmed, not see-through: a half-transparent lens shows the paint under it
+   and reads as a hole in the car. */
+.yd-car__lens--dimmed { filter: saturate(0.25) brightness(0.55); }
 .yd-lens__base { fill: #040814; fill-opacity: 0.95; }
 .yd-lens__scanline { stroke: #93c5fd; stroke-opacity: 0.09; }
 .yd-lens__ghost { fill: none; stroke: #93c5fd; stroke-opacity: 0.35; }

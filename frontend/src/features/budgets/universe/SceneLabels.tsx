@@ -12,7 +12,7 @@ export interface SceneLabel {
   detail?: string;
   tone: LabelTone;
   /** Where the label meets its leader, in the scene's viewBox units. */
-  anchor: { x: number; y: number; align: "above" | "left" | "below" };
+  anchor: { x: number; y: number; align: "above" | "left" | "below" | "below-start" };
   /** Absent: the label is a reading, not a way somewhere. */
   onSelect?: () => void;
   /** The page's own category: marked, and not a link to itself. */

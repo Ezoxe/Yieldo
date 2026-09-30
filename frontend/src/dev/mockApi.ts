@@ -29,7 +29,13 @@ import {
 import { CONNECTIONS as MARKET_CONNECTIONS, LLM_LOCAL } from "../features/connections/fixtures";
 import type { GoalProgress, GoalReport, LlmSettings } from "../lib/types";
 import { OUTLOOK, RELIABILITY } from "../features/avenir/fixtures";
-import { giftsDetail, transportChildDetail, transportDetail } from "../features/budgets/universe/fixtures";
+import {
+  giftsDetail,
+  logementChildDetail,
+  logementDetail,
+  transportChildDetail,
+  transportDetail,
+} from "../features/budgets/universe/fixtures";
 
 const FLAG = "yd-apercu";
 
@@ -444,8 +450,9 @@ function planPreviewFor(params: Params) {
 
 /**
  * GET /budgets/{id}/detail. The stub's categories are flat, so Transport
- * (id 3) answers with the nineteen-month family of the universe fixtures,
- * whose children keep their fixture ids (31 to 36) and answer in turn;
+ * (id 3) and Logement (id 1) answer with the nineteen-month families of the
+ * universe fixtures, whose children keep their fixture ids (31 to 36, 11 to
+ * 17) and answer in turn;
  * every other category answers with its own name and no scene.
  */
 function budgetDetailFor(id: number) {
@@ -455,6 +462,12 @@ function budgetDetailFor(id: number) {
   }
   const child = transportChildDetail(id);
   if (child !== null) return { ...child, category: { ...child.category, parent: family } };
+  const home = { id: 1, name: "Logement", slug: "logement" };
+  if (id === home.id) {
+    return { ...logementDetail, category: { ...logementDetail.category, id: home.id } };
+  }
+  const room = logementChildDetail(id);
+  if (room !== null) return { ...room, category: { ...room.category, parent: home } };
   const category = CATEGORY_PAYLOAD.find((row) => row.id === id);
   if (category === undefined) return null;
   return {

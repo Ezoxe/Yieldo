@@ -207,8 +207,8 @@ def _import(client: TestClient, headers: dict, account_id: int, content: bytes, 
 
 
 def _set_budgets(client: TestClient, headers: dict, ceilings: dict[str, int]) -> None:
-    """Ceilings on the car's family and on its fuel, so the Transport universe
-    has a dial to draw and a tank with a level."""
+    """Ceilings on the car's and the house's families and on their fuel and
+    energy, so each universe has a dial to draw and a level to show."""
     flat: dict[str, int] = {}
 
     def walk(rows: list[dict]) -> None:
@@ -248,7 +248,10 @@ def main() -> int:
             "Livret A": _import(client, headers, livret, _csv(_livret(), "Livret A"), "livret.csv"),
             "PEA": _import(client, headers, pea, _csv(_pea(), "PEA"), "pea.csv"),
         }
-        _set_budgets(client, headers, {"transport": 35_000, "transport-carburant": 15_000})
+        _set_budgets(client, headers, {
+            "transport": 35_000, "transport-carburant": 15_000,
+            "logement": 125_000, "logement-energie": 15_000,
+        })
     for name, count in counts.items():
         print(f"{name} : {count} opérations importées")
     print(f"Du {START.isoformat()} au {END.isoformat()} ; compte : {DEMO_EMAIL}")

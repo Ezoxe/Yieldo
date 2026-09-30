@@ -9,13 +9,30 @@ from app.api.history import user_history
 from app.db import get_db
 from app.engines.aggregate import aggregate_by_category
 from app.engines.budget import BudgetEntry, days_in_month, elapsed_days, evaluate_budgets
+from app.engines.category_history import (
+    CategoryNode,
+    MonthSpend,
+    average_ticket,
+    monthly_average,
+    monthly_series,
+    spend,
+    subtree_ids,
+    yearly,
+)
 from app.models import Category, User
 from app.schemas.budgets import (
+    BudgetDetailOut,
     BudgetHistoryLineOut,
     BudgetHistoryOut,
     BudgetHistoryPointOut,
     BudgetLineOut,
+    BudgetReadingOut,
     BudgetReportOut,
+    CategoryRefOut,
+    DetailCategoryOut,
+    DetailMonthOut,
+    DetailPartOut,
+    DetailYearOut,
     UnbudgetedOut,
 )
 from app.schemas.history import HistoryOut
@@ -209,4 +226,124 @@ def budget_history(
             )
             for category in budgeted
         ],
+    )
+
+
+@router.get("/{category_id}/detail", response_model=BudgetDetailOut)
+def budget_detail(
+    category_id: int,
+    month: str | None = None,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> BudgetDetailOut:
+    """The universe page of one category: the month, the mean over the
+    ledger's complete months, year by year and month by month, and the same
+    figures for each child -- and for each sibling, on a child's page, so the
+    scene can show the rest of the family around it.
+
+    The month's spend and every ceiling are read exactly as `/budgets` reads
+    them (`tx_points`, `rolled_budget_spend`): the page and the Budgets screen
+    can never disagree about one month."""
+    today = date.today()
+    categories = (
+        db.query(Category)
+        .filter(Category.user_id == user.id)
+        .order_by(Category.position, Category.name)
+        .all()
+    )
+    by_id = {category.id: category for category in categories}
+    category = by_id.get(category_id)
+    if category is None:
+        raise HTTPException(status_code=404, detail="Catégorie introuvable")
+
+    history = user_history(db, user.id)
+    month_start = resolve_month(month, history, today)
+    total_days = days_in_month(month_start)
+    month_end = date(month_start.year, month_start.month, total_days)
+    month_points = tx_points(db, user.id, month_start, month_end)
+    ledger_points = (
+        tx_points(db, user.id, history.date_from, history.date_to) if history else []
+    )
+
+    nodes = [CategoryNode(id=c.id, parent_id=c.parent_id) for c in categories]
+    budgeted_ids = {
+        c.id for c in categories if c.monthly_budget_cents and c.monthly_budget_cents > 0
+    }
+    spent_by_category = {
+        total.category_id: total.total_cents for total in aggregate_by_category(month_points)
+    }
+    rolled = rolled_budget_spend(spent_by_category, categories, budgeted_ids)
+
+    def reading(node: Category) -> BudgetReadingOut | None:
+        if node.id not in budgeted_ids:
+            return None
+        line = evaluate_budgets(
+            [BudgetEntry(category_id=node.id, budget_cents=node.monthly_budget_cents,
+                         spent_cents=rolled[node.id])],
+            month_start, today,
+        )[0]
+        return BudgetReadingOut(
+            budget_cents=line.budget_cents, spent_cents=line.spent_cents,
+            remaining_cents=line.remaining_cents, consumed_ratio=line.consumed_ratio,
+            projected_cents=line.projected_cents, status=line.status,
+        )
+
+    def series_of(ids: frozenset[int]) -> list[MonthSpend]:
+        if history is None:
+            return []
+        return monthly_series(ledger_points, ids, history.date_from, history.date_to)
+
+    def part(node: Category) -> DetailPartOut:
+        ids = subtree_ids(nodes, node.id)
+        spent, count = spend(month_points, ids)
+        average = monthly_average(series_of(ids))
+        return DetailPartOut(
+            category_id=node.id, name=node.name, slug=node.slug, color=node.color,
+            spent_cents=spent, count=count, average_ticket_cents=average_ticket(spent, count),
+            average_cents=average.average_cents, months_counted=average.months_counted,
+            budget=reading(node),
+        )
+
+    def children_of(parent_id: int) -> list[Category]:
+        return [c for c in categories if c.parent_id == parent_id]
+
+    ids = subtree_ids(nodes, category.id)
+    spent, count = spend(month_points, ids)
+    series = series_of(ids)
+    average = monthly_average(series)
+    parent = by_id.get(category.parent_id) if category.parent_id is not None else None
+
+    return BudgetDetailOut(
+        category=DetailCategoryOut(
+            id=category.id, name=category.name, slug=category.slug, color=category.color,
+            is_essential=category.is_essential,
+            parent=(CategoryRefOut(id=parent.id, name=parent.name, slug=parent.slug)
+                    if parent else None),
+        ),
+        month=f"{month_start.year}-{month_start.month:02d}",
+        month_start=month_start,
+        month_end=month_end,
+        days_elapsed=elapsed_days(month_start, today),
+        days_in_month=total_days,
+        is_current_month=(month_start.year, month_start.month) == (today.year, today.month),
+        spent_cents=spent,
+        count=count,
+        average_ticket_cents=average_ticket(spent, count),
+        budget=reading(category),
+        average_cents=average.average_cents,
+        months_counted=average.months_counted,
+        years=[
+            DetailYearOut(year=y.year, spent_cents=y.spent_cents,
+                          months_counted=y.months_counted,
+                          monthly_average_cents=y.monthly_average_cents)
+            for y in yearly(series)
+        ],
+        series=[
+            DetailMonthOut(month=m.key, spent_cents=m.spent_cents, count=m.count,
+                           complete=m.complete)
+            for m in series
+        ],
+        parts=[part(child) for child in children_of(category.id)],
+        siblings=[part(sibling) for sibling in children_of(parent.id)] if parent else [],
+        history=history,
     )

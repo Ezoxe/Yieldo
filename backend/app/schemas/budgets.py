@@ -77,3 +77,82 @@ class BudgetHistoryLineOut(BaseModel):
 class BudgetHistoryOut(BaseModel):
     months: list[str]
     lines: list[BudgetHistoryLineOut]
+
+
+# --- GET /budgets/{category_id}/detail: the universe page of one category -----
+
+
+class BudgetReadingOut(BaseModel):
+    budget_cents: int
+    # What the Budgets screen counts against this ceiling: the category and
+    # the descendants that carry no budget of their own (`rolled_budget_spend`).
+    spent_cents: int
+    remaining_cents: int
+    consumed_ratio: float
+    projected_cents: int | None
+    status: BudgetStatus
+
+
+class CategoryRefOut(BaseModel):
+    id: int
+    name: str
+    slug: str
+
+
+class DetailCategoryOut(BaseModel):
+    id: int
+    name: str
+    slug: str
+    color: str
+    is_essential: bool
+    parent: CategoryRefOut | None
+
+
+class DetailPartOut(BaseModel):
+    category_id: int
+    name: str
+    slug: str
+    color: str
+    spent_cents: int
+    count: int
+    average_ticket_cents: int | None
+    average_cents: int | None
+    months_counted: int
+    budget: BudgetReadingOut | None
+
+
+class DetailMonthOut(BaseModel):
+    month: str
+    spent_cents: int
+    count: int
+    # The ledger covers the whole month; only complete months enter a mean.
+    complete: bool
+
+
+class DetailYearOut(BaseModel):
+    year: int
+    spent_cents: int
+    months_counted: int
+    monthly_average_cents: int | None
+
+
+class BudgetDetailOut(BaseModel):
+    category: DetailCategoryOut
+    month: str
+    month_start: date
+    month_end: date
+    days_elapsed: int
+    days_in_month: int
+    is_current_month: bool
+    # The category and ALL its descendants: what the whole family cost.
+    spent_cents: int
+    count: int
+    average_ticket_cents: int | None
+    budget: BudgetReadingOut | None
+    average_cents: int | None
+    months_counted: int
+    years: list[DetailYearOut]
+    series: list[DetailMonthOut]
+    parts: list[DetailPartOut]
+    siblings: list[DetailPartOut]
+    history: HistoryOut | None

@@ -386,6 +386,86 @@ export interface BudgetReport {
   history: History | null;
 }
 
+// GET /budgets/{id}/detail — the universe page of one category. Mirrors
+// backend/app/schemas/budgets.py (BudgetDetailOut and its parts).
+export interface BudgetReading {
+  budget_cents: number;
+  /** What the Budgets screen counts against this ceiling — negative. */
+  spent_cents: number;
+  remaining_cents: number;
+  consumed_ratio: number;
+  projected_cents: number | null;
+  status: BudgetStatus;
+}
+
+export interface CategoryRef {
+  id: number;
+  name: string;
+  slug: string;
+}
+
+export interface BudgetDetailCategory {
+  id: number;
+  name: string;
+  slug: string;
+  color: string;
+  is_essential: boolean;
+  parent: CategoryRef | null;
+}
+
+export interface BudgetDetailPart {
+  category_id: number;
+  name: string;
+  slug: string;
+  color: string;
+  spent_cents: number;
+  count: number;
+  average_ticket_cents: number | null;
+  /** null under three complete months of statements — never a zero standing in. */
+  average_cents: number | null;
+  months_counted: number;
+  budget: BudgetReading | null;
+}
+
+export interface BudgetDetailMonth {
+  month: string;
+  spent_cents: number;
+  count: number;
+  /** The ledger covers the whole month; only complete months enter a mean. */
+  complete: boolean;
+}
+
+export interface BudgetDetailYear {
+  year: number;
+  spent_cents: number;
+  months_counted: number;
+  monthly_average_cents: number | null;
+}
+
+export interface BudgetDetail {
+  category: BudgetDetailCategory;
+  month: string;
+  month_start: string;
+  month_end: string;
+  days_elapsed: number;
+  days_in_month: number;
+  is_current_month: boolean;
+  /** The category and all its descendants — what the whole family cost. */
+  spent_cents: number;
+  count: number;
+  average_ticket_cents: number | null;
+  budget: BudgetReading | null;
+  average_cents: number | null;
+  months_counted: number;
+  years: BudgetDetailYear[];
+  series: BudgetDetailMonth[];
+  /** The category's direct children. */
+  parts: BudgetDetailPart[];
+  /** Its parent's direct children, itself included; empty for a root. */
+  siblings: BudgetDetailPart[];
+  history: History | null;
+}
+
 // Recurrences — mirrors backend/app/schemas/recurrences.py. Closed sets rather
 // than `string`, because the backend types them off the engine's own Literals.
 export type Periodicity = "weekly" | "biweekly" | "monthly" | "quarterly" | "yearly";

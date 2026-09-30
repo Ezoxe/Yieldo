@@ -40,6 +40,12 @@ const transactions = screen(
   (m) => m.TransactionsPage,
 );
 const budgets = screen(() => import("../features/budgets/BudgetsPage"), (m) => m.BudgetsPage);
+// A category's universe: what it cost this month and in an ordinary month,
+// and the scene that draws it when it has one (the car for Transport).
+const universe = screen(
+  () => import("../features/budgets/universe/UniversePage"),
+  (m) => m.UniversePage,
+);
 const recurrences = screen(
   () => import("../features/recurrences/RecurrencesPage"),
   (m) => m.RecurrencesPage,
@@ -146,6 +152,7 @@ export const router = createBrowserRouter([
         children: [
           { path: "transactions", element: transactions },
           { path: "budgets", element: budgets },
+          { path: "budgets/:categoryId", element: universe },
           { path: "recurrences", element: recurrences },
           { path: "plan", element: plan },
           { path: "avenir", element: avenir },

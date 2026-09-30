@@ -272,9 +272,9 @@ month with nothing spent counts as 0, no mean under three).
   page's own ceiling, a part's level its own ceiling or else its monthly mean
   (said as such on its label). Both are a share still unspent, in [0, 1].
 - A scene draws: `scenes/car/` (Transport, a white GT), `scenes/house/`
-  (Logement, a pavillon) and `scenes/salon/` (Abonnements, a living room);
-  the last two show the evening in the dark theme and the day in the light
-  one. Its colours are physical and live in its stylesheet, never in a
+  (Logement, a pavillon), `scenes/salon/` (Abonnements, a living room) and
+  `scenes/kitchen/` (Alimentation, a kitchen); the rooms show the evening in
+  the dark theme and the day in the light one. Its colours are physical and live in its stylesheet, never in a
   component. The lens frame, the dial, the labels and leaders and the motion
   switches are shared (`scenes/shared/`); labels are HTML (`SceneLabels`),
   pinned on the drawing from 900px of scene width and listed under it below;

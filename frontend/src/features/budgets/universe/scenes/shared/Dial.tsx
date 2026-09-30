@@ -1,7 +1,11 @@
 import type { CSSProperties } from "react";
 
 import type { Gauge } from "../../readings";
-import { DIAL } from "./geometry";
+import "./scene.css";
+
+/** The gauge dial, top left of every scene: centre, radius, arc, and where its
+ *  label hangs (from the dial's left edge, so it never runs off the scene). */
+export const DIAL = { cx: 40, cy: 40, r: 30, arc: 24, label: [10, 74] as [number, number] } as const;
 
 function point(share: number, radius: number): [number, number] {
   const angle = Math.PI * share;
@@ -31,7 +35,7 @@ export function Dial({ gauge }: { gauge: Gauge }) {
   const reserve = gauge.status !== "ok" || gauge.share < 0.25;
 
   return (
-    <g className={`yd-car__dial yd-car__dial--${gauge.status}`}>
+    <g className={`yd-dial yd-dial--${gauge.status}`}>
       <circle cx={cx} cy={cy} r={r} className="yd-dial__face" />
       <path d={`M${cx - arc},${cy} A${arc},${arc} 0 0 1 ${cx + arc},${cy}`} className="yd-dial__track" />
       {gauge.share > 0 ? (

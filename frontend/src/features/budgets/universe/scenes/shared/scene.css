@@ -1,0 +1,120 @@
+/* What every universe scene shares: the stage and its container query, the
+   X-ray lens frame, the gauge dial, the leaders to the labels, and the motion
+   switches. A scene's own stylesheet holds its physical colours and the
+   insides of its lenses. The lenses and the dial are screens: they stay dark
+   in both themes, so their colours are the dark theme's own. */
+
+.yd-scene {
+  container: scene / inline-size;
+  margin: 0;
+}
+
+.yd-scene__stage {
+  position: relative;
+}
+
+.yd-scene__svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* Lens frame --------------------------------------------------------------- */
+
+.yd-lens[data-selectable] { cursor: pointer; }
+/* Dimmed, not see-through: a half-transparent lens shows the drawing under it
+   and reads as a hole in it. */
+.yd-lens--dimmed { filter: saturate(0.25) brightness(0.55); }
+.yd-lens__base { fill: #040814; fill-opacity: 0.95; }
+.yd-lens__scanline { stroke: #93c5fd; stroke-opacity: 0.09; }
+.yd-lens__ghost { fill: none; stroke: #93c5fd; stroke-opacity: 0.35; }
+.yd-lens__ghost--strong { stroke-width: 1.2; }
+.yd-lens__sweep {
+  fill: #93c5fd;
+  fill-opacity: 0.45;
+  animation: yd-lens-sweep 2.6s ease-in-out infinite alternate;
+}
+.yd-lens__ring {
+  fill: none;
+  stroke: #93c5fd;
+  stroke-width: 1.3;
+  filter: drop-shadow(0 0 5px rgba(147, 197, 253, 0.7));
+}
+.yd-lens--focused .yd-lens__ring { stroke-width: 2.2; }
+.yd-lens__orbit {
+  fill: none;
+  stroke: #93c5fd;
+  stroke-opacity: 0.5;
+  stroke-dasharray: 2 7;
+  transform-box: view-box;
+  animation: yd-scene-spin 14s linear infinite;
+}
+.yd-lens__ticks { stroke: #93c5fd; stroke-width: 1.2; }
+.yd-lens__vignette-0 { stop-color: #040814; stop-opacity: 0; }
+.yd-lens__vignette-1 { stop-color: #040814; stop-opacity: 0.85; }
+
+/* A part's own state, on the outline of the thing that carries its level. */
+.yd-lens__state--neutral { stroke: #93c5fd; filter: drop-shadow(0 0 4px rgba(147, 197, 253, 0.6)); }
+.yd-lens__state--ok { stroke: #34d399; filter: drop-shadow(0 0 4px rgba(52, 211, 153, 0.6)); }
+.yd-lens__state--at_risk { stroke: #fbbf24; filter: drop-shadow(0 0 4px rgba(251, 191, 36, 0.7)); }
+.yd-lens__state--over { stroke: #fb7185; filter: drop-shadow(0 0 4px rgba(251, 113, 133, 0.7)); }
+
+/* Leaders: only when the labels are pinned on the drawing ----------------- */
+
+.yd-scene__leaders { display: none; }
+.yd-scene__leader { fill: none; stroke: var(--yd-text-muted); stroke-opacity: 0.7; stroke-dasharray: 2 3; }
+.yd-scene__leader--ok { stroke: var(--yd-positive); }
+.yd-scene__leader--at_risk { stroke: var(--yd-warning); }
+.yd-scene__leader--over { stroke: var(--yd-negative); }
+.yd-scene__leader--dimmed { stroke-opacity: 0.35; }
+
+@container scene (min-width: 900px) {
+  .yd-scene__leaders { display: inline; }
+}
+
+/* Dial --------------------------------------------------------------------- */
+
+.yd-dial__face { fill: #0e0e17; stroke: #2a2a3c; stroke-width: 1.5; }
+.yd-dial__track { fill: none; stroke: #2a2a3c; stroke-width: 4; stroke-linecap: round; }
+.yd-dial__level { fill: none; stroke: #34d399; stroke-width: 4; stroke-linecap: round; }
+.yd-dial__hub { fill: #34d399; }
+.yd-dial--at_risk .yd-dial__level { stroke: #fbbf24; }
+.yd-dial--at_risk .yd-dial__hub { fill: #fbbf24; }
+.yd-dial--over .yd-dial__level { stroke: #fb7185; }
+.yd-dial--over .yd-dial__hub { fill: #fb7185; }
+.yd-dial__ticks { stroke: #6f6e8c; stroke-width: 1.3; stroke-linecap: round; }
+/* Resting on the reading; the entrance only brings it down from full. */
+.yd-dial__needle {
+  fill: #f1f1f6;
+  transform-box: view-box;
+  transform: rotate(var(--needle));
+  animation: yd-dial-needle 2.2s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.yd-dial__reserve {
+  fill: #fbbf24;
+  filter: drop-shadow(0 0 5px rgba(251, 191, 36, 0.9));
+  animation: yd-dial-blink 1.2s steps(2) infinite;
+}
+.yd-dial--over .yd-dial__reserve { fill: #fb7185; filter: drop-shadow(0 0 5px rgba(251, 113, 133, 0.9)); }
+.yd-dial__letter { fill: #a1a1b5; font-size: 11px; font-family: var(--yd-font); }
+
+/* Motion ------------------------------------------------------------------- */
+
+@keyframes yd-scene-spin { to { transform: rotate(360deg); } }
+@keyframes yd-lens-sweep { to { transform: translateY(var(--d)); } }
+@keyframes yd-lens-flow { to { stroke-dashoffset: -9; } }
+@keyframes yd-lens-pulse { 50% { opacity: 0.6; } }
+@keyframes yd-dial-needle { from { transform: rotate(90deg); } }
+@keyframes yd-dial-blink { 50% { opacity: 0.2; } }
+
+/* Everything stops on its resting state: every level on its true value, the
+   needle on its reading, the decoration where it stands. */
+@media (prefers-reduced-motion: reduce) {
+  .yd-scene * {
+    animation: none !important;
+  }
+}
+
+:root[data-motion="off"] .yd-scene * {
+  animation: none !important;
+}

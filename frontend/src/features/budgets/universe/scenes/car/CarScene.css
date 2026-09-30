@@ -6,30 +6,15 @@
    Status colours inside the lenses and the dial are the dark theme's own
    (they sit on a dark screen whatever the page's theme). */
 
-.yd-car {
-  container: scene / inline-size;
-  margin: 0;
-}
-
-.yd-car__stage {
-  position: relative;
-}
-
-.yd-car__svg {
-  display: block;
-  width: 100%;
-  height: auto;
-}
-
 /* A narrow scene frames the car alone: the dial (its reading is the first
    label of the list) and the empty band where the labels sit on a wide scene
    are cropped off, so on a phone the car is drawn a quarter larger. */
 @container scene (max-width: 899px) {
-  .yd-car__stage {
+  .yd-car .yd-scene__stage {
     overflow: hidden;
   }
 
-  .yd-car__svg {
+  .yd-car .yd-scene__svg {
     width: 126%;
     max-width: none;
     margin: -11% 0 0 -21%;
@@ -92,8 +77,6 @@
 .yd-car__engine-0 { stop-color: #ebeaff; }
 .yd-car__engine-1 { stop-color: #9794f9; }
 .yd-car__engine-2 { stop-color: #4d49c6; }
-.yd-car__vignette-0 { stop-color: #040814; stop-opacity: 0; }
-.yd-car__vignette-1 { stop-color: #040814; stop-opacity: 0.85; }
 
 /* Backdrop ---------------------------------------------------------------- */
 
@@ -180,36 +163,6 @@
 
 /* Lenses ------------------------------------------------------------------ */
 
-.yd-car__lens[data-selectable] { cursor: pointer; }
-/* Dimmed, not see-through: a half-transparent lens shows the paint under it
-   and reads as a hole in the car. */
-.yd-car__lens--dimmed { filter: saturate(0.25) brightness(0.55); }
-.yd-lens__base { fill: #040814; fill-opacity: 0.95; }
-.yd-lens__scanline { stroke: #93c5fd; stroke-opacity: 0.09; }
-.yd-lens__ghost { fill: none; stroke: #93c5fd; stroke-opacity: 0.35; }
-.yd-lens__ghost--strong { stroke-width: 1.2; }
-.yd-lens__sweep {
-  fill: #93c5fd;
-  fill-opacity: 0.45;
-  animation: yd-lens-sweep 2.6s ease-in-out infinite alternate;
-}
-.yd-lens__ring {
-  fill: none;
-  stroke: #93c5fd;
-  stroke-width: 1.3;
-  filter: drop-shadow(0 0 5px rgba(147, 197, 253, 0.7));
-}
-.yd-car__lens--focused .yd-lens__ring { stroke-width: 2.2; }
-.yd-lens__orbit {
-  fill: none;
-  stroke: #93c5fd;
-  stroke-opacity: 0.5;
-  stroke-dasharray: 2 7;
-  transform-box: view-box;
-  animation: yd-car-spin 14s linear infinite;
-}
-.yd-lens__ticks { stroke: #93c5fd; stroke-width: 1.2; }
-
 .yd-lens__fuel-pipe { fill: none; stroke: #fbbf24; stroke-opacity: 0.25; stroke-width: 2; }
 .yd-lens__fuel-flow {
   fill: none;
@@ -228,10 +181,6 @@
 }
 .yd-lens__wave { animation: yd-lens-wave 2.4s linear infinite; }
 .yd-lens__tank { fill: none; stroke-width: 1.2; }
-.yd-lens__tank--neutral { stroke: #93c5fd; filter: drop-shadow(0 0 4px rgba(147, 197, 253, 0.6)); }
-.yd-lens__tank--ok { stroke: #34d399; filter: drop-shadow(0 0 4px rgba(52, 211, 153, 0.6)); }
-.yd-lens__tank--at_risk { stroke: #fbbf24; filter: drop-shadow(0 0 4px rgba(251, 191, 36, 0.7)); }
-.yd-lens__tank--over { stroke: #fb7185; filter: drop-shadow(0 0 4px rgba(251, 113, 133, 0.7)); }
 .yd-lens__tank-gleam { stroke: #ffffff; stroke-opacity: 0.18; stroke-width: 1.5; stroke-linecap: round; }
 .yd-lens__marks { stroke: #93c5fd; stroke-opacity: 0.5; }
 
@@ -268,45 +217,6 @@
   animation: yd-lens-beep 8s linear infinite;
 }
 
-/* Leaders: only when the labels are pinned on the drawing ----------------- */
-
-.yd-car__leaders { display: none; }
-.yd-car__leader { fill: none; stroke: var(--yd-text-muted); stroke-opacity: 0.7; stroke-dasharray: 2 3; }
-.yd-car__leader--ok { stroke: var(--yd-positive); }
-.yd-car__leader--at_risk { stroke: var(--yd-warning); }
-.yd-car__leader--over { stroke: var(--yd-negative); }
-.yd-car__leader--dimmed { stroke-opacity: 0.35; }
-
-@container scene (min-width: 900px) {
-  .yd-car__leaders { display: inline; }
-}
-
-/* Dial -------------------------------------------------------------------- */
-
-.yd-dial__face { fill: #0e0e17; stroke: #2a2a3c; stroke-width: 1.5; }
-.yd-dial__track { fill: none; stroke: #2a2a3c; stroke-width: 4; stroke-linecap: round; }
-.yd-dial__level { fill: none; stroke: #34d399; stroke-width: 4; stroke-linecap: round; }
-.yd-dial__hub { fill: #34d399; }
-.yd-car__dial--at_risk .yd-dial__level { stroke: #fbbf24; }
-.yd-car__dial--at_risk .yd-dial__hub { fill: #fbbf24; }
-.yd-car__dial--over .yd-dial__level { stroke: #fb7185; }
-.yd-car__dial--over .yd-dial__hub { fill: #fb7185; }
-.yd-dial__ticks { stroke: #6f6e8c; stroke-width: 1.3; stroke-linecap: round; }
-/* Resting on the reading; the entrance only brings it down from full. */
-.yd-dial__needle {
-  fill: #f1f1f6;
-  transform-box: view-box;
-  transform: rotate(var(--needle));
-  animation: yd-dial-needle 2.2s cubic-bezier(0.16, 1, 0.3, 1) both;
-}
-.yd-dial__reserve {
-  fill: #fbbf24;
-  filter: drop-shadow(0 0 5px rgba(251, 191, 36, 0.9));
-  animation: yd-dial-blink 1.2s steps(2) infinite;
-}
-.yd-car__dial--over .yd-dial__reserve { fill: #fb7185; filter: drop-shadow(0 0 5px rgba(251, 113, 133, 0.9)); }
-.yd-dial__letter { fill: #a1a1b5; font-size: 11px; font-family: var(--yd-font); }
-
 /* Light theme: the studio turns light, the white car gets a hairline ------ */
 
 :root[data-theme="light"] .yd-car__studio-0 { stop-color: #ffffff; stop-opacity: 0.9; }
@@ -333,26 +243,9 @@
 }
 @keyframes yd-lens-drain { from { transform: translateY(0); } }
 @keyframes yd-lens-wave { to { transform: translateX(-31px); } }
-@keyframes yd-lens-flow { to { stroke-dashoffset: -9; } }
 @keyframes yd-lens-piston { to { transform: translateY(11px); } }
-@keyframes yd-lens-sweep { to { transform: translateY(var(--d)); } }
-@keyframes yd-lens-pulse { 50% { opacity: 0.6; } }
 @keyframes yd-lens-beep {
   0%, 31% { opacity: 0.3; }
   33%, 38% { opacity: 1; }
   40%, 100% { opacity: 0.3; }
-}
-@keyframes yd-dial-needle { from { transform: rotate(90deg); } }
-@keyframes yd-dial-blink { 50% { opacity: 0.2; } }
-
-/* Everything stops on its resting state: the tank at its level, the needle
-   on its reading, the rest where it stands. */
-@media (prefers-reduced-motion: reduce) {
-  .yd-car * {
-    animation: none !important;
-  }
-}
-
-:root[data-motion="off"] .yd-car * {
-  animation: none !important;
 }

@@ -93,7 +93,7 @@ describe("UniversePage", () => {
   it("puts a child in front of its family's car and lists its siblings", async () => {
     const { container } = renderPage("/budgets/31?mois=2026-09");
     expect(await screen.findByRole("heading", { level: 1, name: "Carburant" })).toBeInTheDocument();
-    expect(container.querySelector(".yd-car__lens--fuel.yd-car__lens--focused")).not.toBeNull();
+    expect(container.querySelector(".yd-lens--fuel.yd-lens--focused")).not.toBeNull();
     const siblings = within(screen.getByRole("region", { name: "Les autres postes de Transport" }));
     expect(siblings.getByRole("link", { name: "Entretien véhicule" })).toBeInTheDocument();
     expect(siblings.queryByRole("link", { name: "Carburant" })).toBeNull();

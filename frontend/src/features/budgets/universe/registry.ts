@@ -21,7 +21,8 @@
  */
 
 export type UniverseId = "car";
-export type PartId = "fuel" | "engine" | "cage" | "toll";
+export type CarPart = "fuel" | "engine" | "cage" | "toll";
+export type PartId = CarPart;
 
 export interface Named {
   slug: string;

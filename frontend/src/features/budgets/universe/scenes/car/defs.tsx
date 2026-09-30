@@ -1,3 +1,4 @@
+import { LensDefs } from "../shared/LensFrame";
 import { BODY_PATH, TANK } from "./geometry";
 
 /**
@@ -141,12 +142,7 @@ export function SceneDefs({ ids }: { ids: SceneIds }) {
       <linearGradient id={ids.engine} x1="0" y1="0" x2="0" y2="1">
         <Stops family="engine" offsets={[0, 0.5, 1]} />
       </linearGradient>
-      <radialGradient id={ids.vignette}>
-        <Stops family="vignette" offsets={[0.55, 1]} />
-      </radialGradient>
-      <pattern id={ids.lines} width="4" height="3" patternUnits="userSpaceOnUse">
-        <path d="M0,.5 H4" className="yd-lens__scanline" />
-      </pattern>
+      <LensDefs ids={ids} />
     </defs>
   );
 }

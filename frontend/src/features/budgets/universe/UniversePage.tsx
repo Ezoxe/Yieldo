@@ -15,7 +15,7 @@ import { MonthNav, monthLabel } from "../MonthNav";
 import { AveragePanel, MonthsPanel, PartsPanel, ThisMonthPanel } from "./panels";
 import { gaugeFor, partReadings } from "./readings";
 import { universeFor } from "./registry";
-import { CarScene } from "./scenes/car/CarScene";
+import { UniverseScene } from "./scenes/UniverseScene";
 import "./UniversePage.css";
 
 const SPAN = {
@@ -108,8 +108,9 @@ export function UniversePage() {
     const siblings = detail.siblings.filter((part) => part.category_id !== detail.category.id);
     body = (
       <>
-        {match?.universe === "car" ? (
-          <CarScene
+        {match !== null ? (
+          <UniverseScene
+            universe={match.universe}
             gauge={gaugeFor(detail.budget)}
             gaugeTitle={`Budget ${detail.category.name}`}
             parts={partReadings(detail, match)}

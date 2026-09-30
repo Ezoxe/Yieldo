@@ -23,7 +23,7 @@ describe("CarScene", () => {
   it("draws one lens and one label per part the car has", () => {
     const { container } = renderFamily();
     for (const part of ["fuel", "engine", "cage", "toll"]) {
-      expect(container.querySelector(`.yd-car__lens--${part}`)).not.toBeNull();
+      expect(container.querySelector(`.yd-lens--${part}`)).not.toBeNull();
     }
     const labels = within(screen.getByRole("list"));
     for (const name of ["Carburant", "Entretien véhicule", "Assurance véhicule", "Péage et stationnement"]) {
@@ -51,14 +51,14 @@ describe("CarScene", () => {
 
   it("gives the gauge a label of its own and no gauge without a ceiling", () => {
     const { container, unmount } = renderFamily();
-    expect(container.querySelector(".yd-car__dial")).not.toBeNull();
+    expect(container.querySelector(".yd-dial")).not.toBeNull();
     expect(screen.getByText("Budget Transport")).toBeInTheDocument();
     unmount();
 
     const { container: bare } = render(
       <CarScene gauge={null} gaugeTitle="Budget Transport" parts={[]} onSelect={vi.fn()} />,
     );
-    expect(bare.querySelector(".yd-car__dial")).toBeNull();
+    expect(bare.querySelector(".yd-dial")).toBeNull();
     expect(screen.queryByText("Budget Transport")).toBeNull();
   });
 
@@ -76,7 +76,7 @@ describe("CarScene", () => {
     );
     const { container } = render(<CarScene gauge={null} gaugeTitle="" parts={parts} onSelect={vi.fn()} />);
     expect(container.querySelector(".yd-lens__fuel")).toBeNull();
-    expect(container.querySelector(".yd-car__lens--fuel")).not.toBeNull();
+    expect(container.querySelector(".yd-lens--fuel")).not.toBeNull();
   });
 
   it("puts a child's part in front and the rest of the family behind it", () => {

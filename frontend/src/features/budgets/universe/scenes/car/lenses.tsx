@@ -1,6 +1,8 @@
 import type { CSSProperties, ReactNode } from "react";
 
-import type { PartId } from "../../registry";
+import { LensFrame, lensState } from "../shared/LensFrame";
+
+import type { CarPart } from "../../registry";
 import type { PartReading } from "../../readings";
 import type { SceneIds } from "./defs";
 import {
@@ -15,69 +17,7 @@ import {
 } from "./geometry";
 
 /** How long each lens takes to sweep, so the four never pulse in step. */
-const SWEEP_SECONDS: Record<PartId, number> = { fuel: 2.6, engine: 3.1, cage: 2.2, toll: 1.8 };
-
-type LensState = "plain" | "focused" | "dimmed";
-
-function stateOf(reading: PartReading): LensState {
-  if (reading.focused) return "focused";
-  return reading.dimmed ? "dimmed" : "plain";
-}
-
-/**
- * A round window where the paint turns to X-ray: the navy screen, the scan
- * lines, the car's outline as a ghost, the part itself, a sweep, a vignette,
- * and the reticle around it. Pointer shortcut only — the label is the
- * accessible way to the same page.
- */
-function LensFrame({
-  part,
-  ids,
-  state,
-  onSelect,
-  children,
-}: {
-  part: PartId;
-  ids: SceneIds;
-  state: LensState;
-  onSelect?: () => void;
-  children: ReactNode;
-}) {
-  const { cx, cy, r } = LENSES[part];
-  const clip = ids.lens(part);
-  const sweep = { "--d": `${2 * r - 2}px`, animationDuration: `${SWEEP_SECONDS[part]}s` } as CSSProperties;
-  return (
-    <g
-      className={`yd-car__lens yd-car__lens--${part} yd-car__lens--${state}`}
-      onClick={onSelect}
-      data-selectable={onSelect ? "true" : undefined}
-    >
-      <clipPath id={clip}>
-        <circle cx={cx} cy={cy} r={r} />
-      </clipPath>
-      <g clipPath={`url(#${clip})`}>
-        <circle cx={cx} cy={cy} r={r} className="yd-lens__base" />
-        <rect x={cx - r} y={cy - r} width={2 * r} height={2 * r} fill={`url(#${ids.lines})`} />
-        <path d={BODY_PATH} className="yd-lens__ghost" />
-        {children}
-        <rect className="yd-lens__sweep" x={cx - r} y={cy - r} width={2 * r} height={1.5} style={sweep} />
-        <circle cx={cx} cy={cy} r={r} fill={`url(#${ids.vignette})`} />
-      </g>
-      <circle cx={cx} cy={cy} r={r} className="yd-lens__ring" />
-      <circle
-        cx={cx}
-        cy={cy}
-        r={r + 4}
-        className="yd-lens__orbit"
-        style={{ transformOrigin: `${cx}px ${cy}px` }}
-      />
-      <path
-        d={`M${cx},${cy - r - 4} V${cy - r} M${cx},${cy + r} V${cy + r + 4} M${cx - r - 4},${cy} H${cx - r} M${cx + r},${cy} H${cx + r + 4}`}
-        className="yd-lens__ticks"
-      />
-    </g>
-  );
-}
+const SWEEP_SECONDS: Record<CarPart, number> = { fuel: 2.6, engine: 3.1, cage: 2.2, toll: 1.8 };
 
 const FUEL_WAVE =
   "M435,140 q7.75,-2 15.5,0 t15.5,0 t15.5,0 t15.5,0 t15.5,0 t15.5,0 t15.5,0 V200 H435 Z";
@@ -109,7 +49,7 @@ function FuelContents({ reading, ids }: { reading: PartReading; ids: SceneIds })
           </g>
         </g>
       ) : null}
-      <path d={TANK.path} className={`yd-lens__tank yd-lens__tank--${tone}`} />
+      <path d={TANK.path} className={`yd-lens__tank yd-lens__state--${tone}`} />
       <path d="M472,143.5 H492" className="yd-lens__tank-gleam" />
       <path d="M466,146 h3 M466,152 h3 M466,158 h3" className="yd-lens__marks" />
     </>
@@ -191,15 +131,26 @@ export function Lens({
   ids: SceneIds;
   onSelect?: () => void;
 }) {
-  const contents: Record<PartId, ReactNode> = {
+  const contents: Record<CarPart, ReactNode> = {
     fuel: <FuelContents reading={reading} ids={ids} />,
     engine: <EngineContents ids={ids} />,
     cage: <CageContents />,
     toll: <TollContents />,
   };
+  const { cx, cy, r } = LENSES[reading.part as CarPart];
   return (
-    <LensFrame part={reading.part} ids={ids} state={stateOf(reading)} onSelect={onSelect}>
-      {contents[reading.part]}
+    <LensFrame
+      part={reading.part}
+      cx={cx}
+      cy={cy}
+      r={r}
+      ids={ids}
+      state={lensState(reading)}
+      ghost={<path d={BODY_PATH} className="yd-lens__ghost" />}
+      sweepSeconds={SWEEP_SECONDS[reading.part as CarPart]}
+      onSelect={onSelect}
+    >
+      {contents[reading.part as CarPart]}
     </LensFrame>
   );
 }

@@ -8,7 +8,7 @@
  *
  * Units are the scene's viewBox (640 × 242); y grows downwards.
  */
-import type { PartId } from "../../registry";
+import type { CarPart } from "../../registry";
 
 export const VIEW = { width: 640, height: 242 } as const;
 
@@ -116,7 +116,7 @@ export interface LensGeometry {
 }
 
 /** Each lens sits where its part really is in a rear-engined GT. */
-export const LENSES: Record<PartId, LensGeometry> = {
+export const LENSES: Record<CarPart, LensGeometry> = {
   // The tank: behind the front axle, under the front lid.
   fuel: { cx: 487.8, cy: 150.5, r: 30, leader: { from: [509, 129.3], to: [566, 42] }, align: "above" },
   // The flat-six: behind the rear axle.
@@ -135,7 +135,3 @@ export const TANK = {
   top: 140,
   height: 24,
 } as const;
-
-/** The gauge dial, top left: centre, arc radius, and where its label hangs
- *  (from the dial's left edge, so it never runs off the scene). */
-export const DIAL = { cx: 40, cy: 40, r: 30, arc: 24, label: [10, 74] as [number, number] } as const;

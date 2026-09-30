@@ -255,6 +255,30 @@ stale that is.
   (`engines/alert._balance_floor`) reads the current accounts' low point over
   `FLOOR_HORIZON_DAYS` (90), keyed `balance_floor:<date>`.
 
+## Budget universes
+
+`/budgets/:id` (`features/budgets/universe/UniversePage.tsx`) is one category:
+what it cost in the month on screen and in an ordinary month, year by year,
+month by month, and its children (`parts`) — or, on a child's page, its family
+(`siblings`). `GET /budgets/{id}/detail` reads the month and every ceiling
+exactly as `/budgets` does (`tx_points`, `rolled_budget_spend`);
+`engines/category_history.py` takes means over COMPLETE months only (a covered
+month with nothing spent counts as 0, no mean under three).
+
+- `registry.ts` maps a category to a universe and a part: a child through its
+  parent, seeded slugs before names, a lone root part on unambiguous words
+  only. A child the universe has no part for gets no scene, not a guess.
+- `readings.ts` is the one place a figure becomes a picture: the dial is the
+  page's own ceiling, a part's level its own ceiling or else its monthly mean
+  (said as such on its label). Both are a share still unspent, in [0, 1].
+- A scene (`scenes/car/`) draws. Its colours are physical and live in its
+  stylesheet, never in a component; its labels are HTML (`SceneLabels`),
+  pinned on the drawing from 900px of scene width and listed under it below;
+  its motion rests on the true values and stops under both motion switches.
+- A new universe starts as a mockup the operator validates (the car's:
+  `docs/superpowers/specs/assets/2026-09-30-voiture-maquette.html`), then a
+  scene, its rule in `registry.ts`, and its branch in `UniversePage`.
+
 ## The assistant
 
 - **Spotlight.** `design/ai/targets.ts` lists what the assistant may point

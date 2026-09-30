@@ -159,23 +159,38 @@ export const transportDetail: BudgetDetail = {
   history: { date_from: "2025-03-01", date_to: "2026-09-24", transaction_count: 412 },
 };
 
-export const fuelDetail: BudgetDetail = {
-  ...transportDetail,
-  category: {
-    id: 31, name: "Carburant", slug: "transport-carburant", color: "#f4a261", is_essential: true,
-    parent: { id: 30, name: "Transport", slug: "transport" },
-  },
-  spent_cents: parts[0].spent_cents,
-  count: parts[0].count,
-  average_ticket_cents: parts[0].average_ticket_cents,
-  budget: parts[0].budget,
-  average_cents: parts[0].average_cents,
-  months_counted: parts[0].months_counted,
-  years: yearsOf(seriesOf(PARTS[0].flow)),
-  series: seriesOf(PARTS[0].flow),
-  parts: [],
-  siblings: parts,
-};
+/**
+ * The page of one of Transport's children, built from the same flows: its
+ * own series, mean and years, the family around it as siblings. null for an
+ * id that is not one of the fixture's parts.
+ */
+export function transportChildDetail(categoryId: number): BudgetDetail | null {
+  const index = PARTS.findIndex((part) => part.id === categoryId);
+  if (index === -1) return null;
+  const source = PARTS[index];
+  const part = parts[index];
+  const series = seriesOf(source.flow);
+  return {
+    ...transportDetail,
+    category: {
+      id: part.category_id, name: part.name, slug: part.slug, color: part.color,
+      is_essential: part.slug === "transport-carburant",
+      parent: { id: 30, name: "Transport", slug: "transport" },
+    },
+    spent_cents: part.spent_cents,
+    count: part.count,
+    average_ticket_cents: part.average_ticket_cents,
+    budget: part.budget,
+    average_cents: part.average_cents,
+    months_counted: part.months_counted,
+    years: yearsOf(series),
+    series,
+    parts: [],
+    siblings: parts,
+  };
+}
+
+export const fuelDetail: BudgetDetail = transportChildDetail(31) as BudgetDetail;
 
 /** A category no universe covers: the page shows its figures without a scene. */
 export const giftsDetail: BudgetDetail = {

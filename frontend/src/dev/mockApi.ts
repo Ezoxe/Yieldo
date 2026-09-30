@@ -29,6 +29,7 @@ import {
 import { CONNECTIONS as MARKET_CONNECTIONS, LLM_LOCAL } from "../features/connections/fixtures";
 import type { GoalProgress, GoalReport, LlmSettings } from "../lib/types";
 import { OUTLOOK, RELIABILITY } from "../features/avenir/fixtures";
+import { giftsDetail, transportChildDetail, transportDetail } from "../features/budgets/universe/fixtures";
 
 const FLAG = "yd-apercu";
 
@@ -438,6 +439,30 @@ function planPreviewFor(params: Params) {
     remaining,
     planned_total_cents: total(planned),
     remaining_total_cents: total(remaining),
+  };
+}
+
+/**
+ * GET /budgets/{id}/detail. The stub's categories are flat, so Transport
+ * (id 3) answers with the nineteen-month family of the universe fixtures,
+ * whose children keep their fixture ids (31 to 36) and answer in turn;
+ * every other category answers with its own name and no scene.
+ */
+function budgetDetailFor(id: number) {
+  const family = { id: 3, name: "Transport", slug: "transport" };
+  if (id === family.id) {
+    return { ...transportDetail, category: { ...transportDetail.category, id: family.id } };
+  }
+  const child = transportChildDetail(id);
+  if (child !== null) return { ...child, category: { ...child.category, parent: family } };
+  const category = CATEGORY_PAYLOAD.find((row) => row.id === id);
+  if (category === undefined) return null;
+  return {
+    ...giftsDetail,
+    category: {
+      id, name: category.name, slug: category.slug, color: category.color,
+      is_essential: category.is_essential, parent: null,
+    },
   };
 }
 
@@ -1939,6 +1964,17 @@ export function installMockApi(): void {
         account.include_in_net_worth = patch.include_in_net_worth;
       }
       return jsonOk(account);
+    }
+
+    const budgetDetail = /^\/api\/budgets\/(\d+)\/detail$/.exec(url.pathname);
+    if (budgetDetail !== null && method === "GET") {
+      const body = budgetDetailFor(Number(budgetDetail[1]));
+      await new Promise((resolve) => setTimeout(resolve, 220));
+      return body === null
+        ? new Response(JSON.stringify({ detail: "Catégorie introuvable" }), {
+            status: 404, headers: { "Content-Type": "application/json" },
+          })
+        : jsonOk(body);
     }
 
     const categoryRow = /^\/api\/categories\/(\d+)$/.exec(url.pathname);

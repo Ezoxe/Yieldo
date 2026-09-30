@@ -81,7 +81,7 @@ def _checking(rng: random.Random) -> list[tuple[date, str, int]]:
         add(_day(year, month, 5), "PRLV SEPA FONCIA LOYER", -92_000)
         edf = 11_800 if winter else 5_200 if summer else 7_800
         add(_day(year, month, 8), "PRLV SEPA EDF CLIENTS PARTICULIERS", -(edf + rng.randint(-600, 600)))
-        add(_day(year, month, 10), "PRLV SEPA MACIF AUTO", -5_230)
+        add(_day(year, month, 10), "PRLV SEPA DIRECT ASSURANCE AUTO", -5_230)
         add(_day(year, month, 12), "PRLV SEPA FREE TELECOM", -2_999)
         add(_day(year, month, 14), "PRLV SEPA BOUYGUES TELECOM", -1_599)
         netflix = -1_599 if (year, month) >= (2026, 1) else -1_349
@@ -123,6 +123,22 @@ def _checking(rng: random.Random) -> list[tuple[date, str, int]]:
             add(_day(year, month, rng.randint(1, days)), "CB PHARMACIE DU CENTRE", -rng.randint(800, 4_000))
         if rng.random() < 0.15:
             add(_day(year, month, rng.randint(1, days)), "VIR LEBONCOIN", rng.randint(3_000, 12_000))
+
+    # The car, beyond fuel: tolls and parking most months (more of them in
+    # summer), a garage visit each spring and autumn, one technical
+    # inspection. A generator of its own, so every draw above keeps the value
+    # it had before the car universe existed.
+    car = random.Random(SEED + 7)
+    for year, month in _months():
+        days = calendar.monthrange(year, month)[1]
+        for _ in range(car.randint(1, 2) + (2 if month in (7, 8) else 0)):
+            toll = -car.randint(450, 2_200)
+            add(_day(year, month, car.randint(1, days)), "CB VINCI AUTOROUTES", toll)
+        for _ in range(car.randint(0, 2)):
+            add(_day(year, month, car.randint(1, days)), "CB INDIGO PARK", -car.randint(300, 1_500))
+        if month in (4, 10):
+            add(_day(year, month, car.randint(5, 25)), "CB NORAUTO", -car.randint(9_000, 24_000))
+    add(date(2026, 6, 18), "CB CONTROLE TECHNIQUE AUTOSUR", -8_900)
 
     add(date(2025, 9, 15), "PRLV DGFIP IMPOT REVENU", -31_000)
     return rows
@@ -190,6 +206,24 @@ def _import(client: TestClient, headers: dict, account_id: int, content: bytes, 
     return body["summary"]["importable"]
 
 
+def _set_budgets(client: TestClient, headers: dict, ceilings: dict[str, int]) -> None:
+    """Ceilings on the car's family and on its fuel, so the Transport universe
+    has a dial to draw and a tank with a level."""
+    flat: dict[str, int] = {}
+
+    def walk(rows: list[dict]) -> None:
+        for row in rows:
+            flat[row["slug"]] = row["id"]
+            walk(row.get("children", []))
+
+    categories = client.get("/api/categories", headers=headers)
+    categories.raise_for_status()
+    walk(categories.json())
+    for slug, cents in ceilings.items():
+        client.patch(f"/api/categories/{flat[slug]}", headers=headers,
+                     json={"monthly_budget_cents": cents}).raise_for_status()
+
+
 def main() -> int:
     rng = random.Random(SEED)
     _recreate_user()
@@ -214,6 +248,7 @@ def main() -> int:
             "Livret A": _import(client, headers, livret, _csv(_livret(), "Livret A"), "livret.csv"),
             "PEA": _import(client, headers, pea, _csv(_pea(), "PEA"), "pea.csv"),
         }
+        _set_budgets(client, headers, {"transport": 35_000, "transport-carburant": 15_000})
     for name, count in counts.items():
         print(f"{name} : {count} opérations importées")
     print(f"Du {START.isoformat()} au {END.isoformat()} ; compte : {DEMO_EMAIL}")

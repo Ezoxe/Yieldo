@@ -110,10 +110,13 @@ button.yd-scene-label__box:focus-visible {
     pointer-events: none;
   }
 
+  /* Its own width, not what is left of the scene right of its anchor: a label
+     near the right edge would otherwise shrink to that rest and wrap. */
   .yd-scene-label {
     position: absolute;
     left: var(--x);
     top: var(--y);
+    width: max-content;
     pointer-events: auto;
   }
 

@@ -141,6 +141,76 @@ def test_a_bakery_is_not_booked_as_the_boulanger_electronics_chain(db, user_with
         assert retailer.category_id == categories["achats-equipement"].id, label
 
 
+LIBRARY_CASES: list[tuple[str, int, str | None]] = [
+    # A brand that is also the start or the middle of a common word is read as
+    # a whole word: the word no longer files the line, the brand still does.
+    ("cb decoration shop", -2500, None),
+    ("cb cora mondeville", -4500, "alimentation-courses"),
+    ("pressing nettoyage", -1800, None),
+    ("cb netto", -2300, "alimentation-courses"),
+    ("cb spartoo", -6000, None),
+    ("cb spar", -1200, "alimentation-courses"),
+    ("cb matcha bar", -650, None),
+    ("supermarche match", -3100, "alimentation-courses"),
+    ("cb espresso bar", -420, None),
+    ("esso express", -6000, "transport-carburant"),
+    ("cb aviation club", -3800, None),
+    ("station avia", -5500, "transport-carburant"),
+    ("cb shellfish bar", -2900, None),
+    ("shell autoroute", -7000, "transport-carburant"),
+    ("cotisation syndicat cfdt", -1500, None),
+    ("foncia syndic", -31000, "logement-charges"),
+    ("cb orangerie cafe", -1200, None),
+    ("prlv orange sa", -3999, "logement-internet"),
+    ("travaux canalisation", -24000, None),
+    ("canal plus", -2499, "abonnements-streaming"),
+    ("cb smith market", -1500, None),
+    ("cb h m paris", -3500, "achats-vetements"),
+    ("cb salon air", -900, None),
+    ("on air fitness", -2990, "abonnements-salle"),
+    ("vir paiement lydia", 2500, None),
+    ("vir paie octobre", 245000, "revenus-salaire"),
+    ("vir amelie dupont", 5000, None),
+    ("vir ameli remboursement", 2380, "revenus-remboursements"),
+    ("vir securitas", 180000, None),
+    ("vir secu sociale", 1500, "revenus-remboursements"),
+    ("vir caf apl", 21000, "revenus-allocations"),
+    # Water is the house's charges, not its energy.
+    ("prlv veolia eau", -9500, "logement-charges"),
+    ("prlv suez eau france", -8200, "logement-charges"),
+    ("prlv saur", -7600, "logement-charges"),
+    ("prlv eau de paris", -6100, "logement-charges"),
+    # The Freebox's own label.
+    ("prlv sepa free telecom", -2999, "logement-internet"),
+    # A marketplace sells everything: Achats, never a guessed Cadeaux.
+    ("cb amazon eu", -3000, "achats"),
+    ("cb aliexpress", -1500, "achats"),
+    ("cb temu", -900, "achats"),
+    ("cb etsy", -2500, "achats-cadeaux"),
+    # A mutual insurer's car policy is the car's, its home policy the house's.
+    ("prlv macif auto", -5200, "transport-assurance"),
+    ("prlv maif auto", -4800, "transport-assurance"),
+    ("prlv macif habitation", -2800, "logement-assurance"),
+]
+
+
+def test_the_builtin_library_reads_brands_as_words_and_files_them_where_they_belong(
+    db, user_with_categories,
+):
+    user, categories = user_with_categories
+    seed_rules(db, user.id, categories)
+    compiled = compile_rules(db.query(CategoryRule).filter(
+        CategoryRule.user_id == user.id).all())
+
+    for label, amount_cents, expected in LIBRARY_CASES:
+        match = classify(label, amount_cents, compiled)
+        if expected is None:
+            assert match is None, f"{label!r} should be left unfiled"
+        else:
+            assert match is not None, f"no rule for {label!r}"
+            assert match.category_id == categories[expected].id, label
+
+
 def test_totalenergies_gas_bill_is_not_booked_as_fuel(db, user_with_categories):
     # normalize_label never inserts separators, so the brand always arrives as the
     # single token "totalenergies" -- a pattern written "total energies gaz" can

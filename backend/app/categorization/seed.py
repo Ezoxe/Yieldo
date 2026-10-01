@@ -164,12 +164,19 @@ class Regex:
 
 BOULANGER = Regex(r"\bboulanger\b")
 
+
+def word(brand: str) -> Regex:
+    """`brand` as a whole word: a brand hidden in a common word (« cora » in
+    « décoration », « esso » in « espresso ») must not file that word."""
+    return Regex(rf"\b{brand}\b")
+
+
 # (category slug, direction, [patterns])
 BUILTIN_RULES: list[tuple[str, str, list[str | Regex]]] = [
     ("alimentation-courses", "debit", [
         "carrefour", "leclerc", "intermarche", "auchan", "lidl", "aldi", "monoprix",
-        "franprix", "casino", "super u", "hyper u", "cora", "grand frais", "picard",
-        "biocoop", "naturalia", "g20", "spar", "netto", "match", "colruyt",
+        "franprix", "casino", "super u", "hyper u", word("cora"), "grand frais", "picard",
+        "biocoop", "naturalia", "g20", word("spar"), word("netto"), word("match"), "colruyt",
         "boulangerie", "patisserie",
     ]),
     ("alimentation-restaurant", "debit", [
@@ -186,19 +193,22 @@ BUILTIN_RULES: list[tuple[str, str, list[str | Regex]]] = [
         # separators, so the brand arrives as "totalenergies". Written with a space
         # this pattern can never match, and gas bills fall through to the fuel rule.
         # Longer pattern wins at equal priority, so this beats plain "totalenergies".
-        "edf", "engie", "totalenergies gaz", "eni gas", "veolia", "suez",
-        "saur", "primeo energie", "vattenfall",
+        "edf", "engie", "totalenergies gaz", "eni gas", "primeo energie", "vattenfall",
     ]),
     ("logement-internet", "debit", [
-        "free mobile", "free haut debit", "orange", "sfr", "bouygues telecom",
-        "sosh", "red by sfr", "bouygues",
+        "free mobile", "free haut debit", "free telecom", word("orange"), "sfr",
+        "bouygues telecom", "sosh", "red by sfr", "bouygues",
     ]),
     ("logement-assurance", "debit", [
         "maif", "macif", "matmut", "gmf", "axa habitation", "allianz habitation",
     ]),
-    ("logement-charges", "debit", ["syndic", "copropriete", "charges locatives"]),
+    # Water is billed with the house's charges, not with its energy.
+    ("logement-charges", "debit", [
+        word("syndic"), "copropriete", "charges locatives",
+        "veolia", "suez", word("saur"), "eau de paris",
+    ]),
     ("transport-carburant", "debit", [
-        "totalenergies", "total access", "esso", "bp france", "shell", "avia",
+        "totalenergies", "total access", word("esso"), "bp france", word("shell"), word("avia"),
         "station service", "carrefour station",
     ]),
     ("transport-peage", "debit", [
@@ -215,7 +225,12 @@ BUILTIN_RULES: list[tuple[str, str, list[str | Regex]]] = [
     ("transport-entretien", "debit", [
         "norauto", "feu vert", "midas", "speedy", "euromaster", "controle technique",
     ]),
-    ("transport-assurance", "debit", ["assurance auto", "direct assurance"]),
+    # Longer than the insurer's own name, so a mutual's car policy beats its
+    # home policy at equal priority.
+    ("transport-assurance", "debit", [
+        "assurance auto", "direct assurance",
+        "macif auto", "maif auto", "matmut auto", "gmf auto",
+    ]),
     ("sante-pharmacie", "debit", ["pharmacie", "parapharmacie"]),
     ("sante-medecin", "debit", [
         "cabinet medical", "docteur", "dr ", "laboratoire", "biogroup", "cerballiance",
@@ -226,7 +241,7 @@ BUILTIN_RULES: list[tuple[str, str, list[str | Regex]]] = [
     ]),
     ("sante-optique", "debit", ["optic", "krys", "afflelou", "grand optical", "dentaire"]),
     ("abonnements-streaming", "debit", [
-        "netflix", "spotify", "deezer", "disney plus", "canal", "prime video",
+        "netflix", "spotify", "deezer", "disney plus", word("canal"), "prime video",
         "apple tv", "youtube premium", "max com",
     ]),
     ("abonnements-logiciels", "debit", [
@@ -234,7 +249,7 @@ BUILTIN_RULES: list[tuple[str, str, list[str | Regex]]] = [
         "openai", "anthropic", "github", "notion", "figma",
     ]),
     ("abonnements-salle", "debit", [
-        "basic fit", "fitness park", "keep cool", "neoness", "on air",
+        "basic fit", "fitness park", "keep cool", "neoness", word("on air"),
     ]),
     ("abonnements-presse", "debit", ["le monde", "mediapart", "telerama", "les echos"]),
     ("achats-equipement", "debit", [
@@ -242,14 +257,17 @@ BUILTIN_RULES: list[tuple[str, str, list[str | Regex]]] = [
         "cdiscount", "back market",
     ]),
     ("achats-vetements", "debit", [
-        "zara", "h m", "uniqlo", "decathlon", "kiabi", "celio", "jules",
+        "zara", word("h m"), "uniqlo", "decathlon", "kiabi", "celio", "jules",
         "vinted", "zalando", "asos",
     ]),
     ("achats-maison", "debit", [
         "ikea", "leroy merlin", "castorama", "bricorama", "maisons du monde",
         "conforama", "but ",
     ]),
-    ("achats-cadeaux", "debit", ["amazon", "etsy", "aliexpress", "temu"]),
+    # A marketplace sells everything: the line is shopping, and which kind is
+    # the household's to say. Filed under the family, never a guessed Cadeaux.
+    ("achats", "debit", ["amazon", "aliexpress", "temu"]),
+    ("achats-cadeaux", "debit", ["etsy"]),
     ("famille-animaux", "debit", ["veterinaire", "maxi zoo", "animalis"]),
     ("impots-revenu", "debit", ["dgfip impot", "impots gouv", "prelevement a la source"]),
     ("impots-fonciere", "debit", ["taxe fonciere"]),
@@ -260,10 +278,12 @@ BUILTIN_RULES: list[tuple[str, str, list[str | Regex]]] = [
     ("epargne-livret", "any", ["vir livret", "versement livret", "livret a"]),
     ("epargne-bourse", "any", ["trade republic", "boursorama pea", "degiro", "saxo"]),
     ("epargne-assurance-vie", "any", ["linxea", "assurance vie", "spirica", "suravenir"]),
-    ("revenus-salaire", "credit", ["salaire", "paie", "remuneration", "vir sepa employeur"]),
-    ("revenus-allocations", "credit", ["caf ", "pole emploi", "france travail", "apl"]),
+    ("revenus-salaire", "credit", [
+        "salaire", word("paie"), "remuneration", "vir sepa employeur",
+    ]),
+    ("revenus-allocations", "credit", ["caf ", "pole emploi", "france travail", word("apl")]),
     ("revenus-remboursements", "credit", [
-        "cpam", "ameli", "remboursement", "secu", "assurance maladie",
+        "cpam", word("ameli"), "remboursement", word("secu"), "assurance maladie",
     ]),
     ("revenus-loyers", "credit", ["loyer percu", "vir locataire"]),
     ("virement-interne", "any", ["virement interne", "vir compte a compte"]),

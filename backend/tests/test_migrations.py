@@ -1716,7 +1716,8 @@ def test_the_investment_migration_is_the_single_head(migration_db):
 
     script = ScriptDirectory.from_config(migration_db.config)
     assert len(script.get_heads()) == 1
-    assert script.get_current_head() == BOULANGER_REVISION
+    assert script.get_current_head() == LIBRARY_REVISION
+    assert BOULANGER_REVISION in {rev.revision for rev in script.walk_revisions()}
     assert PLANNED_EVENTS_REVISION in {rev.revision for rev in script.walk_revisions()}
     assert INSTANCE_SETTINGS_REVISION in {rev.revision for rev in script.walk_revisions()}
     assert SESSION_VERSION_REVISION in {rev.revision for rev in script.walk_revisions()}
@@ -2244,6 +2245,160 @@ def test_the_boulanger_migration_downgrades_to_the_old_rule_and_its_filing(migra
     command.downgrade(migration_db.config, PLANNED_EVENTS_REVISION)
     conn = _connect(migration_db)
     after = (_transaction_categories(conn), _builtin_rules(conn))
+    conn.close()
+
+    assert after == before
+
+
+# ---------------------------------------------------------------------------
+# e8a0c2d4f6b8 -- brands read as words; water, marketplaces and car policies
+# filed where they belong
+# ---------------------------------------------------------------------------
+
+LIBRARY_REVISION = "e8a0c2d4f6b8"
+
+
+def _seed_full_tree(conn: sqlite3.Connection, user_id: int, first_id: int) -> dict[str, int]:
+    """The seeded category tree for one household, ids from `first_id`."""
+    ids: dict[str, int] = {}
+    next_id = first_id
+    for position, (slug, name, kind, color, icon, children) in enumerate(CATEGORY_TREE):
+        parent_id = next_id
+        conn.execute(
+            "INSERT INTO categories (id, user_id, parent_id, name, slug, kind, color, icon, "
+            "position) VALUES (?, ?, NULL, ?, ?, ?, ?, ?, ?)",
+            (parent_id, user_id, name, slug, kind, color, icon, position))
+        ids[slug] = parent_id
+        next_id += 1
+        for child_position, (child_slug, child_name) in enumerate(children):
+            conn.execute(
+                "INSERT INTO categories (id, user_id, parent_id, name, slug, kind, color, icon, "
+                "position) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (next_id, user_id, parent_id, child_name, child_slug, kind, color, icon,
+                 child_position))
+            ids[child_slug] = next_id
+            next_id += 1
+    return ids
+
+
+def _seed_households_filed_by_the_old_library(
+    conn: sqlite3.Connection,
+) -> tuple[dict[str, int], dict[str, int]]:
+    """Two households filed by the library as it stood before this revision:
+    brands matched as fragments, water under Énergie, Amazon under Cadeaux, a
+    mutual's car policy under the house's insurance -- plus a line filed by
+    hand, a household rule of its own, and a Freebox nobody filed."""
+    trees = []
+    for user_id, email, first_id in ((1, "un@example.com", 1), (2, "deux@example.com", 101)):
+        conn.execute(
+            "INSERT INTO users (id, email, name, password_hash, role, is_active, created_at) "
+            "VALUES (?, ?, 'Foyer', 'x', 'user', 1, '2026-01-01 00:00:00')", (user_id, email))
+        conn.execute(
+            "INSERT INTO accounts (id, user_id, name, kind, currency, opening_balance_cents, "
+            "include_in_net_worth, archived) VALUES (?, ?, 'Compte', 'checking', 'EUR', 0, 1, 0)",
+            (user_id, user_id))
+        trees.append(_seed_full_tree(conn, user_id, first_id))
+    one, two = trees
+
+    def rule(user_id: int, pattern: str, category_id: int, origin: str = "builtin",
+             priority: int = 100) -> None:
+        conn.execute(
+            "INSERT INTO category_rules (user_id, pattern, is_regex, category_id, priority, "
+            "origin, direction, hit_count, created_at) "
+            "VALUES (?, ?, 0, ?, ?, ?, 'debit', 0, '2026-01-01 00:00:00')",
+            (user_id, pattern, category_id, priority, origin))
+
+    for pattern, slug in (("cora", "alimentation-courses"), ("carrefour", "alimentation-courses"),
+                          ("orange", "logement-internet"), ("veolia", "logement-energie"),
+                          ("amazon", "achats-cadeaux"), ("macif", "logement-assurance")):
+        rule(1, pattern, one[slug])
+    rule(2, "amazon", two["achats-cadeaux"])
+    rule(2, "veolia", two["logement-energie"])
+    rule(2, "amazon eu", two["achats-cadeaux"], origin="learned", priority=200)
+
+    for row_id, user_id, label, amount, category_id, source in (
+        (1, 1, "cb decoration shop", -2500, one["alimentation-courses"], "builtin"),
+        (2, 1, "cb cora mondeville", -4500, one["alimentation-courses"], "builtin"),
+        (3, 1, "prlv veolia eau", -9500, one["logement-energie"], "builtin"),
+        (4, 1, "cb amazon eu", -3000, one["achats-cadeaux"], "builtin"),
+        (5, 1, "prlv macif auto", -5200, one["logement-assurance"], "builtin"),
+        (6, 1, "prlv sepa free telecom", -2999, None, "uncategorized"),
+        (7, 1, "cb decoration shop", -2500, one["alimentation-courses"], "manual"),
+        (8, 1, "cb orangerie cafe", -1200, one["logement-internet"], "builtin"),
+        (9, 2, "cb amazon eu", -3000, two["achats-cadeaux"], "learned"),
+        (10, 2, "cb amazon eu", -3000, two["achats-cadeaux"], "builtin"),
+        (11, 2, "prlv veolia eau", -9500, two["logement-energie"], "builtin"),
+    ):
+        conn.execute(
+            "INSERT INTO transactions (id, user_id, account_id, date, amount_cents, label_raw, "
+            "label_clean, category_id, category_source, is_transfer, is_recurring, dedup_hash, "
+            "tags) VALUES (?, ?, ?, '2026-09-02', ?, ?, ?, ?, ?, 0, 0, ?, '[]')",
+            (row_id, user_id, user_id, amount, label.upper(), label, category_id, source,
+             f"h{row_id}"))
+    conn.commit()
+    return one, two
+
+
+def _filing(conn: sqlite3.Connection) -> dict[int, tuple[int | None, str]]:
+    return {row[0]: (row[1], row[2]) for row in conn.execute(
+        "SELECT id, category_id, category_source FROM transactions")}
+
+
+def _all_rules(conn: sqlite3.Connection) -> set[tuple[int, str, int, int, str]]:
+    return set(conn.execute(
+        "SELECT user_id, pattern, is_regex, category_id, origin FROM category_rules"))
+
+
+def test_the_library_migration_refiles_only_what_the_old_rules_decided(migration_db):
+    """A line filed by hand, or by the household's own rule, stays where it is;
+    a line the old library filed moves to what the new one says -- unfiled, if
+    nothing claims it any more -- and each household gets its own categories."""
+    command.upgrade(migration_db.config, BOULANGER_REVISION)
+    conn = _connect(migration_db)
+    one, two = _seed_households_filed_by_the_old_library(conn)
+    conn.close()
+
+    command.upgrade(migration_db.config, LIBRARY_REVISION)
+    conn = _connect(migration_db)
+    filing = _filing(conn)
+    rules = _all_rules(conn)
+    conn.close()
+
+    assert filing == {
+        1: (None, "uncategorized"),
+        2: (one["alimentation-courses"], "builtin"),
+        3: (one["logement-charges"], "builtin"),
+        4: (one["achats"], "builtin"),
+        5: (one["transport-assurance"], "builtin"),
+        6: (one["logement-internet"], "builtin"),
+        7: (one["alimentation-courses"], "manual"),
+        8: (None, "uncategorized"),
+        9: (two["achats-cadeaux"], "learned"),
+        10: (two["achats-cadeaux"], "builtin"),
+        11: (two["logement-charges"], "builtin"),
+    }
+    assert (1, r"\bcora\b", 1, one["alimentation-courses"], "builtin") in rules
+    assert (1, r"\borange\b", 1, one["logement-internet"], "builtin") in rules
+    assert (1, "veolia", 0, one["logement-charges"], "builtin") in rules
+    assert (1, "amazon", 0, one["achats"], "builtin") in rules
+    assert (1, "macif auto", 0, one["transport-assurance"], "builtin") in rules
+    assert (1, "free telecom", 0, one["logement-internet"], "builtin") in rules
+    assert (2, "amazon", 0, two["achats"], "builtin") in rules
+    assert (2, "amazon eu", 0, two["achats-cadeaux"], "learned") in rules
+    assert (2, "veolia", 0, two["logement-charges"], "builtin") in rules
+
+
+def test_the_library_migration_downgrades_to_the_old_rules_and_their_filing(migration_db):
+    command.upgrade(migration_db.config, BOULANGER_REVISION)
+    conn = _connect(migration_db)
+    _seed_households_filed_by_the_old_library(conn)
+    before = (_filing(conn), _all_rules(conn))
+    conn.close()
+
+    command.upgrade(migration_db.config, LIBRARY_REVISION)
+    command.downgrade(migration_db.config, BOULANGER_REVISION)
+    conn = _connect(migration_db)
+    after = (_filing(conn), _all_rules(conn))
     conn.close()
 
     assert after == before

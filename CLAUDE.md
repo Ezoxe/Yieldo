@@ -275,9 +275,9 @@ month with nothing spent counts as 0, no mean under three).
   (Logement, a pavillon), `scenes/salon/` (Abonnements, a living room),
   `scenes/kitchen/` (Alimentation, a kitchen), `scenes/clinic/` (Santé, a
   doctor's office), `scenes/hall/` (Loisirs, an entrance hall),
-  `scenes/dressing/` (Achats, a dressing room) and `scenes/study/` (Impôts, a
-  study); the rooms show the evening in the dark theme and the day in the
-  light one. Its colours are physical and live in its stylesheet,
+  `scenes/dressing/` (Achats, a dressing room), `scenes/study/` (Impôts, a
+  study) and `scenes/nursery/` (Famille, a child's bedroom); the rooms show
+  the evening in the dark theme and the day in the light one. Its colours are physical and live in its stylesheet,
   never in a component. Every scene's stylesheet loads with the page, so a
   new scene styles its lens insides under its own root
   (`.yd-clinic .yd-lens__pill`): `scenes/stylesheets.test.ts` fails when one
@@ -408,6 +408,9 @@ demonstration household into the DEVELOPMENT database (run it from
 `backend/`; it deletes and recreates that one user, never another). Its test
 credentials are in the script. Avenir, the dashboard's thirty days, the
 floor alert and the assistant's questions about the future are judged there.
+Its current account is meant to end September 2026 just under zero; add
+demo spending in `_universe_extras()` only, where the partner's monthly
+share pays for it, and check `/api/outlook` still says so.
 
 **Judge UI work in a browser before calling it done.** Phase 1's interface
 was reviewed twenty-four times on the diff alone and rejected on sight.

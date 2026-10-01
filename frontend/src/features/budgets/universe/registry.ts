@@ -20,7 +20,16 @@
  * household's to change.
  */
 
-export type UniverseId = "car" | "house" | "salon" | "kitchen" | "clinic" | "hall" | "dressing" | "study";
+export type UniverseId =
+  | "car"
+  | "house"
+  | "salon"
+  | "kitchen"
+  | "clinic"
+  | "hall"
+  | "dressing"
+  | "study"
+  | "nursery";
 export type CarPart = "fuel" | "engine" | "cage" | "toll";
 export type HousePart = "roof" | "door" | "net" | "power" | "water" | "workshop";
 export type SalonPart = "tv" | "laptop" | "press" | "gym";
@@ -29,6 +38,7 @@ export type ClinicPart = "medicine" | "stethoscope" | "reader" | "glasses";
 export type HallPart = "tickets" | "suitcase" | "bike" | "guitar";
 export type DressingPart = "wardrobe" | "tech" | "lamp" | "gifts";
 export type StudyPart = "hourglass" | "cadastre" | "tray" | "calculator";
+export type NurseryPart = "bottle" | "satchel" | "basket";
 export type PartId =
   | CarPart
   | HousePart
@@ -37,7 +47,8 @@ export type PartId =
   | ClinicPart
   | HallPart
   | DressingPart
-  | StudyPart;
+  | StudyPart
+  | NurseryPart;
 
 export interface Named {
   slug: string;
@@ -364,7 +375,39 @@ const STUDY: UniverseRule = {
   ],
 };
 
-const UNIVERSES: readonly UniverseRule[] = [CAR, HOUSE, SALON, KITCHEN, CLINIC, HALL, DRESSING, STUDY];
+/**
+ * The Famille family as a child's bedroom: the baby bottle on the changing
+ * table is the childcare, the satchel the schooling, the basket the pets. A
+ * name that says which it is (« Garde d'enfants ») is that part, never the
+ * whole family.
+ */
+const NURSERY: UniverseRule = {
+  id: "nursery",
+  slugs: ["famille"],
+  words: /^(?!.*(garde|cr[èe]che|nounou|scolarit|[ée]cole|cantine|animaux|v[ée]t[ée]rinaire)).*(\bfamille\b|\benfants?\b|\bb[ée]b[ée])/i,
+  parts: [
+    {
+      id: "bottle",
+      slugs: ["famille-garde"],
+      words: /garde|cr[èe]che|nounou|assistante maternelle|baby-?sitt|halte-garderie|p[ée]riscolaire|centre a[ée]r[ée]|pajemploi/i,
+      strong: /garde d['’]enfants?|cr[èe]che|nounou|assistante maternelle|baby-?sitt|pajemploi/i,
+    },
+    {
+      id: "satchel",
+      slugs: ["famille-scolarite"],
+      words: /scolarit|[ée]coles?|cantine|fournitures|coll[èe]ge|lyc[ée]e|[ée]tudes|universit|cours|soutien scolaire/i,
+      strong: /scolarit|cantine|fournitures scolaires|soutien scolaire/i,
+    },
+    {
+      id: "basket",
+      slugs: ["famille-animaux"],
+      words: /animaux|animal|\bchiens?\b|\bchats?\b|v[ée]t[ée]rinaire|croquettes|animalerie/i,
+      strong: /animaux|v[ée]t[ée]rinaire|croquettes|animalerie/i,
+    },
+  ],
+};
+
+const UNIVERSES: readonly UniverseRule[] = [CAR, HOUSE, SALON, KITCHEN, CLINIC, HALL, DRESSING, STUDY, NURSERY];
 
 function isUniverse(rule: UniverseRule, category: Named): boolean {
   return rule.slugs.includes(category.slug) || rule.words.test(category.name);

@@ -354,6 +354,42 @@ describe("universeFor — the study", () => {
   });
 });
 
+describe("universeFor — the nursery", () => {
+  const famille = { slug: "famille", name: "Famille" };
+
+  it("opens the nursery on the seeded Famille family", () => {
+    expect(universeFor({ ...famille, parent: null })).toEqual({ universe: "nursery", focus: null });
+  });
+
+  it("puts each seeded child where it lives in the nursery", () => {
+    const cases: Array<[string, string, string]> = [
+      ["famille-garde", "Garde d'enfants", "bottle"],
+      ["famille-scolarite", "Scolarité", "satchel"],
+      ["famille-animaux", "Animaux", "basket"],
+    ];
+    for (const [slug, name, part] of cases) {
+      expect(universeFor({ slug, name, parent: famille })).toEqual({ universe: "nursery", focus: part });
+    }
+  });
+
+  it("places the household's own names under Famille", () => {
+    expect(universeFor({ slug: "creche", name: "Crèche", parent: famille })).toEqual({ universe: "nursery", focus: "bottle" });
+    expect(universeFor({ slug: "cantine", name: "Cantine", parent: famille })).toEqual({ universe: "nursery", focus: "satchel" });
+    expect(universeFor({ slug: "chat", name: "Chat", parent: famille })).toEqual({ universe: "nursery", focus: "basket" });
+    // « achats » holds « chats »: still not the basket.
+    expect(universeFor({ slug: "achats-bebe", name: "Achats bébé", parent: famille })).toBeNull();
+  });
+
+  it("opens a lone root part of the nursery rather than the whole family", () => {
+    expect(universeFor({ slug: "garde", name: "Garde d'enfants", parent: null })).toEqual({ universe: "nursery", focus: "bottle" });
+    expect(universeFor({ slug: "creche", name: "Crèche", parent: null })).toEqual({ universe: "nursery", focus: "bottle" });
+    expect(universeFor({ slug: "veto", name: "Vétérinaire", parent: null })).toEqual({ universe: "nursery", focus: "basket" });
+    expect(universeFor({ slug: "enfants", name: "Enfants", parent: null })).toEqual({ universe: "nursery", focus: null });
+    // Lessons of any kind: no guess.
+    expect(universeFor({ slug: "cours", name: "Cours", parent: null })).toBeNull();
+  });
+});
+
 describe("partFor", () => {
   it("prefers the seeded slug to the words of the name", () => {
     expect(partFor("car", { slug: "transport-entretien", name: "Assurance (renommée)" })).toBe("engine");

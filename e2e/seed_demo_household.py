@@ -148,7 +148,8 @@ def _checking(rng: random.Random) -> list[tuple[date, str, int]]:
 
 def _universe_extras() -> list[tuple[date, str, int]]:
     """What the budget universes need to show something: the car beyond fuel,
-    health, leisure, shopping, the family, the 2026 tax balance and a fine.
+    health, leisure, shopping, the family, bank fees, the 2026 tax balance and
+    a fine.
     Each draws from a generator of its own, so the household above draws
     exactly what it drew before the universes existed."""
     rows: list[tuple[date, str, int]] = []
@@ -232,6 +233,16 @@ def _universe_extras() -> list[tuple[date, str, int]]:
             add(_day(year, month, 2), "CB BUREAU VALLEE", -kids.randint(5_000, 8_000))
     add(date(2025, 5, 20), "CB CABINET VETERINAIRE DES LILAS", -6_500)
     add(date(2026, 5, 19), "CB CABINET VETERINAIRE DES LILAS", -6_800)
+
+    # The bank's fees: the account and the card each month, the overdraft
+    # interest each quarter, one intervention fee. The built-in rules know
+    # them all.
+    for year, month in _months():
+        add(_day(year, month, 1), "FRAIS TENUE DE COMPTE", -250)
+        add(_day(year, month, 1), "COTISATION CARTE VISA PREMIER", -350)
+        if month in (1, 4, 7, 10):
+            add(_day(year, month, 3), "AGIOS TRIMESTRIELS", -(300 + 150 * (month % 4)))
+    add(date(2026, 2, 12), "COMMISSION INTERVENTION", -800)
 
     # The 2026 tax balance, taken from September like the 2025 one; a traffic
     # fine, filed by hand.
@@ -394,6 +405,7 @@ def main() -> int:
             "achats": 30_000, "achats-vetements": 12_000,
             "impots": 30_000, "impots-revenu": 20_000,
             "famille": 15_000, "famille-garde": 12_000,
+            "frais": 1_500, "frais-carte": 500,
         })
         _file_by_hand(client, headers, HAND_FILING)
     for name, count in counts.items():

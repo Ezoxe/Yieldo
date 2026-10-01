@@ -1,3 +1,5 @@
+from dataclasses import dataclass
+
 from sqlalchemy.orm import Session
 
 from app.models import Category
@@ -147,12 +149,28 @@ def seed_categories(db: Session, user_id: int) -> dict[str, Category]:
     return index
 
 
+@dataclass(frozen=True)
+class Regex:
+    """A built-in pattern written as a regular expression, not as a fragment.
+
+    A plain pattern matches anywhere in the label, which is right for a brand
+    that is its own word. A brand that is also the start of a common word needs
+    a word boundary, and only a regex can say so: "boulanger" is the first nine
+    letters of "boulangerie".
+    """
+
+    source: str
+
+
+BOULANGER = Regex(r"\bboulanger\b")
+
 # (category slug, direction, [patterns])
-BUILTIN_RULES: list[tuple[str, str, list[str]]] = [
+BUILTIN_RULES: list[tuple[str, str, list[str | Regex]]] = [
     ("alimentation-courses", "debit", [
         "carrefour", "leclerc", "intermarche", "auchan", "lidl", "aldi", "monoprix",
         "franprix", "casino", "super u", "hyper u", "cora", "grand frais", "picard",
         "biocoop", "naturalia", "g20", "spar", "netto", "match", "colruyt",
+        "boulangerie", "patisserie",
     ]),
     ("alimentation-restaurant", "debit", [
         "restaurant", "brasserie", "pizzeria", "mcdonald", "burger king", "kfc",
@@ -220,7 +238,7 @@ BUILTIN_RULES: list[tuple[str, str, list[str]]] = [
     ]),
     ("abonnements-presse", "debit", ["le monde", "mediapart", "telerama", "les echos"]),
     ("achats-equipement", "debit", [
-        "fnac", "darty", "boulanger", "ldlc", "materiel net", "apple store",
+        "fnac", "darty", BOULANGER, "ldlc", "materiel net", "apple store",
         "cdiscount", "back market",
     ]),
     ("achats-vetements", "debit", [
@@ -264,10 +282,13 @@ def seed_rules(db: Session, user_id: int, categories: dict[str, Category]) -> in
         if category is None:
             continue
         for pattern in patterns:
-            if (pattern, category.id) in existing:
+            text, is_regex = (
+                (pattern.source, True) if isinstance(pattern, Regex) else (pattern, False)
+            )
+            if (text, category.id) in existing:
                 continue
             db.add(CategoryRule(
-                user_id=user_id, pattern=pattern, is_regex=False,
+                user_id=user_id, pattern=text, is_regex=is_regex,
                 category_id=category.id, priority=100, origin="builtin",
                 direction=direction,
             ))

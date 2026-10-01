@@ -120,6 +120,27 @@ def test_income_rules_only_match_positive_amounts(db, user_with_categories):
     assert classify("vir salaire acme sas", -245000, compiled) is None
 
 
+def test_a_bakery_is_not_booked_as_the_boulanger_electronics_chain(db, user_with_categories):
+    # "boulanger" is the electronics retailer, and also the first nine letters of
+    # "boulangerie": matched as a fragment, every loaf of bread was booked as
+    # « Équipement et high-tech ». The retailer is a whole word; a bakery is food.
+    user, categories = user_with_categories
+    seed_rules(db, user.id, categories)
+    compiled = compile_rules(db.query(CategoryRule).filter(
+        CategoryRule.user_id == user.id).all())
+
+    bakeries = ("cb boulangerie paul", "boulangerie patisserie du marche", "cb patisserie dupont")
+    for label in bakeries:
+        bakery = classify(label, -480, compiled)
+        assert bakery is not None, label
+        assert bakery.category_id == categories["alimentation-courses"].id, label
+
+    for label in ("cb boulanger lille", "boulanger"):
+        retailer = classify(label, -54900, compiled)
+        assert retailer is not None, label
+        assert retailer.category_id == categories["achats-equipement"].id, label
+
+
 def test_totalenergies_gas_bill_is_not_booked_as_fuel(db, user_with_categories):
     # normalize_label never inserts separators, so the brand always arrives as the
     # single token "totalenergies" -- a pattern written "total energies gaz" can

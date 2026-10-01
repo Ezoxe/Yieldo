@@ -1716,7 +1716,8 @@ def test_the_investment_migration_is_the_single_head(migration_db):
 
     script = ScriptDirectory.from_config(migration_db.config)
     assert len(script.get_heads()) == 1
-    assert script.get_current_head() == PLANNED_EVENTS_REVISION
+    assert script.get_current_head() == BOULANGER_REVISION
+    assert PLANNED_EVENTS_REVISION in {rev.revision for rev in script.walk_revisions()}
     assert INSTANCE_SETTINGS_REVISION in {rev.revision for rev in script.walk_revisions()}
     assert SESSION_VERSION_REVISION in {rev.revision for rev in script.walk_revisions()}
     assert LEARNED_MODEL_REVISION in {rev.revision for rev in script.walk_revisions()}
@@ -2148,3 +2149,101 @@ def test_the_planned_events_table_matches_the_model_and_downgrades(migration_db)
     tables = {row[0] for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
     conn.close()
     assert "planned_events" not in tables
+
+
+# ---------------------------------------------------------------------------
+# d7f9a1c3e5b7 -- the Boulanger rule stops filing bakeries as high-tech
+# ---------------------------------------------------------------------------
+
+BOULANGER_REVISION = "d7f9a1c3e5b7"
+WORD_BOUNDARY_BOULANGER = r"\bboulanger\b"
+
+
+def _seed_two_households_and_the_old_boulanger_rule(conn: sqlite3.Connection) -> None:
+    """Two households as the old rule library left them: the built-in
+    "boulanger" fragment in each, and the lines it touched -- a bakery it filed
+    as high-tech, the same bakery a household filed there by hand, a real
+    Boulanger purchase, and the second household's own bakery."""
+    for user_id, email in ((1, "un@example.com"), (2, "deux@example.com")):
+        conn.execute(
+            "INSERT INTO users (id, email, name, password_hash, role, is_active, created_at) "
+            "VALUES (?, ?, 'Foyer', 'x', 'user', 1, '2026-01-01 00:00:00')", (user_id, email))
+        base = (user_id - 1) * 4
+        for offset, parent, name, slug in (
+            (1, None, "Alimentation", "alimentation"),
+            (2, 1, "Courses", "alimentation-courses"),
+            (3, None, "Achats", "achats"),
+            (4, 3, "Équipement et high-tech", "achats-equipement"),
+        ):
+            conn.execute(
+                "INSERT INTO categories (id, user_id, parent_id, name, slug, kind, color, icon, "
+                "position) VALUES (?, ?, ?, ?, ?, 'expense', '#000000', 'dots', 0)",
+                (base + offset, user_id, None if parent is None else base + parent, name, slug))
+        conn.execute(
+            "INSERT INTO accounts (id, user_id, name, kind, currency, opening_balance_cents, "
+            "include_in_net_worth, archived) VALUES (?, ?, 'Compte', 'checking', 'EUR', 0, 1, 0)",
+            (user_id, user_id))
+        conn.execute(
+            "INSERT INTO category_rules (user_id, pattern, is_regex, category_id, priority, "
+            "origin, direction, hit_count, created_at) "
+            "VALUES (?, 'boulanger', 0, ?, 100, 'builtin', 'debit', 0, '2026-01-01 00:00:00')",
+            (user_id, base + 4))
+    for row_id, user_id, label, category_id, source in (
+        (1, 1, "cb boulangerie paul", 4, "builtin"),
+        (2, 1, "cb boulangerie paul", 4, "manual"),
+        (3, 1, "cb boulanger lille", 4, "builtin"),
+        (4, 2, "cb boulangerie du marche", 8, "builtin"),
+    ):
+        conn.execute(
+            "INSERT INTO transactions (id, user_id, account_id, date, amount_cents, label_raw, "
+            "label_clean, category_id, category_source, is_transfer, is_recurring, dedup_hash, "
+            "tags) VALUES (?, ?, ?, '2026-09-02', -480, ?, ?, ?, ?, 0, 0, ?, '[]')",
+            (row_id, user_id, user_id, label.upper(), label, category_id, source, f"h{row_id}"))
+    conn.commit()
+
+
+def _transaction_categories(conn: sqlite3.Connection) -> dict[int, int]:
+    return dict(conn.execute("SELECT id, category_id FROM transactions"))
+
+
+def _builtin_rules(conn: sqlite3.Connection) -> set[tuple[int, str, int, int]]:
+    return set(conn.execute(
+        "SELECT user_id, pattern, is_regex, category_id FROM category_rules "
+        "WHERE origin = 'builtin'"))
+
+
+def test_the_boulanger_migration_refiles_only_the_bread_the_old_rule_misfiled(migration_db):
+    """The household's own decisions stand -- a line filed by hand is never
+    moved -- and each household's bread lands in its own Courses."""
+    command.upgrade(migration_db.config, PLANNED_EVENTS_REVISION)
+    conn = _connect(migration_db)
+    _seed_two_households_and_the_old_boulanger_rule(conn)
+    conn.close()
+
+    command.upgrade(migration_db.config, BOULANGER_REVISION)
+    conn = _connect(migration_db)
+    categories = _transaction_categories(conn)
+    rules = _builtin_rules(conn)
+    conn.close()
+
+    assert categories == {1: 2, 2: 4, 3: 4, 4: 6}
+    assert rules == {
+        (1, WORD_BOUNDARY_BOULANGER, 1, 4), (1, "boulangerie", 0, 2), (1, "patisserie", 0, 2),
+        (2, WORD_BOUNDARY_BOULANGER, 1, 8), (2, "boulangerie", 0, 6), (2, "patisserie", 0, 6),
+    }
+
+
+def test_the_boulanger_migration_downgrades_to_the_old_rule_and_its_filing(migration_db):
+    command.upgrade(migration_db.config, PLANNED_EVENTS_REVISION)
+    conn = _connect(migration_db)
+    _seed_two_households_and_the_old_boulanger_rule(conn)
+    before = (_transaction_categories(conn), _builtin_rules(conn))
+    conn.close()
+
+    command.upgrade(migration_db.config, BOULANGER_REVISION)
+    command.downgrade(migration_db.config, PLANNED_EVENTS_REVISION)
+    conn = _connect(migration_db)
+    after = (_transaction_categories(conn), _builtin_rules(conn))
+    conn.close()
+
+    assert after == before

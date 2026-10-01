@@ -30,7 +30,7 @@ import io
 import os
 import random
 import sys
-from datetime import date, timedelta
+from datetime import date
 from pathlib import Path
 
 BACKEND = Path(__file__).resolve().parent.parent / "backend"
@@ -85,7 +85,8 @@ def _checking(rng: random.Random) -> list[tuple[date, str, int]]:
         add(_day(year, month, 28), "VIR SEPA ACME SAS SALAIRE", 281_000)
         add(_day(year, month, 5), "PRLV SEPA FONCIA LOYER", -92_000)
         edf = 11_800 if winter else 5_200 if summer else 7_800
-        add(_day(year, month, 8), "PRLV SEPA EDF CLIENTS PARTICULIERS", -(edf + rng.randint(-600, 600)))
+        edf += rng.randint(-600, 600)
+        add(_day(year, month, 8), "PRLV SEPA EDF CLIENTS PARTICULIERS", -edf)
         add(_day(year, month, 10), "PRLV SEPA DIRECT ASSURANCE AUTO", -5_230)
         add(_day(year, month, 12), "PRLV SEPA FREE TELECOM", -2_999)
         add(_day(year, month, 14), "PRLV SEPA BOUYGUES TELECOM", -1_599)
@@ -95,7 +96,8 @@ def _checking(rng: random.Random) -> list[tuple[date, str, int]]:
         add(_day(year, month, 2), "VIR SEPA VERS PEA", -20_000)
         add(_day(year, month, 30), "VIR PERMANENT VERS LIVRET A", -30_000)
         if month in (1, 4, 7, 10):
-            add(_day(year, month, 15), "PRLV SEPA VEOLIA EAU", -(9_500 + rng.randint(-1_000, 1_000)))
+            water = 9_500 + rng.randint(-1_000, 1_000)
+            add(_day(year, month, 15), "PRLV SEPA VEOLIA EAU", -water)
         if month == 3:
             add(_day(year, month, 20), "PRLV SEPA MAIF HABITATION", -28_000)
         if month == 12:
@@ -120,14 +122,17 @@ def _checking(rng: random.Random) -> list[tuple[date, str, int]]:
             place = rng.choice(["CB LE COMPTOIR", "CB SUSHI SHOP", "CB BOULANGERIE PAUL"])
             add(_day(year, month, rng.randint(1, days)), place, -rng.randint(1_500, 6_000))
         for _ in range(2):
-            add(_day(year, month, rng.randint(1, days)), "CB TOTALENERGIES", -rng.randint(4_500, 7_500))
+            on = _day(year, month, rng.randint(1, days))
+            add(on, "CB TOTALENERGIES", -rng.randint(4_500, 7_500))
         for _ in range(rng.randint(1, 2)):
             shop = rng.choice(["CB AMAZON EU", "CB DECATHLON"])
             add(_day(year, month, rng.randint(1, days)), shop, -rng.randint(2_000, 15_000))
         if rng.random() < 0.7:
-            add(_day(year, month, rng.randint(1, days)), "CB PHARMACIE DU CENTRE", -rng.randint(800, 4_000))
+            on = _day(year, month, rng.randint(1, days))
+            add(on, "CB PHARMACIE DU CENTRE", -rng.randint(800, 4_000))
         if rng.random() < 0.15:
-            add(_day(year, month, rng.randint(1, days)), "VIR LEBONCOIN", rng.randint(3_000, 12_000))
+            on = _day(year, month, rng.randint(1, days))
+            add(on, "VIR LEBONCOIN", rng.randint(3_000, 12_000))
 
     # The income tax is withheld from the salary; only the yearly balance
     # reaches the account, and a balance over 300 € is taken in four
@@ -375,7 +380,8 @@ def main() -> int:
     rng = random.Random(SEED)
     _recreate_user()
     with TestClient(app) as client:
-        login = client.post("/api/auth/login", json={"email": DEMO_EMAIL, "password": DEMO_PASSWORD})
+        login = client.post("/api/auth/login",
+                            json={"email": DEMO_EMAIL, "password": DEMO_PASSWORD})
         login.raise_for_status()
         headers = {"Authorization": f"Bearer {login.json()['access_token']}"}
 

@@ -20,12 +20,13 @@
  * household's to change.
  */
 
-export type UniverseId = "car" | "house" | "salon" | "kitchen";
+export type UniverseId = "car" | "house" | "salon" | "kitchen" | "clinic";
 export type CarPart = "fuel" | "engine" | "cage" | "toll";
 export type HousePart = "roof" | "door" | "net" | "power" | "water" | "workshop";
 export type SalonPart = "tv" | "laptop" | "press" | "gym";
 export type KitchenPart = "fridge" | "delivery" | "coffee" | "plate";
-export type PartId = CarPart | HousePart | SalonPart | KitchenPart;
+export type ClinicPart = "medicine" | "stethoscope" | "reader" | "glasses";
+export type PartId = CarPart | HousePart | SalonPart | KitchenPart | ClinicPart;
 
 export interface Named {
   slug: string;
@@ -201,7 +202,45 @@ const KITCHEN: UniverseRule = {
   ],
 };
 
-const UNIVERSES: readonly UniverseRule[] = [CAR, HOUSE, SALON, KITCHEN];
+/**
+ * The Santé family as a doctor's office: the medicine cabinet is the pharmacy.
+ * « Mutuelle santé » names the insurance, not the family: it is the card
+ * reader. The dentist sits with the glasses, before the consultations, so a
+ * « Consultation dentiste » goes there.
+ */
+const CLINIC: UniverseRule = {
+  id: "clinic",
+  slugs: ["sante"],
+  words: /^(?!.*\b(mutuelle|compl[ée]mentaire|assurance)).*(\bsant[ée]|\bm[ée]dica(l|ux)\b)/i,
+  parts: [
+    {
+      id: "medicine",
+      slugs: ["sante-pharmacie"],
+      words: /pharmac|m[ée]dicaments?/i,
+      strong: /pharmac|m[ée]dicaments?/i,
+    },
+    {
+      id: "glasses",
+      slugs: ["sante-optique"],
+      words: /optique|opticien|lunettes|lentilles|ophtalmo|dentaire|dentiste|orthodont/i,
+      strong: /optique|opticien|lunettes|ophtalmo|dentaire|dentiste|orthodont/i,
+    },
+    {
+      id: "reader",
+      slugs: ["sante-mutuelle"],
+      words: /mutuelle|compl[ée]mentaire|pr[ée]voyance|assurance/i,
+      strong: /mutuelle|compl[ée]mentaire sant[ée]|assurance sant[ée]/i,
+    },
+    {
+      id: "stethoscope",
+      slugs: ["sante-medecin"],
+      words: /consultations?|m[ée]decins?|docteur|g[ée]n[ée]raliste|sp[ée]cialistes?|kin[ée]|laboratoire|analyses|radiolog|h[ôo]pital|clinique|ost[ée]opathe/i,
+      strong: /m[ée]decins?|g[ée]n[ée]raliste|kin[ée]sith|ost[ée]opathe|consultations? m[ée]dicales?/i,
+    },
+  ],
+};
+
+const UNIVERSES: readonly UniverseRule[] = [CAR, HOUSE, SALON, KITCHEN, CLINIC];
 
 function isUniverse(rule: UniverseRule, category: Named): boolean {
   return rule.slugs.includes(category.slug) || rule.words.test(category.name);

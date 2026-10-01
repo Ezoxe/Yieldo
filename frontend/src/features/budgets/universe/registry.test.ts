@@ -152,6 +152,73 @@ describe("universeFor — the kitchen", () => {
   });
 });
 
+describe("universeFor — the doctor's office", () => {
+  const sante = { slug: "sante", name: "Santé" };
+
+  it("opens the doctor's office on the seeded Santé family", () => {
+    expect(universeFor({ ...sante, parent: null })).toEqual({ universe: "clinic", focus: null });
+  });
+
+  it("puts each seeded child where it is paid for in the office", () => {
+    const cases: Array<[string, string, string]> = [
+      ["sante-medecin", "Consultations", "stethoscope"],
+      ["sante-pharmacie", "Pharmacie", "medicine"],
+      ["sante-mutuelle", "Mutuelle", "reader"],
+      ["sante-optique", "Optique et dentaire", "glasses"],
+    ];
+    for (const [slug, name, part] of cases) {
+      expect(universeFor({ slug, name, parent: sante })).toEqual({ universe: "clinic", focus: part });
+    }
+  });
+
+  it("places the household's own names under Santé", () => {
+    expect(universeFor({ slug: "dentiste", name: "Consultation dentiste", parent: sante })).toEqual({
+      universe: "clinic",
+      focus: "glasses",
+    });
+    expect(universeFor({ slug: "kine", name: "Kinésithérapeute", parent: sante })).toEqual({
+      universe: "clinic",
+      focus: "stethoscope",
+    });
+    expect(universeFor({ slug: "medicaments", name: "Médicaments", parent: sante })).toEqual({
+      universe: "clinic",
+      focus: "medicine",
+    });
+  });
+
+  it("recognises a health family the household named itself, but not its insurance", () => {
+    expect(universeFor({ slug: "frais-medicaux", name: "Frais médicaux", parent: null })).toEqual({
+      universe: "clinic",
+      focus: null,
+    });
+    expect(universeFor({ slug: "mutuelle-sante", name: "Mutuelle santé", parent: null })).toEqual({
+      universe: "clinic",
+      focus: "reader",
+    });
+    expect(universeFor({ slug: "complementaire", name: "Complémentaire santé", parent: null })).toEqual({
+      universe: "clinic",
+      focus: "reader",
+    });
+  });
+
+  it("opens a lone root part of the office on unambiguous words only", () => {
+    expect(universeFor({ slug: "pharmacie", name: "Pharmacie", parent: null })).toEqual({
+      universe: "clinic",
+      focus: "medicine",
+    });
+    expect(universeFor({ slug: "lunettes", name: "Lunettes", parent: null })).toEqual({
+      universe: "clinic",
+      focus: "glasses",
+    });
+    expect(universeFor({ slug: "medecin", name: "Médecin", parent: null })).toEqual({
+      universe: "clinic",
+      focus: "stethoscope",
+    });
+    // A consultant's invoices as much as a doctor's: no guess.
+    expect(universeFor({ slug: "consultations", name: "Consultations", parent: null })).toBeNull();
+  });
+});
+
 describe("partFor", () => {
   it("prefers the seeded slug to the words of the name", () => {
     expect(partFor("car", { slug: "transport-entretien", name: "Assurance (renommée)" })).toBe("engine");

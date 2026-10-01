@@ -20,13 +20,14 @@
  * household's to change.
  */
 
-export type UniverseId = "car" | "house" | "salon" | "kitchen" | "clinic";
+export type UniverseId = "car" | "house" | "salon" | "kitchen" | "clinic" | "hall";
 export type CarPart = "fuel" | "engine" | "cage" | "toll";
 export type HousePart = "roof" | "door" | "net" | "power" | "water" | "workshop";
 export type SalonPart = "tv" | "laptop" | "press" | "gym";
 export type KitchenPart = "fridge" | "delivery" | "coffee" | "plate";
 export type ClinicPart = "medicine" | "stethoscope" | "reader" | "glasses";
-export type PartId = CarPart | HousePart | SalonPart | KitchenPart | ClinicPart;
+export type HallPart = "tickets" | "suitcase" | "bike" | "guitar";
+export type PartId = CarPart | HousePart | SalonPart | KitchenPart | ClinicPart | HallPart;
 
 export interface Named {
   slug: string;
@@ -240,7 +241,44 @@ const CLINIC: UniverseRule = {
   ],
 };
 
-const UNIVERSES: readonly UniverseRule[] = [CAR, HOUSE, SALON, KITCHEN, CLINIC];
+/**
+ * The Loisirs family as the entrance hall, where leisure waits by the door:
+ * the tickets pinned over the console, the suitcase, the bike, the guitar.
+ * « Voyages » alone stays unread: travel tickets are Transport's.
+ */
+const HALL: UniverseRule = {
+  id: "hall",
+  slugs: ["loisirs"],
+  words: /\b(loisirs?|divertissements?)\b|temps libre/i,
+  parts: [
+    {
+      id: "tickets",
+      slugs: ["loisirs-sorties"],
+      words: /sorties?|culture|cin[ée]ma|concerts?|spectacles?|th[ée][âa]tre|mus[ée]es?|expositions?|festivals?|billetterie/i,
+      strong: /cin[ée]ma|concerts?|spectacles?|th[ée][âa]tre|mus[ée]es?|billetterie/i,
+    },
+    {
+      id: "suitcase",
+      slugs: ["loisirs-vacances"],
+      words: /vacances|s[ée]jours?|h[ôo]tels?|camping|week-ends?|g[îi]tes?|location saisonni/i,
+      strong: /vacances|s[ée]jours?|h[ôo]tels?|camping|g[îi]tes?/i,
+    },
+    {
+      id: "bike",
+      slugs: ["loisirs-sport"],
+      words: /sports?|v[ée]lo|cyclisme|running|natation|piscine|tennis|football|\bski|randonn[ée]e|escalade/i,
+      strong: /v[ée]lo|cyclisme|natation|piscine|tennis|escalade/i,
+    },
+    {
+      id: "guitar",
+      slugs: ["loisirs-hobbies"],
+      words: /hobbies?|passe-temps|loisirs cr[ée]atifs|musique|instruments?|livres?|lecture|jeux|jouets?|photo|jardinage|bricolage|dessin|peinture/i,
+      strong: /hobbies?|passe-temps|loisirs cr[ée]atifs|instruments? de musique/i,
+    },
+  ],
+};
+
+const UNIVERSES: readonly UniverseRule[] = [CAR, HOUSE, SALON, KITCHEN, CLINIC, HALL];
 
 function isUniverse(rule: UniverseRule, category: Named): boolean {
   return rule.slugs.includes(category.slug) || rule.words.test(category.name);

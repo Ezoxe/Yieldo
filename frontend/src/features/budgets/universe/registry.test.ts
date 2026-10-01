@@ -127,8 +127,11 @@ describe("universeFor — the living room", () => {
     }
   });
 
-  it("leaves the Loisirs family's sport alone", () => {
-    expect(universeFor({ slug: "loisirs-sport", name: "Sport", parent: { slug: "loisirs", name: "Loisirs" } })).toBeNull();
+  it("leaves the Loisirs family's sport to the entrance hall", () => {
+    expect(universeFor({ slug: "loisirs-sport", name: "Sport", parent: { slug: "loisirs", name: "Loisirs" } })).toEqual({
+      universe: "hall",
+      focus: "bike",
+    });
   });
 });
 
@@ -216,6 +219,47 @@ describe("universeFor — the doctor's office", () => {
     });
     // A consultant's invoices as much as a doctor's: no guess.
     expect(universeFor({ slug: "consultations", name: "Consultations", parent: null })).toBeNull();
+  });
+});
+
+describe("universeFor — the entrance hall", () => {
+  const loisirs = { slug: "loisirs", name: "Loisirs" };
+
+  it("opens the entrance hall on the seeded Loisirs family", () => {
+    expect(universeFor({ ...loisirs, parent: null })).toEqual({ universe: "hall", focus: null });
+  });
+
+  it("puts each seeded child where it waits by the door", () => {
+    const cases: Array<[string, string, string]> = [
+      ["loisirs-sorties", "Sorties et culture", "tickets"],
+      ["loisirs-sport", "Sport", "bike"],
+      ["loisirs-vacances", "Vacances", "suitcase"],
+      ["loisirs-hobbies", "Loisirs et hobbies", "guitar"],
+    ];
+    for (const [slug, name, part] of cases) {
+      expect(universeFor({ slug, name, parent: loisirs })).toEqual({ universe: "hall", focus: part });
+    }
+  });
+
+  it("places the household's own names under Loisirs", () => {
+    expect(universeFor({ slug: "cinema", name: "Cinéma", parent: loisirs })).toEqual({ universe: "hall", focus: "tickets" });
+    expect(universeFor({ slug: "piscine", name: "Piscine", parent: loisirs })).toEqual({ universe: "hall", focus: "bike" });
+    expect(universeFor({ slug: "livres", name: "Livres et musique", parent: loisirs })).toEqual({
+      universe: "hall",
+      focus: "guitar",
+    });
+    // A club of any kind is not the bike: no guess on « Club Med ».
+    expect(universeFor({ slug: "club-med", name: "Club Med", parent: loisirs })).toBeNull();
+  });
+
+  it("opens a lone root part of the hall on unambiguous words only", () => {
+    expect(universeFor({ slug: "cinema", name: "Cinéma", parent: null })).toEqual({ universe: "hall", focus: "tickets" });
+    expect(universeFor({ slug: "vacances", name: "Vacances", parent: null })).toEqual({ universe: "hall", focus: "suitcase" });
+    expect(universeFor({ slug: "velo", name: "Vélo", parent: null })).toEqual({ universe: "hall", focus: "bike" });
+    // Outings or money going out: no guess.
+    expect(universeFor({ slug: "sorties", name: "Sorties", parent: null })).toBeNull();
+    // Travel tickets are the car's family's business, not the suitcase's.
+    expect(universeFor({ slug: "voyages", name: "Voyages", parent: null })).toBeNull();
   });
 });
 

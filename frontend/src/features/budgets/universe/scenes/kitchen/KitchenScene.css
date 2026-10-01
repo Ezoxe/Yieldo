@@ -72,7 +72,7 @@
 
 /* Lens insides ------------------------------------------------------------------- */
 
-.yd-lens__shelf { stroke: #93c5fd; stroke-opacity: 0.55; stroke-width: 1.2; }
+.yd-kitchen .yd-lens__shelf { stroke: #93c5fd; stroke-opacity: 0.55; stroke-width: 1.2; }
 .yd-lens__slot { fill: none; stroke: #93c5fd; stroke-opacity: 0.35; stroke-dasharray: 2 2; }
 /* Resting on the true count; the entrance only brings the items in turn. */
 .yd-lens__item { animation: yd-kitchen-item 0.5s ease-out both; }
@@ -81,7 +81,7 @@
 .yd-lens__item--carton { fill: #fef3c7; }
 .yd-lens__item--jar { fill: #fbbf24; }
 .yd-lens__fridge { fill: none; stroke-width: 1.1; }
-.yd-lens__box { fill: #1c2238; stroke: #c7d2fe; stroke-width: 0.8; }
+.yd-kitchen .yd-lens__box { fill: #1c2238; stroke: #c7d2fe; stroke-width: 0.8; }
 .yd-lens__pizza { fill: #fbbf24; opacity: 0.85; }
 .yd-lens__topping { fill: #c2553a; }
 .yd-lens__rider { animation: yd-kitchen-ride 3s ease-in-out infinite alternate; }

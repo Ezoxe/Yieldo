@@ -128,8 +128,8 @@
 }
 .yd-lens__key-blade { fill: none; stroke: #f4d98a; stroke-width: 2; stroke-linecap: round; }
 .yd-lens__key-bow { fill: none; stroke: #f4d98a; stroke-width: 2; }
-.yd-lens__shelf { fill: #6f7b93; }
-.yd-lens__box { fill: #1c2238; stroke: #93c5fd; stroke-width: 0.8; }
+.yd-house .yd-lens__shelf { fill: #6f7b93; }
+.yd-house .yd-lens__box { fill: #1c2238; stroke: #93c5fd; stroke-width: 0.8; }
 .yd-lens__led { fill: #34d399; }
 .yd-lens__led--slow { animation: yd-house-blink 1.1s steps(2) infinite; }
 .yd-lens__led--fast { animation: yd-house-blink 0.7s steps(2) infinite; }

@@ -390,6 +390,42 @@ describe("universeFor — the nursery", () => {
   });
 });
 
+describe("universeFor — the bank", () => {
+  const frais = { slug: "frais", name: "Frais bancaires" };
+
+  it("opens the bank on the seeded Frais bancaires family", () => {
+    expect(universeFor({ ...frais, parent: null })).toEqual({ universe: "bank", focus: null });
+  });
+
+  it("puts each seeded child where its fee is charged", () => {
+    const cases: Array<[string, string, string]> = [
+      ["frais-tenue", "Frais de tenue de compte", "statement"],
+      ["frais-agios", "Agios et incidents", "vault"],
+      ["frais-carte", "Cotisation carte", "cassette"],
+    ];
+    for (const [slug, name, part] of cases) {
+      expect(universeFor({ slug, name, parent: frais })).toEqual({ universe: "bank", focus: part });
+    }
+  });
+
+  it("places the household's own names under Frais bancaires", () => {
+    expect(universeFor({ slug: "decouvert", name: "Découvert", parent: frais })).toEqual({ universe: "bank", focus: "vault" });
+    expect(universeFor({ slug: "retraits", name: "Retraits", parent: frais })).toEqual({ universe: "bank", focus: "cassette" });
+    expect(universeFor({ slug: "package", name: "Package bancaire", parent: frais })).toEqual({
+      universe: "bank",
+      focus: "statement",
+    });
+  });
+
+  it("opens a lone root part of the bank rather than the whole family", () => {
+    expect(universeFor({ slug: "agios", name: "Agios", parent: null })).toEqual({ universe: "bank", focus: "vault" });
+    expect(universeFor({ slug: "carte", name: "Cotisation carte", parent: null })).toEqual({ universe: "bank", focus: "cassette" });
+    expect(universeFor({ slug: "banque", name: "Banque", parent: null })).toEqual({ universe: "bank", focus: null });
+    // Fees of any kind: no guess.
+    expect(universeFor({ slug: "frais-divers", name: "Frais", parent: null })).toBeNull();
+  });
+});
+
 describe("partFor", () => {
   it("prefers the seeded slug to the words of the name", () => {
     expect(partFor("car", { slug: "transport-entretien", name: "Assurance (renommée)" })).toBe("engine");

@@ -29,7 +29,8 @@ export type UniverseId =
   | "hall"
   | "dressing"
   | "study"
-  | "nursery";
+  | "nursery"
+  | "bank";
 export type CarPart = "fuel" | "engine" | "cage" | "toll";
 export type HousePart = "roof" | "door" | "net" | "power" | "water" | "workshop";
 export type SalonPart = "tv" | "laptop" | "press" | "gym";
@@ -39,6 +40,7 @@ export type HallPart = "tickets" | "suitcase" | "bike" | "guitar";
 export type DressingPart = "wardrobe" | "tech" | "lamp" | "gifts";
 export type StudyPart = "hourglass" | "cadastre" | "tray" | "calculator";
 export type NurseryPart = "bottle" | "satchel" | "basket";
+export type BankPart = "cassette" | "statement" | "vault";
 export type PartId =
   | CarPart
   | HousePart
@@ -48,7 +50,8 @@ export type PartId =
   | HallPart
   | DressingPart
   | StudyPart
-  | NurseryPart;
+  | NurseryPart
+  | BankPart;
 
 export interface Named {
   slug: string;
@@ -407,7 +410,39 @@ const NURSERY: UniverseRule = {
   ],
 };
 
-const UNIVERSES: readonly UniverseRule[] = [CAR, HOUSE, SALON, KITCHEN, CLINIC, HALL, DRESSING, STUDY, NURSERY];
+/**
+ * The Frais bancaires family as a bank's lobby: the cash machine is the card,
+ * the statement on the counter's tray the account-keeping fees, the vault
+ * the overdraft interest and incidents. A name that says which fee it is
+ * (« Agios ») is that part, never the whole family.
+ */
+const BANK: UniverseRule = {
+  id: "bank",
+  slugs: ["frais"],
+  words: /^(?!.*(carte|agios?|incidents?|tenue)).*(\bbanques?\b|\bbancaires?\b)/i,
+  parts: [
+    {
+      id: "cassette",
+      slugs: ["frais-carte"],
+      words: /carte|visa|mastercard|\bcb\b|retraits?|distributeur|\bdab\b/i,
+      strong: /cotisation carte|cotisation visa|cotisation mastercard|frais de retrait/i,
+    },
+    {
+      id: "statement",
+      slugs: ["frais-tenue"],
+      words: /tenue|gestion de compte|cotisation compte|abonnement bancaire|package|offre group[ée]e|relev[ée]s?/i,
+      strong: /tenue de compte|gestion de compte|cotisation compte/i,
+    },
+    {
+      id: "vault",
+      slugs: ["frais-agios"],
+      words: /agios?|incidents?|d[ée]couvert|commissions? d['’]intervention|rejets?|impay[ée]s?|int[ée]r[êe]ts d[ée]biteurs/i,
+      strong: /agios?|commissions? d['’]intervention|frais d['’]incident|int[ée]r[êe]ts d[ée]biteurs/i,
+    },
+  ],
+};
+
+const UNIVERSES: readonly UniverseRule[] = [CAR, HOUSE, SALON, KITCHEN, CLINIC, HALL, DRESSING, STUDY, NURSERY, BANK];
 
 function isUniverse(rule: UniverseRule, category: Named): boolean {
   return rule.slugs.includes(category.slug) || rule.words.test(category.name);

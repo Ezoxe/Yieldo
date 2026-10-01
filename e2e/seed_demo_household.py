@@ -140,6 +140,22 @@ def _checking(rng: random.Random) -> list[tuple[date, str, int]]:
             add(_day(year, month, car.randint(5, 25)), "CB NORAUTO", -car.randint(9_000, 24_000))
     add(date(2026, 6, 18), "CB CONTROLE TECHNIQUE AUTOSUR", -8_900)
 
+    # Health, beyond the pharmacy: the mutuelle every month (up each January),
+    # a GP visit or two most months, a specialist now and then, the optician
+    # once and the dentist twice. A generator of its own, like the car's.
+    care = random.Random(SEED + 11)
+    for year, month in _months():
+        days = calendar.monthrange(year, month)[1]
+        premium = -6_790 if (year, month) >= (2026, 1) else -6_490
+        add(_day(year, month, 6), "PRLV SEPA HARMONIE MUTUELLE", premium)
+        for _ in range(care.choice([0, 1, 1, 2])):
+            add(_day(year, month, care.randint(1, days)), "CB CABINET MEDICAL DU PARC", -3_000)
+        if care.random() < 0.2:
+            add(_day(year, month, care.randint(1, days)), "CB DR LEROY DERMATOLOGUE", -5_000)
+    add(date(2025, 11, 14), "CB KRYS OPTICIEN", -18_900)
+    add(date(2026, 3, 9), "CB CABINET DENTAIRE DU MAIL", -6_000)
+    add(date(2026, 6, 22), "CB CABINET DENTAIRE DU MAIL", -4_500)
+
     add(date(2025, 9, 15), "PRLV DGFIP IMPOT REVENU", -31_000)
     return rows
 
@@ -207,8 +223,9 @@ def _import(client: TestClient, headers: dict, account_id: int, content: bytes, 
 
 
 def _set_budgets(client: TestClient, headers: dict, ceilings: dict[str, int]) -> None:
-    """Ceilings on the car's and the house's families and on their fuel and
-    energy, so each universe has a dial to draw and a level to show."""
+    """Ceilings on each universe's family and on the part that carries its
+    gauge (fuel, energy, streaming, groceries, pharmacy), so each universe
+    has a dial to draw and a level to show."""
     flat: dict[str, int] = {}
 
     def walk(rows: list[dict]) -> None:
@@ -253,6 +270,7 @@ def main() -> int:
             "logement": 125_000, "logement-energie": 15_000,
             "abonnements": 9_000, "abonnements-streaming": 3_000,
             "alimentation": 60_000, "alimentation-courses": 45_000,
+            "sante": 18_000, "sante-pharmacie": 4_000,
         })
     for name, count in counts.items():
         print(f"{name} : {count} opérations importées")

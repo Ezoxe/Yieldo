@@ -20,7 +20,7 @@
  * household's to change.
  */
 
-export type UniverseId = "car" | "house" | "salon" | "kitchen" | "clinic" | "hall" | "dressing";
+export type UniverseId = "car" | "house" | "salon" | "kitchen" | "clinic" | "hall" | "dressing" | "study";
 export type CarPart = "fuel" | "engine" | "cage" | "toll";
 export type HousePart = "roof" | "door" | "net" | "power" | "water" | "workshop";
 export type SalonPart = "tv" | "laptop" | "press" | "gym";
@@ -28,7 +28,16 @@ export type KitchenPart = "fridge" | "delivery" | "coffee" | "plate";
 export type ClinicPart = "medicine" | "stethoscope" | "reader" | "glasses";
 export type HallPart = "tickets" | "suitcase" | "bike" | "guitar";
 export type DressingPart = "wardrobe" | "tech" | "lamp" | "gifts";
-export type PartId = CarPart | HousePart | SalonPart | KitchenPart | ClinicPart | HallPart | DressingPart;
+export type StudyPart = "hourglass" | "cadastre" | "tray" | "calculator";
+export type PartId =
+  | CarPart
+  | HousePart
+  | SalonPart
+  | KitchenPart
+  | ClinicPart
+  | HallPart
+  | DressingPart
+  | StudyPart;
 
 export interface Named {
   slug: string;
@@ -317,7 +326,45 @@ const DRESSING: UniverseRule = {
   ],
 };
 
-const UNIVERSES: readonly UniverseRule[] = [CAR, HOUSE, SALON, KITCHEN, CLINIC, HALL, DRESSING];
+/**
+ * The Impôts family as a study: the hourglass on the bureau is the income
+ * tax, the framed cadastral plan the property tax, the letter tray the
+ * housing tax, the adding machine everything else. A name that says which
+ * tax it is (« Taxe foncière ») is that part, never the whole family.
+ */
+const STUDY: UniverseRule = {
+  id: "study",
+  slugs: ["impots"],
+  words: /^(?!.*(fonci[èe]re|habitation|revenu)).*(\bimp[ôo]ts?\b|\btaxes?\b|\bfiscal)/i,
+  parts: [
+    {
+      id: "hourglass",
+      slugs: ["impots-revenu"],
+      words: /revenu|pr[ée]l[èe]vement [àa] la source|\bir\b|solde/i,
+      strong: /imp[ôo]t sur le revenu|pr[ée]l[èe]vement [àa] la source/i,
+    },
+    {
+      id: "cadastre",
+      slugs: ["impots-fonciere"],
+      words: /fonci[èe]re|cadastr|propri[ée]t[ée]/i,
+      strong: /taxe fonci[èe]re/i,
+    },
+    {
+      id: "tray",
+      slugs: ["impots-habitation"],
+      words: /habitation|r[ée]sidence secondaire|redevance|audiovisuel/i,
+      strong: /taxe d['’]habitation|redevance audiovisuel/i,
+    },
+    {
+      id: "calculator",
+      slugs: ["impots-autres"],
+      words: /autres?|pr[ée]l[èe]vements?|amendes?|contraventions?|timbres? fiscaux|droits/i,
+      strong: /amendes?|contraventions?|timbres? fiscaux/i,
+    },
+  ],
+};
+
+const UNIVERSES: readonly UniverseRule[] = [CAR, HOUSE, SALON, KITCHEN, CLINIC, HALL, DRESSING, STUDY];
 
 function isUniverse(rule: UniverseRule, category: Named): boolean {
   return rule.slugs.includes(category.slug) || rule.words.test(category.name);

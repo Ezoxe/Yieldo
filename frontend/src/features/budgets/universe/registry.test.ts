@@ -313,6 +313,47 @@ describe("universeFor — the dressing room", () => {
   });
 });
 
+describe("universeFor — the study", () => {
+  const impots = { slug: "impots", name: "Impôts et taxes" };
+
+  it("opens the study on the seeded Impôts family", () => {
+    expect(universeFor({ ...impots, parent: null })).toEqual({ universe: "study", focus: null });
+  });
+
+  it("puts each seeded child where its papers are", () => {
+    const cases: Array<[string, string, string]> = [
+      ["impots-revenu", "Impôt sur le revenu", "hourglass"],
+      ["impots-fonciere", "Taxe foncière", "cadastre"],
+      ["impots-habitation", "Taxe d'habitation", "tray"],
+      ["impots-autres", "Autres prélèvements", "calculator"],
+    ];
+    for (const [slug, name, part] of cases) {
+      expect(universeFor({ slug, name, parent: impots })).toEqual({ universe: "study", focus: part });
+    }
+  });
+
+  it("places the household's own names under Impôts", () => {
+    expect(universeFor({ slug: "solde-ir", name: "Solde IR", parent: impots })).toEqual({ universe: "study", focus: "hourglass" });
+    expect(universeFor({ slug: "amendes", name: "Amendes", parent: impots })).toEqual({ universe: "study", focus: "calculator" });
+    expect(universeFor({ slug: "redevance", name: "Redevance", parent: impots })).toEqual({ universe: "study", focus: "tray" });
+  });
+
+  it("opens a lone root part of the study rather than the whole family", () => {
+    expect(universeFor({ slug: "taxe-fonciere", name: "Taxe foncière", parent: null })).toEqual({
+      universe: "study",
+      focus: "cadastre",
+    });
+    expect(universeFor({ slug: "ir", name: "Impôt sur le revenu", parent: null })).toEqual({
+      universe: "study",
+      focus: "hourglass",
+    });
+    expect(universeFor({ slug: "th", name: "Taxe d’habitation", parent: null })).toEqual({ universe: "study", focus: "tray" });
+    expect(universeFor({ slug: "impots", name: "Impôts", parent: null })).toEqual({ universe: "study", focus: null });
+    // Any direct debit at all: no guess.
+    expect(universeFor({ slug: "prelevements", name: "Prélèvements", parent: null })).toBeNull();
+  });
+});
+
 describe("partFor", () => {
   it("prefers the seeded slug to the words of the name", () => {
     expect(partFor("car", { slug: "transport-entretien", name: "Assurance (renommée)" })).toBe("engine");

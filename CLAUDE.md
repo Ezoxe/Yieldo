@@ -131,6 +131,15 @@ migratable. `tests/test_migrations.py` runs real `upgrade()`/`downgrade()`
 against a file DB seeded at the previous revision — extend it for any
 migration that backfills data.
 
+The built-in categorisation rules (`categorization/seed.BUILTIN_RULES`) are
+COPIED into each account at registration, so a change to the library reaches
+existing accounts only through a data migration: rewrite their
+`origin = 'builtin'` rows, then re-file only what those rules decided — a line
+filed `builtin` or left unfiled, never one filed by hand or by the
+household's own rule (`e8a0c2d4f6b8` is the model). A plain pattern matches
+as a fragment of the label; a brand hidden in common words is written
+`word("cora")` (a `Regex`), or « décoration » becomes groceries.
+
 ### Frontend
 
 - `app/routes.tsx` — every screen; `app/navigation.ts` — the sidebar in

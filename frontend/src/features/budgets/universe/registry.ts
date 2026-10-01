@@ -20,14 +20,15 @@
  * household's to change.
  */
 
-export type UniverseId = "car" | "house" | "salon" | "kitchen" | "clinic" | "hall";
+export type UniverseId = "car" | "house" | "salon" | "kitchen" | "clinic" | "hall" | "dressing";
 export type CarPart = "fuel" | "engine" | "cage" | "toll";
 export type HousePart = "roof" | "door" | "net" | "power" | "water" | "workshop";
 export type SalonPart = "tv" | "laptop" | "press" | "gym";
 export type KitchenPart = "fridge" | "delivery" | "coffee" | "plate";
 export type ClinicPart = "medicine" | "stethoscope" | "reader" | "glasses";
 export type HallPart = "tickets" | "suitcase" | "bike" | "guitar";
-export type PartId = CarPart | HousePart | SalonPart | KitchenPart | ClinicPart | HallPart;
+export type DressingPart = "wardrobe" | "tech" | "lamp" | "gifts";
+export type PartId = CarPart | HousePart | SalonPart | KitchenPart | ClinicPart | HallPart | DressingPart;
 
 export interface Named {
   slug: string;
@@ -278,7 +279,45 @@ const HALL: UniverseRule = {
   ],
 };
 
-const UNIVERSES: readonly UniverseRule[] = [CAR, HOUSE, SALON, KITCHEN, CLINIC, HALL];
+/**
+ * The Achats family as a dressing room: the clothes rail is the clothing,
+ * the laptop on the chest of drawers the equipment, the arc lamp the home and
+ * its decoration, the pile of presents the gifts. « Achats alimentaires » is
+ * food, never the dressing room.
+ */
+const DRESSING: UniverseRule = {
+  id: "dressing",
+  slugs: ["achats"],
+  words: /^(?!.*aliment).*\b(achats?|shopping)\b/i,
+  parts: [
+    {
+      id: "wardrobe",
+      slugs: ["achats-vetements"],
+      words: /v[êe]tements?|habits?|habillement|\bmode\b|chaussures?|textile|pr[êe]t-[àa]-porter/i,
+      strong: /v[êe]tements?|habillement|chaussures?|pr[êe]t-[àa]-porter/i,
+    },
+    {
+      id: "tech",
+      slugs: ["achats-equipement"],
+      words: /[ée]quipements?|high[- ]?tech|informatique|[ée]lectronique|t[ée]l[ée]phones?|smartphones?|ordinateurs?|multim[ée]dia|[ée]lectrom[ée]nager|gadgets?/i,
+      strong: /high[- ]?tech|informatique|[ée]lectronique|smartphones?|ordinateurs?|multim[ée]dia|[ée]lectrom[ée]nager/i,
+    },
+    {
+      id: "lamp",
+      slugs: ["achats-maison"],
+      words: /maison|d[ée]co|ameublement|meubles?|mobilier|linge|luminaires?/i,
+      strong: /d[ée]coration|ameublement|mobilier|meubles?|luminaires?/i,
+    },
+    {
+      id: "gifts",
+      slugs: ["achats-cadeaux"],
+      words: /cadeaux?|f[êe]tes?|anniversaires?|no[ëe]l|[ée]trennes/i,
+      strong: /cadeaux?|anniversaires?|no[ëe]l/i,
+    },
+  ],
+};
+
+const UNIVERSES: readonly UniverseRule[] = [CAR, HOUSE, SALON, KITCHEN, CLINIC, HALL, DRESSING];
 
 function isUniverse(rule: UniverseRule, category: Named): boolean {
   return rule.slugs.includes(category.slug) || rule.words.test(category.name);

@@ -263,6 +263,56 @@ describe("universeFor — the entrance hall", () => {
   });
 });
 
+describe("universeFor — the dressing room", () => {
+  const achats = { slug: "achats", name: "Achats" };
+
+  it("opens the dressing room on the seeded Achats family", () => {
+    expect(universeFor({ ...achats, parent: null })).toEqual({ universe: "dressing", focus: null });
+  });
+
+  it("puts each seeded child where it is kept", () => {
+    const cases: Array<[string, string, string]> = [
+      ["achats-vetements", "Vêtements", "wardrobe"],
+      ["achats-equipement", "Équipement et high-tech", "tech"],
+      ["achats-maison", "Maison et décoration", "lamp"],
+      ["achats-cadeaux", "Cadeaux", "gifts"],
+    ];
+    for (const [slug, name, part] of cases) {
+      expect(universeFor({ slug, name, parent: achats })).toEqual({ universe: "dressing", focus: part });
+    }
+  });
+
+  it("places the household's own names under Achats", () => {
+    expect(universeFor({ slug: "chaussures", name: "Chaussures", parent: achats })).toEqual({
+      universe: "dressing",
+      focus: "wardrobe",
+    });
+    expect(universeFor({ slug: "informatique", name: "Informatique", parent: achats })).toEqual({
+      universe: "dressing",
+      focus: "tech",
+    });
+    expect(universeFor({ slug: "meubles", name: "Meubles", parent: achats })).toEqual({ universe: "dressing", focus: "lamp" });
+    expect(universeFor({ slug: "anniversaires", name: "Anniversaires", parent: achats })).toEqual({
+      universe: "dressing",
+      focus: "gifts",
+    });
+  });
+
+  it("opens a lone root part of the dressing room on unambiguous words only", () => {
+    expect(universeFor({ slug: "vetements", name: "Vêtements", parent: null })).toEqual({
+      universe: "dressing",
+      focus: "wardrobe",
+    });
+    expect(universeFor({ slug: "high-tech", name: "High-tech", parent: null })).toEqual({ universe: "dressing", focus: "tech" });
+    expect(universeFor({ slug: "cadeaux", name: "Cadeaux", parent: null })).toEqual({ universe: "dressing", focus: "gifts" });
+    expect(universeFor({ slug: "shopping", name: "Shopping", parent: null })).toEqual({ universe: "dressing", focus: null });
+    // Sports kit, a car's, a home's: no guess.
+    expect(universeFor({ slug: "equipement", name: "Équipement", parent: null })).toBeNull();
+    // Food bought is the kitchen's business, never the dressing room's.
+    expect(universeFor({ slug: "achats-alimentaires", name: "Achats alimentaires", parent: null })).toBeNull();
+  });
+});
+
 describe("partFor", () => {
   it("prefers the seeded slug to the words of the name", () => {
     expect(partFor("car", { slug: "transport-entretien", name: "Assurance (renommée)" })).toBe("engine");

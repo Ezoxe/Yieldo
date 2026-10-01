@@ -67,12 +67,17 @@ def _months():
             year, month = year + 1, 1
 
 
-def _checking(rng: random.Random) -> list[tuple[date, str, int]]:
-    rows: list[tuple[date, str, int]] = []
-
+def _adder(rows: list[tuple[date, str, int]]):
     def add(on: date, label: str, cents: int) -> None:
         if START <= on <= END:
             rows.append((on, label, cents))
+
+    return add
+
+
+def _checking(rng: random.Random) -> list[tuple[date, str, int]]:
+    rows: list[tuple[date, str, int]] = []
+    add = _adder(rows)
 
     for year, month in _months():
         winter = month in (11, 12, 1, 2, 3)
@@ -124,10 +129,33 @@ def _checking(rng: random.Random) -> list[tuple[date, str, int]]:
         if rng.random() < 0.15:
             add(_day(year, month, rng.randint(1, days)), "VIR LEBONCOIN", rng.randint(3_000, 12_000))
 
+    # The income tax is withheld from the salary; only the yearly balance
+    # reaches the account, and a balance over 300 € is taken in four
+    # instalments from September to December.
+    for month in (9, 10, 11, 12):
+        add(_day(2025, month, 15), "PRLV DGFIP IMPOT REVENU", -31_000 // 4)
+
+    # Everything the budget universes added is spending this household was not
+    # designed with. The partner's monthly share into the joint account covers
+    # it on average, so the account still ends each month where Avenir's story
+    # needs it: tight, and just under zero at the end of September 2026.
+    extras = _universe_extras()
+    share = round(-sum(cents for _, _, cents in extras) / len(list(_months())))
+    for year, month in _months():
+        add(_day(year, month, 1), "VIR SEPA PARTICIPATION COMPTE JOINT", share)
+    return rows + extras
+
+
+def _universe_extras() -> list[tuple[date, str, int]]:
+    """What the budget universes need to show something: the car beyond fuel,
+    health, leisure, shopping, the 2026 tax balance and a fine.
+    Each draws from a generator of its own, so the household above draws
+    exactly what it drew before the universes existed."""
+    rows: list[tuple[date, str, int]] = []
+    add = _adder(rows)
+
     # The car, beyond fuel: tolls and parking most months (more of them in
-    # summer), a garage visit each spring and autumn, one technical
-    # inspection. A generator of its own, so every draw above keeps the value
-    # it had before the car universe existed.
+    # summer), a garage visit each spring and autumn, one technical inspection.
     car = random.Random(SEED + 7)
     for year, month in _months():
         days = calendar.monthrange(year, month)[1]
@@ -142,7 +170,7 @@ def _checking(rng: random.Random) -> list[tuple[date, str, int]]:
 
     # Health, beyond the pharmacy: the mutuelle every month (up each January),
     # a GP visit or two most months, a specialist now and then, the optician
-    # once and the dentist twice. A generator of its own, like the car's.
+    # once and the dentist twice.
     care = random.Random(SEED + 11)
     for year, month in _months():
         days = calendar.monthrange(year, month)[1]
@@ -158,7 +186,7 @@ def _checking(rng: random.Random) -> list[tuple[date, str, int]]:
 
     # Leisure, which no built-in rule files (see HAND_FILING): the cinema
     # most months, a concert now and then, the pool, books and music, a tennis
-    # club, a ski week. A generator of its own, like the car's.
+    # club, a ski week.
     fun = random.Random(SEED + 13)
     for year, month in _months():
         days = calendar.monthrange(year, month)[1]
@@ -176,8 +204,7 @@ def _checking(rng: random.Random) -> list[tuple[date, str, int]]:
     add(date(2026, 2, 14), "CB PIERRE ET VACANCES", -38_000)
 
     # Shopping beyond the Amazon parcels and Decathlon above: clothes most
-    # months, the furniture shop now and then, one appliance. A generator of
-    # its own, like the car's.
+    # months, the furniture shop now and then, one appliance.
     shop = random.Random(SEED + 17)
     for year, month in _months():
         days = calendar.monthrange(year, month)[1]
@@ -189,12 +216,10 @@ def _checking(rng: random.Random) -> list[tuple[date, str, int]]:
             add(_day(year, month, shop.randint(1, days)), "CB IKEA", -shop.randint(1_500, 12_000))
     add(date(2026, 4, 11), "CB BOULANGER", -54_900)
 
-    # The income tax is withheld from the salary; only the yearly balance
-    # reaches the account, and a balance over 300 € is taken in four
-    # instalments from September to December. A traffic fine, filed by hand.
-    for year, balance in ((2025, 31_000), (2026, 52_000)):
-        for month in (9, 10, 11, 12):
-            add(_day(year, month, 15), "PRLV DGFIP IMPOT REVENU", -balance // 4)
+    # The 2026 tax balance, taken from September like the 2025 one; a traffic
+    # fine, filed by hand.
+    for month in (9, 10, 11, 12):
+        add(_day(2026, month, 15), "PRLV DGFIP IMPOT REVENU", -52_000 // 4)
     add(date(2026, 4, 8), "PRLV ANTAI AMENDE", -13_500)
     return rows
 

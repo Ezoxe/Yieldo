@@ -274,8 +274,9 @@ month with nothing spent counts as 0, no mean under three).
 - A scene draws: `scenes/car/` (Transport, a white GT), `scenes/house/`
   (Logement, a pavillon), `scenes/salon/` (Abonnements, a living room),
   `scenes/kitchen/` (Alimentation, a kitchen), `scenes/clinic/` (Santé, a
-  doctor's office) and `scenes/hall/` (Loisirs, an entrance hall); the rooms
-  show the evening in the dark theme and the day in the light one. Its colours are physical and live in its stylesheet,
+  doctor's office), `scenes/hall/` (Loisirs, an entrance hall) and
+  `scenes/dressing/` (Achats, a dressing room); the rooms show the evening in
+  the dark theme and the day in the light one. Its colours are physical and live in its stylesheet,
   never in a component. Every scene's stylesheet loads with the page, so a
   new scene styles its lens insides under its own root
   (`.yd-clinic .yd-lens__pill`): `scenes/stylesheets.test.ts` fails when one

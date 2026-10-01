@@ -9,6 +9,7 @@ import { HallScene } from "./hall/HallScene";
 import { HouseScene } from "./house/HouseScene";
 import { KitchenScene } from "./kitchen/KitchenScene";
 import { SalonScene } from "./salon/SalonScene";
+import { StudyScene } from "./study/StudyScene";
 
 /** What every scene is handed: the page's ceiling, the parts, and the way to a part's page. */
 export interface SceneProps {
@@ -29,6 +30,7 @@ const SCENES: Partial<Record<UniverseId, ComponentType<SceneProps>>> = {
   clinic: ClinicScene,
   hall: HallScene,
   dressing: DressingScene,
+  study: StudyScene,
 };
 
 /** The scene of `universe`: one component per universe, all on the same props. */

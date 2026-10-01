@@ -1,0 +1,186 @@
+/* The study. Physical colours only — a navy wall over a walnut wainscot, a
+   red rug, a walnut bureau, a green banker's lamp, a grey steel filing
+   cabinet — kept here, never in a component. The theme sets the time of
+   day: dusk in the dark theme (night at the window, the lamp on), day in
+   the light one. The lenses stay dark screens. Their insides are scoped to
+   the study: every scene's stylesheet loads with the page
+   (scenes/stylesheets.test.ts). */
+
+@container scene (max-width: 899px) {
+  .yd-study .yd-scene__stage { overflow: hidden; }
+  .yd-study .yd-scene__svg { margin-top: -6%; }
+  .yd-study .yd-dial { display: none; }
+}
+
+/* Gradient stops — dusk ----------------------------------------------------- */
+
+.yd-study__wall-0 { stop-color: #1d2230; }
+.yd-study__wall-1 { stop-color: #262c3b; }
+.yd-study__window-0 { stop-color: #0b1026; }
+.yd-study__window-1 { stop-color: #2b2a55; }
+.yd-study__metal-0 { stop-color: #4b5260; }
+.yd-study__metal-1 { stop-color: #6b7383; }
+.yd-study__metal-2 { stop-color: #474e5c; }
+.yd-study__warm-0 { stop-color: #ffcf7a; stop-opacity: 0.45; }
+.yd-study__warm-1 { stop-color: #ffcf7a; stop-opacity: 0; }
+
+/* Room ------------------------------------------------------------------------ */
+
+.yd-study__plank { fill: #3a2d22; }
+.yd-study__plank-joint { stroke: #2c2219; }
+.yd-study__wainscot { fill: #3a2a1d; }
+.yd-study__dado { stroke: #4e3826; stroke-width: 3; }
+.yd-study__panels { fill: none; stroke: #2c1f15; stroke-width: 1.5; }
+.yd-study__plinth { fill: #2c1f15; }
+.yd-study__floor-shade { fill: #000; opacity: 0.25; }
+.yd-study__floor-shadows { fill: #000; opacity: 0.3; }
+.yd-study__rug { fill: #6b2a2a; }
+.yd-study__rug-border { fill: none; stroke: #8a3a3a; stroke-width: 2; }
+
+.yd-study__case { fill: #4a3426; }
+.yd-study__case-inside { fill: #2a1d14; }
+.yd-study__shelves { stroke: #4a3426; stroke-width: 4; }
+.yd-study__binder--teal { fill: #2f5a6b; }
+.yd-study__binder--red { fill: #b23a3a; }
+.yd-study__binder--mustard { fill: #d9a840; }
+.yd-study__binder--navy { fill: #3b5b7a; }
+.yd-study__binder--green { fill: #6b8f5a; }
+.yd-study__binder--plum { fill: #8a6a8a; }
+.yd-study__binder-label { fill: #e9e4d8; opacity: 0.85; }
+.yd-study__archive-box { fill: #c2a37f; }
+.yd-study__case-shade { fill: #0b0e1a; opacity: 0.2; }
+
+.yd-study__stars { fill: #eef2ff; }
+.yd-study__moon { fill: #f5f1d8; opacity: 0.85; }
+.yd-study__mullion { stroke: #e7e2d8; stroke-width: 3; }
+.yd-study__window-frame { fill: none; stroke: #e7e2d8; stroke-width: 4; }
+.yd-study__sill { fill: #d8ccb8; }
+.yd-study__pot { fill: #b07a45; }
+.yd-study__leaves { fill: #3f6b48; }
+
+.yd-study__plan-frame { fill: #3a2a1d; }
+.yd-study__plan { fill: #e2dccd; }
+.yd-study__plan-lines { fill: none; stroke: #8c8577; stroke-width: 0.8; }
+.yd-study__plan-parcel { fill: #c2553a; fill-opacity: 0.3; stroke: #c2553a; stroke-width: 0.8; }
+.yd-study__plan-ink { fill: none; stroke: #5c5548; stroke-width: 0.8; }
+.yd-study__plan-shade { fill: #0b0e1a; opacity: 0.22; }
+
+.yd-study__cornice { fill: #5e412c; }
+.yd-study__bureau { fill: #4a3426; }
+.yd-study__pigeonholes { fill: #2a1d14; }
+.yd-study__dividers { stroke: #4a3426; stroke-width: 2.5; }
+.yd-study__papers { fill: #e9e4d8; }
+.yd-study__folders { fill: #d9a840; }
+.yd-study__flap { fill: #6b4a32; }
+.yd-study__leather { fill: #2f4a3a; }
+.yd-study__drawer-lines { stroke: #2c1f15; stroke-width: 1.5; }
+.yd-study__handles { stroke: #c9a26b; stroke-width: 2.6; stroke-linecap: round; }
+.yd-study__feet { fill: #2c1f15; }
+.yd-study__bureau-shade { fill: #0b0e1a; opacity: 0.15; }
+
+.yd-study__glow { animation: yd-study-glow 5s ease-in-out infinite; }
+.yd-study__brass { fill: #c9a26b; }
+.yd-study__lamp-shade { fill: #1f6b4a; }
+.yd-study__bulb { stroke: #ffe7b0; stroke-width: 1.4; stroke-linecap: round; }
+.yd-study__pull-chain { stroke: #c9a26b; stroke-width: 0.8; }
+.yd-study__hourglass-wood { fill: #6b4a32; }
+.yd-study__hourglass-posts { stroke: #6b4a32; stroke-width: 1.6; }
+.yd-study__hourglass-glass { fill: #cfe2f4; fill-opacity: 0.25; stroke: #e5e7eb; stroke-opacity: 0.4; stroke-width: 0.6; }
+.yd-study__hourglass-sand { fill: #d9a840; }
+.yd-study__notice { fill: #f2ede4; }
+.yd-study__notice-band { stroke: #2563eb; stroke-width: 1.2; }
+.yd-study__pen { stroke: #1f2937; stroke-width: 1.6; stroke-linecap: round; }
+.yd-study__machine { fill: #2a2b30; }
+.yd-study__machine-keys { fill: #c7ccd3; }
+.yd-study__tape { fill: #f2ede4; }
+.yd-study__roll { fill: #e9e4d8; }
+
+.yd-study__cabinet-lines { stroke: #2f3540; stroke-width: 1.5; }
+.yd-study__cabinet-handles { fill: #c7ccd3; }
+.yd-study__cabinet-labels { fill: #e9e4d8; }
+.yd-study__envelope { fill: #e9e4d8; }
+.yd-study__envelope-window { fill: #cfe2f4; }
+.yd-study__stamp { fill: #c2553a; }
+.yd-study__tray { fill: none; stroke: #c7ccd3; stroke-width: 1.2; }
+.yd-study__cabinet-shade { fill: #0b0e1a; opacity: 0.15; }
+.yd-study__basket { fill: none; stroke: #5b6270; stroke-width: 1.6; }
+.yd-study__basket-wires { stroke: #5b6270; }
+.yd-study__crumpled { fill: #e9e4d8; }
+
+/* Lens insides ------------------------------------------------------------------ */
+
+.yd-study .yd-lens__hourglass-frame { stroke: #93c5fd; stroke-opacity: 0.5; }
+.yd-study .yd-lens__glass { fill: #1c2238; stroke: #c7d2fe; }
+/* Resting on the true share; nothing moves the level, only the stream. */
+.yd-study .yd-lens__sand { fill: #fde68a; }
+.yd-study .yd-lens__sand--fallen { fill-opacity: 0.85; }
+.yd-study .yd-lens__stream {
+  stroke: #fde68a;
+  stroke-dasharray: 1 2;
+  animation: yd-study-stream 0.6s linear infinite;
+}
+.yd-study .yd-lens__pack { fill: none; stroke-width: 1.1; }
+.yd-study .yd-lens__parcels { fill: none; stroke: #93c5fd; stroke-opacity: 0.55; stroke-width: 0.8; }
+.yd-study .yd-lens__parcel { fill: #c4b5fd; fill-opacity: 0.18; }
+.yd-study .yd-lens__parcel-edge {
+  fill: none;
+  stroke: #c4b5fd;
+  stroke-width: 1.1;
+  stroke-dasharray: 3 1;
+  animation: yd-study-ants 1.4s linear infinite;
+}
+.yd-study .yd-lens__house { fill: none; stroke: #e0dfff; }
+.yd-study .yd-lens__envelope { fill: #1c2238; stroke: #c7d2fe; stroke-width: 0.8; }
+.yd-study .yd-lens__envelope--new { stroke: #e0dfff; }
+.yd-study .yd-lens__envelope-window { fill: none; stroke: #93c5fd; stroke-width: 0.6; }
+.yd-study .yd-lens__seal { fill: none; stroke: #fde68a; stroke-width: 0.8; }
+.yd-study .yd-lens__letter { animation: yd-study-letter 3.2s ease-out infinite; }
+.yd-study .yd-lens__machine { fill: #1c2238; stroke: #c7d2fe; stroke-width: 0.8; }
+.yd-study .yd-lens__keypad { fill: #c7d2fe; }
+.yd-study .yd-lens__tape { fill: #1c2238; stroke: #e0dfff; stroke-width: 0.6; }
+.yd-study .yd-lens__tape-lines {
+  stroke: #93c5fd;
+  stroke-width: 0.8;
+  animation: yd-study-tape 1.8s linear infinite;
+}
+.yd-study .yd-lens__roll { fill: none; stroke: #c7d2fe; stroke-width: 0.8; }
+
+/* Day: the light theme's study -------------------------------------------------------- */
+
+:root[data-theme="light"] .yd-study__wall-0 { stop-color: #e6e9ef; }
+:root[data-theme="light"] .yd-study__wall-1 { stop-color: #d9dee7; }
+:root[data-theme="light"] .yd-study__wainscot { fill: #b08d66; }
+:root[data-theme="light"] .yd-study__dado { stroke: #c4a37e; }
+:root[data-theme="light"] .yd-study__panels { stroke: #96744f; }
+:root[data-theme="light"] .yd-study__plinth { fill: #8a6a48; }
+:root[data-theme="light"] .yd-study__plank { fill: #9c7a58; }
+:root[data-theme="light"] .yd-study__plank-joint { stroke: #86654a; }
+:root[data-theme="light"] .yd-study__floor-shade { opacity: 0.05; }
+:root[data-theme="light"] .yd-study__floor-shadows { opacity: 0.12; }
+:root[data-theme="light"] .yd-study__rug { fill: #a54848; }
+:root[data-theme="light"] .yd-study__rug-border { stroke: #c46a6a; }
+:root[data-theme="light"] .yd-study__window-0 { stop-color: #7fb2e5; }
+:root[data-theme="light"] .yd-study__window-1 { stop-color: #cfe2f4; }
+:root[data-theme="light"] .yd-study__stars { display: none; }
+:root[data-theme="light"] .yd-study__moon { display: none; }
+:root[data-theme="light"] .yd-study__glow { display: none; }
+:root[data-theme="light"] .yd-study__bulb { stroke: #9aa1ab; }
+:root[data-theme="light"] .yd-study__metal-0 { stop-color: #8d949b; }
+:root[data-theme="light"] .yd-study__metal-1 { stop-color: #b5bbc2; }
+:root[data-theme="light"] .yd-study__metal-2 { stop-color: #878e96; }
+:root[data-theme="light"] .yd-study__case-shade { opacity: 0; }
+:root[data-theme="light"] .yd-study__plan-shade { opacity: 0; }
+:root[data-theme="light"] .yd-study__bureau-shade { opacity: 0; }
+:root[data-theme="light"] .yd-study__cabinet-shade { opacity: 0; }
+
+/* Motion -------------------------------------------------------------------------- */
+
+@keyframes yd-study-glow { 50% { opacity: 0.7; } }
+@keyframes yd-study-stream { to { stroke-dashoffset: -6; } }
+@keyframes yd-study-ants { to { stroke-dashoffset: -8; } }
+@keyframes yd-study-letter {
+  0% { transform: translateX(-8px); opacity: 0; }
+  25% { opacity: 1; }
+  45%, 100% { transform: translateX(0); opacity: 1; }
+}
+@keyframes yd-study-tape { to { transform: translateY(-3px); } }

@@ -594,3 +594,66 @@ export const achatsDetail: BudgetDetail = {
   parts: shoppingParts,
   siblings: [],
 };
+
+/* -- Impôts over the same nineteen months, for the study ------------------ */
+
+const TAX_PARTS: typeof PARTS = [
+  {
+    id: 91, name: "Impôt sur le revenu", slug: "impots-revenu", color: "#94a3b8",
+    // The yearly balance, over 300 €, is taken in four instalments from September.
+    flow: (key) => {
+      if (key === CURRENT) return { cents: -24500, count: 1 };
+      if (key >= "2025-09" && key <= "2025-12") return { cents: -7750, count: 1 };
+      return { cents: 0, count: 0 };
+    },
+  },
+  {
+    id: 92, name: "Taxe foncière", slug: "impots-fonciere", color: "#94a3b8",
+    flow: (key) => (key === "2025-10" ? { cents: -95000, count: 1 } : { cents: 0, count: 0 }),
+  },
+  { id: 93, name: "Taxe d'habitation", slug: "impots-habitation", color: "#94a3b8", flow: () => ({ cents: 0, count: 0 }) },
+  {
+    id: 94, name: "Autres prélèvements", slug: "impots-autres", color: "#94a3b8",
+    flow: (key) => {
+      if (key === CURRENT) return { cents: -1200, count: 1 };
+      return key === "2026-04" ? { cents: -13500, count: 1 } : { cents: 0, count: 0 };
+    },
+  },
+];
+
+const TAX_BUDGET = 60000;
+const INCOME_TAX_BUDGET = 45000;
+const taxParts = TAX_PARTS.map((part) => partOut(part, part.slug === "impots-revenu" ? INCOME_TAX_BUDGET : null));
+const taxSeries: BudgetDetailMonth[] = KEYS.map((key, index) => {
+  const flows = TAX_PARTS.map((part) => part.flow(key, index));
+  return {
+    month: key,
+    spent_cents: flows.reduce((sum, flow) => sum + flow.cents, 0),
+    count: flows.reduce((sum, flow) => sum + flow.count, 0),
+    complete: key !== CURRENT,
+  };
+});
+const taxNow = taxSeries[taxSeries.length - 1];
+// The income tax has a ceiling of its own: the Impôts ceiling counts the rest.
+const taxCounted = taxNow.spent_cents - taxParts[0].spent_cents;
+
+export const impotsDetail: BudgetDetail = {
+  ...transportDetail,
+  category: { id: 90, name: "Impôts et taxes", slug: "impots", color: "#94a3b8", is_essential: false, parent: null },
+  spent_cents: taxNow.spent_cents,
+  count: taxNow.count,
+  average_ticket_cents: taxNow.count > 0 ? mean(taxNow.spent_cents, taxNow.count) : null,
+  budget: {
+    budget_cents: TAX_BUDGET,
+    spent_cents: taxCounted,
+    remaining_cents: TAX_BUDGET + taxCounted,
+    consumed_ratio: -taxCounted / TAX_BUDGET,
+    projected_cents: null,
+    status: "ok",
+  },
+  ...averageOf(taxSeries),
+  years: yearsOf(taxSeries),
+  series: taxSeries,
+  parts: taxParts,
+  siblings: [],
+};

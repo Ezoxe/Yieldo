@@ -12,6 +12,7 @@ import {
   alimentationDetail,
   fuelDetail,
   giftsDetail,
+  impotsDetail,
   logementDetail,
   loisirsDetail,
   santeDetail,
@@ -35,6 +36,7 @@ const DETAILS: Record<string, unknown> = {
   "60": santeDetail,
   "70": loisirsDetail,
   "80": achatsDetail,
+  "90": impotsDetail,
 };
 
 beforeEach(() => {
@@ -150,6 +152,12 @@ describe("UniversePage", () => {
     const { container } = renderPage("/budgets/80?mois=2026-09");
     expect(await screen.findByRole("heading", { level: 1, name: "Achats" })).toBeInTheDocument();
     expect(container.querySelector(".yd-dressing")).not.toBeNull();
+  });
+
+  it("draws the study for Impôts", async () => {
+    const { container } = renderPage("/budgets/90?mois=2026-09");
+    expect(await screen.findByRole("heading", { level: 1, name: "Impôts et taxes" })).toBeInTheDocument();
+    expect(container.querySelector(".yd-study")).not.toBeNull();
   });
 
   it("keeps a category no universe covers, with its figures and without a scene", async () => {

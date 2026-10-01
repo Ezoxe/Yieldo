@@ -148,7 +148,7 @@ def _checking(rng: random.Random) -> list[tuple[date, str, int]]:
 
 def _universe_extras() -> list[tuple[date, str, int]]:
     """What the budget universes need to show something: the car beyond fuel,
-    health, leisure, shopping, the 2026 tax balance and a fine.
+    health, leisure, shopping, the family, the 2026 tax balance and a fine.
     Each draws from a generator of its own, so the household above draws
     exactly what it drew before the universes existed."""
     rows: list[tuple[date, str, int]] = []
@@ -215,6 +215,23 @@ def _universe_extras() -> list[tuple[date, str, int]]:
         if shop.random() < 0.35:
             add(_day(year, month, shop.randint(1, days)), "CB IKEA", -shop.randint(1_500, 12_000))
     add(date(2026, 4, 11), "CB BOULANGER", -54_900)
+
+    # The family: a babysitter a few evenings a month, the school canteen in
+    # term time and the supplies each September, the cat. Childcare and school
+    # are filed by hand (see HAND_FILING); the pet shop and the vet have rules.
+    kids = random.Random(SEED + 19)
+    for year, month in _months():
+        days = calendar.monthrange(year, month)[1]
+        for _ in range(kids.randint(1, 3)):
+            evening = -kids.randint(3_000, 4_500)
+            add(_day(year, month, kids.randint(1, days)), "CB YOOPIES BABY SITTING", evening)
+        if month not in (7, 8):
+            add(_day(year, month, 10), "PRLV CANTINE MAIRIE DE PARIS", -kids.randint(4_200, 5_400))
+        add(_day(year, month, kids.randint(1, days)), "CB MAXI ZOO", -kids.randint(1_800, 3_200))
+        if month == 9:
+            add(_day(year, month, 2), "CB BUREAU VALLEE", -kids.randint(5_000, 8_000))
+    add(date(2025, 5, 20), "CB CABINET VETERINAIRE DES LILAS", -6_500)
+    add(date(2026, 5, 19), "CB CABINET VETERINAIRE DES LILAS", -6_800)
 
     # The 2026 tax balance, taken from September like the 2025 one; a traffic
     # fine, filed by hand.
@@ -322,6 +339,9 @@ HAND_FILING = {
     "CB CAMPING LES PINS": "loisirs-vacances",
     "CB PIERRE ET VACANCES": "loisirs-vacances",
     "PRLV ANTAI AMENDE": "impots-autres",
+    "CB YOOPIES BABY SITTING": "famille-garde",
+    "PRLV CANTINE MAIRIE DE PARIS": "famille-scolarite",
+    "CB BUREAU VALLEE": "famille-scolarite",
 }
 
 
@@ -373,6 +393,7 @@ def main() -> int:
             "loisirs": 25_000, "loisirs-sorties": 10_000,
             "achats": 30_000, "achats-vetements": 12_000,
             "impots": 30_000, "impots-revenu": 20_000,
+            "famille": 15_000, "famille-garde": 12_000,
         })
         _file_by_hand(client, headers, HAND_FILING)
     for name, count in counts.items():

@@ -33,6 +33,7 @@ import {
   abonnementsDetail,
   achatsDetail,
   alimentationDetail,
+  familleDetail,
   giftsDetail,
   impotsDetail,
   logementChildDetail,
@@ -459,9 +460,9 @@ function planPreviewFor(params: Params) {
  * (id 3) and Logement (id 1) answer with the nineteen-month families of the
  * universe fixtures, whose children keep their fixture ids (31 to 36, 11 to
  * 17) and answer in turn; Alimentation (2), Abonnements (4), Santé (6) and
- * Loisirs (7) answer with their families, without child pages; Achats and
- * Impôts have no stub category, so their families answer at their fixture ids
- * (80, 90) only;
+ * Loisirs (7) answer with their families, without child pages; Achats, Impôts
+ * and Famille have no stub category, so their families answer at their
+ * fixture ids (80, 90, 100) only;
  * every other category answers with its own name and no scene.
  */
 function budgetDetailFor(id: number) {
@@ -491,6 +492,7 @@ function budgetDetailFor(id: number) {
   }
   if (id === achatsDetail.category.id) return achatsDetail;
   if (id === impotsDetail.category.id) return impotsDetail;
+  if (id === familleDetail.category.id) return familleDetail;
   const category = CATEGORY_PAYLOAD.find((row) => row.id === id);
   if (category === undefined) return null;
   return {

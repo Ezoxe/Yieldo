@@ -395,3 +395,72 @@ export const alimentationDetail: BudgetDetail = {
   parts: foodParts,
   siblings: [],
 };
+
+/* -- Santé over the same nineteen months, for the doctor's office --------- */
+
+const HEALTH_PARTS: typeof PARTS = [
+  {
+    id: 61, name: "Consultations", slug: "sante-medecin", color: "#e5606b",
+    // Up to two visits a month at 30 €, none some months.
+    flow: (key, index) => {
+      if (key === CURRENT) return { cents: -5000, count: 2 };
+      const visits = (index * 5) % 3;
+      return visits === 0 ? { cents: 0, count: 0 } : { cents: -3000 * visits, count: visits };
+    },
+  },
+  {
+    id: 62, name: "Pharmacie", slug: "sante-pharmacie", color: "#e5606b",
+    flow: (key, index) => (key === CURRENT ? { cents: -2380, count: 3 } : { cents: -(1600 + ((index * 37) % 5) * 450), count: 2 }),
+  },
+  {
+    id: 63, name: "Mutuelle", slug: "sante-mutuelle", color: "#e5606b",
+    // The premium goes up every January.
+    flow: (key) => ({ cents: key >= "2026-01" ? -6790 : -6490, count: 1 }),
+  },
+  {
+    id: 64, name: "Optique et dentaire", slug: "sante-optique", color: "#e5606b",
+    flow: (key) => {
+      if (key === "2025-11") return { cents: -18900, count: 1 };
+      if (key === "2026-03") return { cents: -6000, count: 1 };
+      if (key === "2026-06") return { cents: -4500, count: 1 };
+      return { cents: 0, count: 0 };
+    },
+  },
+];
+
+const HEALTH_BUDGET = 18000;
+const PHARMACY_BUDGET = 4000;
+const healthParts = HEALTH_PARTS.map((part) => partOut(part, part.slug === "sante-pharmacie" ? PHARMACY_BUDGET : null));
+const healthSeries: BudgetDetailMonth[] = KEYS.map((key, index) => {
+  const flows = HEALTH_PARTS.map((part) => part.flow(key, index));
+  return {
+    month: key,
+    spent_cents: flows.reduce((sum, flow) => sum + flow.cents, 0),
+    count: flows.reduce((sum, flow) => sum + flow.count, 0),
+    complete: key !== CURRENT,
+  };
+});
+const healthNow = healthSeries[healthSeries.length - 1];
+// Pharmacie has a ceiling of its own: the Santé ceiling counts the rest.
+const healthCounted = healthNow.spent_cents - healthParts[1].spent_cents;
+
+export const santeDetail: BudgetDetail = {
+  ...transportDetail,
+  category: { id: 60, name: "Santé", slug: "sante", color: "#e5606b", is_essential: false, parent: null },
+  spent_cents: healthNow.spent_cents,
+  count: healthNow.count,
+  average_ticket_cents: healthNow.count > 0 ? mean(healthNow.spent_cents, healthNow.count) : null,
+  budget: {
+    budget_cents: HEALTH_BUDGET,
+    spent_cents: healthCounted,
+    remaining_cents: HEALTH_BUDGET + healthCounted,
+    consumed_ratio: -healthCounted / HEALTH_BUDGET,
+    projected_cents: null,
+    status: "ok",
+  },
+  ...averageOf(healthSeries),
+  years: yearsOf(healthSeries),
+  series: healthSeries,
+  parts: healthParts,
+  siblings: [],
+};

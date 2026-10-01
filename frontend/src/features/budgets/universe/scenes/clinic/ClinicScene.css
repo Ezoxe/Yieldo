@@ -1,0 +1,218 @@
+/* The doctor's office. Physical colours only — sage walls, white enamel, a
+   walnut desk, teal leatherette — kept here, never in a component. The theme
+   sets the time of day: dusk in the dark theme (the street dark, the
+   pharmacy's cross lit across it, the desk lamp on), day in the light one.
+   The lenses stay dark screens. Their insides are scoped to the office:
+   every scene's stylesheet loads with the page (scenes/stylesheets.test.ts). */
+
+@container scene (max-width: 899px) {
+  .yd-clinic .yd-scene__stage { overflow: hidden; }
+  .yd-clinic .yd-scene__svg { margin-top: -6%; }
+  .yd-clinic .yd-dial { display: none; }
+}
+
+/* Gradient stops — dusk ----------------------------------------------------- */
+
+.yd-clinic__wall-0 { stop-color: #1c2523; }
+.yd-clinic__wall-1 { stop-color: #27322e; }
+.yd-clinic__enamel-0 { stop-color: #c9d0d6; }
+.yd-clinic__enamel-1 { stop-color: #eef1f4; }
+.yd-clinic__enamel-2 { stop-color: #bfc7ce; }
+.yd-clinic__wood-0 { stop-color: #5e412c; }
+.yd-clinic__wood-1 { stop-color: #3f2a1c; }
+.yd-clinic__window-0 { stop-color: #0b1026; }
+.yd-clinic__window-1 { stop-color: #2b2a55; }
+.yd-clinic__leather-0 { stop-color: #2a645d; }
+.yd-clinic__leather-1 { stop-color: #163733; }
+.yd-clinic__lamp-0 { stop-color: #ffcf7a; stop-opacity: 0.55; }
+.yd-clinic__lamp-1 { stop-color: #ffcf7a; stop-opacity: 0; }
+.yd-clinic__green-0 { stop-color: #4ade80; stop-opacity: 0.55; }
+.yd-clinic__green-1 { stop-color: #4ade80; stop-opacity: 0; }
+
+/* Room ------------------------------------------------------------------------ */
+
+.yd-clinic__floor-tile { fill: #353b40; }
+.yd-clinic__floor-joint { stroke: #2b3035; }
+.yd-clinic__floor-shade { fill: #000; opacity: 0.25; }
+.yd-clinic__floor-shadows { fill: #000; opacity: 0.3; }
+.yd-clinic__plinth { fill: #131917; }
+
+.yd-clinic__stars { fill: #eef2ff; }
+.yd-clinic__facade { fill: #13172a; }
+.yd-clinic__cornice { stroke: #252a45; stroke-width: 2; }
+.yd-clinic__pane { fill: #ffcf7a; opacity: 0.75; }
+.yd-clinic__pane--dark { opacity: 0.3; }
+.yd-clinic__bracket { stroke: #3a3f55; stroke-width: 2; }
+.yd-clinic__sign { fill: #22c55e; animation: yd-clinic-sign 2.4s ease-in-out infinite; }
+.yd-clinic__sign-glow { animation: yd-clinic-sign 2.4s ease-in-out infinite; }
+.yd-clinic__slat { fill: #c4c9ce; }
+.yd-clinic__slat-edge { stroke: #878e96; }
+.yd-clinic__blind-rail { fill: #aeb4ba; }
+.yd-clinic__blind-cord { stroke: #aeb4ba; }
+.yd-clinic__mullion { stroke: #e7e2d8; stroke-width: 3; }
+.yd-clinic__window-frame { fill: none; stroke: #e7e2d8; stroke-width: 4; }
+.yd-clinic__sill { fill: #d8ccb8; }
+
+.yd-clinic__diploma-frame { fill: #3a2718; }
+.yd-clinic__diploma { fill: #c9c2b2; }
+.yd-clinic__diploma-text { stroke: #8c8577; stroke-width: 1.2; }
+.yd-clinic__seal { fill: #a3480a; }
+
+.yd-clinic__hook { fill: none; stroke: #8d949b; stroke-width: 2; stroke-linecap: round; }
+.yd-clinic__hanger { fill: none; stroke: #8d949b; stroke-width: 1.6; }
+.yd-clinic__coat { fill: #dfe3e7; }
+.yd-clinic__sleeve { fill: #cdd3d9; }
+.yd-clinic__seam { fill: none; stroke: #aab2bb; stroke-width: 1.1; }
+.yd-clinic__button { fill: #aab2bb; }
+.yd-clinic__pocket { fill: none; stroke: #aab2bb; }
+.yd-clinic__coat-pen { stroke: #1e40af; stroke-width: 1.6; stroke-linecap: round; }
+.yd-clinic__coat-shade { fill: #0b0e1a; opacity: 0.22; }
+
+.yd-clinic__chart { fill: #d6dadd; }
+.yd-clinic__letter { fill: #1f2937; }
+.yd-clinic__letters { fill: none; stroke: #1f2937; }
+.yd-clinic__chart-shade { fill: #0b0e1a; opacity: 0.2; }
+.yd-clinic__shelf { fill: #6b4a32; }
+.yd-clinic__shelf-bracket { stroke: #4a3222; stroke-width: 2; }
+.yd-clinic__glass { fill: #cfe2f4; opacity: 0.3; }
+.yd-clinic__frames { fill: none; stroke: #1f2937; stroke-width: 1.6; }
+.yd-clinic__tooth { fill: #ece6da; }
+.yd-clinic__tooth-stand { fill: #8d949b; }
+
+.yd-clinic__cabinet-door { fill: none; stroke: #9aa3ab; stroke-width: 1.2; }
+.yd-clinic__cabinet-handle { stroke: #7b848c; stroke-width: 3; stroke-linecap: round; }
+.yd-clinic__cabinet-shade { fill: #0b0e1a; opacity: 0.22; }
+.yd-clinic__cross { fill: #16a34a; }
+.yd-clinic__sink-rim { fill: #eceef0; }
+.yd-clinic__basin { fill: #d9dde1; }
+.yd-clinic__pedestal { fill: #cfd3d8; }
+.yd-clinic__tap { fill: none; stroke: #aab2bb; stroke-width: 2.4; stroke-linecap: round; }
+.yd-clinic__sink-shade { fill: #0b0e1a; opacity: 0.2; }
+.yd-clinic__pot { fill: #7a4f34; }
+.yd-clinic__leaves { fill: #2f5a3a; }
+
+.yd-clinic__chair { fill: #1c2232; }
+.yd-clinic__chair-seam { stroke: #283048; stroke-width: 2; }
+.yd-clinic__desk-top { fill: #6f4d34; }
+.yd-clinic__desk-edge { fill: #4f3523; }
+.yd-clinic__drawers { stroke: #2e1f14; stroke-width: 1.5; }
+.yd-clinic__handles { stroke: #c9a26b; stroke-width: 2.4; stroke-linecap: round; }
+.yd-clinic__lamp-cone { fill: #ffcf7a; opacity: 0.06; animation: yd-clinic-cone 5s ease-in-out infinite; }
+.yd-clinic__lamp-pool { animation: yd-clinic-glow 5s ease-in-out infinite; }
+.yd-clinic__lamp-base { fill: #2a2b30; }
+.yd-clinic__lamp-arm { fill: none; stroke: #8d949b; stroke-width: 2; stroke-linejoin: round; }
+.yd-clinic__lamp-shade { fill: #1f2937; }
+.yd-clinic__bulb { stroke: #ffe7b0; stroke-width: 1.6; stroke-linecap: round; }
+.yd-clinic__pad { fill: #dedad2; }
+.yd-clinic__pad-lines { stroke: #9c9486; stroke-width: 0.8; }
+.yd-clinic__desk-pen { stroke: #1e3a8a; stroke-width: 1.6; stroke-linecap: round; }
+.yd-clinic__tubing { fill: none; stroke: #7f1d1d; stroke-width: 2.2; stroke-linecap: round; }
+.yd-clinic__chestpiece { fill: #c7ccd3; }
+.yd-clinic__binaural { stroke: #aab2bb; stroke-width: 1.2; stroke-linecap: round; }
+.yd-clinic__bezel { fill: #15161a; }
+.yd-clinic__screen { fill: #1f2a3a; }
+.yd-clinic__agenda { stroke: #93c5fd; stroke-opacity: 0.25; stroke-width: 2; }
+.yd-clinic__stand { fill: #2a2b30; }
+.yd-clinic__keyboard { fill: #2a2b30; }
+.yd-clinic__terminal { fill: #26272c; }
+.yd-clinic__terminal-screen { fill: #3a4a62; }
+.yd-clinic__card { fill: #e5e9ee; }
+.yd-clinic__card-stripe { fill: #2563eb; }
+
+.yd-clinic__table-frame { fill: #8d949b; }
+.yd-clinic__paper { fill: #e6e6e0; }
+.yd-clinic__roll-holder { stroke: #8d949b; stroke-width: 2; }
+.yd-clinic__roll-core { fill: #8d949b; }
+
+/* Lens insides ------------------------------------------------------------------ */
+
+.yd-clinic .yd-lens__shelf { fill: none; stroke: #93c5fd; stroke-opacity: 0.55; stroke-width: 1.2; }
+.yd-clinic .yd-lens__carton { fill: none; stroke: #c7d2fe; stroke-width: 0.8; }
+.yd-clinic .yd-lens__blister { fill: #1c2238; stroke: #c7d2fe; stroke-width: 0.8; }
+/* Resting on the true count; the entrance only brings the pills in turn. */
+.yd-clinic .yd-lens__pill { animation: yd-clinic-pill 0.5s ease-out both; }
+.yd-clinic .yd-lens__tablet { fill: #f1f5f9; }
+.yd-clinic .yd-lens__score { stroke: #94a3b8; stroke-width: 0.7; }
+.yd-clinic .yd-lens__cell { fill: none; stroke: #93c5fd; stroke-opacity: 0.4; stroke-dasharray: 1.5 1.5; }
+.yd-clinic .yd-lens__pack { fill: none; stroke-width: 1.1; }
+/* At rest the whole trace; while motion is on, a beat runs along it. */
+.yd-clinic .yd-lens__ecg {
+  fill: none;
+  stroke: #5eead4;
+  stroke-width: 1.3;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+  animation: yd-clinic-ecg 1.6s linear infinite;
+}
+.yd-clinic .yd-lens__tubing { fill: none; stroke: #c7d2fe; stroke-width: 1.2; stroke-linecap: round; }
+.yd-clinic .yd-lens__chestpiece { fill: #1c2238; stroke: #e0dfff; }
+.yd-clinic .yd-lens__diaphragm { fill: none; stroke: #93c5fd; }
+.yd-clinic .yd-lens__terminal { fill: #1c2238; stroke: #c7d2fe; stroke-width: 0.8; }
+.yd-clinic .yd-lens__terminal-screen { fill: none; stroke: #93c5fd; stroke-width: 0.7; }
+.yd-clinic .yd-lens__reading { stroke: #5eead4; stroke-width: 1.4; animation: yd-clinic-blink 1.1s steps(2) infinite; }
+.yd-clinic .yd-lens__keypad { fill: #c7d2fe; }
+.yd-clinic .yd-lens__card { fill: #101a33; stroke: #e0dfff; stroke-width: 0.8; }
+.yd-clinic .yd-lens__chip { fill: #d4a640; }
+.yd-clinic .yd-lens__card-lines { stroke: #93c5fd; stroke-opacity: 0.6; stroke-width: 0.8; }
+.yd-clinic .yd-lens__chart-rows { fill: none; stroke: #93c5fd; stroke-opacity: 0.3; stroke-width: 2; stroke-dasharray: 2.4 2; }
+.yd-clinic .yd-lens__frames { fill: none; stroke: #c7d2fe; stroke-width: 1.1; }
+.yd-clinic .yd-lens__refraction { fill: none; stroke: #93c5fd; stroke-opacity: 0.5; stroke-width: 0.8; }
+/* Hidden at rest: the glint only crosses the glasses while motion is on. */
+.yd-clinic .yd-lens__glint {
+  stroke: #fff;
+  stroke-opacity: 0.8;
+  stroke-width: 1.4;
+  stroke-linecap: round;
+  opacity: 0;
+  animation: yd-clinic-glint 3.2s ease-in-out infinite;
+}
+.yd-clinic .yd-lens__tooth { fill: #1c2238; stroke: #e0dfff; }
+.yd-clinic .yd-lens__canal { stroke: #93c5fd; stroke-opacity: 0.7; stroke-width: 1.2; stroke-linecap: round; }
+
+/* Day: the light theme's office --------------------------------------------------- */
+
+:root[data-theme="light"] .yd-clinic__wall-0 { stop-color: #d5e2dc; }
+:root[data-theme="light"] .yd-clinic__wall-1 { stop-color: #c4d4cd; }
+:root[data-theme="light"] .yd-clinic__plinth { fill: #a9b8b1; }
+:root[data-theme="light"] .yd-clinic__floor-tile { fill: #c9cdd0; }
+:root[data-theme="light"] .yd-clinic__floor-joint { stroke: #b3b8bc; }
+:root[data-theme="light"] .yd-clinic__floor-shade { opacity: 0.05; }
+:root[data-theme="light"] .yd-clinic__floor-shadows { opacity: 0.12; }
+:root[data-theme="light"] .yd-clinic__window-0 { stop-color: #7fb2e5; }
+:root[data-theme="light"] .yd-clinic__window-1 { stop-color: #cfe2f4; }
+:root[data-theme="light"] .yd-clinic__stars { display: none; }
+:root[data-theme="light"] .yd-clinic__facade { fill: #d8cbb5; }
+:root[data-theme="light"] .yd-clinic__cornice { stroke: #bba98f; }
+:root[data-theme="light"] .yd-clinic__pane { fill: #8ea4bc; opacity: 0.8; }
+:root[data-theme="light"] .yd-clinic__bracket { stroke: #6b7280; }
+:root[data-theme="light"] .yd-clinic__sign { fill: #16a34a; animation: none; }
+:root[data-theme="light"] .yd-clinic__sign-glow { display: none; }
+:root[data-theme="light"] .yd-clinic__diploma { fill: #f1ece0; }
+:root[data-theme="light"] .yd-clinic__diploma-text { stroke: #a39b8b; }
+:root[data-theme="light"] .yd-clinic__coat { fill: #f4f6f8; stroke: #aab2bb; stroke-width: 0.8; }
+:root[data-theme="light"] .yd-clinic__coat-shade { opacity: 0; }
+:root[data-theme="light"] .yd-clinic__chart { fill: #f4f6f8; }
+:root[data-theme="light"] .yd-clinic__chart-shade { opacity: 0; }
+:root[data-theme="light"] .yd-clinic__cabinet-shade { opacity: 0; }
+:root[data-theme="light"] .yd-clinic__sink-shade { opacity: 0; }
+:root[data-theme="light"] .yd-clinic__lamp-cone { display: none; }
+:root[data-theme="light"] .yd-clinic__lamp-pool { display: none; }
+:root[data-theme="light"] .yd-clinic__bulb { stroke: #9aa1ab; }
+:root[data-theme="light"] .yd-clinic__screen { fill: #2b3a52; }
+
+/* Motion -------------------------------------------------------------------------- */
+
+@keyframes yd-clinic-sign { 50% { opacity: 0.4; } }
+@keyframes yd-clinic-glow { 50% { opacity: 0.75; } }
+@keyframes yd-clinic-cone { 50% { opacity: 0.045; } }
+@keyframes yd-clinic-pill { from { opacity: 0; transform: translateY(-3px); } }
+@keyframes yd-clinic-ecg {
+  from { stroke-dasharray: 30 70; stroke-dashoffset: 100; }
+  to { stroke-dasharray: 30 70; stroke-dashoffset: 0; }
+}
+@keyframes yd-clinic-blink { 50% { opacity: 0.15; } }
+@keyframes yd-clinic-glint {
+  0% { transform: translateX(-12px); opacity: 0; }
+  30% { opacity: 0.8; }
+  60%, 100% { transform: translateX(14px); opacity: 0; }
+}

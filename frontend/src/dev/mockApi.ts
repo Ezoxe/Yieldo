@@ -31,6 +31,7 @@ import type { GoalProgress, GoalReport, LlmSettings } from "../lib/types";
 import { OUTLOOK, RELIABILITY } from "../features/avenir/fixtures";
 import {
   abonnementsDetail,
+  achatsDetail,
   alimentationDetail,
   giftsDetail,
   logementChildDetail,
@@ -457,7 +458,8 @@ function planPreviewFor(params: Params) {
  * (id 3) and Logement (id 1) answer with the nineteen-month families of the
  * universe fixtures, whose children keep their fixture ids (31 to 36, 11 to
  * 17) and answer in turn; Alimentation (2), Abonnements (4), Santé (6) and
- * Loisirs (7) answer with their families, without child pages;
+ * Loisirs (7) answer with their families, without child pages; Achats has no
+ * stub category, so its family answers at its fixture id (80) only;
  * every other category answers with its own name and no scene.
  */
 function budgetDetailFor(id: number) {
@@ -485,6 +487,7 @@ function budgetDetailFor(id: number) {
   if (id === 7) {
     return { ...loisirsDetail, category: { ...loisirsDetail.category, id: 7 } };
   }
+  if (id === achatsDetail.category.id) return achatsDetail;
   const category = CATEGORY_PAYLOAD.find((row) => row.id === id);
   if (category === undefined) return null;
   return {

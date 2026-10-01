@@ -175,6 +175,20 @@ def _checking(rng: random.Random) -> list[tuple[date, str, int]]:
     add(date(2025, 10, 4), "CB TENNIS CLUB MONTSOURIS", -18_000)
     add(date(2026, 2, 14), "CB PIERRE ET VACANCES", -38_000)
 
+    # Shopping beyond the Amazon parcels and Decathlon above: clothes most
+    # months, the furniture shop now and then, one appliance. A generator of
+    # its own, like the car's.
+    shop = random.Random(SEED + 17)
+    for year, month in _months():
+        days = calendar.monthrange(year, month)[1]
+        if shop.random() < 0.7:
+            add(_day(year, month, shop.randint(1, days)), "CB ZARA", -shop.randint(2_500, 9_000))
+        if shop.random() < 0.3:
+            add(_day(year, month, shop.randint(1, days)), "CB UNIQLO", -shop.randint(1_500, 5_000))
+        if shop.random() < 0.35:
+            add(_day(year, month, shop.randint(1, days)), "CB IKEA", -shop.randint(1_500, 12_000))
+    add(date(2026, 4, 11), "CB BOULANGER", -54_900)
+
     add(date(2025, 9, 15), "PRLV DGFIP IMPOT REVENU", -31_000)
     return rows
 
@@ -325,6 +339,7 @@ def main() -> int:
             "alimentation": 60_000, "alimentation-courses": 45_000,
             "sante": 18_000, "sante-pharmacie": 4_000,
             "loisirs": 25_000, "loisirs-sorties": 10_000,
+            "achats": 30_000, "achats-vetements": 12_000,
         })
         _file_by_hand(client, headers, LEISURE_FILING)
     for name, count in counts.items():

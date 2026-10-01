@@ -276,8 +276,10 @@ month with nothing spent counts as 0, no mean under three).
   `scenes/kitchen/` (Alimentation, a kitchen), `scenes/clinic/` (Santé, a
   doctor's office), `scenes/hall/` (Loisirs, an entrance hall),
   `scenes/dressing/` (Achats, a dressing room), `scenes/study/` (Impôts, a
-  study) and `scenes/nursery/` (Famille, a child's bedroom); the rooms show
-  the evening in the dark theme and the day in the light one. Its colours are physical and live in its stylesheet,
+  study), `scenes/nursery/` (Famille, a child's bedroom) and `scenes/bank/`
+  (Frais bancaires, a bank's lobby) — every seeded expense family has its
+  universe; the rooms show the evening in the dark theme and the day in the
+  light one. Its colours are physical and live in its stylesheet,
   never in a component. Every scene's stylesheet loads with the page, so a
   new scene styles its lens insides under its own root
   (`.yd-clinic .yd-lens__pill`): `scenes/stylesheets.test.ts` fails when one

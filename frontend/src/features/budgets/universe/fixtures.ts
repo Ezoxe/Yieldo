@@ -464,3 +464,66 @@ export const santeDetail: BudgetDetail = {
   parts: healthParts,
   siblings: [],
 };
+
+/* -- Loisirs over the same nineteen months, for the entrance hall --------- */
+
+const LEISURE_PARTS: typeof PARTS = [
+  {
+    id: 71, name: "Sorties et culture", slug: "loisirs-sorties", color: "#a78bfa",
+    flow: (key, index) => (key === CURRENT ? { cents: -3850, count: 3 } : { cents: -(3200 + ((index * 31) % 6) * 700), count: 3 }),
+  },
+  {
+    id: 72, name: "Sport", slug: "loisirs-sport", color: "#a78bfa",
+    flow: (key, index) => (key === CURRENT ? { cents: -2400, count: 2 } : { cents: -(2000 + ((index * 17) % 4) * 600), count: 2 }),
+  },
+  {
+    id: 73, name: "Vacances", slug: "loisirs-vacances", color: "#a78bfa",
+    // Summer only: a rental in July, a campsite in August.
+    flow: (key) => {
+      if (monthOf(key) === 7) return { cents: -65000, count: 1 };
+      if (monthOf(key) === 8) return { cents: -42000, count: 2 };
+      return { cents: 0, count: 0 };
+    },
+  },
+  {
+    id: 74, name: "Loisirs et hobbies", slug: "loisirs-hobbies", color: "#a78bfa",
+    flow: (key, index) => (key === CURRENT ? { cents: -1590, count: 1 } : { cents: -(1200 + ((index * 23) % 5) * 400), count: 1 }),
+  },
+];
+
+const LEISURE_BUDGET = 25000;
+const OUTINGS_BUDGET = 6000;
+const leisureParts = LEISURE_PARTS.map((part) => partOut(part, part.slug === "loisirs-sorties" ? OUTINGS_BUDGET : null));
+const leisureSeries: BudgetDetailMonth[] = KEYS.map((key, index) => {
+  const flows = LEISURE_PARTS.map((part) => part.flow(key, index));
+  return {
+    month: key,
+    spent_cents: flows.reduce((sum, flow) => sum + flow.cents, 0),
+    count: flows.reduce((sum, flow) => sum + flow.count, 0),
+    complete: key !== CURRENT,
+  };
+});
+const leisureNow = leisureSeries[leisureSeries.length - 1];
+// Sorties et culture has a ceiling of its own: the Loisirs ceiling counts the rest.
+const leisureCounted = leisureNow.spent_cents - leisureParts[0].spent_cents;
+
+export const loisirsDetail: BudgetDetail = {
+  ...transportDetail,
+  category: { id: 70, name: "Loisirs", slug: "loisirs", color: "#a78bfa", is_essential: false, parent: null },
+  spent_cents: leisureNow.spent_cents,
+  count: leisureNow.count,
+  average_ticket_cents: leisureNow.count > 0 ? mean(leisureNow.spent_cents, leisureNow.count) : null,
+  budget: {
+    budget_cents: LEISURE_BUDGET,
+    spent_cents: leisureCounted,
+    remaining_cents: LEISURE_BUDGET + leisureCounted,
+    consumed_ratio: -leisureCounted / LEISURE_BUDGET,
+    projected_cents: null,
+    status: "ok",
+  },
+  ...averageOf(leisureSeries),
+  years: yearsOf(leisureSeries),
+  series: leisureSeries,
+  parts: leisureParts,
+  siblings: [],
+};

@@ -12,6 +12,7 @@ import {
   fuelDetail,
   giftsDetail,
   logementDetail,
+  loisirsDetail,
   santeDetail,
   transportDetail,
 } from "./fixtures";
@@ -31,6 +32,7 @@ const DETAILS: Record<string, unknown> = {
   "40": abonnementsDetail,
   "20": alimentationDetail,
   "60": santeDetail,
+  "70": loisirsDetail,
 };
 
 beforeEach(() => {
@@ -134,6 +136,12 @@ describe("UniversePage", () => {
     const { container } = renderPage("/budgets/60?mois=2026-09");
     expect(await screen.findByRole("heading", { level: 1, name: "Santé" })).toBeInTheDocument();
     expect(container.querySelector(".yd-clinic")).not.toBeNull();
+  });
+
+  it("draws the entrance hall for Loisirs", async () => {
+    const { container } = renderPage("/budgets/70?mois=2026-09");
+    expect(await screen.findByRole("heading", { level: 1, name: "Loisirs" })).toBeInTheDocument();
+    expect(container.querySelector(".yd-hall")).not.toBeNull();
   });
 
   it("keeps a category no universe covers, with its figures and without a scene", async () => {

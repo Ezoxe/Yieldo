@@ -1,0 +1,229 @@
+/* The entrance hall. Physical colours only — a moulded taupe wall, oak
+   parquet, a painted door, a teal cabin suitcase, a green bike — kept here,
+   never in a component. The theme sets the time of day: dusk in the dark
+   theme (the street dark behind the door's glass, the lamps on), day in the
+   light one. The lenses stay dark screens. Their insides are scoped to the
+   hall: every scene's stylesheet loads with the page
+   (scenes/stylesheets.test.ts). */
+
+@container scene (max-width: 899px) {
+  .yd-hall .yd-scene__stage { overflow: hidden; }
+  .yd-hall .yd-scene__svg { margin-top: -6%; }
+  .yd-hall .yd-dial { display: none; }
+}
+
+/* Gradient stops — dusk ----------------------------------------------------- */
+
+.yd-hall__wall-0 { stop-color: #29231f; }
+.yd-hall__wall-1 { stop-color: #352d27; }
+.yd-hall__door-0 { stop-color: #d6d0c6; }
+.yd-hall__door-1 { stop-color: #e6e1d8; }
+.yd-hall__door-2 { stop-color: #cbc4b9; }
+.yd-hall__window-0 { stop-color: #0b1026; }
+.yd-hall__window-1 { stop-color: #2b2a55; }
+.yd-hall__shell-0 { stop-color: #24566f; }
+.yd-hall__shell-1 { stop-color: #3a7f9f; }
+.yd-hall__shell-2 { stop-color: #1f4a60; }
+.yd-hall__wood-0 { stop-color: #d9a35f; }
+.yd-hall__wood-1 { stop-color: #a8692f; }
+.yd-hall__warm-0 { stop-color: #ffcf7a; stop-opacity: 0.45; }
+.yd-hall__warm-1 { stop-color: #ffcf7a; stop-opacity: 0; }
+
+/* Room ------------------------------------------------------------------------ */
+
+.yd-hall__plank { fill: #4a3626; }
+.yd-hall__plank-joint { stroke: #3a2a1d; }
+.yd-hall__moulding { fill: none; stroke: #40362e; stroke-width: 1.5; }
+.yd-hall__dado { stroke: #40362e; stroke-width: 3; }
+.yd-hall__plinth { fill: #6f675d; }
+.yd-hall__floor-shade { fill: #000; opacity: 0.25; }
+.yd-hall__floor-shadows { fill: #000; opacity: 0.3; }
+.yd-hall__glow { animation: yd-hall-glow 5s ease-in-out infinite; }
+.yd-hall__cord { stroke: #1f2937; stroke-width: 1.2; }
+.yd-hall__pendant { fill: #1f2937; }
+.yd-hall__bulb { stroke: #ffe7b0; stroke-width: 1.8; stroke-linecap: round; }
+
+.yd-hall__door-frame { fill: #cfc8bc; }
+.yd-hall__lamp-post { stroke: #0d1124; stroke-width: 2; }
+.yd-hall__street-lamp { fill: #ffe7b0; }
+.yd-hall__stars { fill: #eef2ff; }
+.yd-hall__glazing { stroke: #e6e1d8; stroke-width: 2.5; }
+.yd-hall__door-panel { fill: none; stroke: #b5ad9f; stroke-width: 1.5; }
+.yd-hall__rosette { fill: #b8904f; }
+.yd-hall__door-handle { stroke: #c9a26b; stroke-width: 3; stroke-linecap: round; }
+.yd-hall__keyhole { fill: #3a2a1d; }
+.yd-hall__door-shade { fill: #0b0e1a; opacity: 0.2; }
+.yd-hall__mat { fill: #7a5a3a; }
+.yd-hall__mat-lines { stroke: #5e432b; }
+
+.yd-hall__board-frame { fill: #6b4a32; }
+.yd-hall__cork { fill: #b08a5a; }
+.yd-hall__board-shade { fill: #0b0e1a; opacity: 0.2; }
+.yd-hall__pinned-ticket { fill: #c2553a; }
+.yd-hall__perforation { stroke: #f2ede4; stroke-dasharray: 1.5 1.5; }
+.yd-hall__card { fill: #f2ede4; }
+.yd-hall__card-sky { fill: #7fb2e5; }
+.yd-hall__card-sea { fill: #2f8fb0; }
+.yd-hall__card-sand { fill: #e9d3a0; }
+.yd-hall__photo { fill: #3b5b7a; }
+.yd-hall__pin--red { fill: #e11d48; }
+.yd-hall__pin--blue { fill: #2563eb; }
+.yd-hall__pin--green { fill: #16a34a; }
+
+.yd-hall__console-top { fill: #6b4a32; }
+.yd-hall__console-apron { fill: #553a24; }
+.yd-hall__brass { fill: #c9a26b; }
+.yd-hall__console-legs { stroke: #4a3222; stroke-width: 4; }
+.yd-hall__trainers { fill: #e5e7eb; }
+.yd-hall__trainer-stripe { stroke: #2563eb; stroke-width: 1.2; }
+.yd-hall__lamp-base { fill: #3a2a1d; }
+.yd-hall__lampshade { fill: #e9dcc0; }
+.yd-hall__bowl { fill: #2f5a6b; }
+.yd-hall__keys { stroke: #c9a26b; stroke-width: 1.2; }
+
+.yd-hall__stand { stroke: #1f2937; stroke-width: 2.5; }
+.yd-hall__neck { fill: #6b3a1c; }
+.yd-hall__frets { stroke: #c9a26b; stroke-width: 0.6; }
+.yd-hall__headstock { fill: #3a2416; }
+.yd-hall__pegs { fill: #c9cdd2; }
+.yd-hall__guitar-edge { stroke: #6b3a1c; stroke-width: 2.5; }
+.yd-hall__soundhole { fill: #1a120c; stroke: #e9dcc0; stroke-width: 0.8; }
+.yd-hall__bridge { fill: #3a2416; }
+.yd-hall__strings { stroke: #e5e7eb; stroke-opacity: 0.5; stroke-width: 0.4; }
+
+.yd-hall__rack { fill: #6b4a32; }
+.yd-hall__hooks { stroke: #c9a26b; stroke-width: 2; stroke-linecap: round; }
+.yd-hall__coat { fill: #6f5639; }
+.yd-hall__coat-seams { fill: none; stroke: #4e3c27; stroke-width: 1.4; }
+.yd-hall__cap { fill: #1f3b5a; }
+.yd-hall__cap-brim { fill: none; stroke: #162b42; stroke-width: 2; }
+.yd-hall__scarf { fill: #b23a3a; }
+.yd-hall__fringe { stroke: #b23a3a; }
+.yd-hall__handle-bars { stroke: #9aa1ab; stroke-width: 2; }
+.yd-hall__grip { fill: #1f2937; }
+.yd-hall__tag-string { stroke: #e5e7eb; stroke-width: 0.8; }
+.yd-hall__tag { fill: #e9b949; }
+.yd-hall__ribs { stroke: #1e4a60; stroke-width: 1.6; }
+.yd-hall__castor { fill: #111318; }
+
+.yd-hall__poster-frame { fill: #15161a; }
+.yd-hall__poster { fill: #d9a840; }
+.yd-hall__poster-sun { fill: #c2553a; }
+.yd-hall__poster-core { fill: #1f2937; }
+.yd-hall__poster-text { stroke: #1f2937; stroke-width: 2.4; }
+.yd-hall__poster-shade { fill: #0b0e1a; opacity: 0.25; }
+
+.yd-hall__tyre { fill: none; stroke: #15161a; stroke-width: 3.5; }
+.yd-hall__spokes { fill: none; stroke: #9aa1ab; stroke-width: 0.5; }
+.yd-hall__rim { fill: none; stroke: #9aa1ab; }
+.yd-hall__bike-frame { fill: none; stroke: #1f5a46; stroke-width: 3.2; stroke-linecap: round; stroke-linejoin: round; }
+.yd-hall__seatpost { stroke: #1f2937; stroke-width: 2.4; }
+.yd-hall__saddle { fill: #1f2937; }
+.yd-hall__handlebar { fill: none; stroke: #1f2937; stroke-width: 2.2; stroke-linecap: round; }
+.yd-hall__chainring { fill: none; stroke: #c7ccd3; stroke-width: 2; }
+.yd-hall__chain { stroke: #4b5563; stroke-width: 1.4; }
+.yd-hall__crank { stroke: #c7ccd3; stroke-width: 2.2; }
+.yd-hall__pedal { fill: #1f2937; }
+
+/* Lens insides ------------------------------------------------------------------ */
+
+.yd-hall .yd-lens__star {
+  fill: #fde68a;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: yd-hall-twinkle 1.8s ease-in-out infinite;
+}
+/* Resting on the true count; the entrance only brings the tickets in turn. */
+.yd-hall .yd-lens__ticket { fill: #fde68a; animation: yd-hall-ticket 0.5s ease-out both; }
+.yd-hall .yd-lens__stub { fill: none; stroke: #93c5fd; stroke-opacity: 0.4; stroke-dasharray: 1.5 1.5; }
+.yd-hall .yd-lens__pack { fill: none; stroke-width: 1.1; }
+.yd-hall .yd-lens__film { fill: #1c2238; stroke: #c7d2fe; stroke-width: 0.6; }
+.yd-hall .yd-lens__film-holes {
+  stroke: #c7d2fe;
+  stroke-width: 1.2;
+  stroke-dasharray: 2 2;
+  animation: yd-hall-film 1s linear infinite;
+}
+.yd-hall .yd-lens__flight { fill: none; stroke: #93c5fd; stroke-opacity: 0.5; stroke-dasharray: 2 2; }
+.yd-hall .yd-lens__plane {
+  fill: none;
+  stroke: #e0dfff;
+  stroke-width: 1.1;
+  stroke-linecap: round;
+  animation: yd-hall-fly 4s ease-in-out infinite;
+}
+.yd-hall .yd-lens__sunglasses { fill: none; stroke: #e0dfff; stroke-width: 0.9; }
+.yd-hall .yd-lens__passport { fill: #1c2238; stroke: #c7d2fe; stroke-width: 0.8; }
+.yd-hall .yd-lens__passport-emblem { fill: none; stroke: #fde68a; stroke-width: 0.7; }
+.yd-hall .yd-lens__clothes { fill: #1c2238; stroke-width: 0.8; }
+.yd-hall .yd-lens__clothes--blue { stroke: #93c5fd; }
+.yd-hall .yd-lens__clothes--lilac { stroke: #c4b5fd; }
+.yd-hall .yd-lens__clothes--sand { stroke: #fde68a; stroke-opacity: 0.8; }
+.yd-hall .yd-lens__chain {
+  stroke: #93c5fd;
+  stroke-width: 1.6;
+  stroke-dasharray: 1.6 1.2;
+  animation: yd-hall-chain 0.8s linear infinite;
+}
+.yd-hall .yd-lens__teeth { fill: none; stroke: #c7d2fe; stroke-width: 1.6; stroke-dasharray: 1.2 1.2; }
+.yd-hall .yd-lens__chainring { fill: #1c2238; stroke: #c7d2fe; }
+.yd-hall .yd-lens__axle { fill: none; stroke: #93c5fd; }
+.yd-hall .yd-lens__crank { transform-box: view-box; animation: yd-hall-spin 3s linear infinite; }
+.yd-hall .yd-lens__crank-arm { stroke: #e0dfff; stroke-width: 1.8; stroke-linecap: round; }
+.yd-hall .yd-lens__pedal { fill: #e0dfff; }
+.yd-hall .yd-lens__bracing { stroke: #93c5fd; stroke-opacity: 0.4; }
+.yd-hall .yd-lens__soundhole { fill: #1c2238; stroke: #e0dfff; }
+.yd-hall .yd-lens__rosette { fill: none; stroke: #c4b5fd; stroke-opacity: 0.6; stroke-width: 0.6; }
+.yd-hall .yd-lens__string { stroke: #e5e7eb; stroke-opacity: 0.85; stroke-width: 0.6; }
+.yd-hall .yd-lens__string--ringing { animation: yd-hall-string 0.14s ease-in-out infinite alternate; }
+.yd-hall .yd-lens__bridge { fill: #1c2238; stroke: #c7d2fe; stroke-width: 0.8; }
+.yd-hall .yd-lens__note { animation: yd-hall-note 2.6s ease-out infinite; }
+.yd-hall .yd-lens__note-head { fill: #c4b5fd; }
+.yd-hall .yd-lens__note-stem { fill: none; stroke: #c4b5fd; }
+
+/* Day: the light theme's hall ------------------------------------------------------ */
+
+:root[data-theme="light"] .yd-hall__wall-0 { stop-color: #efe6da; }
+:root[data-theme="light"] .yd-hall__wall-1 { stop-color: #e3d7c6; }
+:root[data-theme="light"] .yd-hall__moulding { stroke: #d3c4b0; }
+:root[data-theme="light"] .yd-hall__dado { stroke: #d3c4b0; }
+:root[data-theme="light"] .yd-hall__plinth { fill: #f4efe7; }
+:root[data-theme="light"] .yd-hall__plank { fill: #b98a5e; }
+:root[data-theme="light"] .yd-hall__plank-joint { stroke: #9c7049; }
+:root[data-theme="light"] .yd-hall__floor-shade { opacity: 0.05; }
+:root[data-theme="light"] .yd-hall__floor-shadows { opacity: 0.12; }
+:root[data-theme="light"] .yd-hall__glow { display: none; }
+:root[data-theme="light"] .yd-hall__bulb { stroke: #9aa1ab; }
+:root[data-theme="light"] .yd-hall__window-0 { stop-color: #7fb2e5; }
+:root[data-theme="light"] .yd-hall__window-1 { stop-color: #cfe2f4; }
+:root[data-theme="light"] .yd-hall__stars { display: none; }
+:root[data-theme="light"] .yd-hall__street-glow { display: none; }
+:root[data-theme="light"] .yd-hall__street-lamp { fill: #9aa1ab; }
+:root[data-theme="light"] .yd-hall__lamp-post { stroke: #4b5563; }
+:root[data-theme="light"] .yd-hall__door-shade { opacity: 0; }
+:root[data-theme="light"] .yd-hall__board-shade { opacity: 0; }
+:root[data-theme="light"] .yd-hall__poster-shade { opacity: 0; }
+:root[data-theme="light"] .yd-hall__coat { fill: #9b7a54; }
+:root[data-theme="light"] .yd-hall__coat-seams { stroke: #7a5f40; }
+
+/* Motion -------------------------------------------------------------------------- */
+
+@keyframes yd-hall-glow { 50% { opacity: 0.7; } }
+@keyframes yd-hall-twinkle { 50% { opacity: 0.25; transform: scale(0.6); } }
+@keyframes yd-hall-ticket { from { opacity: 0; transform: translateY(-3px); } }
+@keyframes yd-hall-film { to { stroke-dashoffset: -8; } }
+@keyframes yd-hall-fly {
+  0% { transform: translate(-22px, 8px); opacity: 0; }
+  15% { opacity: 1; }
+  50% { transform: translate(0, 0); }
+  85% { opacity: 1; }
+  100% { transform: translate(22px, 8px); opacity: 0; }
+}
+@keyframes yd-hall-spin { to { transform: rotate(360deg); } }
+@keyframes yd-hall-chain { to { stroke-dashoffset: -5.6; } }
+@keyframes yd-hall-string { to { transform: translateX(0.5px); } }
+@keyframes yd-hall-note {
+  0% { transform: translateY(4px); opacity: 0; }
+  30% { opacity: 0.9; }
+  100% { transform: translateY(-10px); opacity: 0; }
+}

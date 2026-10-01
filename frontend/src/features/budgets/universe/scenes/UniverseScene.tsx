@@ -4,6 +4,7 @@ import type { UniverseId } from "../registry";
 import type { Gauge, PartReading } from "../readings";
 import { CarScene } from "./car/CarScene";
 import { ClinicScene } from "./clinic/ClinicScene";
+import { HallScene } from "./hall/HallScene";
 import { HouseScene } from "./house/HouseScene";
 import { KitchenScene } from "./kitchen/KitchenScene";
 import { SalonScene } from "./salon/SalonScene";
@@ -25,6 +26,7 @@ const SCENES: Partial<Record<UniverseId, ComponentType<SceneProps>>> = {
   salon: SalonScene,
   kitchen: KitchenScene,
   clinic: ClinicScene,
+  hall: HallScene,
 };
 
 /** The scene of `universe`: one component per universe, all on the same props. */

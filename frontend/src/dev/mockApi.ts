@@ -35,6 +35,7 @@ import {
   giftsDetail,
   logementChildDetail,
   logementDetail,
+  loisirsDetail,
   santeDetail,
   transportChildDetail,
   transportDetail,
@@ -455,8 +456,8 @@ function planPreviewFor(params: Params) {
  * GET /budgets/{id}/detail. The stub's categories are flat, so Transport
  * (id 3) and Logement (id 1) answer with the nineteen-month families of the
  * universe fixtures, whose children keep their fixture ids (31 to 36, 11 to
- * 17) and answer in turn; Alimentation (2), Abonnements (4) and Santé (6)
- * answer with their families, without child pages;
+ * 17) and answer in turn; Alimentation (2), Abonnements (4), Santé (6) and
+ * Loisirs (7) answer with their families, without child pages;
  * every other category answers with its own name and no scene.
  */
 function budgetDetailFor(id: number) {
@@ -480,6 +481,9 @@ function budgetDetailFor(id: number) {
   }
   if (id === 6) {
     return { ...santeDetail, category: { ...santeDetail.category, id: 6 } };
+  }
+  if (id === 7) {
+    return { ...loisirsDetail, category: { ...loisirsDetail.category, id: 7 } };
   }
   const category = CATEGORY_PAYLOAD.find((row) => row.id === id);
   if (category === undefined) return null;

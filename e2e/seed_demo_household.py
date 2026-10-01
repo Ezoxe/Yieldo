@@ -156,6 +156,25 @@ def _checking(rng: random.Random) -> list[tuple[date, str, int]]:
     add(date(2026, 3, 9), "CB CABINET DENTAIRE DU MAIL", -6_000)
     add(date(2026, 6, 22), "CB CABINET DENTAIRE DU MAIL", -4_500)
 
+    # Leisure, which no built-in rule files (see LEISURE_FILING): the cinema
+    # most months, a concert now and then, the pool, books and music, a tennis
+    # club, a ski week. A generator of its own, like the car's.
+    fun = random.Random(SEED + 13)
+    for year, month in _months():
+        days = calendar.monthrange(year, month)[1]
+        for _ in range(fun.randint(1, 3)):
+            seats = fun.randint(1, 2)
+            add(_day(year, month, fun.randint(1, days)), "CB UGC CINE CITE", -1_190 * seats)
+        if fun.random() < 0.25:
+            concert = -fun.randint(4_500, 9_000)
+            add(_day(year, month, fun.randint(1, days)), "CB TICKETMASTER", concert)
+        for _ in range(fun.randint(1, 4)):
+            add(_day(year, month, fun.randint(1, days)), "CB PISCINE MUNICIPALE", -450)
+        if fun.random() < 0.6:
+            add(_day(year, month, fun.randint(1, days)), "CB CULTURA", -fun.randint(1_200, 4_500))
+    add(date(2025, 10, 4), "CB TENNIS CLUB MONTSOURIS", -18_000)
+    add(date(2026, 2, 14), "CB PIERRE ET VACANCES", -38_000)
+
     add(date(2025, 9, 15), "PRLV DGFIP IMPOT REVENU", -31_000)
     return rows
 
@@ -222,10 +241,7 @@ def _import(client: TestClient, headers: dict, account_id: int, content: bytes, 
     return body["summary"]["importable"]
 
 
-def _set_budgets(client: TestClient, headers: dict, ceilings: dict[str, int]) -> None:
-    """Ceilings on each universe's family and on the part that carries its
-    gauge (fuel, energy, streaming, groceries, pharmacy), so each universe
-    has a dial to draw and a level to show."""
+def _category_ids(client: TestClient, headers: dict) -> dict[str, int]:
     flat: dict[str, int] = {}
 
     def walk(rows: list[dict]) -> None:
@@ -236,9 +252,46 @@ def _set_budgets(client: TestClient, headers: dict, ceilings: dict[str, int]) ->
     categories = client.get("/api/categories", headers=headers)
     categories.raise_for_status()
     walk(categories.json())
+    return flat
+
+
+def _set_budgets(client: TestClient, headers: dict, ceilings: dict[str, int]) -> None:
+    """Ceilings on each universe's family and on the part that carries its
+    gauge (fuel, energy, streaming, groceries, pharmacy, outings), so each
+    universe has a dial to draw and a level to show."""
+    ids = _category_ids(client, headers)
     for slug, cents in ceilings.items():
-        client.patch(f"/api/categories/{flat[slug]}", headers=headers,
+        client.patch(f"/api/categories/{ids[slug]}", headers=headers,
                      json={"monthly_budget_cents": cents}).raise_for_status()
+
+
+# What the household files by hand, label by label: no built-in rule knows
+# these, and the holiday rental is travel to the rules but a holiday to them.
+LEISURE_FILING = {
+    "CB UGC CINE CITE": "loisirs-sorties",
+    "CB TICKETMASTER": "loisirs-sorties",
+    "CB PISCINE MUNICIPALE": "loisirs-sport",
+    "CB TENNIS CLUB MONTSOURIS": "loisirs-sport",
+    "CB CULTURA": "loisirs-hobbies",
+    "CB AIRBNB": "loisirs-vacances",
+    "CB CAMPING LES PINS": "loisirs-vacances",
+    "CB PIERRE ET VACANCES": "loisirs-vacances",
+}
+
+
+def _file_by_hand(client: TestClient, headers: dict, filing: dict[str, str]) -> None:
+    """Every operation whose label is in `filing` goes to that category,
+    through the same PATCH the Transactions screen sends -- which also learns
+    a rule from it, as it would for the household."""
+    ids = _category_ids(client, headers)
+    for label, slug in filing.items():
+        page = client.get("/api/transactions", headers=headers,
+                          params={"search": label, "limit": 500})
+        page.raise_for_status()
+        for row in page.json()["items"]:
+            if row["label_raw"] == label and row["category_id"] != ids[slug]:
+                client.patch(f"/api/transactions/{row['id']}", headers=headers,
+                             json={"category_id": ids[slug]}).raise_for_status()
 
 
 def main() -> int:
@@ -271,7 +324,9 @@ def main() -> int:
             "abonnements": 9_000, "abonnements-streaming": 3_000,
             "alimentation": 60_000, "alimentation-courses": 45_000,
             "sante": 18_000, "sante-pharmacie": 4_000,
+            "loisirs": 25_000, "loisirs-sorties": 10_000,
         })
+        _file_by_hand(client, headers, LEISURE_FILING)
     for name, count in counts.items():
         print(f"{name} : {count} opérations importées")
     print(f"Du {START.isoformat()} au {END.isoformat()} ; compte : {DEMO_EMAIL}")

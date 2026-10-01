@@ -1,0 +1,170 @@
+/* The bank's lobby. Physical colours only — a slate wall over veined marble,
+   a chequered floor, brushed steel, a walnut counter, a blue queue strap —
+   kept here, never in a component. The theme sets the time of day: after
+   hours in the dark theme (the cash machine and the counter lit), day in
+   the light one. The lenses stay dark screens. Their insides are scoped to
+   the bank: every scene's stylesheet loads with the page
+   (scenes/stylesheets.test.ts). */
+
+@container scene (max-width: 899px) {
+  .yd-bank .yd-scene__stage { overflow: hidden; }
+  .yd-bank .yd-scene__svg { margin-top: -6%; }
+  .yd-bank .yd-dial { display: none; }
+}
+
+/* Gradient stops — after hours ---------------------------------------------- */
+
+.yd-bank__wall-0 { stop-color: #1e2530; }
+.yd-bank__wall-1 { stop-color: #28303d; }
+.yd-bank__steel-0 { stop-color: #7a8292; }
+.yd-bank__steel-1 { stop-color: #5b6372; }
+.yd-bank__steel-2 { stop-color: #434a57; }
+.yd-bank__fascia-0 { stop-color: #3b4350; }
+.yd-bank__fascia-1 { stop-color: #4b5462; }
+.yd-bank__fascia-2 { stop-color: #363d49; }
+.yd-bank__cool-0 { stop-color: #bfdbfe; stop-opacity: 0.35; }
+.yd-bank__cool-1 { stop-color: #bfdbfe; stop-opacity: 0; }
+.yd-bank__warm-0 { stop-color: #ffcf7a; stop-opacity: 0.35; }
+.yd-bank__warm-1 { stop-color: #ffcf7a; stop-opacity: 0; }
+
+/* Room ------------------------------------------------------------------------ */
+
+.yd-bank__tile-dark { fill: #2c3038; }
+.yd-bank__tile-light { fill: #3a3f48; }
+.yd-bank__marble { fill: #2f3742; }
+.yd-bank__rail { stroke: #3d4655; stroke-width: 2; }
+.yd-bank__veins { fill: none; stroke: #3a4350; }
+.yd-bank__plinth { fill: #1a1f27; }
+.yd-bank__floor-shade { fill: #000; opacity: 0.3; }
+.yd-bank__floor-shadows { fill: #000; opacity: 0.3; }
+.yd-bank__glow { animation: yd-bank-glow 5s ease-in-out infinite; }
+
+.yd-bank__recess { fill: #161b22; }
+.yd-bank__canopy { fill: #e5e7eb; }
+.yd-bank__screen-frame { fill: #1f3b5a; }
+.yd-bank__screen { fill: #2b5a8a; }
+.yd-bank__screen-menu { stroke: #bfdbfe; stroke-opacity: 0.6; stroke-width: 2; }
+.yd-bank__keys { fill: #c7ccd3; }
+.yd-bank__slot { fill: #0f1318; }
+.yd-bank__led { fill: #34d399; animation: yd-bank-blink 1.2s steps(2) infinite; }
+
+.yd-bank__office { fill: #12161d; }
+.yd-bank__glass { fill: #9fb3c8; fill-opacity: 0.1; }
+.yd-bank__glass-frame { fill: none; stroke: #8d949b; stroke-width: 3; }
+.yd-bank__reflection { stroke: #fff; stroke-opacity: 0.08; stroke-width: 3; }
+.yd-bank__grille { fill: none; stroke: #c7ccd3; }
+.yd-bank__grille-hole { fill: #c7ccd3; }
+.yd-bank__counter-top { fill: #6b4a32; }
+.yd-bank__counter { fill: #4a3426; }
+.yd-bank__counter-panels { fill: none; stroke: #3a2718; stroke-width: 1.5; }
+.yd-bank__kick-plate { fill: #c9a26b; }
+.yd-bank__tray { fill: #8d949b; }
+.yd-bank__paper { fill: #f2ede4; }
+.yd-bank__leaflet-stand { fill: #2f3742; }
+.yd-bank__leaflet--blue { fill: #2563eb; }
+.yd-bank__leaflet--red { fill: #c2553a; }
+.yd-bank__leaflet--yellow { fill: #e9b949; }
+.yd-bank__pen { stroke: #1f2937; stroke-width: 2; stroke-linecap: round; }
+.yd-bank__chain { fill: none; stroke: #c7ccd3; stroke-width: 0.8; stroke-dasharray: 1 1; }
+.yd-bank__bell { fill: #c9a26b; }
+
+.yd-bank__clock { fill: #e9e4d8; stroke: #3a2718; stroke-width: 2; }
+.yd-bank__clock-hand { stroke: #1f2937; stroke-width: 1.6; stroke-linecap: round; }
+.yd-bank__clock-hand--minutes {
+  stroke-width: 1.2;
+  transform-box: view-box;
+  transform-origin: 560px 44px;
+  animation: yd-bank-spin 60s linear infinite;
+}
+.yd-bank__vault-wall { fill: #2f3742; }
+.yd-bank__hinge { fill: #5b6372; }
+.yd-bank__vault-ring { fill: none; stroke: #3a414d; stroke-width: 2; }
+.yd-bank__bolts { fill: #c7ccd3; }
+.yd-bank__wheel { fill: none; stroke: #c7ccd3; stroke-width: 3; }
+.yd-bank__spokes { stroke: #c7ccd3; stroke-width: 3; stroke-linecap: round; }
+.yd-bank__hub { fill: #c7ccd3; }
+.yd-bank__vault-shade { fill: #0b0e1a; opacity: 0.15; }
+.yd-bank__pot { fill: #7a4f34; }
+.yd-bank__leaves { fill: #2f5a3a; }
+.yd-bank__posts { fill: #c7ccd3; }
+.yd-bank__post-bases { fill: #8d949b; }
+.yd-bank__strap { fill: none; stroke: #2563eb; stroke-width: 3; }
+
+/* Lens insides ------------------------------------------------------------------ */
+
+.yd-bank .yd-lens__card-reader { fill: #1c2238; stroke: #c7d2fe; stroke-width: 0.8; }
+.yd-bank .yd-lens__card { fill: #101a33; stroke: #e0dfff; stroke-width: 0.6; }
+.yd-bank .yd-lens__card-chip { fill: #d4a640; }
+.yd-bank .yd-lens__roller {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: yd-bank-spin 1.6s linear infinite;
+}
+.yd-bank .yd-lens__roller--reverse { animation-direction: reverse; }
+.yd-bank .yd-lens__roller-rim { fill: none; stroke: #93c5fd; stroke-width: 0.9; }
+.yd-bank .yd-lens__cassette { fill: #1c2238; stroke: #c7d2fe; }
+/* Resting on the true height; nothing moves the stack. */
+.yd-bank .yd-lens__notes { fill: #e0f2fe; fill-opacity: 0.85; }
+.yd-bank .yd-lens__note-edges { stroke: #93c5fd; stroke-opacity: 0.6; stroke-width: 0.6; }
+.yd-bank .yd-lens__pack { fill: none; stroke-width: 1.1; }
+.yd-bank .yd-lens__sheet { fill: #1c2238; stroke: #c7d2fe; stroke-width: 0.8; }
+.yd-bank .yd-lens__sheet-lines { stroke: #93c5fd; stroke-opacity: 0.6; stroke-width: 0.8; }
+.yd-bank .yd-lens__fee-line { fill: #c4b5fd; fill-opacity: 0.25; stroke: #c4b5fd; stroke-width: 0.7; }
+/* Hidden at rest: the stamp's mark only appears while it comes down. */
+.yd-bank .yd-lens__ink {
+  fill: none;
+  stroke: #c4b5fd;
+  stroke-width: 0.9;
+  opacity: 0;
+  animation: yd-bank-ink 2.4s ease-in-out infinite;
+}
+.yd-bank .yd-lens__stamp { animation: yd-bank-stamp 2.4s ease-in-out infinite; }
+.yd-bank .yd-lens__stamp-foot { fill: #1c2238; stroke: #e0dfff; stroke-width: 0.8; }
+.yd-bank .yd-lens__stamp-handle { stroke: #e0dfff; stroke-width: 1.6; stroke-linecap: round; }
+.yd-bank .yd-lens__stamp-knob { fill: #e0dfff; }
+.yd-bank .yd-lens__bolts { stroke: #93c5fd; stroke-opacity: 0.5; }
+.yd-bank .yd-lens__dial {
+  transform-box: view-box;
+  transform-origin: 540px 160px;
+  animation: yd-bank-dial 6s ease-in-out infinite alternate;
+}
+.yd-bank .yd-lens__dial-face { fill: #1c2238; stroke: #c7d2fe; }
+.yd-bank .yd-lens__dial-ticks { fill: none; stroke: #c7d2fe; stroke-width: 1.4; stroke-dasharray: 1 2; }
+.yd-bank .yd-lens__dial-pointer { stroke: #fde68a; stroke-width: 1.2; stroke-linecap: round; }
+.yd-bank .yd-lens__coins { fill: #fde68a; fill-opacity: 0.85; }
+
+/* Day: the light theme's lobby ----------------------------------------------------- */
+
+:root[data-theme="light"] .yd-bank__wall-0 { stop-color: #e9edf2; }
+:root[data-theme="light"] .yd-bank__wall-1 { stop-color: #dfe5ec; }
+:root[data-theme="light"] .yd-bank__marble { fill: #d5dbe3; }
+:root[data-theme="light"] .yd-bank__veins { stroke: #c3cad4; }
+:root[data-theme="light"] .yd-bank__rail { stroke: #c3cad4; }
+:root[data-theme="light"] .yd-bank__plinth { fill: #9aa1ab; }
+:root[data-theme="light"] .yd-bank__tile-dark { fill: #cfccc6; }
+:root[data-theme="light"] .yd-bank__tile-light { fill: #e8e6e1; }
+:root[data-theme="light"] .yd-bank__floor-shade { opacity: 0.05; }
+:root[data-theme="light"] .yd-bank__floor-shadows { opacity: 0.12; }
+:root[data-theme="light"] .yd-bank__glow { display: none; }
+:root[data-theme="light"] .yd-bank__recess { fill: #5b6270; }
+:root[data-theme="light"] .yd-bank__office { fill: #cfd6de; }
+:root[data-theme="light"] .yd-bank__vault-wall { fill: #9aa1ab; }
+:root[data-theme="light"] .yd-bank__vault-shade { opacity: 0; }
+
+/* Motion -------------------------------------------------------------------------- */
+
+@keyframes yd-bank-glow { 50% { opacity: 0.7; } }
+@keyframes yd-bank-blink { 50% { opacity: 0.2; } }
+@keyframes yd-bank-spin { to { transform: rotate(360deg); } }
+@keyframes yd-bank-stamp {
+  0%, 60%, 100% { transform: translateY(0); }
+  75% { transform: translateY(6px); }
+}
+@keyframes yd-bank-ink {
+  0%, 70% { opacity: 0; }
+  80%, 100% { opacity: 0.9; }
+}
+@keyframes yd-bank-dial {
+  from { transform: rotate(-40deg); }
+  to { transform: rotate(80deg); }
+}

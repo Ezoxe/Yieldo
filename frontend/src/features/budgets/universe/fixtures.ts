@@ -717,3 +717,55 @@ export const familleDetail: BudgetDetail = {
   parts: familyParts,
   siblings: [],
 };
+
+/* -- Frais bancaires over the same nineteen months, for the bank ---------- */
+
+const FEE_PARTS: typeof PARTS = [
+  { id: 111, name: "Frais de tenue de compte", slug: "frais-tenue", color: "#64748b", flow: () => ({ cents: -250, count: 1 }) },
+  {
+    id: 112, name: "Agios et incidents", slug: "frais-agios", color: "#64748b",
+    // Overdraft interest each quarter, one intervention fee.
+    flow: (key, index) => {
+      if (key === "2026-02") return { cents: -800, count: 1 };
+      return [1, 4, 7, 10].includes(monthOf(key)) ? { cents: -(320 + (index % 3) * 180), count: 1 } : { cents: 0, count: 0 };
+    },
+  },
+  { id: 113, name: "Cotisation carte", slug: "frais-carte", color: "#64748b", flow: () => ({ cents: -350, count: 1 }) },
+];
+
+const FEES_BUDGET = 1500;
+const CARD_BUDGET = 500;
+const feeParts = FEE_PARTS.map((part) => partOut(part, part.slug === "frais-carte" ? CARD_BUDGET : null));
+const feeSeries: BudgetDetailMonth[] = KEYS.map((key, index) => {
+  const flows = FEE_PARTS.map((part) => part.flow(key, index));
+  return {
+    month: key,
+    spent_cents: flows.reduce((sum, flow) => sum + flow.cents, 0),
+    count: flows.reduce((sum, flow) => sum + flow.count, 0),
+    complete: key !== CURRENT,
+  };
+});
+const feeNow = feeSeries[feeSeries.length - 1];
+// The card has a ceiling of its own: the Frais bancaires ceiling counts the rest.
+const feeCounted = feeNow.spent_cents - feeParts[2].spent_cents;
+
+export const fraisDetail: BudgetDetail = {
+  ...transportDetail,
+  category: { id: 110, name: "Frais bancaires", slug: "frais", color: "#64748b", is_essential: false, parent: null },
+  spent_cents: feeNow.spent_cents,
+  count: feeNow.count,
+  average_ticket_cents: feeNow.count > 0 ? mean(feeNow.spent_cents, feeNow.count) : null,
+  budget: {
+    budget_cents: FEES_BUDGET,
+    spent_cents: feeCounted,
+    remaining_cents: FEES_BUDGET + feeCounted,
+    consumed_ratio: -feeCounted / FEES_BUDGET,
+    projected_cents: null,
+    status: "ok",
+  },
+  ...averageOf(feeSeries),
+  years: yearsOf(feeSeries),
+  series: feeSeries,
+  parts: feeParts,
+  siblings: [],
+};

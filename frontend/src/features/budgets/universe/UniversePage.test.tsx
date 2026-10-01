@@ -11,6 +11,7 @@ import {
   achatsDetail,
   alimentationDetail,
   familleDetail,
+  fraisDetail,
   fuelDetail,
   giftsDetail,
   impotsDetail,
@@ -39,6 +40,7 @@ const DETAILS: Record<string, unknown> = {
   "80": achatsDetail,
   "90": impotsDetail,
   "100": familleDetail,
+  "110": fraisDetail,
 };
 
 beforeEach(() => {
@@ -166,6 +168,12 @@ describe("UniversePage", () => {
     const { container } = renderPage("/budgets/100?mois=2026-09");
     expect(await screen.findByRole("heading", { level: 1, name: "Famille" })).toBeInTheDocument();
     expect(container.querySelector(".yd-nursery")).not.toBeNull();
+  });
+
+  it("draws the bank for Frais bancaires", async () => {
+    const { container } = renderPage("/budgets/110?mois=2026-09");
+    expect(await screen.findByRole("heading", { level: 1, name: "Frais bancaires" })).toBeInTheDocument();
+    expect(container.querySelector(".yd-bank")).not.toBeNull();
   });
 
   it("keeps a category no universe covers, with its figures and without a scene", async () => {

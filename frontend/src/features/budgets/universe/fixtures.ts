@@ -657,3 +657,63 @@ export const impotsDetail: BudgetDetail = {
   parts: taxParts,
   siblings: [],
 };
+
+/* -- Famille over the same nineteen months, for the nursery --------------- */
+
+const FAMILY_PARTS: typeof PARTS = [
+  {
+    id: 101, name: "Garde d'enfants", slug: "famille-garde", color: "#f472b6",
+    // The crèche, closed in August.
+    flow: (key) => (monthOf(key) === 8 ? { cents: 0, count: 0 } : { cents: -42000, count: 1 }),
+  },
+  {
+    id: 102, name: "Scolarité", slug: "famille-scolarite", color: "#f472b6",
+    // The canteen in term time.
+    flow: (key, index) => {
+      if (key === CURRENT) return { cents: -3850, count: 2 };
+      if ([7, 8].includes(monthOf(key))) return { cents: 0, count: 0 };
+      return { cents: -(4800 + ((index * 11) % 4) * 300), count: 1 };
+    },
+  },
+  {
+    id: 103, name: "Animaux", slug: "famille-animaux", color: "#f472b6",
+    flow: (key, index) => (key === CURRENT ? { cents: -2790, count: 1 } : { cents: -(2600 + ((index * 13) % 5) * 400), count: 1 }),
+  },
+];
+
+const FAMILY_BUDGET = 15000;
+const CHILDCARE_BUDGET = 60000;
+const familyParts = FAMILY_PARTS.map((part) => partOut(part, part.slug === "famille-garde" ? CHILDCARE_BUDGET : null));
+const familyMonths: BudgetDetailMonth[] = KEYS.map((key, index) => {
+  const flows = FAMILY_PARTS.map((part) => part.flow(key, index));
+  return {
+    month: key,
+    spent_cents: flows.reduce((sum, flow) => sum + flow.cents, 0),
+    count: flows.reduce((sum, flow) => sum + flow.count, 0),
+    complete: key !== CURRENT,
+  };
+});
+const familyMonthNow = familyMonths[familyMonths.length - 1];
+// The childcare has a ceiling of its own: the Famille ceiling counts the rest.
+const familyCounted = familyMonthNow.spent_cents - familyParts[0].spent_cents;
+
+export const familleDetail: BudgetDetail = {
+  ...transportDetail,
+  category: { id: 100, name: "Famille", slug: "famille", color: "#f472b6", is_essential: false, parent: null },
+  spent_cents: familyMonthNow.spent_cents,
+  count: familyMonthNow.count,
+  average_ticket_cents: familyMonthNow.count > 0 ? mean(familyMonthNow.spent_cents, familyMonthNow.count) : null,
+  budget: {
+    budget_cents: FAMILY_BUDGET,
+    spent_cents: familyCounted,
+    remaining_cents: FAMILY_BUDGET + familyCounted,
+    consumed_ratio: -familyCounted / FAMILY_BUDGET,
+    projected_cents: null,
+    status: "ok",
+  },
+  ...averageOf(familyMonths),
+  years: yearsOf(familyMonths),
+  series: familyMonths,
+  parts: familyParts,
+  siblings: [],
+};

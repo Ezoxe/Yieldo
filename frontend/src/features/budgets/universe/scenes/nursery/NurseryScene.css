@@ -1,0 +1,209 @@
+/* The child's bedroom. Physical colours only — starred wallpaper, a white
+   changing table and cot, pastel knobs, a red satchel, a wicker basket —
+   kept here, never in a component. The theme sets the time of day: night in
+   the dark theme (the moon at the window, the night light throwing stars,
+   the desk lamp on), day in the light one. The lenses stay dark screens.
+   Their insides are scoped to the nursery: every scene's stylesheet loads
+   with the page (scenes/stylesheets.test.ts). */
+
+@container scene (max-width: 899px) {
+  .yd-nursery .yd-scene__stage { overflow: hidden; }
+  .yd-nursery .yd-scene__svg { margin-top: -6%; }
+  .yd-nursery .yd-dial { display: none; }
+}
+
+/* Gradient stops — night ---------------------------------------------------- */
+
+.yd-nursery__window-0 { stop-color: #0b1026; }
+.yd-nursery__window-1 { stop-color: #2b2a55; }
+.yd-nursery__warm-0 { stop-color: #ffcf7a; stop-opacity: 0.45; }
+.yd-nursery__warm-1 { stop-color: #ffcf7a; stop-opacity: 0; }
+.yd-nursery__moonlight-0 { stop-color: #fde68a; stop-opacity: 0.35; }
+.yd-nursery__moonlight-1 { stop-color: #fde68a; stop-opacity: 0; }
+
+/* Room ------------------------------------------------------------------------ */
+
+.yd-nursery__paper { fill: #232845; }
+.yd-nursery__paper-star { fill: #2c3256; }
+.yd-nursery__plank { fill: #4a3b2e; }
+.yd-nursery__plank-joint { stroke: #3a2e24; }
+.yd-nursery__plinth { fill: #8f8a82; }
+.yd-nursery__floor-shade { fill: #000; opacity: 0.25; }
+.yd-nursery__floor-shadows { fill: #000; opacity: 0.3; }
+.yd-nursery__rug { fill: #3d4a6b; }
+.yd-nursery__rug-dots { fill: #4c5b80; }
+.yd-nursery__thrown-stars { fill: #fde68a; opacity: 0.55; animation: yd-nursery-twinkle 3s ease-in-out infinite; }
+.yd-nursery__thrown-stars--late { animation-delay: 1.5s; }
+
+.yd-nursery__moon { fill: #f5f1d8; opacity: 0.9; }
+.yd-nursery__stars { fill: #eef2ff; }
+.yd-nursery__mullion { stroke: #e7e2d8; stroke-width: 3; }
+.yd-nursery__window-frame { fill: none; stroke: #e7e2d8; stroke-width: 4; }
+.yd-nursery__sill { fill: #d8ccb8; }
+.yd-nursery__curtain-rail { stroke: #9aa1ab; stroke-width: 2; }
+.yd-nursery__curtain { fill: #c9a0b9; }
+.yd-nursery__tieback { stroke: #e9b949; stroke-width: 2; }
+.yd-nursery__moonlight { opacity: 0.6; }
+
+.yd-nursery__table { fill: #e8e2d6; }
+.yd-nursery__table-lines { stroke: #c9c2b6; stroke-width: 1.5; }
+.yd-nursery__knob--pink { fill: #f9a8d4; }
+.yd-nursery__knob--blue { fill: #93c5fd; }
+.yd-nursery__knob--yellow { fill: #fde68a; }
+.yd-nursery__table-shade { fill: #0b0e1a; opacity: 0.22; }
+.yd-nursery__mat { fill: #9ec5e8; }
+.yd-nursery__mat-shade { fill: #0b0e1a; opacity: 0.15; }
+.yd-nursery__teat { fill: #e9c9a0; }
+.yd-nursery__collar { fill: #93c5fd; }
+.yd-nursery__bottle { fill: #eef2f6; fill-opacity: 0.85; }
+.yd-nursery__milk { fill: #f8fafc; }
+.yd-nursery__marks { stroke: #93c5fd; stroke-width: 0.8; }
+.yd-nursery__nappy { fill: #f2ede4; }
+.yd-nursery__glow { animation: yd-nursery-glow 5s ease-in-out infinite; }
+.yd-nursery__night-light { fill: #fde68a; opacity: 0.9; }
+.yd-nursery__duck { fill: #f6c945; }
+.yd-nursery__beak { stroke: #e8823a; stroke-width: 1.6; stroke-linecap: round; }
+
+.yd-nursery__mobile-arm { fill: none; stroke: #e8e2d6; stroke-width: 2; }
+.yd-nursery__mobile {
+  transform-box: view-box;
+  transform-origin: 300px 96px;
+  animation: yd-nursery-mobile 4s ease-in-out infinite alternate;
+}
+.yd-nursery__mobile-strings { stroke: #c7ccd3; stroke-width: 0.8; }
+.yd-nursery__mobile-star { fill: #fde68a; }
+.yd-nursery__mobile-moon { fill: #f5f1d8; }
+.yd-nursery__mobile-cloud { fill: #e5e7eb; }
+.yd-nursery__cot { fill: #e8e2d6; }
+.yd-nursery__mattress { fill: #f2ede4; }
+.yd-nursery__blanket { fill: #9ec5e8; }
+.yd-nursery__blanket-dots { fill: #f5f1d8; opacity: 0.85; }
+.yd-nursery__bear { fill: #c2a37f; }
+.yd-nursery__eye { fill: #1f2937; }
+.yd-nursery__cot-rails { stroke: #e8e2d6; stroke-width: 5; }
+.yd-nursery__cot-bars { stroke: #e8e2d6; stroke-width: 2.6; }
+.yd-nursery__cot-shade { fill: #0b0e1a; opacity: 0.18; }
+
+.yd-nursery__basket { fill: #b07a45; }
+.yd-nursery__basket-rim { fill: none; stroke: #8a5a2c; stroke-width: 3; }
+.yd-nursery__cushion { fill: #8a6a8a; }
+.yd-nursery__dog { fill: #d9b38c; }
+.yd-nursery__dog-ear { fill: #a37a4c; }
+.yd-nursery__dog-tail { fill: none; stroke: #d9b38c; stroke-width: 3; stroke-linecap: round; }
+.yd-nursery__bowl { fill: #c2553a; }
+
+.yd-nursery__board-frame { fill: #b07a45; }
+.yd-nursery__board { fill: #2f4a3a; }
+.yd-nursery__chalk { fill: none; stroke: #e9e4d8; stroke-width: 1.4; stroke-linecap: round; opacity: 0.85; }
+.yd-nursery__chalk-tray { fill: #8a5a2c; }
+.yd-nursery__desk { fill: #e8e2d6; }
+.yd-nursery__desk-legs { stroke: #cfc9bd; stroke-width: 5; }
+.yd-nursery__globe { fill: #3b82c4; }
+.yd-nursery__land { fill: #4f9d5a; }
+.yd-nursery__globe-stand { stroke: #8a5a2c; stroke-width: 2; }
+.yd-nursery__meridian { fill: none; stroke: #c9a26b; stroke-width: 1.4; }
+.yd-nursery__pencil-pot { fill: #f9a8d4; }
+.yd-nursery__pencil { stroke-width: 2; stroke-linecap: round; }
+.yd-nursery__pencil--blue { stroke: #3b82f6; }
+.yd-nursery__pencil--green { stroke: #22c55e; }
+.yd-nursery__pencil--red { stroke: #ef4444; }
+.yd-nursery__pencil--yellow { stroke: #eab308; }
+.yd-nursery__lamp-arm { fill: none; stroke: #f9a8d4; stroke-width: 2; }
+.yd-nursery__lamp-head { fill: #f9a8d4; }
+.yd-nursery__satchel { fill: #c2553a; }
+.yd-nursery__satchel-flap { fill: #a3402c; }
+.yd-nursery__buckle { fill: #e9b949; }
+.yd-nursery__satchel-handle { fill: none; stroke: #a3402c; stroke-width: 2.4; }
+
+/* Lens insides ------------------------------------------------------------------ */
+
+.yd-nursery .yd-lens__teat { fill: #1c2238; stroke: #c7d2fe; stroke-width: 0.8; }
+.yd-nursery .yd-lens__collar { fill: #1c2238; stroke: #c7d2fe; stroke-width: 0.8; }
+.yd-nursery .yd-lens__bottle-body { fill: #1c2238; stroke: #c7d2fe; }
+/* Resting on the true level; the ripples and the bubbles only decorate it. */
+.yd-nursery .yd-lens__milk { fill: #f8fafc; fill-opacity: 0.9; }
+.yd-nursery .yd-lens__milk-wave {
+  fill: #f8fafc;
+  fill-opacity: 0.9;
+  animation: yd-nursery-wave 2.2s ease-in-out infinite alternate;
+}
+.yd-nursery .yd-lens__bubble { fill: #93c5fd; animation: yd-nursery-bubble 2.4s ease-in infinite; }
+.yd-nursery .yd-lens__graduations { stroke: #93c5fd; stroke-width: 0.8; }
+.yd-nursery .yd-lens__pack { fill: none; stroke-width: 1.1; }
+.yd-nursery .yd-lens__notebook { fill: #1c2238; stroke: #c7d2fe; stroke-width: 0.8; }
+.yd-nursery .yd-lens__notebook--lilac { stroke: #c4b5fd; }
+.yd-nursery .yd-lens__pencil-case { fill: #1c2238; stroke: #c7d2fe; stroke-width: 0.8; }
+.yd-nursery .yd-lens__pencil-leads { stroke: #fde68a; stroke-dasharray: 2 1; }
+.yd-nursery .yd-lens__ruler { fill: none; stroke: #e0dfff; stroke-width: 0.7; }
+.yd-nursery .yd-lens__ruler-ticks { stroke: #e0dfff; stroke-width: 0.5; }
+.yd-nursery .yd-lens__good-work {
+  fill: #fde68a;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: yd-nursery-good-work 1.8s ease-in-out infinite;
+}
+.yd-nursery .yd-lens__dog-body {
+  transform-box: fill-box;
+  transform-origin: center bottom;
+  animation: yd-nursery-breathe 3s ease-in-out infinite;
+}
+.yd-nursery .yd-lens__dog { fill: #1c2238; stroke: #c7d2fe; }
+.yd-nursery .yd-lens__ribs { fill: none; stroke: #93c5fd; stroke-opacity: 0.7; stroke-width: 0.8; }
+.yd-nursery .yd-lens__dog-ear { fill: none; stroke: #c7d2fe; stroke-width: 0.9; }
+.yd-nursery .yd-lens__bone { fill: none; stroke: #fde68a; }
+.yd-nursery .yd-lens__snore {
+  fill: none;
+  stroke: #e0dfff;
+  stroke-width: 0.9;
+  animation: yd-nursery-snore 3s ease-out infinite;
+}
+
+/* Day: the light theme's bedroom ---------------------------------------------------- */
+
+:root[data-theme="light"] .yd-nursery__paper { fill: #f3efe3; }
+:root[data-theme="light"] .yd-nursery__paper-star { fill: #e6dcc4; }
+:root[data-theme="light"] .yd-nursery__plank { fill: #d2b48c; }
+:root[data-theme="light"] .yd-nursery__plank-joint { stroke: #bf9f78; }
+:root[data-theme="light"] .yd-nursery__plinth { fill: #f4f1ec; }
+:root[data-theme="light"] .yd-nursery__floor-shade { opacity: 0.05; }
+:root[data-theme="light"] .yd-nursery__floor-shadows { opacity: 0.12; }
+:root[data-theme="light"] .yd-nursery__rug { fill: #b9d0e6; }
+:root[data-theme="light"] .yd-nursery__rug-dots { fill: #9ec0de; }
+:root[data-theme="light"] .yd-nursery__thrown-stars { display: none; }
+:root[data-theme="light"] .yd-nursery__window-0 { stop-color: #7fb2e5; }
+:root[data-theme="light"] .yd-nursery__window-1 { stop-color: #cfe2f4; }
+:root[data-theme="light"] .yd-nursery__moon { display: none; }
+:root[data-theme="light"] .yd-nursery__stars { display: none; }
+:root[data-theme="light"] .yd-nursery__moonlight { display: none; }
+:root[data-theme="light"] .yd-nursery__glow { display: none; }
+:root[data-theme="light"] .yd-nursery__table { stroke: #d6cfc4; stroke-width: 1; }
+:root[data-theme="light"] .yd-nursery__table-shade { opacity: 0; }
+:root[data-theme="light"] .yd-nursery__mat-shade { opacity: 0; }
+:root[data-theme="light"] .yd-nursery__cot-shade { opacity: 0; }
+/* White on cream: a shade darker, so the cot and its mobile keep their shape. */
+:root[data-theme="light"] .yd-nursery__cot { fill: #d6cfc2; }
+:root[data-theme="light"] .yd-nursery__cot-rails,
+:root[data-theme="light"] .yd-nursery__cot-bars,
+:root[data-theme="light"] .yd-nursery__mobile-arm { stroke: #d6cfc2; }
+
+/* Motion -------------------------------------------------------------------------- */
+
+@keyframes yd-nursery-twinkle { 50% { opacity: 0.2; } }
+@keyframes yd-nursery-glow { 50% { opacity: 0.7; } }
+@keyframes yd-nursery-mobile {
+  from { transform: rotate(-5deg); }
+  to { transform: rotate(5deg); }
+}
+@keyframes yd-nursery-wave { to { transform: translateX(-6px); } }
+@keyframes yd-nursery-bubble {
+  0% { transform: translateY(0); opacity: 0; }
+  20% { opacity: 0.8; }
+  100% { transform: translateY(-14px); opacity: 0; }
+}
+@keyframes yd-nursery-good-work { 50% { opacity: 0.25; transform: scale(0.6); } }
+@keyframes yd-nursery-breathe { 50% { transform: scaleY(1.06); } }
+@keyframes yd-nursery-snore {
+  0% { transform: translate(0, 0); opacity: 0; }
+  30% { opacity: 0.9; }
+  100% { transform: translate(6px, -10px); opacity: 0; }
+}

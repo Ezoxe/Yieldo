@@ -8,6 +8,7 @@ import { DressingScene } from "./dressing/DressingScene";
 import { HallScene } from "./hall/HallScene";
 import { HouseScene } from "./house/HouseScene";
 import { KitchenScene } from "./kitchen/KitchenScene";
+import { NurseryScene } from "./nursery/NurseryScene";
 import { SalonScene } from "./salon/SalonScene";
 import { StudyScene } from "./study/StudyScene";
 
@@ -31,6 +32,7 @@ const SCENES: Partial<Record<UniverseId, ComponentType<SceneProps>>> = {
   hall: HallScene,
   dressing: DressingScene,
   study: StudyScene,
+  nursery: NurseryScene,
 };
 
 /** The scene of `universe`: one component per universe, all on the same props. */

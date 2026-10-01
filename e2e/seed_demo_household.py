@@ -156,7 +156,7 @@ def _checking(rng: random.Random) -> list[tuple[date, str, int]]:
     add(date(2026, 3, 9), "CB CABINET DENTAIRE DU MAIL", -6_000)
     add(date(2026, 6, 22), "CB CABINET DENTAIRE DU MAIL", -4_500)
 
-    # Leisure, which no built-in rule files (see LEISURE_FILING): the cinema
+    # Leisure, which no built-in rule files (see HAND_FILING): the cinema
     # most months, a concert now and then, the pool, books and music, a tennis
     # club, a ski week. A generator of its own, like the car's.
     fun = random.Random(SEED + 13)
@@ -189,7 +189,13 @@ def _checking(rng: random.Random) -> list[tuple[date, str, int]]:
             add(_day(year, month, shop.randint(1, days)), "CB IKEA", -shop.randint(1_500, 12_000))
     add(date(2026, 4, 11), "CB BOULANGER", -54_900)
 
-    add(date(2025, 9, 15), "PRLV DGFIP IMPOT REVENU", -31_000)
+    # The income tax is withheld from the salary; only the yearly balance
+    # reaches the account, and a balance over 300 € is taken in four
+    # instalments from September to December. A traffic fine, filed by hand.
+    for year, balance in ((2025, 31_000), (2026, 52_000)):
+        for month in (9, 10, 11, 12):
+            add(_day(year, month, 15), "PRLV DGFIP IMPOT REVENU", -balance // 4)
+    add(date(2026, 4, 8), "PRLV ANTAI AMENDE", -13_500)
     return rows
 
 
@@ -281,7 +287,7 @@ def _set_budgets(client: TestClient, headers: dict, ceilings: dict[str, int]) ->
 
 # What the household files by hand, label by label: no built-in rule knows
 # these, and the holiday rental is travel to the rules but a holiday to them.
-LEISURE_FILING = {
+HAND_FILING = {
     "CB UGC CINE CITE": "loisirs-sorties",
     "CB TICKETMASTER": "loisirs-sorties",
     "CB PISCINE MUNICIPALE": "loisirs-sport",
@@ -290,6 +296,7 @@ LEISURE_FILING = {
     "CB AIRBNB": "loisirs-vacances",
     "CB CAMPING LES PINS": "loisirs-vacances",
     "CB PIERRE ET VACANCES": "loisirs-vacances",
+    "PRLV ANTAI AMENDE": "impots-autres",
 }
 
 
@@ -340,8 +347,9 @@ def main() -> int:
             "sante": 18_000, "sante-pharmacie": 4_000,
             "loisirs": 25_000, "loisirs-sorties": 10_000,
             "achats": 30_000, "achats-vetements": 12_000,
+            "impots": 30_000, "impots-revenu": 20_000,
         })
-        _file_by_hand(client, headers, LEISURE_FILING)
+        _file_by_hand(client, headers, HAND_FILING)
     for name, count in counts.items():
         print(f"{name} : {count} opérations importées")
     print(f"Du {START.isoformat()} au {END.isoformat()} ; compte : {DEMO_EMAIL}")

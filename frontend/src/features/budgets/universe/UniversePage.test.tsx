@@ -8,6 +8,7 @@ import { ThemeProvider } from "../../../app/ThemeProvider";
 import { formatCents } from "../../../design/theme";
 import {
   abonnementsDetail,
+  achatsDetail,
   alimentationDetail,
   fuelDetail,
   giftsDetail,
@@ -33,6 +34,7 @@ const DETAILS: Record<string, unknown> = {
   "20": alimentationDetail,
   "60": santeDetail,
   "70": loisirsDetail,
+  "80": achatsDetail,
 };
 
 beforeEach(() => {
@@ -142,6 +144,12 @@ describe("UniversePage", () => {
     const { container } = renderPage("/budgets/70?mois=2026-09");
     expect(await screen.findByRole("heading", { level: 1, name: "Loisirs" })).toBeInTheDocument();
     expect(container.querySelector(".yd-hall")).not.toBeNull();
+  });
+
+  it("draws the dressing room for Achats", async () => {
+    const { container } = renderPage("/budgets/80?mois=2026-09");
+    expect(await screen.findByRole("heading", { level: 1, name: "Achats" })).toBeInTheDocument();
+    expect(container.querySelector(".yd-dressing")).not.toBeNull();
   });
 
   it("keeps a category no universe covers, with its figures and without a scene", async () => {

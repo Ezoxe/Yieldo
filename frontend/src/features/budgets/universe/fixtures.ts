@@ -527,3 +527,70 @@ export const loisirsDetail: BudgetDetail = {
   parts: leisureParts,
   siblings: [],
 };
+
+/* -- Achats over the same nineteen months, for the dressing room ---------- */
+
+const SHOPPING_PARTS: typeof PARTS = [
+  {
+    id: 81, name: "Vêtements", slug: "achats-vetements", color: "#fb7185",
+    flow: (key, index) => (key === CURRENT ? { cents: -8240, count: 2 } : { cents: -(6000 + ((index * 29) % 7) * 1500), count: 2 }),
+  },
+  {
+    id: 82, name: "Équipement et high-tech", slug: "achats-equipement", color: "#fb7185",
+    // Small things most months, a bigger one every fourth.
+    flow: (key, index) => {
+      if (key === CURRENT) return { cents: -12900, count: 1 };
+      return index % 4 === 0 ? { cents: -(9900 + (index % 3) * 5000), count: 1 } : { cents: -(1500 + (index % 5) * 700), count: 1 };
+    },
+  },
+  {
+    id: 83, name: "Maison et décoration", slug: "achats-maison", color: "#fb7185",
+    flow: (key, index) => (key === CURRENT ? { cents: -4690, count: 2 } : { cents: -(2500 + ((index * 13) % 6) * 900), count: 1 }),
+  },
+  {
+    id: 84, name: "Cadeaux", slug: "achats-cadeaux", color: "#fb7185",
+    // Christmas, and a birthday now and then.
+    flow: (key, index) => {
+      if (monthOf(key) === 12) return { cents: -25000, count: 4 };
+      if (key !== CURRENT && index % 5 === 2) return { cents: -6000, count: 1 };
+      return { cents: 0, count: 0 };
+    },
+  },
+];
+
+const SHOPPING_BUDGET = 30000;
+const CLOTHES_BUDGET = 12000;
+const shoppingParts = SHOPPING_PARTS.map((part) => partOut(part, part.slug === "achats-vetements" ? CLOTHES_BUDGET : null));
+const shoppingSeries: BudgetDetailMonth[] = KEYS.map((key, index) => {
+  const flows = SHOPPING_PARTS.map((part) => part.flow(key, index));
+  return {
+    month: key,
+    spent_cents: flows.reduce((sum, flow) => sum + flow.cents, 0),
+    count: flows.reduce((sum, flow) => sum + flow.count, 0),
+    complete: key !== CURRENT,
+  };
+});
+const shoppingNow = shoppingSeries[shoppingSeries.length - 1];
+// Vêtements has a ceiling of its own: the Achats ceiling counts the rest.
+const shoppingCounted = shoppingNow.spent_cents - shoppingParts[0].spent_cents;
+
+export const achatsDetail: BudgetDetail = {
+  ...transportDetail,
+  category: { id: 80, name: "Achats", slug: "achats", color: "#fb7185", is_essential: false, parent: null },
+  spent_cents: shoppingNow.spent_cents,
+  count: shoppingNow.count,
+  average_ticket_cents: shoppingNow.count > 0 ? mean(shoppingNow.spent_cents, shoppingNow.count) : null,
+  budget: {
+    budget_cents: SHOPPING_BUDGET,
+    spent_cents: shoppingCounted,
+    remaining_cents: SHOPPING_BUDGET + shoppingCounted,
+    consumed_ratio: -shoppingCounted / SHOPPING_BUDGET,
+    projected_cents: null,
+    status: "ok",
+  },
+  ...averageOf(shoppingSeries),
+  years: yearsOf(shoppingSeries),
+  series: shoppingSeries,
+  parts: shoppingParts,
+  siblings: [],
+};

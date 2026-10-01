@@ -1,0 +1,183 @@
+/* The dressing room. Physical colours only — striped greige wallpaper, pale
+   oak, a white lacquered wardrobe, a teal velvet armchair, a walnut chest of
+   drawers — kept here, never in a component. The theme sets the time of
+   day: dusk in the dark theme (the spots and the arc lamp on), day in the
+   light one. The lenses stay dark screens. Their insides are scoped to the
+   dressing room: every scene's stylesheet loads with the page
+   (scenes/stylesheets.test.ts). */
+
+@container scene (max-width: 899px) {
+  .yd-dressing .yd-scene__stage { overflow: hidden; }
+  .yd-dressing .yd-scene__svg { margin-top: -6%; }
+  .yd-dressing .yd-dial { display: none; }
+}
+
+/* Gradient stops — dusk ----------------------------------------------------- */
+
+.yd-dressing__glass-0 { stop-color: #7e8fa3; }
+.yd-dressing__glass-1 { stop-color: #4b596b; }
+.yd-dressing__warm-0 { stop-color: #ffcf7a; stop-opacity: 0.4; }
+.yd-dressing__warm-1 { stop-color: #ffcf7a; stop-opacity: 0; }
+
+/* Room ------------------------------------------------------------------------ */
+
+.yd-dressing__paper { fill: #29272b; }
+.yd-dressing__paper-stripe { stroke: #302e33; }
+.yd-dressing__plank { fill: #4d3b2c; }
+.yd-dressing__plank-joint { stroke: #3c2d21; }
+.yd-dressing__plinth { fill: #5f5a55; }
+.yd-dressing__floor-shade { fill: #000; opacity: 0.25; }
+.yd-dressing__floor-shadows { fill: #000; opacity: 0.3; }
+.yd-dressing__rug { fill: #4a3a4f; }
+.yd-dressing__rug-border { fill: none; stroke: #5a4860; stroke-width: 1.5; }
+.yd-dressing__glow { animation: yd-dressing-glow 5s ease-in-out infinite; }
+
+.yd-dressing__carcass { fill: #cfc9c0; }
+.yd-dressing__interior { fill: #3a332e; }
+.yd-dressing__hatbox { fill: #c2a37f; }
+.yd-dressing__hatbox-lid { fill: #d4b893; }
+.yd-dressing__sweater--navy { fill: #3b5b7a; }
+.yd-dressing__sweater--mustard { fill: #d9a840; }
+.yd-dressing__sweater--plum { fill: #8a6a8a; }
+.yd-dressing__shoebox { fill: #e9dcc0; }
+.yd-dressing__rail { stroke: #c7ccd3; stroke-width: 2; }
+.yd-dressing__hooks { fill: none; stroke: #c7ccd3; }
+.yd-dressing__garment--camel { fill: #a37a4c; }
+.yd-dressing__garment--navy { fill: #1f3b5a; }
+.yd-dressing__garment--red { fill: #b23a3a; }
+.yd-dressing__garment--denim { fill: #3b5b7a; }
+.yd-dressing__garment--white { fill: #e5e7eb; }
+.yd-dressing__garment--black { fill: #1f2937; }
+.yd-dressing__collar { fill: none; stroke: #7a5a36; }
+.yd-dressing__placket { stroke: #2c4f73; stroke-width: 0.8; }
+.yd-dressing__sneakers { fill: #e5e7eb; }
+.yd-dressing__heels { fill: #b23a3a; }
+.yd-dressing__boots { fill: #6b3a1c; }
+.yd-dressing__drawer { fill: #d8d2c8; stroke: #b9b2a5; }
+.yd-dressing__knob { fill: #c9a26b; }
+.yd-dressing__wardrobe-shade { fill: #0b0e1a; opacity: 0.18; }
+
+.yd-dressing__mirror-stand { stroke: #8a6a48; stroke-width: 3; }
+.yd-dressing__mirror-frame { stroke: #8a6a48; stroke-width: 4; }
+.yd-dressing__streak { stroke: #fff; stroke-opacity: 0.22; stroke-width: 3; }
+.yd-dressing__streak--faint { stroke-opacity: 0.12; stroke-width: 2; }
+
+.yd-dressing__lamp-base { fill: #e5e2dc; }
+.yd-dressing__lamp-pole { fill: none; stroke: #c9a26b; stroke-width: 2.4; }
+.yd-dressing__dome { fill: #c9a26b; }
+.yd-dressing__bulb { stroke: #ffe7b0; stroke-width: 1.6; stroke-linecap: round; }
+.yd-dressing__chair-back { fill: #3f5b55; }
+.yd-dressing__chair-seat { fill: #4a6a63; }
+.yd-dressing__chair-arm { fill: #3a5550; }
+.yd-dressing__chair-legs { stroke: #c9a26b; stroke-width: 2.5; }
+.yd-dressing__cushion { fill: #d9a840; }
+
+.yd-dressing__gift--red { fill: #b23a3a; }
+.yd-dressing__gift--navy { fill: #1f3b5a; }
+.yd-dressing__gift--mint { fill: #6bbfa6; }
+.yd-dressing__ribbon--gold { fill: #e9b949; }
+.yd-dressing__ribbon--white { fill: #e5e7eb; }
+.yd-dressing__ribbon--red { fill: #b23a3a; }
+.yd-dressing__bow { fill: #b23a3a; }
+
+.yd-dressing__print-frame { fill: #15161a; }
+.yd-dressing__print { fill: #efe6da; }
+.yd-dressing__print-arch--terracotta { fill: #c2553a; }
+.yd-dressing__print-arch--mustard { fill: #d9a840; }
+.yd-dressing__print-sun { fill: #c2553a; }
+.yd-dressing__print-shade { fill: #0b0e1a; opacity: 0.25; }
+.yd-dressing__dresser-top { fill: #7a5a3e; }
+.yd-dressing__dresser { fill: #6b4a32; }
+.yd-dressing__dresser-lines { stroke: #4a3222; stroke-width: 1.5; }
+.yd-dressing__dresser-legs { stroke: #4a3222; stroke-width: 3; }
+.yd-dressing__laptop-base { fill: #c7ccd3; }
+.yd-dressing__bezel { fill: #15161a; }
+.yd-dressing__display { fill: #1f2a3a; }
+.yd-dressing__display-window { fill: #2b3a52; }
+.yd-dressing__stand { fill: #2a2b30; }
+.yd-dressing__headband { fill: none; stroke: #1f2937; stroke-width: 3; }
+.yd-dressing__cup { fill: #1f2937; }
+.yd-dressing__vase { fill: #c2553a; }
+.yd-dressing__branch { stroke: #6b4a32; }
+.yd-dressing__leaf { fill: #5c7a4a; }
+
+/* Lens insides ------------------------------------------------------------------ */
+
+.yd-dressing .yd-lens__rail { stroke: #c7d2fe; stroke-width: 1.4; }
+.yd-dressing .yd-lens__hanger { fill: none; stroke: #c7d2fe; stroke-width: 0.9; }
+.yd-dressing .yd-lens__hanger--bare { stroke: #93c5fd; stroke-opacity: 0.45; stroke-dasharray: 1.5 1.5; }
+/* Resting on the true count; the entrance only brings the garments in turn. */
+.yd-dressing .yd-lens__garment { animation: yd-dressing-garment 0.5s ease-out both; }
+.yd-dressing .yd-lens__cloth--sky { fill: #93c5fd; }
+.yd-dressing .yd-lens__cloth--rose { fill: #f9a8d4; }
+.yd-dressing .yd-lens__cloth--sand { fill: #fde68a; }
+.yd-dressing .yd-lens__cloth--lilac { fill: #c4b5fd; }
+.yd-dressing .yd-lens__pack { fill: none; stroke-width: 1.1; }
+.yd-dressing .yd-lens__socket { fill: #1c2238; stroke: #c7d2fe; stroke-width: 0.8; }
+.yd-dressing .yd-lens__bulb-glass { fill: #1c2238; stroke: #fde68a; stroke-opacity: 0.8; stroke-width: 0.8; }
+.yd-dressing .yd-lens__filament {
+  fill: none;
+  stroke: #fde68a;
+  animation: yd-dressing-filament 1.6s ease-in-out infinite;
+}
+.yd-dressing .yd-lens__rays {
+  fill: none;
+  stroke: #fde68a;
+  stroke-opacity: 0.55;
+  stroke-width: 0.8;
+  stroke-dasharray: 2 2;
+  animation: yd-dressing-rays 1.2s linear infinite;
+}
+.yd-dressing .yd-lens__ribbon { stroke: #fde68a; stroke-opacity: 0.45; stroke-dasharray: 2 2; }
+.yd-dressing .yd-lens__jewel-case { fill: #1c2238; stroke: #c7d2fe; stroke-width: 0.8; }
+.yd-dressing .yd-lens__jewel { fill: none; stroke: #fde68a; stroke-width: 1.2; }
+.yd-dressing .yd-lens__diamond { fill: #e0f2fe; }
+.yd-dressing .yd-lens__sparkle {
+  fill: #fde68a;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: yd-dressing-sparkle 1.8s ease-in-out infinite;
+}
+.yd-dressing .yd-lens__traces { fill: none; stroke: #93c5fd; stroke-opacity: 0.6; stroke-width: 0.8; }
+.yd-dressing .yd-lens__signal {
+  fill: none;
+  stroke: #5eead4;
+  stroke-width: 1.2;
+  stroke-dasharray: 3 14;
+  animation: yd-dressing-signal 1.4s linear infinite;
+}
+.yd-dressing .yd-lens__processor { fill: #1c2238; stroke: #c7d2fe; stroke-width: 0.8; }
+.yd-dressing .yd-lens__pins { stroke: #c7d2fe; stroke-width: 0.6; }
+.yd-dressing .yd-lens__battery { fill: none; stroke: #c7d2fe; stroke-width: 0.7; }
+.yd-dressing .yd-lens__battery-cell { fill: #93c5fd; }
+
+/* Day: the light theme's dressing room --------------------------------------------- */
+
+:root[data-theme="light"] .yd-dressing__paper { fill: #ece7e1; }
+:root[data-theme="light"] .yd-dressing__paper-stripe { stroke: #e2dcd4; }
+:root[data-theme="light"] .yd-dressing__plank { fill: #c9a882; }
+:root[data-theme="light"] .yd-dressing__plank-joint { stroke: #b08d66; }
+:root[data-theme="light"] .yd-dressing__plinth { fill: #f4f1ec; }
+:root[data-theme="light"] .yd-dressing__floor-shade { opacity: 0.05; }
+:root[data-theme="light"] .yd-dressing__floor-shadows { opacity: 0.12; }
+:root[data-theme="light"] .yd-dressing__rug { fill: #b9a3bf; }
+:root[data-theme="light"] .yd-dressing__rug-border { stroke: #a68fae; }
+:root[data-theme="light"] .yd-dressing__glass-0 { stop-color: #dbe7f2; }
+:root[data-theme="light"] .yd-dressing__glass-1 { stop-color: #b7c9dc; }
+:root[data-theme="light"] .yd-dressing__glow { display: none; }
+:root[data-theme="light"] .yd-dressing__bulb { stroke: #9aa1ab; }
+/* White on a pale wall: a hairline keeps the wardrobe from melting into it. */
+:root[data-theme="light"] .yd-dressing__carcass { fill: #f4f1ec; stroke: #cfc6b9; stroke-width: 1; }
+:root[data-theme="light"] .yd-dressing__interior { fill: #e3dcd2; }
+:root[data-theme="light"] .yd-dressing__drawer { fill: #f4f1ec; stroke: #d6cfc4; }
+:root[data-theme="light"] .yd-dressing__wardrobe-shade { opacity: 0; }
+:root[data-theme="light"] .yd-dressing__print-shade { opacity: 0; }
+
+/* Motion -------------------------------------------------------------------------- */
+
+@keyframes yd-dressing-glow { 50% { opacity: 0.7; } }
+@keyframes yd-dressing-garment { from { opacity: 0; transform: translateX(-4px); } }
+@keyframes yd-dressing-filament { 50% { opacity: 0.45; } }
+@keyframes yd-dressing-rays { to { stroke-dashoffset: -8; } }
+@keyframes yd-dressing-sparkle { 50% { opacity: 0.2; transform: scale(0.5); } }
+@keyframes yd-dressing-signal { to { stroke-dashoffset: -34; } }

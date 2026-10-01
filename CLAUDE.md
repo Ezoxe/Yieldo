@@ -272,12 +272,17 @@ month with nothing spent counts as 0, no mean under three).
   page's own ceiling, a part's level its own ceiling or else its monthly mean
   (said as such on its label). Both are a share still unspent, in [0, 1].
 - A scene draws: `scenes/car/` (Transport, a white GT), `scenes/house/`
-  (Logement, a pavillon), `scenes/salon/` (Abonnements, a living room) and
-  `scenes/kitchen/` (Alimentation, a kitchen); the rooms show the evening in
-  the dark theme and the day in the light one. Its colours are physical and live in its stylesheet, never in a
-  component. The lens frame, the dial, the labels and leaders and the motion
-  switches are shared (`scenes/shared/`); labels are HTML (`SceneLabels`),
-  pinned on the drawing from 900px of scene width and listed under it below;
+  (Logement, a pavillon), `scenes/salon/` (Abonnements, a living room),
+  `scenes/kitchen/` (Alimentation, a kitchen) and `scenes/clinic/` (Santé, a
+  doctor's office); the rooms show the evening in the dark theme and the day
+  in the light one. Its colours are physical and live in its stylesheet,
+  never in a component. Every scene's stylesheet loads with the page, so a
+  new scene styles its lens insides under its own root
+  (`.yd-clinic .yd-lens__pill`): `scenes/stylesheets.test.ts` fails when one
+  scene's unscoped lens rule reaches a class another scene uses. The lens
+  frame, the dial, the labels and leaders and the motion switches are shared
+  (`scenes/shared/`); labels are HTML (`SceneLabels`), pinned on the drawing
+  at their own width from 900px of scene width and listed under it below;
   motion rests on the true values and stops under both motion switches.
 - A new universe starts as a mockup the operator validates (the car's:
   `docs/superpowers/specs/assets/2026-09-30-voiture-maquette.html`), then its

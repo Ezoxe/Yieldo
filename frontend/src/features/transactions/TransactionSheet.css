@@ -1,0 +1,68 @@
+/* One operation, opened on a phone — see TransactionSheet.tsx. */
+
+.yd-tx-sheet__amount {
+  margin: 0;
+  font-size: 1.6rem;
+  letter-spacing: -0.01em;
+}
+
+.yd-tx-sheet__field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.yd-tx-sheet__label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--yd-text-muted);
+}
+
+/* The row's pill, at a thumb's size: the category's own colour, a visible
+   boundary (WCAG 1.4.11), and the platform's own picker underneath. */
+.yd-tx-sheet__select {
+  appearance: none;
+  -webkit-appearance: none;
+  min-height: 48px;
+  padding: 0 var(--yd-space-md);
+  border-radius: var(--yd-radius-sm);
+  border: 1px solid color-mix(in srgb, var(--yd-pill, var(--yd-text-muted)) 55%, var(--yd-border-control));
+  background: color-mix(in srgb, var(--yd-pill, var(--yd-text-muted)) 13%, transparent);
+  color: var(--yd-text);
+  font: inherit;
+  font-weight: 600;
+}
+
+.yd-tx-sheet__select:focus-visible,
+.yd-tx-sheet__action:focus-visible {
+  outline: 2px solid var(--yd-accent);
+  outline-offset: 2px;
+}
+
+.yd-tx-sheet__hint {
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: var(--yd-text-muted);
+}
+
+.yd-tx-sheet__action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 48px;
+  padding: 0 var(--yd-space-md);
+  border: 1px solid var(--yd-border-control);
+  border-radius: var(--yd-radius-sm);
+  background: transparent;
+  color: var(--yd-text);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.yd-tx-sheet__action[aria-pressed="true"] {
+  border-color: color-mix(in srgb, var(--yd-info) 55%, transparent);
+  background: color-mix(in srgb, var(--yd-info) 12%, transparent);
+  color: var(--yd-info);
+}

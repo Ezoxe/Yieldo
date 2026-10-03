@@ -49,6 +49,11 @@ const SOURCE_BADGES: Record<string, string> = {
   uncategorized: "—",
 };
 
+/** Where the row's category came from, in a sentence (the badge's title). */
+export function categorySourceHint(transaction: Transaction): string {
+  return SOURCE_HINTS[transaction.category_source] ?? transaction.category_source;
+}
+
 /**
  * What the transfer control DOES, in three words. This is what names the
  * button: twenty rows are twenty controls, and each has to say which row it
@@ -77,6 +82,32 @@ export function transferHint(transaction: Transaction): string {
     : "Virement interne : déduit de sa catégorie ou de son compte.";
 }
 
+/**
+ * The category picker's options: « Non catégorisé », then each family with its
+ * children under it. Shared by the row's picker and the phone sheet's, so the
+ * two can never offer different choices for the same operation.
+ */
+export function CategoryOptions({ categories }: { categories: Category[] }) {
+  const parents = categories.filter((candidate) => candidate.parent_id === null);
+  return (
+    <>
+      <option value="">Non catégorisé</option>
+      {parents.map((parent) => (
+        <optgroup key={parent.id} label={parent.name}>
+          <option value={parent.id}>{parent.name}</option>
+          {categories
+            .filter((child) => child.parent_id === parent.id)
+            .map((child) => (
+              <option key={child.id} value={child.id}>
+                {child.name}
+              </option>
+            ))}
+        </optgroup>
+      ))}
+    </>
+  );
+}
+
 interface TransactionRowProps {
   transaction: Transaction;
   categories: Category[];
@@ -90,6 +121,12 @@ interface TransactionRowProps {
    * screen where they noticed.
    */
   onToggleTransfer: (transactionId: number, isTransfer: boolean) => void;
+  /**
+   * Opens the operation in its phone sheet. On a phone the row has no room for
+   * the picker and the two actions, so the whole row is the way to them; on a
+   * wider screen the button is not drawn and the row's own controls are.
+   */
+  onOpen?: (transaction: Transaction) => void;
 }
 
 export function TransactionRow({
@@ -98,11 +135,11 @@ export function TransactionRow({
   onRecategorize,
   onEdit,
   onToggleTransfer,
+  onOpen,
 }: TransactionRowProps) {
   const category = categories.find((candidate) => candidate.id === transaction.category_id);
   const isCredit = transaction.amount_cents > 0;
-  const parents = categories.filter((candidate) => candidate.parent_id === null);
-  const sourceHint = SOURCE_HINTS[transaction.category_source] ?? transaction.category_source;
+  const sourceHint = categorySourceHint(transaction);
   const sourceBadge = SOURCE_BADGES[transaction.category_source] ?? transaction.category_source;
 
   return (
@@ -126,10 +163,28 @@ export function TransactionRow({
           <span className="yd-transactions__avatar" aria-hidden="true">
             {merchantInitial(transaction.label_raw)}
           </span>
-          {/* label_raw, never label_clean: the user must recognize the line
-              exactly as it reads on their own bank statement. */}
-          <span className="yd-transactions__label">{transaction.label_raw}</span>
+          <span className="yd-transactions__text">
+            {/* label_raw, never label_clean: the user must recognize the line
+                exactly as it reads on their own bank statement. */}
+            <span className="yd-transactions__label">{transaction.label_raw}</span>
+            {/* The phone line's second half: the category's name in its own
+                colour, where a wide screen shows the picker in its column. */}
+            <span
+              className="yd-transactions__category-name"
+              style={{ "--yd-pill": category?.color ?? "var(--yd-text-muted)" } as CSSProperties}
+            >
+              {category?.name ?? "Non catégorisé"}
+            </span>
+          </span>
         </span>
+        {onOpen ? (
+          <button
+            type="button"
+            className="yd-transactions__open"
+            aria-label={`Ouvrir ${transaction.label_raw}`}
+            onClick={() => onOpen(transaction)}
+          />
+        ) : null}
       </td>
       <td role="cell" className="yd-transactions__cell yd-transactions__cell--category">
         <label className="sr-only" htmlFor={`category-${transaction.id}`}>
@@ -160,19 +215,7 @@ export function TransactionRow({
             }}
             className="yd-transactions__select"
           >
-            <option value="">Non catégorisé</option>
-            {parents.map((parent) => (
-              <optgroup key={parent.id} label={parent.name}>
-                <option value={parent.id}>{parent.name}</option>
-                {categories
-                  .filter((child) => child.parent_id === parent.id)
-                  .map((child) => (
-                    <option key={child.id} value={child.id}>
-                      {child.name}
-                    </option>
-                  ))}
-              </optgroup>
-            ))}
+            <CategoryOptions categories={categories} />
           </select>
           <span className="yd-transactions__badge" title={sourceHint}>
             {sourceBadge}

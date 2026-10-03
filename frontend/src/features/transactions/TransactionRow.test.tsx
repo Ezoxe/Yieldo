@@ -64,7 +64,10 @@ describe("TransactionRow", () => {
     renderRow(<TransactionRow
       transaction={{ ...transaction, category_id: null, category_source: "uncategorized" }}
       categories={categories} onRecategorize={vi.fn()} onEdit={vi.fn()} onToggleTransfer={vi.fn()} />);
-    expect(screen.getByText("Non catégorisé")).toBeInTheDocument();
+    // Said by the picker on a wide screen, and by the phone line under the label.
+    expect(screen.getByRole("combobox", { name: "Catégorie" })).toHaveDisplayValue("Non catégorisé");
+    expect(screen.getByText("Non catégorisé", { selector: ".yd-transactions__category-name" }))
+      .toBeInTheDocument();
   });
 
   it("reports the chosen category when the user recategorizes", async () => {
@@ -121,19 +124,41 @@ describe("TransactionRow", () => {
     expect(container.querySelectorAll('td[role="cell"]')).toHaveLength(5);
   });
 
-  // The defect: at 375 the category column was 5.4rem, so every picker read
-  // "Livrai" / "Salair" / "Remb" -- present, aligned, and carrying no
-  // information at all. It gets its own line under the label now.
-  it("gives the category a line of its own on a phone", () => {
-    const phone = css.slice(css.indexOf("@media (max-width: 599px)"));
-    expect(phone).toMatch(/grid-template-areas:\s*"label\s+amount"\s+"category\s+action"/);
+  // A phone row was 140px: the label, then a full-width category picker, then
+  // two buttons. It is one line of label over the category's name, beside the
+  // amount — and a tap on it opens the operation (see TransactionSheet), where
+  // the picker and the two actions live.
+  it("keeps a phone row to its label, its category and its amount", () => {
+    const phone = css.slice(css.indexOf("@media (max-width: 639px)"));
+    expect(phone).toMatch(/grid-template-areas:\s*"label\s+amount"/);
+    expect(phone).toMatch(
+      /\.yd-transactions__cell--category,\s*\.yd-transactions__cell--action\s*\{\s*display:\s*none/,
+    );
+  });
+
+  it("names the row's category under its label, for the phone line", () => {
+    renderRow(<TransactionRow transaction={transaction} categories={categories}
+                           onRecategorize={vi.fn()} onEdit={vi.fn()} onToggleTransfer={vi.fn()}
+                           onOpen={vi.fn()} />);
+    expect(screen.getByText("Courses", { selector: ".yd-transactions__category-name" }))
+      .toBeInTheDocument();
+  });
+
+  it("opens the operation from the whole row on a phone, naming which", async () => {
+    const onOpen = vi.fn();
+    const user = userEvent.setup();
+    renderRow(<TransactionRow transaction={transaction} categories={categories}
+                           onRecategorize={vi.fn()} onEdit={vi.fn()} onToggleTransfer={vi.fn()}
+                           onOpen={onOpen} />);
+    await user.click(screen.getByRole("button", { name: "Ouvrir CARREFOUR MARKET CB 01/03" }));
+    expect(onOpen).toHaveBeenCalledWith(transaction);
   });
 
   // The rows are grouped under a day header that already prints the date in
   // full. Seen at 390: every row repeated it in a 4.3rem column of its own,
   // and « CB PIZZERIA DA MARCO » lost its last word to it.
   it("leaves the date to the day header on a phone", () => {
-    const phone = css.slice(css.indexOf("@media (max-width: 599px)"));
+    const phone = css.slice(css.indexOf("@media (max-width: 639px)"));
     const date = phone.match(/\.yd-transactions__cell--date\s*\{([^}]*)\}/);
     // Hidden from sight, not from the accessible table: absolutely positioned
     // it takes no grid track, and a screen reader still hears the date.

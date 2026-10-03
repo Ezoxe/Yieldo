@@ -25,6 +25,7 @@ import { usePeriod } from "./usePeriod";
 import { DownloadIcon, PlusIcon, TransactionsIcon } from "../../design/icons";
 import { PageHead } from "../../design/PageHead";
 import { TransactionForm } from "./TransactionForm";
+import { TransactionSheet } from "./TransactionSheet";
 
 const PAGE_SIZE = 50;
 /**
@@ -243,6 +244,9 @@ export function TransactionsPage() {
   // animation does not play against a form that has already emptied itself;
   // `adding` and this are what tell the two modes apart.
   const [editing, setEditing] = useState<Transaction | null>(null);
+  // The operation open in its phone sheet, by id: the sheet reads the row
+  // from `items`, so a correction made in it shows in it at once.
+  const [openId, setOpenId] = useState<number | null>(null);
   const [reloadToken, setReloadToken] = useState(0);
 
   const [items, setItems] = useState<Transaction[]>([]);
@@ -532,6 +536,18 @@ export function TransactionsPage() {
         </p>
       </PageHead>
 
+      <TransactionSheet
+        transaction={items.find((candidate) => candidate.id === openId) ?? null}
+        categories={categories}
+        onClose={() => setOpenId(null)}
+        onRecategorize={(id, categoryId) => void handleRecategorize(id, categoryId)}
+        onToggleTransfer={handleToggleTransfer}
+        onEdit={(transaction) => {
+          setOpenId(null);
+          setEditing(transaction);
+        }}
+      />
+
       <TransactionForm
         open={adding || editing !== null}
         onClose={() => {
@@ -710,6 +726,7 @@ export function TransactionsPage() {
                             onToggleTransfer={handleToggleTransfer}
                             onRecategorize={(id, catId) => void handleRecategorize(id, catId)}
                             onEdit={setEditing}
+                            onOpen={(transaction) => setOpenId(transaction.id)}
                           />
                         ))}
                       </Fragment>

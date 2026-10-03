@@ -115,3 +115,17 @@
 :root[data-motion="off"] .yd-infotip__panel {
   animation: none;
 }
+
+/* A thumb's target without moving the title it sits in: the trigger keeps its
+   24px box, and a transparent layer 10px past it on every side takes the tap. */
+@media (pointer: coarse) {
+  .yd-infotip__trigger {
+    position: relative;
+  }
+
+  .yd-infotip__trigger::after {
+    content: "";
+    position: absolute;
+    inset: -10px;
+  }
+}

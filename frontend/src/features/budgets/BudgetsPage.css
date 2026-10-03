@@ -731,3 +731,13 @@
     min-height: 44px;
   }
 }
+
+/* A budget's name opens its universe: on a touch screen, at a thumb's
+   height rather than the 24px of its line. */
+@media (pointer: coarse) {
+  a.yd-budget__name {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+  }
+}

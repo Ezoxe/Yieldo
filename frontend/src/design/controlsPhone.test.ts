@@ -16,7 +16,13 @@ describe("phone controls", () => {
   // moment it takes focus, and never zooms back out on its own.
   it("never lets a field zoom an iPhone: 16px under 900px", () => {
     expect(css("./controls.css")).toMatch(
-      /@media \(max-width: 899px\)\s*\{[^@]*:where\(input, select, textarea\)[^}]*font-size:\s*max\(16px, 1em\)/,
+      /@media \(max-width: 899px\)\s*\{[^@]*:where\(input:not[^)]*\), select, textarea\)\s*\{\s*font-size:\s*max\(16px, 1em\) !important/,
+    );
+  });
+
+  it("raises every standalone control in a screen to 44px on a coarse pointer", () => {
+    expect(css("./controls.css")).toMatch(
+      /@media \(pointer: coarse\)[\s\S]*\.yd-shell__main :is\([\s\S]*button[\s\S]*\)\s*\{\s*min-height:\s*44px/,
     );
   });
 

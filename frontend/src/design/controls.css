@@ -76,11 +76,16 @@
  * iOS zooms the whole page into any field whose text is under 16px the moment
  * it takes focus, and does not zoom back out: the reader types a ceiling into
  * Budgets and is left looking at a third of the screen. Measured on 390px:
- * eighty-seven fields on Export, twenty-one on Mandat, nine in Réglages. Zero
- * specificity, and `max()` so a field that is already larger stays larger. */
+ * eighty-seven fields on Export, twenty-one on Mandat, nine in Réglages.
+ *
+ * `!important`, deliberately and only here: this is a platform constraint,
+ * not a style, and every screen's own field rule (`.yd-input`, `.yd-plan__row
+ * input`…) would otherwise win and bring the zoom back. A field drawn larger
+ * than 16px keeps its own size through `max()` only when it inherits it; the
+ * few that set a bigger size of their own come down to 16px on a phone. */
 @media (max-width: 899px) {
-  :where(input, select, textarea) {
-    font-size: max(16px, 1em);
+  :where(input:not([type="checkbox"], [type="radio"], [type="range"], [type="color"]), select, textarea) {
+    font-size: max(16px, 1em) !important;
   }
 }
 
@@ -92,5 +97,28 @@
   .yd-tap {
     min-height: 44px;
     min-width: 44px;
+  }
+
+  /* Every control standing on its own in a screen, at a thumb's height: the
+     audit at 390px found buttons of 28 to 36px, summaries of 21px and fields
+     of 32px on most screens. One class and the element raise this above a
+     screen's own single-class rule; a component that draws something denser
+     on purpose says so with two classes. The InfoTip trigger sits inside a
+     title row and keeps its size — its hit area grows instead (InfoTip.css). */
+  .yd-shell__main :is(
+      button:not(.yd-infotip__trigger),
+      select,
+      summary,
+      input:not([type="checkbox"], [type="radio"], [type="range"], [type="color"])
+    ) {
+    min-height: 44px;
+  }
+
+  /* A link that is a control rather than a word in a sentence: a panel's
+     « Toutes », « Voir l'avenir », a screen's « Voir les transactions ». */
+  .yd-shell__main :is(.yd-panel__actions, .yd-page-head__actions) a {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
   }
 }

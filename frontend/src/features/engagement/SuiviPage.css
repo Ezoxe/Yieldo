@@ -870,3 +870,22 @@
 :root[data-motion="off"] .yd-gauge__fill {
   transition: none;
 }
+
+/* A phone's way to the challenges it does not show (ChallengeList). */
+.yd-challenges__more {
+  align-self: flex-start;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--yd-accent);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.yd-challenges__more:focus-visible {
+  outline: 2px solid var(--yd-accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}

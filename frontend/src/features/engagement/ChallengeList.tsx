@@ -1,6 +1,9 @@
+import { useState } from "react";
+
 import { frenchDate } from "../../design/EmptyState";
 import { formatCents } from "../../design/theme";
 import type { Challenge, ChallengeKind } from "../../lib/types";
+import { useMediaQuery } from "../../lib/useMediaQuery";
 
 /**
  * What `target_cents` actually measured, for this kind of challenge.
@@ -91,12 +94,22 @@ interface ChallengeListProps {
  * proposed at all (`engines/challenge.py`), so a short list is the honest
  * answer and is never padded to look fuller.
  */
+/** How many challenges a phone shows before « Voir les N autres défis ». */
+const PHONE_CHALLENGES = 3;
+
 export function ChallengeList({
   challenges,
   categoryNames,
   onDecide,
   pendingId = null,
 }: ChallengeListProps) {
+  // Twelve cards at 540px were 8 243px of a phone: it sees three, and a way
+  // to the rest.
+  const phone = useMediaQuery("(max-width: 639px)");
+  const [showAll, setShowAll] = useState(false);
+  const shown = phone && !showAll ? challenges.slice(0, PHONE_CHALLENGES) : challenges;
+  const hidden = challenges.length - shown.length;
+
   if (challenges.length === 0) {
     return (
       <p className="yd-suivi__note">
@@ -120,7 +133,7 @@ export function ChallengeList({
       </p>
 
       <ul className="yd-challenges">
-        {challenges.map((challenge) => {
+        {shown.map((challenge) => {
           const pending = pendingId === challenge.id;
           return (
             <li
@@ -205,6 +218,11 @@ export function ChallengeList({
           );
         })}
       </ul>
+      {hidden > 0 ? (
+        <button type="button" className="yd-challenges__more" onClick={() => setShowAll(true)}>
+          {hidden === 1 ? "Voir l'autre défi" : `Voir les ${hidden} autres défis`}
+        </button>
+      ) : null}
     </>
   );
 }

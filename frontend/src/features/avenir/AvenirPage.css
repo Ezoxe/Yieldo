@@ -490,3 +490,24 @@
   }
   .yd-nextdays__events li > :first-child { grid-column: 1 / -1; font-size: 0.8rem; }
 }
+
+/* Two answers side by side on a phone (AvenirPage's `half` span): the figure
+   gets the width of half a row, and the panel's own mark gives the words the
+   room it took. */
+@media (max-width: 767px) {
+  .yd-avenir__tile .yd-avenir__figure {
+    font-size: clamp(1.15rem, 5.4vw, 1.5rem);
+  }
+
+  .yd-avenir__tile .yd-panel__head > .yd-icon-badge {
+    display: none;
+  }
+
+  .yd-avenir__tile .yd-panel__title {
+    font-size: 0.85rem;
+  }
+
+  .yd-avenir__tile .yd-avenir__sub {
+    font-size: 0.78rem;
+  }
+}

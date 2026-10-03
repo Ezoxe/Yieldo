@@ -44,6 +44,9 @@ const ZOOMS: { value: Zoom; label: string }[] = [
 ];
 
 const SPAN = {
+  // Half a phone's row each: the end of the month beside the low point, the
+  // two answers Avenir exists for, both in the first screen.
+  half: { sm: 1, md: 6, lg: 4 },
   tile: { md: 6, lg: 4 },
   full: { md: 6, lg: 12 },
   wide: { md: 6, lg: 7 },
@@ -155,7 +158,7 @@ export function AvenirPage() {
       {loading && outlook === null ? (
         <BentoGrid role="status" aria-busy="true" aria-label="Chargement de l'avenir">
           {[0, 1, 2].map((index) => (
-            <BentoCell key={index} span={SPAN.tile} className="yd-panel">
+            <BentoCell key={index} span={index < 2 ? SPAN.half : SPAN.tile} className="yd-panel">
               <div className="yd-skeleton yd-skeleton--cf-title" aria-hidden="true" />
               <div className="yd-skeleton yd-skeleton--cf-balance" aria-hidden="true" />
             </BentoCell>
@@ -268,7 +271,7 @@ function Answers({ outlook, reliability, reliabilityError }: {
 
   return (
     <BentoGrid>
-      <BentoCell span={SPAN.tile} className="yd-panel yd-avenir__tile"
+      <BentoCell span={SPAN.half} className="yd-panel yd-avenir__tile"
         data-ai-target="kpi-fin-de-mois">
         <PanelHead icon={CalendarIcon}>{monthEnd?.title ?? "Fin de mois prévue"}</PanelHead>
         {monthEnd ? (
@@ -286,7 +289,7 @@ function Answers({ outlook, reliability, reliabilityError }: {
         )}
       </BentoCell>
 
-      <BentoCell span={SPAN.tile} className="yd-panel yd-avenir__tile"
+      <BentoCell span={SPAN.half} className="yd-panel yd-avenir__tile"
         data-ai-target="kpi-point-bas">
         <PanelHead icon={ProjectionIcon}
           actions={

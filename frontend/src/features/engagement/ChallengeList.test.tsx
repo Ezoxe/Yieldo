@@ -167,3 +167,51 @@ describe("ChallengeList", () => {
     expect(second.getByRole("button", { name: /Accepter/ })).toBeEnabled();
   });
 });
+
+/**
+ * Twelve challenges at 540px each were 8 243px of a phone. A phone sees three
+ * and a way to the rest; a wide screen keeps them all.
+ */
+describe("ChallengeList on a phone", () => {
+  function phone(matches: boolean) {
+    Object.defineProperty(window, "matchMedia", {
+      writable: true,
+      configurable: true,
+      value: (query: string) => ({
+        matches: matches && query.includes("max-width: 639px"),
+        media: query,
+        onchange: null,
+        addEventListener: () => {},
+        removeEventListener: () => {},
+        addListener: () => {},
+        removeListener: () => {},
+        dispatchEvent: () => false,
+      }),
+    });
+  }
+
+  const five = Array.from({ length: 5 }, (_, index) => ({
+    ...OPERATOR_CHALLENGE,
+    id: 100 + index,
+    title: `Défi numéro ${index + 1}`,
+  }));
+
+  it("shows three challenges, then a way to the others", async () => {
+    phone(true);
+    const user = userEvent.setup();
+    render(<ChallengeList challenges={five} categoryNames={NAMES} onDecide={vi.fn()} />);
+    expect(screen.getByText("Défi numéro 3")).toBeInTheDocument();
+    expect(screen.queryByText("Défi numéro 4")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Voir les 2 autres défis" }));
+    expect(screen.getByText("Défi numéro 5")).toBeInTheDocument();
+    phone(false);
+  });
+
+  it("keeps every challenge on a wide screen", () => {
+    phone(false);
+    render(<ChallengeList challenges={five} categoryNames={NAMES} onDecide={vi.fn()} />);
+    expect(screen.getByText("Défi numéro 5")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /autres défis/ })).not.toBeInTheDocument();
+  });
+});

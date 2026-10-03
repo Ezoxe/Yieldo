@@ -35,6 +35,7 @@ import { PageHead } from "../../design/PageHead";
 import { BudgetBar } from "./BudgetBar";
 import { MonthNav } from "./MonthNav";
 import "./BudgetsPage.css";
+import { LoadSwap } from "../../design/motion/LoadSwap";
 
 /**
  * The month's spending by category, heaviest first, and its total.
@@ -587,7 +588,11 @@ export function BudgetsPage() {
           change of content, not a repaint: it leaves towards the month the
           reader came from and the new one arrives from the other side. */}
       <Swap swapKey={current || "chargement"} direction={direction.current}>
-        {body}
+        {/* The skeleton shows after 150ms of waiting and fades out where it
+            stood while the screen arrives (LoadSwap). */}
+        <LoadSwap loading={isLoading} skeleton={body}>
+          {body}
+        </LoadSwap>
       </Swap>
     </section>
   );

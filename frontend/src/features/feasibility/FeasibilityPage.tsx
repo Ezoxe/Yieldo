@@ -33,6 +33,7 @@ import { NaturePicker } from "./NaturePicker";
 import { PurchaseForm } from "./PurchaseForm";
 import { ScenarioBar } from "./ScenarioBar";
 import { VerdictPanel } from "./VerdictPanel";
+import { LoadSwap } from "../../design/motion/LoadSwap";
 
 /**
  * One measured rate, as a figure with its band and its sample — or the words
@@ -479,7 +480,11 @@ export function FeasibilityPage() {
         </p>
       ) : null}
 
-      {body}
+      {/* The skeleton shows after 150ms of waiting and fades out where it
+          stood while the screen arrives (LoadSwap). */}
+      <LoadSwap loading={isLoading} skeleton={body}>
+        {body}
+      </LoadSwap>
     </section>
   );
 }

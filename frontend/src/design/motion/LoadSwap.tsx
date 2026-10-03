@@ -1,64 +1,49 @@
 import { AnimatePresence, motion } from "motion/react";
-import { useEffect, useState, type ReactNode } from "react";
+import type { ReactNode } from "react";
 
 import { useReducedMotion } from "./useReducedMotion";
 import { EXIT_EASE } from "./variants";
 import "./LoadSwap.css";
 
-/** True once `flag` has stayed true for `delay` ms; false again at once. */
-export function useDelayedFlag(flag: boolean, delay: number): boolean {
-  const [elapsed, setElapsed] = useState(false);
-  useEffect(() => {
-    if (!flag) {
-      setElapsed(false);
-      return;
-    }
-    const timer = setTimeout(() => setElapsed(true), delay);
-    return () => clearTimeout(timer);
-  }, [flag, delay]);
-  return flag && elapsed;
-}
-
 interface LoadSwapProps {
   loading: boolean;
   /** The screen's own skeleton, shaped like what it stands for. */
   skeleton: ReactNode;
+  /** The screen's content; not rendered while `loading`. */
   children: ReactNode;
-  /** How long a wait has to last before it is shown, in ms. */
-  delay?: number;
 }
 
 /**
- * The wait between a screen and its data, drawn only when there is one.
+ * The wait between a screen and its data, seen only when there is one.
  *
- * Under 150ms — a local server, most of the time — no skeleton at all: the
- * content arrives once, with its own entry, instead of a skeleton flashing
- * between the screen and itself. Longer, the skeleton fades in, holds the
- * shape of the cards, and when the data lands it fades out IN PLACE while the
- * content takes its room (`popLayout` takes the leaving skeleton out of flow
- * at once): no moment with neither, which is the blink the old swap had.
+ * The skeleton is in the document at once — announced as busy, holding the
+ * shape of the cards — but it only becomes VISIBLE after 150ms (LoadSwap.css):
+ * a local server answers in 40ms, and a skeleton drawn for that long was a
+ * flash between the screen and itself. When the data lands, the skeleton
+ * fades out IN PLACE while the content takes its room (`popLayout` lifts the
+ * leaving skeleton out of flow at once): no moment with neither, which is the
+ * blink the old swap had.
+ *
+ * Motion off swaps outright; the 150ms before a skeleton shows still applies,
+ * since it is about not flashing, not about moving.
  */
-export function LoadSwap({ loading, skeleton, children, delay = 150 }: LoadSwapProps) {
+export function LoadSwap({ loading, skeleton, children }: LoadSwapProps) {
   const reduced = useReducedMotion();
-  const showSkeleton = useDelayedFlag(loading, delay);
+  const waiting = <div className="yd-load-swap__wait">{skeleton}</div>;
 
-  if (reduced) return <>{loading ? (showSkeleton ? skeleton : null) : children}</>;
+  if (reduced) return <>{loading ? waiting : children}</>;
 
   return (
     <div className="yd-load-swap">
       <AnimatePresence mode="popLayout" initial={false}>
         {loading ? (
-          showSkeleton ? (
-            <motion.div
-              key="skeleton"
-              className="yd-load-swap__layer"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1, transition: { duration: 0.16, ease: EXIT_EASE } }}
-              exit={{ opacity: 0, transition: { duration: 0.2, ease: EXIT_EASE } }}
-            >
-              {skeleton}
-            </motion.div>
-          ) : null
+          <motion.div
+            key="skeleton"
+            className="yd-load-swap__layer"
+            exit={{ opacity: 0, transition: { duration: 0.2, ease: EXIT_EASE } }}
+          >
+            {waiting}
+          </motion.div>
         ) : (
           <motion.div key="content" className="yd-load-swap__layer">
             {children}

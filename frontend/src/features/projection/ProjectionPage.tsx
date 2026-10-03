@@ -21,6 +21,7 @@ import { MonteCarloPanel } from "./MonteCarloPanel";
 import "./ProjectionPage.css";
 import { StressPanel } from "./StressPanel";
 import { TaxPanel } from "./TaxPanel";
+import { LoadSwap } from "../../design/motion/LoadSwap";
 import {
   freshSeed,
   paramsFromQuery,
@@ -319,7 +320,11 @@ export function ProjectionPage() {
         </p>
       ) : null}
 
-      {body}
+      {/* The skeleton shows after 150ms of waiting and fades out where it
+          stood while the screen arrives (LoadSwap). */}
+      <LoadSwap loading={(isLoading && data === null)} skeleton={body}>
+        {body}
+      </LoadSwap>
     </section>
   );
 }

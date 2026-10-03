@@ -17,6 +17,7 @@ import { HealthComponentList, HealthHistoryPanel, HealthScoreSummary } from "./H
 import { MilestonesPanel } from "./MilestonesPanel";
 import { StreakPanel } from "./StreakPanel";
 import "./SuiviPage.css";
+import { LoadSwap } from "../../design/motion/LoadSwap";
 
 /**
  * One source of truth for the shape of this screen, so the loading skeletons
@@ -213,7 +214,11 @@ export function SuiviPage() {
         </p>
       ) : null}
 
-      {body}
+      {/* The skeleton shows after 150ms of waiting and fades out where it
+          stood while the screen arrives (LoadSwap). */}
+      <LoadSwap loading={isLoading} skeleton={body}>
+        {body}
+      </LoadSwap>
     </section>
   );
 }

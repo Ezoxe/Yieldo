@@ -28,6 +28,7 @@ import {
   RecurrenceRow,
 } from "./RecurrenceRow";
 import "./RecurrencesPage.css";
+import { LoadSwap } from "../../design/motion/LoadSwap";
 
 const GENERIC_ERROR = "Une erreur inattendue est survenue.";
 
@@ -543,7 +544,11 @@ export function RecurrencesPage() {
         </p>
       </div>
 
-      {body}
+      {/* The skeleton shows after 150ms of waiting and fades out where it
+          stood while the screen arrives (LoadSwap). */}
+      <LoadSwap loading={isLoading} skeleton={body}>
+        {body}
+      </LoadSwap>
       {detail}
     </section>
   );

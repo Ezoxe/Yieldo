@@ -28,6 +28,7 @@ import { PeriodSelector } from "../transactions/PeriodSelector";
 import { usePeriod } from "../transactions/usePeriod";
 import { PriceIndexForm } from "./PriceIndexForm";
 import "./AnalysisPage.css";
+import { LoadSwap } from "../../design/motion/LoadSwap";
 
 const GENERIC_ERROR = "Une erreur inattendue est survenue.";
 
@@ -797,7 +798,11 @@ export function AnalysisPage() {
         </p>
       ))}
 
-      {body}
+      {/* The skeleton shows after 150ms of waiting and fades out where it
+          stood while the screen arrives (LoadSwap). */}
+      <LoadSwap loading={isLoading} skeleton={body}>
+        {body}
+      </LoadSwap>
     </section>
   );
 }

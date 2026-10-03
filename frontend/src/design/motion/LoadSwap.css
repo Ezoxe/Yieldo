@@ -8,3 +8,29 @@
 .yd-load-swap__layer {
   min-width: 0;
 }
+
+/* A skeleton shows only for a wait worth showing: invisible for its first
+   150ms, then a 160ms fade. An answer that comes within 150ms never shows
+   one. The wait is in the document all along — announced as busy, holding
+   the cards' room. Its own wrapper, not the layer Motion fades out on exit:
+   a CSS animation's fill would override Motion's inline opacity. */
+.yd-load-swap__wait {
+  animation: yd-load-swap-appear 160ms var(--yd-ease) 150ms both;
+}
+
+@keyframes yd-load-swap-appear {
+  from {
+    opacity: 0;
+  }
+}
+
+/* Motion off: no fade, the same 150ms of not flashing. */
+@media (prefers-reduced-motion: reduce) {
+  .yd-load-swap__wait {
+    animation-duration: 1ms;
+  }
+}
+
+:root[data-motion="off"] .yd-load-swap__wait {
+  animation-duration: 1ms;
+}

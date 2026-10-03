@@ -17,6 +17,7 @@ import { plural } from "../../lib/plural";
 import type { Debt, PayoffPlan, StrategyComparison } from "../../lib/types";
 import { DEBT_KINDS, DebtForm } from "./DebtForm";
 import "./DebtsPage.css";
+import { LoadSwap } from "../../design/motion/LoadSwap";
 
 const GENERIC_ERROR = "Une erreur inattendue est survenue.";
 
@@ -599,7 +600,11 @@ export function DebtsPage() {
         </p>
       ))}
 
-      {body}
+      {/* The skeleton shows after 150ms of waiting and fades out where it
+          stood while the screen arrives (LoadSwap). */}
+      <LoadSwap loading={isLoading} skeleton={body}>
+        {body}
+      </LoadSwap>
     </section>
   );
 }

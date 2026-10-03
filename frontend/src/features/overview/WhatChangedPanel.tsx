@@ -6,6 +6,7 @@ import { AlertsIcon } from "../../design/icons";
 import { formatCents } from "../../design/theme";
 import { api } from "../../lib/api";
 import { plural } from "../../lib/plural";
+import { useMediaQuery } from "../../lib/useMediaQuery";
 import type { AlertReport, LastImport } from "../../lib/types";
 import "./WhatChangedPanel.css";
 
@@ -21,6 +22,9 @@ export function agoSentence(days: number): string {
   if (days === 1) return "hier";
   return `il y a ${days} jours`;
 }
+
+/** How many alerts a phone shows before « Voir les N autres alertes ». */
+const PHONE_ALERTS = 4;
 
 interface WhatChangedPanelProps {
   /** The clock, passed in so the sentence is testable at any date. */
@@ -45,6 +49,10 @@ export function WhatChangedPanel({ now = new Date() }: WhatChangedPanelProps) {
   // `null` while loading, `"none"` when the household never imported (the
   // route answers 204), `"failed"` when it could not be asked.
   const [latest, setLatest] = useState<LastImport | null | "none" | "failed">(null);
+  // A phone sees the first alerts and a way to the rest: twelve of them at
+  // 180px each were 1 320px of a phone before a single chart.
+  const phone = useMediaQuery("(max-width: 639px)");
+  const [showAll, setShowAll] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -108,7 +116,7 @@ export function WhatChangedPanel({ now = new Date() }: WhatChangedPanelProps) {
             <span>Aucune alerte en cours sur vos relevés.</span>
           </li>
         ) : (
-          alerts.alerts.map((alert) => (
+          (phone && !showAll ? alerts.alerts.slice(0, PHONE_ALERTS) : alerts.alerts).map((alert) => (
             <li key={alert.key} className={`yd-changed__row yd-changed__row--${alert.severity}`}>
               <span className="yd-changed__alert">
                 <span className={`yd-changed__severity yd-changed__severity--${alert.severity}`}>
@@ -124,6 +132,16 @@ export function WhatChangedPanel({ now = new Date() }: WhatChangedPanelProps) {
             </li>
           ))
         )}
+        {alerts !== null && alerts !== "failed" && phone && !showAll &&
+        alerts.alerts.length > PHONE_ALERTS ? (
+          <li className="yd-changed__row">
+            <button type="button" className="yd-changed__more" onClick={() => setShowAll(true)}>
+              {alerts.alerts.length - PHONE_ALERTS === 1
+                ? "Voir l'autre alerte"
+                : `Voir les ${alerts.alerts.length - PHONE_ALERTS} autres alertes`}
+            </button>
+          </li>
+        ) : null}
       </ul>
     </>
   );

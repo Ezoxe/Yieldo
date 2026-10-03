@@ -104,9 +104,9 @@
 .yd-stat-tile__sparkline {
   position: absolute;
   z-index: -1;
-  left: calc(var(--yd-space-lg) * -1);
-  right: calc(var(--yd-space-lg) * -1);
-  bottom: calc(var(--yd-space-lg) * -1);
+  left: calc(var(--yd-cell-pad, var(--yd-space-lg)) * -1);
+  right: calc(var(--yd-cell-pad, var(--yd-space-lg)) * -1);
+  bottom: calc(var(--yd-cell-pad, var(--yd-space-lg)) * -1);
   height: 46%;
   min-height: 42px;
   pointer-events: none;
@@ -141,9 +141,23 @@
     position: static;
     z-index: auto;
     display: block;
-    width: calc(100% + var(--yd-space-lg) * 2);
-    margin: var(--yd-space-xs) calc(var(--yd-space-lg) * -1) calc(var(--yd-space-lg) * -1);
+    width: calc(100% + var(--yd-cell-pad, var(--yd-space-lg)) * 2);
+    margin: var(--yd-space-xs) calc(var(--yd-cell-pad, var(--yd-space-lg)) * -1)
+      calc(var(--yd-cell-pad, var(--yd-space-lg)) * -1);
     height: 28px;
     min-height: 0;
+  }
+}
+
+/* Two tiles share a phone's row (OverviewPage's `sm: 1`), so a figure has
+   about 145px: « −2 594,32 € » at the desktop's 1.65rem floor was 172px. */
+@media (max-width: 767px) {
+  .yd-stat-tile__value {
+    font-size: clamp(1.15rem, 5.4vw, 1.5rem);
+    letter-spacing: -0.03em;
+  }
+
+  .yd-stat-tile__label {
+    font-size: 0.68rem;
   }
 }

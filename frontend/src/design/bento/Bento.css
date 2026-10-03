@@ -55,7 +55,11 @@
   backdrop-filter: blur(16px) saturate(var(--yd-glass-saturate));
   -webkit-backdrop-filter: blur(16px) saturate(var(--yd-glass-saturate));
   box-shadow: var(--yd-shadow);
-  padding: var(--yd-space-md);
+  /* The cell's inset as a property, so content that bleeds to the card's
+     edges (a KPI tile's sparkline) can cancel exactly this much at every
+     width. */
+  --yd-cell-pad: var(--yd-space-md);
+  padding: var(--yd-cell-pad);
   transition:
     border-color var(--yd-motion-base) var(--yd-ease),
     box-shadow var(--yd-motion-base) var(--yd-ease),
@@ -363,7 +367,7 @@
 
   .yd-bento__cell {
     grid-column: span var(--yd-cell-span-md, 6);
-    padding: var(--yd-space-lg);
+    --yd-cell-pad: var(--yd-space-lg);
   }
 
   .yd-bento__cell::after {

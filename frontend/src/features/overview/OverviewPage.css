@@ -563,3 +563,28 @@
     transition: none;
   }
 }
+
+/* A phone reads the dashboard in the order of its questions, not in the
+   desktop's tiling: the balance, its three components, the next thirty days,
+   what changed, what was set aside, the last operations — then the charts,
+   which say the same things at length. Visual order only; the panels are
+   independent and each carries its own heading. */
+@media (max-width: 767px) {
+  .yd-overview .yd-hero { order: 1; }
+  .yd-overview__cell--income { order: 2; }
+  .yd-overview__cell--outflow { order: 3; }
+  .yd-overview__cell--rate { order: 4; }
+  .yd-overview__cell--next { order: 5; }
+  .yd-overview__cell--changed { order: 6; }
+  .yd-overview__cell--set-aside { order: 7; }
+  .yd-overview__cell--recent { order: 8; }
+  .yd-overview__cell--cashflow { order: 9; }
+  .yd-overview__cell--treemap { order: 10; }
+  .yd-overview__cell--waterfall { order: 11; }
+  .yd-overview__cell--calendar { order: 12; }
+
+  /* The three-row floor is the desktop band beside the stacked tiles. */
+  .yd-overview__cell--cashflow {
+    grid-row: auto;
+  }
+}

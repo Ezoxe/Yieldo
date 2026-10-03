@@ -94,3 +94,57 @@ describe("WhatChangedPanel", () => {
     expect(await screen.findByText(/Dernier import il y a 11 jours/)).toBeInTheDocument();
   });
 });
+
+/**
+ * Twelve alerts at 180px each was 1 320px of a phone before a single chart.
+ * A phone sees four, and a way to the rest; a wide screen sees them all.
+ */
+describe("WhatChangedPanel on a phone", () => {
+  function phone(matches: boolean) {
+    Object.defineProperty(window, "matchMedia", {
+      writable: true,
+      configurable: true,
+      value: (query: string) => ({
+        matches: matches && query.includes("max-width: 639px"),
+        media: query,
+        onchange: null,
+        addEventListener: () => {},
+        removeEventListener: () => {},
+        addListener: () => {},
+        removeListener: () => {},
+        dispatchEvent: () => false,
+      }),
+    });
+  }
+
+  const many = {
+    ...report,
+    alerts: Array.from({ length: 6 }, (_, index) => ({
+      ...report.alerts[0],
+      key: `alerte-${index}`,
+      title: `Alerte numéro ${index + 1}`,
+    })),
+  };
+
+  afterEach(() => phone(false));
+
+  it("shows four alerts and a way to the others", async () => {
+    phone(true);
+    stub({ alerts: many });
+    renderPanel();
+    expect(await screen.findByText("Alerte numéro 4")).toBeInTheDocument();
+    expect(screen.queryByText("Alerte numéro 5")).not.toBeInTheDocument();
+
+    screen.getByRole("button", { name: "Voir les 2 autres alertes" }).click();
+    expect(await screen.findByText("Alerte numéro 6")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /autres alertes/ })).not.toBeInTheDocument();
+  });
+
+  it("keeps every alert on a wide screen", async () => {
+    phone(false);
+    stub({ alerts: many });
+    renderPanel();
+    expect(await screen.findByText("Alerte numéro 6")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /autres alertes/ })).not.toBeInTheDocument();
+  });
+});

@@ -113,3 +113,43 @@ describe("Chart", () => {
     vi.unstubAllGlobals();
   });
 });
+
+/**
+ * A chart sized for a desktop panel (320px, 400px) took half a phone's
+ * screen for an axis and a legend. On a phone every chart is capped, at 240px
+ * unless the chart asks for its own phone height.
+ */
+describe("Chart on a phone", () => {
+  function phone(matches: boolean) {
+    Object.defineProperty(window, "matchMedia", {
+      writable: true,
+      value: vi.fn().mockImplementation((query: string) => ({
+        matches: matches && query.includes("max-width: 639px"),
+        media: query,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+      })),
+    });
+  }
+
+  it("caps a tall chart at 240px", () => {
+    phone(true);
+    renderChart({ height: 400 });
+    expect(screen.getByRole("img")).toHaveStyle({ height: "240px" });
+  });
+
+  it("keeps a chart that already fits, and honours its own phone height", () => {
+    phone(true);
+    const { unmount } = renderChart({ height: 180 });
+    expect(screen.getByRole("img")).toHaveStyle({ height: "180px" });
+    unmount();
+    renderChart({ height: 400, phoneHeight: 300 });
+    expect(screen.getByRole("img")).toHaveStyle({ height: "300px" });
+  });
+
+  it("leaves a wide screen alone", () => {
+    phone(false);
+    renderChart({ height: 400 });
+    expect(screen.getByRole("img")).toHaveStyle({ height: "400px" });
+  });
+});

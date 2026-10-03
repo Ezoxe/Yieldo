@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useTheme } from "../app/ThemeProvider";
 import { DownloadIcon } from "../design/icons";
 import { useReducedMotion } from "../design/motion/useReducedMotion";
+import { useMediaQuery } from "../lib/useMediaQuery";
 import "./Chart.css";
 import { echarts } from "./echarts";
 import { buildEchartsTheme, chartTokens } from "./theme";
@@ -20,9 +21,18 @@ export interface ChartExportData {
   rows: ChartExportRow[];
 }
 
+/** A phone's chart height when the chart does not ask for its own. */
+const PHONE_HEIGHT = 240;
+
 interface ChartProps {
   option: EChartsOption;
   height?: number;
+  /**
+   * The height on a phone. Every chart is capped there — 240px unless it says
+   * otherwise — because a desktop panel's 320 or 400px is half a phone screen
+   * spent on an axis and a legend. Never taller than `height`.
+   */
+  phoneHeight?: number;
   ariaLabel: string;
   onEvents?: Record<string, (params: unknown) => void>;
   /** When provided, the export menu also offers the underlying rows as CSV. */
@@ -70,11 +80,20 @@ function downloadDataUrl(filename: string, dataUrl: string): void {
 // a data change), and disposed on unmount. A theme switch is the one
 // exception -- ECharts bakes its theme in at `init()`, so the effect below
 // re-inits whenever `resolved` changes rather than trying to hot-swap it.
-export function Chart({ option, height = 320, ariaLabel, onEvents, dataForExport }: ChartProps) {
+export function Chart({
+  option,
+  height = 320,
+  phoneHeight,
+  ariaLabel,
+  onEvents,
+  dataForExport,
+}: ChartProps) {
   const container = useRef<HTMLDivElement>(null);
   const instance = useRef<ECharts | null>(null);
   const { resolved } = useTheme();
   const reducedMotion = useReducedMotion();
+  const phone = useMediaQuery("(max-width: 639px)");
+  const shownHeight = phone ? Math.min(height, phoneHeight ?? PHONE_HEIGHT) : height;
   const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
@@ -160,7 +179,12 @@ export function Chart({ option, height = 320, ariaLabel, onEvents, dataForExport
           </div>
         ) : null}
       </div>
-      <div ref={container} role="img" aria-label={ariaLabel} style={{ width: "100%", height }} />
+      <div
+        ref={container}
+        role="img"
+        aria-label={ariaLabel}
+        style={{ width: "100%", height: shownHeight }}
+      />
     </div>
   );
 }

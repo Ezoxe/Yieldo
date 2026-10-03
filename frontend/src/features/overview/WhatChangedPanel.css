@@ -78,3 +78,22 @@
   border-color: color-mix(in srgb, var(--yd-warning) 45%, transparent);
   color: var(--yd-warning);
 }
+
+/* A phone's way to the alerts it does not show. A word in the accent at a
+   thumb's height, not a button-shaped button: it continues the list. */
+.yd-changed__more {
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--yd-accent);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.yd-changed__more:focus-visible {
+  outline: 2px solid var(--yd-accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}

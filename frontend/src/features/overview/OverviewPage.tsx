@@ -131,7 +131,10 @@ const SPAN = {
   // 7 of 12, three rows tall, with the three component figures stacked in the
   // remaining 5 columns beside it.
   cashflow: { md: 6, lg: 7 },
-  stat: { md: 2, lg: 5 },
+  // Two side by side on a phone — Entrées beside Sorties — and the rate under
+  // them across the row: three full-width tiles were 450px of a phone.
+  stat: { sm: 1, md: 2, lg: 5 },
+  statWide: { sm: 2, md: 2, lg: 5 },
   // Full width, under the cash-flow band. Three figures and a sentence: this
   // is a horizontal reading, not a tile, and wedging it into 5 columns would
   // break "produced − set aside = left" into three storeys that no longer read
@@ -217,7 +220,7 @@ function DashboardSkeleton() {
       </BentoCell>
 
       {["entrees", "sorties", "epargne"].map((key) => (
-        <BentoCell span={SPAN.stat} key={key}>
+        <BentoCell span={key === "epargne" ? SPAN.statWide : SPAN.stat} key={key}>
           {/* The real tile's own class, so the pair of bars is centred and
               spaced exactly as the label and figure that replace them. */}
           <div className="yd-stat-tile">
@@ -547,7 +550,7 @@ export function OverviewPage() {
         <BentoCell
           as={motion.div}
           span={SPAN.hero}
-          className="yd-panel"
+          className="yd-panel yd-overview__cell--next"
           data-ai-target="panel-trente-jours"
           {...entryProps(reduced)}
         >
@@ -558,7 +561,7 @@ export function OverviewPage() {
           as={motion.div}
           span={SPAN.cashflow}
           rows={CASHFLOW_ROWS}
-          className="yd-panel"
+          className="yd-panel yd-overview__cell--cashflow"
           {...entryProps(reduced)}
         >
           <PanelHead icon={CashflowIcon}>Flux de trésorerie</PanelHead>
@@ -568,7 +571,7 @@ export function OverviewPage() {
         <BentoCell
           as={motion.div}
           span={SPAN.stat}
-          className="yd-cell--stat yd-cell--stat-positive"
+          className="yd-cell--stat yd-cell--stat-positive yd-overview__cell--income"
           data-ai-target="kpi-entrees"
           {...entryProps(reduced)}
         >
@@ -585,7 +588,7 @@ export function OverviewPage() {
         <BentoCell
           as={motion.div}
           span={SPAN.stat}
-          className="yd-cell--stat yd-cell--stat-negative"
+          className="yd-cell--stat yd-cell--stat-negative yd-overview__cell--outflow"
           data-ai-target="kpi-sorties"
           {...entryProps(reduced)}
         >
@@ -601,8 +604,8 @@ export function OverviewPage() {
 
         <BentoCell
           as={motion.div}
-          span={SPAN.stat}
-          className="yd-cell--stat yd-cell--stat-info"
+          span={SPAN.statWide}
+          className="yd-cell--stat yd-cell--stat-info yd-overview__cell--rate"
           data-ai-target="kpi-taux-epargne"
           {...entryProps(reduced)}
         >
@@ -625,7 +628,7 @@ export function OverviewPage() {
           <BentoCell
             as={motion.div}
             span={SPAN.setAside}
-            className="yd-panel"
+            className="yd-panel yd-overview__cell--set-aside"
             data-ai-target="panel-mis-de-cote"
             {...entryProps(reduced)}
           >
@@ -638,7 +641,7 @@ export function OverviewPage() {
         <BentoCell
           as={motion.div}
           span={SPAN.changed}
-          className="yd-panel"
+          className="yd-panel yd-overview__cell--changed"
           data-ai-target="panel-ce-qui-a-change"
           {...entryProps(reduced)}
         >
@@ -648,7 +651,7 @@ export function OverviewPage() {
         <BentoCell
           as={motion.div}
           span={SPAN.treemap}
-          className="yd-panel"
+          className="yd-panel yd-overview__cell--treemap"
           data-ai-target="chart-repartition"
           {...entryProps(reduced)}
         >
@@ -660,7 +663,7 @@ export function OverviewPage() {
           <BentoCell
             as={motion.div}
             span={SPAN.waterfall}
-            className="yd-panel"
+            className="yd-panel yd-overview__cell--waterfall"
             {...entryProps(reduced)}
           >
             <PanelHead icon={PriceChangeIcon}>Revenus, dépenses et épargne</PanelHead>
@@ -671,7 +674,7 @@ export function OverviewPage() {
         <BentoCell
           as={motion.div}
           span={SPAN.calendar}
-          className="yd-panel"
+          className="yd-panel yd-overview__cell--calendar"
           data-ai-target="panel-calendrier"
           {...entryProps(reduced)}
         >
@@ -682,7 +685,7 @@ export function OverviewPage() {
         <BentoCell
           as={motion.div}
           span={SPAN.recent}
-          className="yd-panel"
+          className="yd-panel yd-overview__cell--recent"
           data-ai-target="panel-recent"
           {...entryProps(reduced)}
         >

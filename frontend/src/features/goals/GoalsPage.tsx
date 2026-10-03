@@ -18,6 +18,7 @@ import type { GoalProgress, GoalReport, MeasuredRate } from "../../lib/types";
 import { GoalForm } from "./GoalForm";
 import "./GoalsPage.css";
 import { LoadSwap } from "../../design/motion/LoadSwap";
+import { AnimatedFill } from "../../design/motion/AnimatedFill";
 
 const GENERIC_ERROR = "Une erreur inattendue est survenue.";
 
@@ -389,9 +390,12 @@ export function GoalsPage() {
           aria-valuemax={100}
           aria-valuetext={`${formatCents(goal.saved_cents)} épargnés sur ${formatCents(goal.target_cents)}, soit ${ratioLabel(goal.progress_ratio)}`}
         >
-          <div
+          {/* Fills from what the reader last saw of this goal — empty the
+              first time, once — and sits still when nothing was saved. */}
+          <AnimatedFill
+            ratio={goal.progress_ratio}
+            memoryKey={`goal.${goal.goal_id}`}
             className={`yd-goal__fill${complete ? " yd-goal__fill--complete" : ""}`}
-            style={{ width: fillWidth(goal.progress_ratio) }}
             data-testid={`yd-goal-fill-${goal.goal_id}`}
           />
         </div>

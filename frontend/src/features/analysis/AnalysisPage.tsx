@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { BentoCell, type BentoSpan } from "../../design/bento/BentoCell";
 import { BentoGrid } from "../../design/bento/BentoGrid";
 import { PanelHead } from "../../design/bento/PanelHead";
-import { CountUp } from "../../design/CountUp";
+import { AnimatedNumber } from "../../design/motion/AnimatedNumber";
 import { frenchDate } from "../../design/EmptyState";
 import { AnalysisIcon, ChevronIcon, CoinsIcon, ListIcon, PriceChangeIcon, TrendUpIcon } from "../../design/icons";
 import { InfoTip } from "../../design/InfoTip";
@@ -483,10 +483,11 @@ export function AnalysisPage() {
             <p className="yd-analysis__note">Ce panneau n'a pas pu être chargé.</p>
           ) : inflation.comparable && inflation.basket_ratio !== null ? (
             <>
-              <CountUp
+              <AnimatedNumber
                 value={inflation.basket_ratio}
                 format={formatRatio}
                 className="yd-analysis__ratio"
+                memoryKey="analysis.basket"
               />
               {/* The two costs the percentage is the ratio of, as two
                   figures with an arrow between them rather than as a

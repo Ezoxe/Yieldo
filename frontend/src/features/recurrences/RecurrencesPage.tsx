@@ -5,7 +5,7 @@ import { Link } from "../../app/links";
 import { BentoCell, type BentoSpan } from "../../design/bento/BentoCell";
 import { BentoGrid } from "../../design/bento/BentoGrid";
 import { PanelHead } from "../../design/bento/PanelHead";
-import { CountUp } from "../../design/CountUp";
+import { AnimatedNumber } from "../../design/motion/AnimatedNumber";
 import { Drawer } from "../../design/Drawer";
 import { EmptyState, frenchDate } from "../../design/EmptyState";
 import { ListIcon, RecurrencesIcon } from "../../design/icons";
@@ -334,10 +334,11 @@ export function RecurrencesPage() {
               in the state where the engine sends no notice of its own. */}
           {computable ? (
             <>
-              <CountUp
+              <AnimatedNumber
                 value={Math.abs(report.annual_subscription_cents)}
                 format={(cents) => formatCents(cents)}
                 className="yd-recurrences__annual"
+                memoryKey="recurrences.annual"
               />
               <p className="yd-recurrences__annual-note">
                 {`par an, soit ${formatCents(Math.abs(report.monthly_subscription_cents))} par mois`}

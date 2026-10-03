@@ -1,6 +1,6 @@
 import { useId, type ReactNode } from "react";
 
-import { CountUp } from "../../design/CountUp";
+import { AnimatedNumber } from "../../design/motion/AnimatedNumber";
 import type { IconComponent } from "../../design/icons";
 import { IconBadge, TrendDownIcon, TrendUpIcon, type IconTone } from "../../design/icons";
 import { InfoTip } from "../../design/InfoTip";
@@ -29,6 +29,9 @@ interface StatTileProps {
    * `valueCents` still carries the raw value to format either way.
    */
   format?: (value: number) => string;
+  /** The figure's slot in the session memory: it moves from what the reader
+   *  last saw there, and not at all when nothing changed (AnimatedNumber). */
+  memoryKey?: string;
 }
 
 interface SparklineProps {
@@ -184,6 +187,7 @@ export function StatTile({
   iconTone = "accent",
   hint,
   format = formatCents,
+  memoryKey,
 }: StatTileProps) {
   const unavailable = valueCents === null;
   const deltaGood = deltaCents !== undefined && deltaCents >= 0;
@@ -200,7 +204,12 @@ export function StatTile({
         <p className="yd-stat-tile__unavailable">Donnée indisponible</p>
       ) : (
         <>
-          <CountUp value={valueCents} format={format} className="yd-stat-tile__value" />
+          <AnimatedNumber
+            value={valueCents}
+            format={format}
+            memoryKey={memoryKey}
+            className="yd-stat-tile__value"
+          />
           {deltaCents !== undefined ? (
             // A pill, not a sentence: three words of context under every figure
             // is what made this dashboard read as prose with numbers in it.

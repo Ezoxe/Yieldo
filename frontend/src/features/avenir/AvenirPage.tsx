@@ -12,6 +12,7 @@ import { Method } from "../../design/Method";
 import { PageHead } from "../../design/PageHead";
 import "../../design/Skeleton.css";
 import { formatCents } from "../../design/theme";
+import { AnimatedNumber } from "../../design/motion/AnimatedNumber";
 import { ApiError, api } from "../../lib/api";
 import type { Outlook, OutlookReliability, OutlookScope, Runway } from "../../lib/types";
 import { BalanceBreakdown } from "../balance/BalanceBreakdown";
@@ -276,7 +277,15 @@ function Answers({ outlook, reliability, reliabilityError }: {
         <PanelHead icon={CalendarIcon}>{monthEnd?.title ?? "Fin de mois prévue"}</PanelHead>
         {monthEnd ? (
           <>
-            <p className="yd-avenir__figure yd-num">{formatCents(monthEnd.p50, { signed: true })}</p>
+            {/* Rolls from what this slot last showed — the other perimeter,
+                the other horizon — and sits still when nothing changed. */}
+            <p className="yd-avenir__figure">
+              <AnimatedNumber
+                value={monthEnd.p50}
+                format={(cents) => formatCents(cents, { signed: true })}
+                memoryKey="avenir.end"
+              />
+            </p>
             {outlook.band ? (
               <p className="yd-avenir__sub yd-num">
                 entre {formatCents(monthEnd.p10, { signed: true })} et{" "}
@@ -304,8 +313,12 @@ function Answers({ outlook, reliability, reliabilityError }: {
         </PanelHead>
         {outlook.low_point ? (
           <>
-            <p className="yd-avenir__figure yd-num">
-              {formatCents(outlook.low_point.p50_cents, { signed: true })}
+            <p className="yd-avenir__figure">
+              <AnimatedNumber
+                value={outlook.low_point.p50_cents}
+                format={(cents) => formatCents(cents, { signed: true })}
+                memoryKey="avenir.low"
+              />
             </p>
             <p className="yd-avenir__sub">
               {context

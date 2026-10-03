@@ -280,9 +280,9 @@
      card does, which is the difference between a coloured rectangle and a
      filled gauge. */
   box-shadow: inset 0 1px 0 color-mix(in srgb, #fff 34%, transparent);
-  transition:
-    width var(--yd-motion-slow) var(--yd-ease),
-    box-shadow var(--yd-motion-base) var(--yd-ease);
+  /* The width is driven frame by frame (useAnimatedRatio in BudgetBar.tsx),
+     so no CSS transition on it: two easings on one movement would lag. */
+  transition: box-shadow var(--yd-motion-base) var(--yd-ease);
 }
 
 /* The glow is the one piece of ornament on this screen, and it is earned: it
@@ -740,4 +740,34 @@
     align-items: center;
     min-height: 44px;
   }
+}
+
+/* While a bar travels, its colour is the colour of the level on screen, so
+   a ceiling crossed is crossed in front of the reader (BudgetBar.tsx); at
+   rest the status classes above decide. */
+.yd-budget__fill[data-tone="ok"] {
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--yd-positive) 55%, transparent),
+    var(--yd-positive)
+  );
+  box-shadow: inset 0 1px 0 color-mix(in srgb, #fff 34%, transparent);
+}
+
+.yd-budget__fill[data-tone="at_risk"] {
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--yd-warning) 55%, transparent),
+    var(--yd-warning)
+  );
+  box-shadow: 0 0 10px color-mix(in srgb, var(--yd-warning) 45%, transparent);
+}
+
+.yd-budget__fill[data-tone="over"] {
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--yd-negative) 55%, transparent),
+    var(--yd-negative)
+  );
+  box-shadow: 0 0 14px color-mix(in srgb, var(--yd-negative) 55%, transparent);
 }

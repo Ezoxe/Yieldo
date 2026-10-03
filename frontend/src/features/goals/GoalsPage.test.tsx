@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ThemeProvider } from "../../app/ThemeProvider";
 import type { GoalProgress, GoalReport, Milestone } from "../../lib/types";
 import { GoalsPage, bandMarkers, fillWidth, progressPercent, ratioLabel } from "./GoalsPage";
+import { useMotionPreference } from "../../design/motion/motionPreference";
 
 // -- The engine's own sentences, verbatim ------------------------------------
 //
@@ -307,6 +308,8 @@ describe("GoalsPage — the goal cards", () => {
   it("shows a progress bar whose width is a real percentage", async () => {
     // Percentage widths inside an auto-width flex column resolve to ZERO. The
     // track sits in a grid row with a definite inline size (GoalsPage.css).
+    // At rest: the fill travels to its level (AnimatedFill); motion off pins it.
+    useMotionPreference.setState({ disabled: true });
     setupFetch();
     renderPage();
 
@@ -320,9 +323,11 @@ describe("GoalsPage — the goal cards", () => {
       "1 200,00 € épargnés sur 6 000,00 €, soit 20 %",
     );
     expect(screen.getByTestId("yd-goal-fill-1")).toHaveStyle({ width: "20%" });
+    useMotionPreference.setState({ disabled: false });
   });
 
   it("caps the bar at 100 % while the text still reports the overfunding", async () => {
+    useMotionPreference.setState({ disabled: true });
     const over: GoalProgress = {
       ...PROGRESS,
       saved_cents: 900_000,
@@ -344,6 +349,7 @@ describe("GoalsPage — the goal cards", () => {
 
     await screen.findByText(/Objectif atteint/);
     expect(screen.getByTestId("yd-goal-fill-1")).toHaveStyle({ width: "100%" });
+    useMotionPreference.setState({ disabled: false });
     expect(screen.getByText(/150 %/)).toBeInTheDocument();
     // `projected_completion_on` is TODAY on a goal already funded, not a
     // forecast. Printing it as an achievement date would claim it happened now,

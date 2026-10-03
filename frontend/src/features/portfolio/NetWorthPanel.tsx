@@ -4,6 +4,7 @@ import { Link } from "../../app/links";
 import { NetWorthChart, MIN_NET_WORTH_POINTS } from "../../charts/NetWorthChart";
 import { InfoTip } from "../../design/InfoTip";
 import { formatCents } from "../../design/theme";
+import { AnimatedNumber } from "../../design/motion/AnimatedNumber";
 import { ApiError, api } from "../../lib/api";
 import { plural } from "../../lib/plural";
 import type { NetWorthReport } from "../../lib/types";
@@ -75,7 +76,13 @@ export function NetWorthPanel({ enabled }: { enabled: boolean }) {
           className={`yd-networth__amount yd-num${tone ? ` yd-networth__amount--${tone}` : ""}`}
           data-testid="yd-networth-amount"
         >
-          {formatCents(today.net_cents, { signed: true })}
+          {/* Moves from what the reader last saw, and not at all when nothing
+              changed (AnimatedNumber). */}
+          <AnimatedNumber
+            value={today.net_cents}
+            format={(cents) => formatCents(cents, { signed: true })}
+            memoryKey="patrimoine.net"
+          />
         </p>
       </div>
 

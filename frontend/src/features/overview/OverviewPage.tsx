@@ -9,11 +9,13 @@ import { WaterfallChart } from "../../charts/WaterfallChart";
 import { BentoCell, type BentoSpan } from "../../design/bento/BentoCell";
 import { BentoGrid } from "../../design/bento/BentoGrid";
 import { PanelHead } from "../../design/bento/PanelHead";
-import { CountUp } from "../../design/CountUp";
 import { EmptyState, frenchDate, historySentence } from "../../design/EmptyState";
 import { BreakdownIcon, CalendarIcon, CashflowIcon, ChevronIcon, InflowIcon, ListIcon, OutflowIcon, OverviewIcon, PlusIcon, PriceChangeIcon, RateIcon } from "../../design/icons";
 import { PageHead } from "../../design/PageHead";
 import { useReducedMotion } from "../../design/motion/useReducedMotion";
+import { AnimatedNumber } from "../../design/motion/AnimatedNumber";
+import { DeltaPill } from "../../design/motion/DeltaPill";
+import { useFigureDelta } from "../../design/motion/useFigureDelta";
 import { entryProps, staggerProps } from "../../design/motion/variants";
 import "../../design/Skeleton.css";
 import { formatCents } from "../../design/theme";
@@ -309,6 +311,7 @@ function NetHero({
   // says exactly what is being totalled.
   const comparison = summary.comparison;
   const toneClass = net < 0 ? " yd-hero__value--negative" : "";
+  const sinceLastLook = useFigureDelta(`overview.net:${summary.date_from}:${summary.date_to}`, net);
   const trend = cumulativeNetCents(series);
 
   return (
@@ -323,10 +326,21 @@ function NetHero({
       <div className="yd-hero__head">
         <div className="yd-hero__figure">
           <span className="yd-hero__label">Solde net</span>
-          <CountUp
+          {/* Rolls from what the slot last showed — the previous period's
+              balance when the period changes — and not at all when nothing
+              moved. */}
+          <AnimatedNumber
             value={net}
             format={(cents) => formatCents(cents, { signed: true })}
+            memoryKey="overview.net"
             className={`yd-hero__value${toneClass}`}
+          />
+          {/* The change since the reader last looked at THIS period's
+              balance — an import, a correction — never a change of period. */}
+          <DeltaPill
+            delta={sinceLastLook}
+            format={(cents) => formatCents(cents)}
+            upIsGood
           />
         </div>
         <div className="yd-hero__meta">
@@ -578,6 +592,7 @@ export function OverviewPage() {
           <StatTile
             label="Entrées"
             valueCents={summary?.inflow_cents ?? null}
+            memoryKey="overview.income"
             icon={InflowIcon}
             iconTone="positive"
             sparkline={series.map((bucket) => bucket.inflow_cents)}
@@ -595,6 +610,7 @@ export function OverviewPage() {
           <StatTile
             label="Sorties"
             valueCents={summary?.outflow_cents ?? null}
+            memoryKey="overview.outflow"
             icon={OutflowIcon}
             iconTone="negative"
             sparkline={series.map((bucket) => bucket.outflow_cents)}
@@ -612,6 +628,7 @@ export function OverviewPage() {
           <StatTile
             label="Taux d'épargne"
             valueCents={summary?.savings_rate ?? null}
+            memoryKey="overview.rate"
             icon={RateIcon}
             iconTone="info"
             format={formatPercent}

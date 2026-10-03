@@ -1,4 +1,4 @@
-import { CountUp } from "../../design/CountUp";
+import { AnimatedNumber } from "../../design/motion/AnimatedNumber";
 import { SavingsIcon } from "../../design/icons";
 import { InfoTip } from "../../design/InfoTip";
 import { PanelHead } from "../../design/bento/PanelHead";
@@ -73,10 +73,11 @@ export function SetAsidePanel({ summary }: SetAsidePanelProps) {
       <div className="yd-setaside">
         <div className="yd-setaside__figure">
           <span className="yd-setaside__label">Ce que la période dégage</span>
-          <CountUp
+          <AnimatedNumber
             className="yd-num yd-setaside__value"
             value={summary.net_cents}
             format={formatCents}
+            memoryKey="overview.setAside.net"
           />
         </div>
 
@@ -86,10 +87,11 @@ export function SetAsidePanel({ summary }: SetAsidePanelProps) {
 
         <div className="yd-setaside__figure">
           <span className="yd-setaside__label">Réellement mis de côté</span>
-          <CountUp
+          <AnimatedNumber
             className="yd-num yd-setaside__value yd-setaside__value--aside"
             value={summary.set_aside_cents}
             format={formatCents}
+            memoryKey="overview.setAside.aside"
           />
         </div>
 
@@ -99,12 +101,13 @@ export function SetAsidePanel({ summary }: SetAsidePanelProps) {
 
         <div className="yd-setaside__figure yd-setaside__figure--gap">
           <span className="yd-setaside__label">Resté sur le compte courant</span>
-          <CountUp
+          <AnimatedNumber
             className={`yd-num yd-setaside__value ${
               summary.set_aside_gap_cents < 0 ? "yd-setaside__value--short" : ""
             }`}
             value={summary.set_aside_gap_cents}
             format={formatCents}
+            memoryKey="overview.setAside.gap"
           />
         </div>
       </div>

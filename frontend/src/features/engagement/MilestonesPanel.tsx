@@ -4,6 +4,7 @@ import { EmptyState, frenchDate } from "../../design/EmptyState";
 import { formatCents } from "../../design/theme";
 import { plural } from "../../lib/plural";
 import type { GoalProgress } from "../../lib/types";
+import { AnimatedFill } from "../../design/motion/AnimatedFill";
 
 /** U+00A0. French sets one before "%", and a plain space lets "25" and "%"
  *  fall onto two lines of a chip at 375px. */
@@ -82,9 +83,10 @@ export function MilestonesPanel({ goals }: { goals: GoalProgress[] }) {
               aria-valuemax={100}
               aria-valuetext={`${formatCents(goal.saved_cents)} sur ${formatCents(goal.target_cents)}`}
             >
-              <div
+              <AnimatedFill
+                ratio={goal.progress_ratio}
+                memoryKey={`goal.${goal.goal_id}`}
                 className="yd-jalons__fill"
-                style={{ width: `${fillPercent(goal.progress_ratio)}%` }}
               />
             </div>
 

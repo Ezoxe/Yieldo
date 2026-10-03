@@ -5,6 +5,7 @@ import { plural } from "../../lib/plural";
 import type { Health, HealthComponent } from "../../lib/types";
 import { InfoTip } from "../../design/InfoTip";
 import { ScoreGauge } from "./ScoreGauge";
+import { AnimatedFill } from "../../design/motion/AnimatedFill";
 
 /** U+00A0, the same non-breaking space `formatCents` and `formatRateBps` set
  *  before their unit. "0,0" and "mois" must not fall onto two lines. Written as
@@ -219,9 +220,10 @@ export function HealthComponentList({ components, previousTakenOn = null }: Comp
                     aria-valuemax={100}
                     aria-valuetext={`${component.score} sur 100${value === null ? "" : `, soit ${value}`}`}
                   >
-                    <div
+                    <AnimatedFill
+                      ratio={component.score / 100}
+                      memoryKey={`health.${component.key}`}
                       className="yd-hcomp__fill"
-                      style={{ width: `${component.score}%` }}
                       data-testid={`yd-hcomp-fill-${component.key}`}
                     />
                   </div>

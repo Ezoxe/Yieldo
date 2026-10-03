@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from "react";
-import { Link } from "../../app/links";
 
+import { Link } from "../../app/links";
 import { AlertsIcon, AnomalyIcon, CheckIcon, EditIcon, type IconComponent } from "../../design/icons";
 import { categoryTargetId } from "../../design/ai/targets";
 import { InfoTip } from "../../design/InfoTip";
+import { useAnimatedRatio } from "../../design/motion/useAnimatedRatio";
 import { formatCents, parseCents } from "../../design/theme";
 import { ApiError, api } from "../../lib/api";
 import { plural } from "../../lib/plural";
@@ -215,6 +216,11 @@ function BudgetSpark({ history }: { history: BudgetHistoryLine }) {
 }
 
 export function BudgetBar({ line, onSaved, history, detailHref }: BudgetBarProps) {
+  // The fill moves from the level the reader last saw for this category —
+  // last month's, when the month changes — and changes colour at the moment
+  // it crosses 80 % and 100 %, which is when the reader sees it cross. At rest
+  // the colour is the line's own status.
+  const level = useAnimatedRatio(`budget.${line.category_id}`, line.consumed_ratio);
   const spent = Math.abs(line.spent_cents);
   const percent = consumedPercent(line.consumed_ratio);
   const StatusIcon = STATUS_ICON[line.status];
@@ -267,7 +273,11 @@ export function BudgetBar({ line, onSaved, history, detailHref }: BudgetBarProps
         aria-valuemin={0}
         aria-valuemax={100}
       >
-        <div className="yd-budget__fill" style={{ width: fillPercent(line.consumed_ratio) }} />
+        <div
+          className="yd-budget__fill"
+          data-tone={level.settled ? undefined : level.tone}
+          style={{ width: fillPercent(level.ratio) }}
+        />
       </div>
 
       {/* One row, three parts: the state as a badge, the one figure that

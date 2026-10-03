@@ -6,6 +6,7 @@ import { api } from "../../lib/api";
 import type { BudgetHistoryLine, BudgetLine } from "../../lib/types";
 import { BudgetBar, consumedPercent, fillPercent } from "./BudgetBar";
 import { suggestedCeiling } from "./BudgetsPage";
+import { useMotionPreference } from "../../design/motion/motionPreference";
 
 const line: BudgetLine = {
   category_id: 1,
@@ -73,6 +74,9 @@ describe("BudgetBar", () => {
   });
 
   it("draws the fill and announces the value from the same clamped figure", () => {
+    // At rest: the fill travels to its level (useAnimatedRatio), and with
+    // motion off it simply stands there — which is what this pins.
+    useMotionPreference.setState({ disabled: true });
     render(
       <BudgetBar
         line={{
@@ -87,6 +91,7 @@ describe("BudgetBar", () => {
     const bar = screen.getByRole("progressbar", { name: /Courses/ });
     expect(bar).toHaveAttribute("aria-valuenow", "100");
     expect(bar.firstElementChild).toHaveStyle({ width: fillPercent(3.4) });
+    useMotionPreference.setState({ disabled: false });
   });
 
   it("says what is left in words, not only in colour", () => {

@@ -254,3 +254,61 @@
     display: none;
   }
 }
+
+/* The search opens where it was asked for: the scrim fades in, the panel
+   drops 6px from the top with a 2 % scale, and its groups follow 30ms apart.
+   `scale` and `translate`, never `transform`: the panel's own transform is
+   what centres it. */
+.yd-search__scrim {
+  animation: yd-search-scrim-in 200ms var(--yd-ease);
+}
+
+.yd-search__panel {
+  transform-origin: top center;
+  animation: yd-search-panel-in 220ms var(--yd-ease);
+}
+
+.yd-search__group {
+  animation: yd-search-group-in 260ms var(--yd-ease) both;
+}
+
+.yd-search__group:nth-child(2) { animation-delay: 30ms; }
+.yd-search__group:nth-child(3) { animation-delay: 60ms; }
+.yd-search__group:nth-child(4) { animation-delay: 90ms; }
+.yd-search__group:nth-child(5) { animation-delay: 120ms; }
+.yd-search__group:nth-child(n + 6) { animation-delay: 150ms; }
+
+@keyframes yd-search-scrim-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes yd-search-panel-in {
+  from {
+    opacity: 0;
+    scale: 0.98;
+    translate: 0 -6px;
+  }
+}
+
+@keyframes yd-search-group-in {
+  from {
+    opacity: 0;
+    translate: 0 4px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .yd-search__scrim,
+  .yd-search__panel,
+  .yd-search__group {
+    animation: none;
+  }
+}
+
+:root[data-motion="off"] .yd-search__scrim,
+:root[data-motion="off"] .yd-search__panel,
+:root[data-motion="off"] .yd-search__group {
+  animation: none;
+}

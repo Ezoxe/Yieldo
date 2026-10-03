@@ -122,3 +122,38 @@
     align-items: center;
   }
 }
+
+/* A section that unfolds opens and closes in height (240ms) instead of
+ * jumping: `<details>` everywhere in the app — the methods behind a figure,
+ * « Sur quelle période, et ce qui la lèverait », the advanced fields.
+ *
+ * `interpolate-size` lets `height: auto` be a transition's end; a browser
+ * without it opens the section at once, as before. Its marker turns with it
+ * (the summaries that draw a chevron of their own rotate it themselves). */
+@supports (interpolate-size: allow-keywords) {
+  :root {
+    interpolate-size: allow-keywords;
+  }
+
+  details::details-content {
+    height: 0;
+    overflow: clip;
+    transition:
+      height 240ms var(--yd-ease),
+      content-visibility 240ms allow-discrete;
+  }
+
+  details[open]::details-content {
+    height: auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  details::details-content {
+    transition: none;
+  }
+}
+
+:root[data-motion="off"] details::details-content {
+  transition: none;
+}

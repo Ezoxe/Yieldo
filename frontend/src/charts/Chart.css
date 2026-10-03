@@ -88,3 +88,27 @@
   margin: 0;
   color: var(--yd-text-muted);
 }
+
+/* The export menu opens from its button, like every menu in the app. */
+.yd-chart__export-menu {
+  transform-origin: top right;
+  animation: yd-chart-menu-in 160ms var(--yd-ease);
+}
+
+@keyframes yd-chart-menu-in {
+  from {
+    opacity: 0;
+    scale: 0.97;
+    translate: 0 -4px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .yd-chart__export-menu {
+    animation: none;
+  }
+}
+
+:root[data-motion="off"] .yd-chart__export-menu {
+  animation: none;
+}

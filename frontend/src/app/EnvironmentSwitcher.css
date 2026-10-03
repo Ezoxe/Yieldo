@@ -173,3 +173,27 @@
   margin-top: 0.2em;
   color: var(--yd-accent);
 }
+
+/* The switcher's menu opens from its button, like the account menu. */
+.yd-env__menu {
+  transform-origin: top left;
+  animation: yd-env-menu-in 160ms var(--yd-ease);
+}
+
+@keyframes yd-env-menu-in {
+  from {
+    opacity: 0;
+    scale: 0.97;
+    translate: 0 -4px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .yd-env__menu {
+    animation: none;
+  }
+}
+
+:root[data-motion="off"] .yd-env__menu {
+  animation: none;
+}

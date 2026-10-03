@@ -173,3 +173,29 @@
     padding-right: 3px;
   }
 }
+
+/* The menu opens from its button: a fade, 4px and a 3 % scale anchored on
+   the corner it hangs from, in 160ms. It closes at once — a menu dismissed
+   is a menu the reader is done with. */
+.yd-user-menu__panel {
+  transform-origin: top right;
+  animation: yd-user-menu-in 160ms var(--yd-ease);
+}
+
+@keyframes yd-user-menu-in {
+  from {
+    opacity: 0;
+    scale: 0.97;
+    translate: 0 -4px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .yd-user-menu__panel {
+    animation: none;
+  }
+}
+
+:root[data-motion="off"] .yd-user-menu__panel {
+  animation: none;
+}

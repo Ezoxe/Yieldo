@@ -180,6 +180,7 @@ export function CashflowChart({ buckets, granularity }: CashflowChartProps) {
 
   return (
     <Chart
+      memoryKey="chart.cashflow"
       option={option}
       height={340}
       ariaLabel={ariaLabel}

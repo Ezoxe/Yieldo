@@ -12,8 +12,16 @@
  * only reads it once when it mounts, and a store would re-render every
  * subscriber each time any figure was remembered.
  */
+/** What a chart last showed: the signature to compare, the option to morph
+ *  from (charts/chartAnimation.ts). Typed loosely so this module does not
+ *  depend on the charting library. */
+export interface ChartRecord {
+  signature: string;
+  option: unknown;
+}
+
 const figures = new Map<string, number>();
-const charts = new Map<string, string>();
+const charts = new Map<string, ChartRecord>();
 
 export const figureMemory = {
   recall(key: string): number | undefined {
@@ -24,13 +32,13 @@ export const figureMemory = {
   },
 };
 
-/** A chart remembers the signature of the data it last drew (chartAnimation). */
+/** A chart remembers what it last drew (charts/chartAnimation.ts). */
 export const chartMemory = {
-  recall(key: string): string | undefined {
+  recall(key: string): ChartRecord | undefined {
     return charts.get(key);
   },
-  remember(key: string, signature: string): void {
-    charts.set(key, signature);
+  remember(key: string, record: ChartRecord): void {
+    charts.set(key, record);
   },
 };
 

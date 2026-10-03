@@ -3,8 +3,10 @@ import { useEffect, useRef, useState } from "react";
 
 import { useTheme } from "../app/ThemeProvider";
 import { DownloadIcon } from "../design/icons";
+import { chartMemory } from "../design/motion/sessionMemory";
 import { useReducedMotion } from "../design/motion/useReducedMotion";
 import { useMediaQuery } from "../lib/useMediaQuery";
+import { chartMotion, chartSignature } from "./chartAnimation";
 import "./Chart.css";
 import { echarts } from "./echarts";
 import { buildEchartsTheme, chartTokens } from "./theme";
@@ -33,6 +35,13 @@ interface ChartProps {
    * spent on an axis and a legend. Never taller than `height`.
    */
   phoneHeight?: number;
+  /**
+   * The chart's slot in the session memory. With one it is drawn once a
+   * session, then morphs from what the reader last saw, and holds still when
+   * nothing changed (chartAnimation.ts); without one it is drawn on every
+   * mount.
+   */
+  memoryKey?: string;
   ariaLabel: string;
   onEvents?: Record<string, (params: unknown) => void>;
   /** When provided, the export menu also offers the underlying rows as CSV. */
@@ -84,6 +93,7 @@ export function Chart({
   option,
   height = 320,
   phoneHeight,
+  memoryKey,
   ariaLabel,
   onEvents,
   dataForExport,
@@ -95,9 +105,14 @@ export function Chart({
   const phone = useMediaQuery("(max-width: 639px)");
   const shownHeight = phone ? Math.min(height, phoneHeight ?? PHONE_HEIGHT) : height;
   const [menuOpen, setMenuOpen] = useState(false);
+  // Whether THIS instance has been given an option yet: the first one decides
+  // between draw, morph and still; the next ones are this chart changing in
+  // front of the reader, which ECharts animates as an update.
+  const fed = useRef(false);
 
   useEffect(() => {
     if (!container.current) return;
+    fed.current = false;
     echarts.registerTheme(THEME_NAME, buildEchartsTheme(resolved));
     instance.current = echarts.init(container.current, THEME_NAME, { renderer: "canvas" });
 
@@ -118,16 +133,48 @@ export function Chart({
   }, [resolved]);
 
   useEffect(() => {
-    instance.current?.setOption(
-      {
-        ...option,
-        animation: !reducedMotion,
-        animationDuration: 700,
-        animationEasing: "cubicOut",
-      },
-      { notMerge: false, lazyUpdate: true },
-    );
-  }, [option, reducedMotion]);
+    const chart = instance.current;
+    if (!chart) return;
+    const signature = chartSignature(option);
+    const remembered = memoryKey === undefined ? undefined : chartMemory.recall(memoryKey);
+
+    if (reducedMotion) {
+      chart.setOption({ ...option, animation: false }, { notMerge: false, lazyUpdate: true });
+    } else if (fed.current) {
+      // The same chart, new data: it changes shape where it stands.
+      chart.setOption(
+        { ...option, animation: true, animationDurationUpdate: 500, animationEasingUpdate: "cubicOut" },
+        { notMerge: false, lazyUpdate: true, replaceMerge: ["series"] },
+      );
+    } else {
+      const motion = chartMotion(remembered?.signature, signature);
+      if (motion === "morph" && remembered) {
+        // Start from what the reader last saw, then become what is true now.
+        chart.setOption({ ...(remembered.option as EChartsOption), animation: false }, { notMerge: true });
+        chart.setOption(
+          { ...option, animation: true, animationDurationUpdate: 600, animationEasingUpdate: "cubicOut" },
+          { notMerge: false, replaceMerge: ["series"] },
+        );
+      } else if (motion === "still") {
+        chart.setOption({ ...option, animation: false }, { notMerge: false, lazyUpdate: true });
+      } else {
+        // Drawn: the lines trace themselves, the bars rise one after another
+        // (25ms apart, eight at most, so a long series does not take seconds).
+        chart.setOption(
+          {
+            ...option,
+            animation: true,
+            animationDuration: 700,
+            animationEasing: "exponentialOut",
+            animationDelay: (index: number) => Math.min(index, 8) * 25,
+          },
+          { notMerge: false, lazyUpdate: true },
+        );
+      }
+    }
+    fed.current = true;
+    if (memoryKey !== undefined) chartMemory.remember(memoryKey, { signature, option });
+  }, [option, reducedMotion, memoryKey]);
 
   useEffect(() => {
     if (!instance.current || !onEvents) return;

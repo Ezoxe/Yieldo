@@ -250,6 +250,7 @@ export function CategoryTreemap({ items }: CategoryTreemapProps) {
 
   return (
     <Chart
+      memoryKey="chart.treemap"
       option={option}
       height={360}
       ariaLabel="Répartition des dépenses par catégorie, forable vers les sous-catégories."

@@ -146,6 +146,7 @@ export function SavingsChart({ projection }: { projection: SavingsSimulation }) 
     <>
       <ChartKey entries={savingsLegend(projection, resolved)} />
       <Chart
+        memoryKey="chart.savings"
         option={buildSavingsOption(projection, resolved)}
         height={300}
         ariaLabel={

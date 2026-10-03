@@ -187,6 +187,7 @@ export function DebtPayoffChart({ points, names }: DebtPayoffChartProps) {
       ))}
     </ul>
     <Chart
+      memoryKey="chart.debt-payoff"
       option={buildPayoffOption(points, names, resolved)}
       height={300}
       ariaLabel={

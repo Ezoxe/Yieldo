@@ -112,6 +112,7 @@ export function SpendingDonut({ slices, totalCents }: SpendingDonutProps) {
   return (
     <div className="yd-donut" data-ai-target="budget-donut">
       <Chart
+        memoryKey="chart.donut"
         option={option}
         height={300}
         ariaLabel={`Répartition des dépenses par catégorie, ${formatCents(totalCents)} au total.`}

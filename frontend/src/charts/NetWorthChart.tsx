@@ -109,6 +109,7 @@ export function NetWorthChart({ history }: { history: NetWorthPoint[] }) {
     <>
       <ChartKey entries={netWorthKey(resolved)} />
       <Chart
+        memoryKey="chart.net-worth"
         option={buildNetWorthOption(history, resolved)}
         height={240}
         ariaLabel={

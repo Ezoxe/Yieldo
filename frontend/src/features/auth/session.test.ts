@@ -60,7 +60,7 @@ describe("session store and the figure memory", () => {
   it("forgets every remembered figure and chart on logout", async () => {
     const { figureMemory, chartMemory } = await import("../../design/motion/sessionMemory");
     figureMemory.remember("overview.net", 184_237);
-    chartMemory.remember("cashflow", "abc");
+    chartMemory.remember("cashflow", { signature: "abc", option: {} });
     fetchMock.mockResolvedValue(new Response(null, { status: 204 }));
 
     await useSession.getState().logout();

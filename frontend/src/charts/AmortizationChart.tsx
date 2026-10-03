@@ -182,6 +182,7 @@ export function AmortizationChart({
     <>
       <ChartKey entries={amortizationLegend(resolved)} />
       <Chart
+        memoryKey="chart.amortization"
         option={buildAmortizationOption(years, resolved)}
         height={300}
         ariaLabel={

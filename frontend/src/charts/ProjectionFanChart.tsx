@@ -237,6 +237,7 @@ export function ProjectionFanChart({ projection }: { projection: MonteCarloProje
     <>
       <ChartKey entries={keyEntries} />
       <Chart
+        memoryKey="chart.projection"
         option={option}
         height={320}
         ariaLabel={ariaLabel}

@@ -205,6 +205,7 @@ export function WaterfallChart({ summary, categories }: WaterfallChartProps) {
 
   return (
     <Chart
+      memoryKey="chart.waterfall"
       option={option}
       height={360}
       ariaLabel={ariaLabel}

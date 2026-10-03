@@ -124,6 +124,7 @@ export function CategoryMonthsChart({ series, current, averageCents }: CategoryM
   const { option, exportRows } = buildCategoryMonthsOption(series, current, averageCents, chartTokens(resolved));
   return (
     <Chart
+      memoryKey="chart.category-months"
       option={option}
       height={260}
       ariaLabel="Dépense de la catégorie, mois par mois"

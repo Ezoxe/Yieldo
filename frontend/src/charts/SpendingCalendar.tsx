@@ -326,6 +326,7 @@ export function SpendingCalendar({ points }: SpendingCalendarProps) {
   return (
     <div ref={measureRef}>
       <Chart
+        memoryKey="chart.calendar"
         option={option}
         height={calendarHeightFor(cell)}
         ariaLabel={`Calendrier des dépenses du ${frenchDay(first)} au ${frenchDay(last)}, un jour plus foncé signifie plus de dépenses.`}

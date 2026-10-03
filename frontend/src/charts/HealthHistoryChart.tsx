@@ -118,6 +118,7 @@ export function HealthHistoryChart({ history }: { history: HealthSnapshot[] }) {
     <>
       <ChartKey entries={healthHistoryKey(resolved)} />
       <Chart
+        memoryKey="chart.health"
         option={buildHealthHistoryOption(history, resolved)}
         height={260}
         ariaLabel={

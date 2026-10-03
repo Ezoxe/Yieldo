@@ -8,6 +8,7 @@ import { PanelHead } from "../../design/bento/PanelHead";
 import { Method } from "../../design/Method";
 import { AssistantIcon, ConnectionsIcon } from "../../design/icons";
 import { PageHead } from "../../design/PageHead";
+import { SaveLabel } from "../../design/motion/SaveFeedback";
 import { useReducedMotion } from "../../design/motion/useReducedMotion";
 import { entryProps, staggerProps } from "../../design/motion/variants";
 import "../../design/Skeleton.css";
@@ -246,6 +247,8 @@ export function ConnectionsPage() {
   const [modelKey, setModelKey] = useState("");
   const [timeout_, setTimeout_] = useState("");
   const [modelOutcome, setModelOutcome] = useState<Outcome | null>(null);
+  // Counted so the button says « Enregistré » once per successful save.
+  const [modelSaves, setModelSaves] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -355,6 +358,7 @@ export function ConnectionsPage() {
       setLlm(saved);
       setTimeout_(String(saved.timeout_seconds));
       setModelKey("");
+      setModelSaves((count) => count + 1);
       setModelOutcome({
         ok: true,
         message:
@@ -600,7 +604,11 @@ export function ConnectionsPage() {
                   className="yd-conn__action yd-conn__action--primary"
                   disabled={busy === "llm" || endpoint.trim() === "" || model.trim() === ""}
                 >
-                  {busy === "llm" ? "Enregistrement…" : "Enregistrer le modèle"}
+                  <SaveLabel
+                    saved={modelSaves}
+                    saving={busy === "llm"}
+                    label="Enregistrer le modèle"
+                  />
                 </button>
                 {llm.configured ? (
                   <button

@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
 
 import { SaveIcon } from "../../design/icons";
+import { SaveLabel } from "../../design/motion/SaveFeedback";
 import { ApiError, api } from "../../lib/api";
 import type { User } from "../../lib/types";
 import { applySession } from "../auth/session";
@@ -131,8 +132,13 @@ export function PasswordForm() {
       ) : null}
 
       <button type="submit" className="yd-account__submit" disabled={saving || !filled}>
-        <SaveIcon />
-        {saving ? "Enregistrement…" : "Changer le mot de passe"}
+        <SaveLabel
+          saved={saved}
+          saving={saving}
+          label="Changer le mot de passe"
+          savedLabel="Modifié"
+          icon={<SaveIcon />}
+        />
       </button>
     </form>
   );

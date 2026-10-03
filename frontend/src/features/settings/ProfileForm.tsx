@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
 
 import { SaveIcon } from "../../design/icons";
+import { SaveLabel } from "../../design/motion/SaveFeedback";
 import { ApiError, api } from "../../lib/api";
 import type { User } from "../../lib/types";
 import { useSession } from "../auth/session";
@@ -129,8 +130,7 @@ export function ProfileForm() {
         className="yd-account__submit"
         disabled={saving || !dirty || (emailChanged && password === "")}
       >
-        <SaveIcon />
-        {saving ? "Enregistrement…" : "Enregistrer le profil"}
+        <SaveLabel saved={saved} saving={saving} label="Enregistrer le profil" icon={<SaveIcon />} />
       </button>
     </form>
   );

@@ -7,6 +7,7 @@ import { InfoTip } from "../../design/InfoTip";
 import { PageHead } from "../../design/PageHead";
 import { PageSkeleton } from "../../design/PageSkeleton";
 import { HaltIcon, MandateIcon, OversightIcon } from "../../design/icons";
+import { SaveLabel } from "../../design/motion/SaveFeedback";
 import { parseCents } from "../../design/theme";
 import { ApiError, api } from "../../lib/api";
 import { useApiQuery, useInvalidate } from "../../lib/useApiQuery";
@@ -438,7 +439,7 @@ export function MandatePage() {
       <div className="yd-invest-actions">
         <button type="button" className="yd-button yd-button--primary"
                 onClick={() => void save()} disabled={saving}>
-          {saving ? "Enregistrement…" : "Enregistrer le mandat"}
+          <SaveLabel saved={saved} saving={saving} label="Enregistrer le mandat" />
         </button>
         {saved ? <span className="yd-note">Mandat enregistré.</span> : null}
       </div>

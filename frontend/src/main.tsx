@@ -6,6 +6,7 @@ import { RouterProvider } from "react-router/dom";
 import { router } from "./app/routes";
 import { DensityProvider } from "./app/DensityProvider";
 import { ThemeProvider } from "./app/ThemeProvider";
+import { installInvalidShake } from "./design/motion/invalidShake";
 import { applyMotionAttribute } from "./design/motion/motionPreference";
 import {
   readStoredDensity,
@@ -44,6 +45,10 @@ document.documentElement.dataset.density = readStoredDensity();
 // than only inside setDisabled so a reload with animations off never plays one
 // frame of motion before React boots.
 applyMotionAttribute(readStoredMotionDisabled());
+
+// Every form in the app, login included: the fields a submission refused
+// shake once (design/motion/invalidShake.ts).
+installInvalidShake();
 
 const queryClient = new QueryClient();
 

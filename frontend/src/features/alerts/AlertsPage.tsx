@@ -7,6 +7,7 @@ import { BentoGrid } from "../../design/bento/BentoGrid";
 import { PanelHead } from "../../design/bento/PanelHead";
 import { AlertsIcon, ChevronIcon, CoinsIcon, InfoIcon, ListIcon } from "../../design/icons";
 import { PageHead } from "../../design/PageHead";
+import { SaveLabel } from "../../design/motion/SaveFeedback";
 import { useReducedMotion } from "../../design/motion/useReducedMotion";
 import { entryProps, staggerProps } from "../../design/motion/variants";
 import { centsToInput, formatCents, parseCents } from "../../design/theme";
@@ -185,6 +186,9 @@ export function AlertsPage() {
   const [floorInput, setFloorInput] = useState("");
   const [floorError, setFloorError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  // Successful floor saves, counted: the button says « Enregistré » once per
+  // save. Removing the floor is not one — that button is another sentence.
+  const [floorSaves, setFloorSaves] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -221,6 +225,7 @@ export function AlertsPage() {
       setReport(refreshed);
       setFloorInput(cents === null ? "" : centsToInput(cents));
       setFloorError(null);
+      if (cents !== null) setFloorSaves((count) => count + 1);
     } catch (err) {
       setError(messageFor(err));
     } finally {
@@ -404,7 +409,7 @@ export function AlertsPage() {
                   className="yd-floor__action yd-floor__action--primary"
                   disabled={saving}
                 >
-                  {saving ? "Enregistrement…" : "Enregistrer le seuil"}
+                  <SaveLabel saved={floorSaves} saving={saving} label="Enregistrer le seuil" />
                 </button>
                 {report.settings.balance_floor_cents !== null ? (
                   <button

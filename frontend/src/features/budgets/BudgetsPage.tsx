@@ -475,7 +475,7 @@ export function BudgetsPage() {
         <BentoCell
           as={motion.div}
           span={SPAN.donut}
-          className="yd-panel"
+          className="yd-panel yd-budgets__cell--donut"
           data-ai-target="budget-donut"
           {...entryProps(reduced)}
         >
@@ -486,7 +486,7 @@ export function BudgetsPage() {
         <BentoCell
           as={motion.div}
           span={SPAN.split}
-          className="yd-panel"
+          className="yd-panel yd-budgets__cell--split"
           data-ai-target="budget-split"
           {...entryProps(reduced)}
         >
@@ -500,7 +500,8 @@ export function BudgetsPage() {
         </BentoCell>
 
         <BentoCell as={motion.div} span={SPAN.lines}
-          data-ai-target="panel-budgets" className="yd-panel" {...entryProps(reduced)}>
+          data-ai-target="panel-budgets" className="yd-panel yd-budgets__cell--lines"
+          {...entryProps(reduced)}>
           <PanelHead
             icon={BudgetsIcon}
             subtitle={comparableTotals(report.total_budget_cents, report.budgeted_spent_cents)}
@@ -532,7 +533,7 @@ export function BudgetsPage() {
         <BentoCell
           as={motion.div}
           span={SPAN.unbudgeted}
-          className="yd-panel"
+          className="yd-panel yd-budgets__cell--unbudgeted"
           {...entryProps(reduced)}
         >
           <PanelHead icon={ListIcon}>Sans budget</PanelHead>

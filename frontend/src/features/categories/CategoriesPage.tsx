@@ -6,10 +6,17 @@ import { BentoGrid } from "../../design/bento/BentoGrid";
 import { PanelHead } from "../../design/bento/PanelHead";
 import { EmptyState } from "../../design/EmptyState";
 import { ListSkeleton } from "../../design/ListSkeleton";
-import { CategoriesIcon, PlusIcon } from "../../design/icons";
+import {
+  CategoriesIcon,
+  EditIcon,
+  PlusIcon,
+  RowActionsIcon,
+  TrashIcon,
+} from "../../design/icons";
 import { entryProps, staggerProps } from "../../design/motion/variants";
 import { useReducedMotion } from "../../design/motion/useReducedMotion";
 import { PageHead } from "../../design/PageHead";
+import { Sheet } from "../../design/Sheet";
 import { formatCents } from "../../design/theme";
 import { ApiError, api } from "../../lib/api";
 import type { Category } from "../../lib/types";
@@ -72,6 +79,8 @@ function CategoryRow({ category, depth, onChanged }: RowProps) {
   const [essential, setEssential] = useState(category.is_essential);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  // The phone's one door to the row's two actions (see the sheet below).
+  const [actionsOpen, setActionsOpen] = useState(false);
 
   async function save(event: FormEvent) {
     event.preventDefault();
@@ -139,7 +148,52 @@ function CategoryRow({ category, depth, onChanged }: RowProps) {
             Supprimer
           </button>
         </span>
+        {/* A phone's single control for the two above, which it hides: they
+            wrapped every row onto a second line of 28px targets. */}
+        <button
+          type="button"
+          className="yd-categories__more"
+          aria-label={`Actions pour ${category.name}`}
+          onClick={() => setActionsOpen(true)}
+          disabled={saving}
+        >
+          <RowActionsIcon />
+        </button>
       </div>
+
+      <Sheet
+        open={actionsOpen}
+        onClose={() => setActionsOpen(false)}
+        title={category.name}
+        subtitle={
+          category.monthly_budget_cents === null
+            ? "Sans budget"
+            : `${formatCents(category.monthly_budget_cents)} / mois`
+        }
+      >
+        <button
+          type="button"
+          className="yd-categories__sheet-action"
+          onClick={() => {
+            setActionsOpen(false);
+            setEditing(true);
+          }}
+        >
+          <EditIcon />
+          Modifier
+        </button>
+        <button
+          type="button"
+          className="yd-categories__sheet-action yd-categories__sheet-action--danger"
+          onClick={() => {
+            setActionsOpen(false);
+            void remove();
+          }}
+        >
+          <TrashIcon />
+          Supprimer
+        </button>
+      </Sheet>
 
       {editing ? (
         <form className="yd-categories__form" onSubmit={save}>

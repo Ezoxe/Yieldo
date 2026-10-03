@@ -713,3 +713,21 @@
   outline-offset: 2px;
   border-radius: 2px;
 }
+
+/* A phone opens Budgets to set or check a ceiling: the list of ceilings
+   comes first, then where the money went and what has no ceiling yet, and
+   the ring — the same split drawn — last. Visual order only. */
+@media (max-width: 767px) {
+  .yd-budgets__cell--lines { order: 1; }
+  .yd-budgets__cell--split { order: 2; }
+  .yd-budgets__cell--unbudgeted { order: 3; }
+  .yd-budgets__cell--donut { order: 4; }
+}
+
+/* Each line of « Où va l'argent » opens its category's page: on a touch
+   screen the whole row is a thumb's height. */
+@media (pointer: coarse) {
+  .yd-split__row {
+    min-height: 44px;
+  }
+}

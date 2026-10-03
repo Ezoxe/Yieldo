@@ -492,6 +492,22 @@ export function MenuIcon(props: IconProps) {
   );
 }
 
+/**
+ * The actions of one row, behind a single control — where a phone has room for
+ * one 44px button and not for « Modifier » and « Supprimer » side by side.
+ * Three stroked dots (Lucide's ellipsis): a different meaning from the menu's
+ * three lines, which open the navigation.
+ */
+export function RowActionsIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <circle cx="5" cy="12" r="1" />
+      <circle cx="12" cy="12" r="1" />
+      <circle cx="19" cy="12" r="1" />
+    </Icon>
+  );
+}
+
 /** A list of rows. */
 export function ListIcon(props: IconProps) {
   return (

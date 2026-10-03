@@ -6,6 +6,7 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { useMotionPreference } from "../../design/motion/motionPreference";
 import type { Category } from "../../lib/types";
 import { CategoriesPage, groupByParent, parseBudget } from "./CategoriesPage";
 
@@ -111,6 +112,25 @@ describe("CategoriesPage", () => {
     expect(tree().getByText("Alimentation")).toBeInTheDocument();
     expect(screen.getByText("450,00 € / mois")).toBeInTheDocument();
     expect(screen.getAllByText("Sans budget").length).toBe(2);
+  });
+
+  // On a phone « Modifier » and « Supprimer » side by side wrapped every row
+  // onto two lines of 28px buttons. One 44px button per row opens the row's
+  // actions in a sheet; the wide screen keeps its two words.
+  it("opens a row's actions from one button, for a phone", async () => {
+    useMotionPreference.setState({ disabled: true });
+    const user = userEvent.setup();
+    render(<CategoriesPage />);
+    await screen.findByRole("list", { name: "Votre arborescence" });
+
+    await user.click(screen.getByRole("button", { name: "Actions pour Courses" }));
+    const sheet = within(screen.getByRole("dialog", { name: "Courses" }));
+    await user.click(sheet.getByRole("button", { name: "Modifier" }));
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    const row = tree().getByText("Courses").closest("li") as HTMLElement;
+    expect(within(row).getByLabelText("Nom")).toHaveValue("Courses");
+    useMotionPreference.setState({ disabled: false });
   });
 
   it("marks a category the household called essential", async () => {

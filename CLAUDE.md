@@ -368,6 +368,80 @@ live only in `ThinkingIndicator`. Réglages → Apparence turns him off;
   `overflow-x: auto` container; the page never scrolls horizontally, and at
   390 px every column of a grid must still be reachable.
 
+## Phone
+
+Three widths decide the layout, and a screen is judged at 390 with touch
+emulation as well as at 1440.
+
+- **≤ 899px — the compact shell.** A 56px header (search, account; import
+  and assistant leave it), `BottomTabs` at the foot, and the rest of the
+  navigation in `app/MoreSheet.tsx` (« Plus »), a bottom sheet with the
+  Finances / Investissement switch. `useCompactTitle` puts the screen's
+  title in the header once its `h1` has scrolled away.
+- **≤ 767px — the bento's phone grid.** Two columns; `BentoCell` takes `sm`
+  (default 2, i.e. full width; `sm: 1` for a half tile). A screen reorders
+  its cells for the phone with `order` on its own cell classes, never by
+  rendering a second layout.
+- **≤ 639px — the phone proper.** `PageHead` clamps its lead to two lines
+  behind « Lire la suite » (`useLineClamp`); `Drawer` renders as a `Sheet`
+  (`design/Sheet.tsx`: drag from the head, Escape and scrim close it, focus
+  returns to the opener, the page does not scroll under it); period chips
+  slide in one row; a transaction is a 60px row that opens
+  `TransactionSheet`; `Chart` caps its height at `phoneHeight` (240).
+
+Two rules in `design/controls.css`: under 900px no input is smaller than
+16px (iOS zooms on focus otherwise), and on a coarse pointer every control in
+`.yd-shell__main` is at least 44px tall. A link that is the only control of
+its row covers the whole row on a coarse pointer (`::after`, `inset: 0`, the
+row `position: relative`) instead of being a 21px line of text; a link
+inside a sentence stays a link inside a sentence.
+
+## Motion
+
+The « Fluide » language: `design/motion/variants.ts` holds the curves
+(`SIGNATURE_EASE` for what arrives, `EXIT_EASE` for what leaves, at about
+60 % of the entry's duration, `QUART_OUT` for figures); cascades step 25 to
+45ms and stop at eight items. Motion carries information — where a screen
+came from, what changed since the reader last looked, which field refused —
+and never delays a figure.
+
+- **Two switches, both honoured.** `useReducedMotion()` is the JS gate (the
+  Réglages switch or `prefers-reduced-motion`); `:root[data-motion="off"]`
+  and `@media (prefers-reduced-motion: reduce)` are its CSS twins. A CSS
+  animation ships with both `animation: none` blocks.
+- **Screens.** Every in-app link comes from `app/links.tsx`, never straight
+  from react-router: it asks for a View Transition and writes `data-vt-dir`
+  (deeper, back, sideways) for `app/viewTransitions.css`. `RouterProvider` is
+  imported from `react-router/dom`. A shared element (a budget's name
+  becoming its universe's title, `yd-budget-<id>`) is named on click only.
+  Screen chunks preload on idle (`app/screenPreload.ts`) so a transition
+  never lands on a skeleton.
+- **Session memory, not storage.** `design/motion/sessionMemory.ts` keeps
+  what the reader last saw — `figureMemory` for figures and bars,
+  `chartMemory` for charts — in memory only, cleared by `clearSession` at
+  logout. Nothing is written to `localStorage`. `AnimatedNumber`
+  (`memoryKey`), `useAnimatedRatio` / `AnimatedFill`, `DeltaPill` with
+  `useFigureDelta` (« depuis votre dernier passage ») and `Chart`'s
+  `memoryKey` (drawn once, then morphed from what was shown) read it.
+- **Primitives.** `LoadSwap` (a skeleton only after 150ms, then a
+  cross-fade), `useFlipList` (rows marked `data-flip-key` glide to their new
+  place), `SaveLabel` (« Enregistré » with a check drawn in the button for
+  1.4s; the form's `role="status"` line stays), `installInvalidShake` (the
+  fields a submission marked `aria-invalid` shake once — on submit, never
+  while typing), the `[role="alert"]` entry in `controls.css`, and
+  `drawn.css` for any stroke that draws itself.
+- **Moments.** The theme changes in a circle opened from where it was asked
+  for (`ThemeProvider.setPreference(next, revealOrigin(event))`,
+  `data-vt="theme"`); a goal reached closes its bar, turns it positive and
+  draws its check (`GoalTrack`).
+- **Testing it.** A test that reads a width or a position pins motion off
+  (`useMotionPreference.setState({ disabled: true })`); a test about the
+  movement mocks Motion's `animate` (`vi.hoisted` + `vi.mock("motion")`). In
+  a hidden browser pane or a headless page, frames are not produced on their
+  own: `requestAnimationFrame` and CSS animations stand still. Judge a
+  movement there by pausing it (`getAnimations()`) and setting `currentTime`,
+  not by waiting.
+
 ## Design tokens
 
 Neutral near-black ground (`#07070a`), surfaces raised in layers

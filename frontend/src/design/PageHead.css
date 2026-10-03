@@ -37,10 +37,20 @@
   color: var(--yd-text);
 }
 
+/* Whatever the screen put under its title: usually one paragraph, sometimes a
+   paragraph and a line of links. One box, so a phone can cut it at two lines
+   as a whole. */
+.yd-page-head__lead {
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-2xs);
+  min-width: 0;
+}
+
 /* Every screen's lead paragraph, whatever its own class is called. Capped: the
    content column now runs to 1680px, and a 240-character line of 0.9rem prose
    is unreadable however wide the display is. */
-.yd-page-head__text > p {
+.yd-page-head__lead > p {
   margin: 0;
   max-width: 92ch;
   font-size: 0.9rem;
@@ -50,15 +60,37 @@
 
 /* A screen named in a lead is a way there, in the interactive accent -- never
    the browser's own blue, which no theme here defines. */
-.yd-page-head__text > p a {
+.yd-page-head__lead > p a {
   color: var(--yd-accent);
   font-weight: 600;
   text-decoration: none;
 }
 
-.yd-page-head__text > p a:hover,
-.yd-page-head__text > p a:focus-visible {
+.yd-page-head__lead > p a:hover,
+.yd-page-head__lead > p a:focus-visible {
   text-decoration: underline;
+}
+
+/* « Lire la suite » — a word in the accent, not a button-shaped button: it
+   continues the sentence above it. Only ever rendered on a phone, and only
+   when the two-line cut hides something (see useLineClamp). */
+.yd-page-head__more {
+  align-self: flex-start;
+  min-height: 32px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--yd-accent);
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.yd-page-head__more:focus-visible {
+  outline: 2px solid var(--yd-accent);
+  outline-offset: 2px;
+  border-radius: 4px;
 }
 
 .yd-page-head__actions {
@@ -68,26 +100,38 @@
   flex-shrink: 0;
 }
 
-/* Below 640px the mark and the title still share a row — dropping the mark to
-   its own line would leave it stranded — but a screen-level control moves
-   under the text rather than squeezing the title into four characters. */
+/* A phone's head is a title, two lines of lead, and a row of controls.
+ *
+ * The mark goes: the tab bar already says where the reader is, and its 42px
+ * square was pushing the title into a column 250px wide. The lead is cut at
+ * two lines (see `.yd-page-head__more`). The screen's controls sit in ONE
+ * wrapping row at their own size — stacked full width they took 160px on
+ * Transactions before a single operation was shown. */
 @media (max-width: 639px) {
   .yd-page-head {
     flex-wrap: wrap;
+    gap: var(--yd-space-xs) var(--yd-space-sm);
   }
 
-  /* One control per line, each the full width of the column. Side by side they
-     wrapped inside themselves instead: "Voir les transactions de cette
-     période" took three lines in a 150px column beside the add button. */
+  .yd-page-head__mark {
+    display: none;
+  }
+
+  .yd-page-head__text h1 {
+    font-size: 1.5rem;
+  }
+
+  .yd-page-head__lead:not([data-expanded="true"]) {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    overflow: hidden;
+  }
+
   .yd-page-head__actions {
     width: 100%;
-    flex-direction: column;
-    align-items: stretch;
-    gap: var(--yd-space-2xs);
-  }
-
-  .yd-page-head__actions > * {
-    justify-content: center;
-    text-align: center;
+    flex-wrap: wrap;
+    gap: var(--yd-space-xs);
   }
 }

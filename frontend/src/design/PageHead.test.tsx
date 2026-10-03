@@ -1,4 +1,5 @@
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { OverviewIcon } from "./icons";
@@ -69,5 +70,68 @@ describe("PageHead", () => {
     const { container } = render(<PageHead icon={OverviewIcon} title="Patrimoine" />);
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Patrimoine");
     expect(container.querySelector(".yd-page-head__mark")).toHaveAttribute("aria-hidden", "true");
+  });
+});
+
+/**
+ * On a phone the lead is cut at two lines. « Lire la suite » appears only when
+ * the cut actually hides something — measured, since jsdom lays nothing out,
+ * through the two heights the browser would report.
+ */
+describe("PageHead on a phone", () => {
+  function heights(scroll: number, client: number) {
+    Object.defineProperty(HTMLElement.prototype, "scrollHeight", {
+      configurable: true,
+      get: () => scroll,
+    });
+    Object.defineProperty(HTMLElement.prototype, "clientHeight", {
+      configurable: true,
+      get: () => client,
+    });
+  }
+
+  afterEach(() => {
+    heights(0, 0);
+  });
+
+  it("offers « Lire la suite » when two lines hide the rest, and « Réduire » once open", async () => {
+    narrow(true);
+    heights(120, 44);
+    const user = userEvent.setup();
+    render(
+      <PageHead icon={OverviewIcon} title="Budgets">
+        <p>Ce que chaque catégorie a consommé de son enveloppe ce mois-ci, et ce qu'il en reste.</p>
+      </PageHead>,
+    );
+
+    const more = screen.getByRole("button", { name: "Lire la suite" });
+    expect(more).toHaveAttribute("aria-expanded", "false");
+    await user.click(more);
+    expect(screen.getByRole("button", { name: "Réduire" })).toHaveAttribute(
+      "aria-expanded",
+      "true",
+    );
+  });
+
+  it("promises nothing when the lead already fits", () => {
+    narrow(true);
+    heights(40, 44);
+    render(
+      <PageHead icon={OverviewIcon} title="Avenir">
+        <p>Votre argent, jour après jour.</p>
+      </PageHead>,
+    );
+    expect(screen.queryByRole("button", { name: "Lire la suite" })).not.toBeInTheDocument();
+  });
+
+  it("never cuts the lead on a wide screen", () => {
+    narrow(false);
+    heights(120, 44);
+    render(
+      <PageHead icon={OverviewIcon} title="Budgets">
+        <p>Un long texte.</p>
+      </PageHead>,
+    );
+    expect(screen.queryByRole("button", { name: "Lire la suite" })).not.toBeInTheDocument();
   });
 });

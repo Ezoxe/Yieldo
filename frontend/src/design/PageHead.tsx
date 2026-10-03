@@ -1,8 +1,9 @@
-import type { ReactNode } from "react";
+import { useRef, type ReactNode } from "react";
 
 import { useMediaQuery } from "../lib/useMediaQuery";
 import { IconBadge, type IconTone } from "./icons/IconBadge";
 import type { IconComponent } from "./icons/Icon";
+import { useLineClamp } from "./useLineClamp";
 import "./PageHead.css";
 
 interface PageHeadProps {
@@ -42,6 +43,11 @@ interface PageHeadProps {
  * is what ties the two together — a reader arriving from the nav sees the mark
  * they just clicked at the top of the page. It is decoration (`aria-hidden`),
  * never the accessible name: the `h1` alone names the screen.
+ *
+ * On a phone the mark goes (the tab bar already says where the reader is), and
+ * whatever lead is left is cut at two lines with « Lire la suite » under it —
+ * only when the cut hides something, see `useLineClamp`. A lead is context, and
+ * on a 844px screen context is not allowed to push the first figure off it.
  */
 export function PageHead({
   icon,
@@ -52,16 +58,32 @@ export function PageHead({
   actions,
   className = "",
 }: PageHeadProps) {
-  // The same breakpoint PageHead.css already uses to stack the head's own row.
+  // The same breakpoint PageHead.css uses for the phone layout.
   const narrow = useMediaQuery("(max-width: 639px)");
   const lead = narrow && shortLead ? shortLead : children;
+  const leadRef = useRef<HTMLDivElement>(null);
+  const clamp = useLineClamp(leadRef, narrow && Boolean(lead));
 
   return (
     <div className={`yd-page-head ${className}`.trim()}>
       <IconBadge icon={icon} tone={tone} className="yd-page-head__mark" />
       <div className="yd-page-head__text">
         <h1>{title}</h1>
-        {lead}
+        {lead ? (
+          <div className="yd-page-head__lead" data-expanded={clamp.expanded} ref={leadRef}>
+            {lead}
+          </div>
+        ) : null}
+        {clamp.clamped ? (
+          <button
+            type="button"
+            className="yd-page-head__more"
+            aria-expanded={clamp.expanded}
+            onClick={clamp.toggle}
+          >
+            {clamp.expanded ? "Réduire" : "Lire la suite"}
+          </button>
+        ) : null}
       </div>
       {actions ? <div className="yd-page-head__actions">{actions}</div> : null}
     </div>

@@ -1,5 +1,5 @@
 import { motion } from "motion/react";
-import { useEffect, useState, type CSSProperties, type FormEvent } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type FormEvent } from "react";
 
 import { BentoCell, type BentoSpan } from "../../design/bento/BentoCell";
 import { BentoGrid } from "../../design/bento/BentoGrid";
@@ -13,6 +13,7 @@ import {
   RowActionsIcon,
   TrashIcon,
 } from "../../design/icons";
+import { useFlipList } from "../../design/motion/useFlipList";
 import { entryProps, staggerProps } from "../../design/motion/variants";
 import { useReducedMotion } from "../../design/motion/useReducedMotion";
 import { PageHead } from "../../design/PageHead";
@@ -124,7 +125,10 @@ function CategoryRow({ category, depth, onChanged }: RowProps) {
   }
 
   return (
-    <li className={`yd-categories__row yd-categories__row--depth-${depth}`}>
+    <li
+      className={`yd-categories__row yd-categories__row--depth-${depth}`}
+      data-flip-key={category.id}
+    >
       <div className="yd-categories__line">
         <span
           className="yd-categories__dot"
@@ -389,6 +393,10 @@ export function CategoriesPage() {
 
   const reload = () => setToken((value) => value + 1);
   const groups = categories === null ? [] : groupByParent(categories);
+  // A category added, renamed into another place, or deleted: the tree
+  // makes room by gliding (useFlipList).
+  const tree = useRef<HTMLUListElement>(null);
+  useFlipList(tree, (categories ?? []).map((category) => category.id).join(","));
   const parents = categories === null ? [] : categories.filter((c) => c.parent_id === null);
 
   return (
@@ -424,7 +432,7 @@ export function CategoriesPage() {
               detail="Les catégories par défaut sont créées avec votre compte ; si la liste est vide, ajoutez-en une à droite."
             />
           ) : (
-            <ul className="yd-categories__list" aria-label="Votre arborescence">
+            <ul className="yd-categories__list" aria-label="Votre arborescence" ref={tree}>
               {groups.map(({ parent, children }) => (
                 <li key={parent.id} className="yd-categories__group">
                   <ul className="yd-categories__list">

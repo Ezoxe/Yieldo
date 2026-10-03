@@ -30,6 +30,9 @@ class TransactionOut(BaseModel):
     # Read off `Transaction.manual`, which is itself derived from the absence
     # of an import batch -- see that property for why it is not a column.
     manual: bool
+    # The import that brought the line, or None for a line typed by hand: the
+    # import's summary leads to its own lines, and the list marks them new.
+    import_batch_id: int | None
 
 
 class TransactionIn(BaseModel):

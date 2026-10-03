@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 
 import { BentoCell, type BentoSpan } from "../../design/bento/BentoCell";
 import { BentoGrid } from "../../design/bento/BentoGrid";
 import { PanelHead } from "../../design/bento/PanelHead";
 import { EmptyState } from "../../design/EmptyState";
 import { ListSkeleton } from "../../design/ListSkeleton";
+import { useFlipList } from "../../design/motion/useFlipList";
 import { AssistantIcon, CheckIcon, CloseIcon, ProposalsIcon, TrashIcon } from "../../design/icons";
 import { PageHead } from "../../design/PageHead";
 import { ApiError, api } from "../../lib/api";
@@ -144,6 +145,12 @@ export function ProposalsPage() {
 
   const pending = proposals.filter((item) => item.state === "pending");
   const decided = proposals.filter((item) => item.state !== "pending");
+  // A proposal decided leaves the queue and the others close the gap by
+  // gliding; it arrives at the top of the decided ones (useFlipList).
+  const pendingList = useRef<HTMLUListElement>(null);
+  const decidedList = useRef<HTMLUListElement>(null);
+  useFlipList(pendingList, pending.map((item) => item.id).join(","));
+  useFlipList(decidedList, decided.map((item) => item.id).join(","));
   const lastRun = runs[0] ?? null;
 
   return (
@@ -251,9 +258,9 @@ export function ProposalsPage() {
               detail="L'IA n'a rien proposé pour l'instant. Posez-lui une question ci-dessus : ce qu'elle voudra changer atterrira ici, et attendra votre accord."
             />
           ) : (
-            <ul className="yd-proposals__list">
+            <ul className="yd-proposals__list" ref={pendingList}>
               {pending.map((proposal) => (
-                <li key={proposal.id} className="yd-proposals__card">
+                <li key={proposal.id} className="yd-proposals__card" data-flip-key={proposal.id}>
                   <div className="yd-proposals__card-head">
                     <span className="yd-proposals__kind">
                       {PROPOSAL_KIND_LABELS[proposal.kind] ?? proposal.kind}
@@ -307,9 +314,13 @@ export function ProposalsPage() {
               <summary>
                 {decided.length} {plural(decided.length, "décision passée", "décisions passées")}
               </summary>
-              <ul className="yd-proposals__list">
+              <ul className="yd-proposals__list" ref={decidedList}>
                 {decided.map((proposal) => (
-                  <li key={proposal.id} className="yd-proposals__card yd-proposals__card--decided">
+                  <li
+                    key={proposal.id}
+                    className="yd-proposals__card yd-proposals__card--decided"
+                    data-flip-key={proposal.id}
+                  >
                     <div className="yd-proposals__card-head">
                       <span className="yd-proposals__kind">
                         {PROPOSAL_KIND_LABELS[proposal.kind] ?? proposal.kind}

@@ -1,4 +1,4 @@
-import type { CSSProperties } from "react";
+import { useEffect, useRef, type CSSProperties } from "react";
 
 import { EditIcon, TransferIcon } from "../../design/icons";
 import { formatCents } from "../../design/theme";
@@ -127,6 +127,10 @@ interface TransactionRowProps {
    * wider screen the button is not drawn and the row's own controls are.
    */
   onOpen?: (transaction: Transaction) => void;
+  /** Bumped each time a correction touches this row: the row lights up. */
+  flashToken?: number;
+  /** One of the lines an import just brought: marked « nouveau » for a moment. */
+  isNew?: boolean;
 }
 
 export function TransactionRow({
@@ -136,7 +140,19 @@ export function TransactionRow({
   onEdit,
   onToggleTransfer,
   onOpen,
+  flashToken,
+  isNew = false,
 }: TransactionRowProps) {
+  const row = useRef<HTMLTableRowElement>(null);
+  // Restarts the light each time the token moves: the class comes off, a
+  // reflow, and it goes back on — the same row can be lit twice in a row.
+  useEffect(() => {
+    const element = row.current;
+    if (!flashToken || !element) return;
+    element.classList.remove("yd-transactions__row--flash");
+    void element.offsetWidth;
+    element.classList.add("yd-transactions__row--flash");
+  }, [flashToken]);
   const category = categories.find((candidate) => candidate.id === transaction.category_id);
   const isCredit = transaction.amount_cents > 0;
   const sourceHint = categorySourceHint(transaction);
@@ -149,8 +165,10 @@ export function TransactionRow({
     <tr
       className={`yd-transactions__row${
         transaction.is_transfer ? " yd-transactions__row--transfer" : ""
-      }`}
+      }${isNew ? " yd-transactions__row--new" : ""}`}
       role="row"
+      ref={row}
+      data-flip-key={transaction.id}
     >
       <td role="cell" className="yd-num yd-transactions__cell yd-transactions__cell--date">
         {new Date(transaction.date).toLocaleDateString("fr-FR")}
@@ -166,7 +184,10 @@ export function TransactionRow({
           <span className="yd-transactions__text">
             {/* label_raw, never label_clean: the user must recognize the line
                 exactly as it reads on their own bank statement. */}
-            <span className="yd-transactions__label">{transaction.label_raw}</span>
+            <span className="yd-transactions__label">
+              {transaction.label_raw}
+              {isNew ? <span className="yd-transactions__new">nouveau</span> : null}
+            </span>
             {/* The phone line's second half: the category's name in its own
                 colour, where a wide screen shows the picker in its column. */}
             <span

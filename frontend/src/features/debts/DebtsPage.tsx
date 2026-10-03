@@ -8,6 +8,7 @@ import { PanelHead } from "../../design/bento/PanelHead";
 import { EmptyState, frenchDate } from "../../design/EmptyState";
 import { ArchiveIcon, DebtsIcon, EditIcon, PlusIcon } from "../../design/icons";
 import { PageHead } from "../../design/PageHead";
+import { useFlipList } from "../../design/motion/useFlipList";
 import { useReducedMotion } from "../../design/motion/useReducedMotion";
 import { entryProps, staggerProps } from "../../design/motion/variants";
 import "../../design/Skeleton.css";
@@ -131,6 +132,9 @@ export function DebtsPage() {
   const extraFieldId = useId();
 
   const [debts, setDebts] = useState<Debt[] | null>(null);
+  // A debt added or settled: the list makes room by gliding (useFlipList).
+  const debtList = useRef<HTMLUListElement>(null);
+  useFlipList(debtList, (debts ?? []).map((debt) => debt.id).join(","));
   const [comparison, setComparison] = useState<StrategyComparison | null>(null);
   const [errors, setErrors] = useState<LoadErrors>({});
   const [isLoading, setIsLoading] = useState(true);
@@ -352,9 +356,9 @@ export function DebtsPage() {
           ) : (
             <>
               {debts.length > 0 ? (
-                <ul className="yd-debts__list">
+                <ul className="yd-debts__list" ref={debtList}>
                   {debts.map((debt) => (
-                    <li key={debt.id} className="yd-debts__row">
+                    <li key={debt.id} className="yd-debts__row" data-flip-key={debt.id}>
                       <div className="yd-debts__row-head">
                         <span className="yd-debts__name">{debt.name}</span>
                         <span className="yd-debts__kind">{kindLabel(debt.kind)}</span>

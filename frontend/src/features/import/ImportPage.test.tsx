@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { MemoryRouter } from "react-router";
 
 import { commitBlockedReason, commitCounts, ImportPage } from "./ImportPage";
 
@@ -142,7 +143,7 @@ function actionBarOf(control: HTMLElement): HTMLElement {
 }
 
 async function driveToMappingStep() {
-  render(<ImportPage />);
+  render(<ImportPage />, { wrapper: MemoryRouter });
 
   await userEvent.selectOptions(
     await screen.findByLabelText("Compte"),
@@ -285,7 +286,7 @@ describe("ImportPage — creating a bank account", () => {
 
   it("invites the user to create an account when none exist, instead of a bare disabled select", async () => {
     setupEmptyAccountsFetch();
-    render(<ImportPage />);
+    render(<ImportPage />, { wrapper: MemoryRouter });
 
     await screen.findByText(/pas encore de compte/i);
     expect(screen.queryByLabelText("Compte")).not.toBeInTheDocument();
@@ -302,7 +303,7 @@ describe("ImportPage — creating a bank account", () => {
         return jsonResponse(created, 201);
       },
     });
-    render(<ImportPage />);
+    render(<ImportPage />, { wrapper: MemoryRouter });
 
     await screen.findByText(/pas encore de compte/i);
     await user.type(screen.getByLabelText("Nom du compte"), "Livret A");
@@ -331,7 +332,7 @@ describe("ImportPage — creating a bank account", () => {
     setupEmptyAccountsFetch({
       createAccount: () => jsonResponse({ detail: "Type de compte inconnu : savings" }, 422),
     });
-    render(<ImportPage />);
+    render(<ImportPage />, { wrapper: MemoryRouter });
 
     await screen.findByText(/pas encore de compte/i);
     await user.type(screen.getByLabelText("Nom du compte"), "Compte test");
@@ -348,7 +349,7 @@ describe("ImportPage — creating a bank account", () => {
 describe("ImportPage — past imports", () => {
   it("shows the import history on the landing step, where someone who has already imported will look", async () => {
     setupFetch();
-    render(<ImportPage />);
+    render(<ImportPage />, { wrapper: MemoryRouter });
 
     // The batch listed by GET /api/imports, on the first screen of the wizard.
     expect(await screen.findByText("b.csv")).toBeInTheDocument();
@@ -549,7 +550,7 @@ describe("ImportPage — a statement that carries its own columns", () => {
         suggested_mapping: { "0": "date", "1": "label", "2": "amount", "3": "reference" },
       }),
     });
-    render(<ImportPage />);
+    render(<ImportPage />, { wrapper: MemoryRouter });
     await userEvent.selectOptions(
       await screen.findByLabelText("Compte"),
       await screen.findByRole("option", { name: "Compte courant" }),

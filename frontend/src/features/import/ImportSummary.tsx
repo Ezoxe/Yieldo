@@ -1,3 +1,4 @@
+import { Link } from "../../app/links";
 import { CountUp } from "../../design/CountUp";
 import { formatCents } from "../../design/theme";
 import { plural } from "../../lib/plural";
@@ -41,9 +42,22 @@ export function ImportSummary({ summary, batch, isBusy, onCancelImport }: Import
             : ""}
           .
         </p>
-        <button type="button" className="yd-summary__cancel" onClick={onCancelImport} disabled={isBusy}>
-          Annuler cet import
-        </button>
+        <div className="yd-summary__done-actions">
+          {batch.rows_imported > 0 ? (
+            // Every period: an import can span months the list is not on.
+            <Link
+              to={`/transactions?periode=all&lot=${batch.id}`}
+              className="yd-summary__see"
+            >
+              {batch.rows_imported === 1
+                ? "Voir l'opération importée"
+                : `Voir les ${batch.rows_imported} opérations importées`}
+            </Link>
+          ) : null}
+          <button type="button" className="yd-summary__cancel" onClick={onCancelImport} disabled={isBusy}>
+            Annuler cet import
+          </button>
+        </div>
       </div>
     );
   }

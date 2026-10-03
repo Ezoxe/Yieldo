@@ -81,6 +81,9 @@ export interface Transaction {
   // Typed in by hand rather than read off a statement. Derived server-side
   // from the absence of an import batch, never stored twice.
   manual: boolean;
+  // The import that brought the line, null for a line typed by hand. Optional
+  // because the preview stub and older fixtures do not carry it.
+  import_batch_id?: number | null;
 }
 
 // GET /api/accounts/balance: the solde taken apart, so a household that does

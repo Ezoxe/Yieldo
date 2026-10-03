@@ -27,6 +27,7 @@ import { DownloadIcon, PlusIcon, TransactionsIcon } from "../../design/icons";
 import { PageHead } from "../../design/PageHead";
 import { TransactionForm } from "./TransactionForm";
 import { TransactionSheet } from "./TransactionSheet";
+import { useFlipList } from "../../design/motion/useFlipList";
 
 const PAGE_SIZE = 50;
 /**
@@ -217,6 +218,24 @@ export function TransactionsPage() {
     setUrlParams(remaining, { replace: true });
   }, [urlParams, setUrlParams]);
 
+  // `?lot=` is a handoff too, from an import's summary: the lines of that
+  // import are marked « nouveau » for three seconds, then the mark and the
+  // parameter go — the URL does not keep claiming lines are new.
+  const [newBatch, setNewBatch] = useState<number | null>(null);
+  useEffect(() => {
+    const handed = urlParams.get("lot");
+    if (handed === null) return;
+    setNewBatch(Number(handed));
+    const remaining = new URLSearchParams(urlParams);
+    remaining.delete("lot");
+    setUrlParams(remaining, { replace: true });
+  }, [urlParams, setUrlParams]);
+  useEffect(() => {
+    if (newBatch === null) return;
+    const timer = window.setTimeout(() => setNewBatch(null), 3400);
+    return () => window.clearTimeout(timer);
+  }, [newBatch]);
+
   // Opening the hand-entry drawer, and the token that makes a saved row show
   // up: the created transaction is not spliced into the list by hand, because
   // whether it belongs in it at all depends on the period and every filter
@@ -266,6 +285,22 @@ export function TransactionsPage() {
 
   const itemsRef = useRef<Transaction[]>(items);
   itemsRef.current = items;
+
+  // The rows glide to their new place when a search, a filter or « Charger
+  // plus » changes the list (useFlipList).
+  const listBody = useRef<HTMLTableSectionElement>(null);
+  useFlipList(listBody, items.map((transaction) => transaction.id).join(","));
+
+  // A row lights up when a correction touches it — the one corrected, and the
+  // ones its new rule refiled (TransactionRow's `flashToken`).
+  const [flashes, setFlashes] = useState<Record<number, number>>({});
+  const flash = (ids: number[]) =>
+    ids.forEach((id, index) =>
+      window.setTimeout(
+        () => setFlashes((current) => ({ ...current, [id]: (current[id] ?? 0) + 1 })),
+        index * 140,
+      ),
+    );
 
   // Reference data (accounts, categories) loads once; every consumer below
   // (FilterBar, TransactionRow, the category filter) reads from these two
@@ -353,6 +388,31 @@ export function TransactionsPage() {
     }
   }
 
+  async function refreshVisible(skip: number) {
+    const before = new Map(itemsRef.current.map((t) => [t.id, t.category_id]));
+    try {
+      const page = await api.get<TransactionPageBody>("/transactions", {
+        date_from: period.from,
+        date_to: period.to,
+        account_id: accountId,
+        uncategorized_only: uncategorizedOnly,
+        include_transfers: includeTransfers,
+        search,
+        limit: Math.max(PAGE_SIZE, itemsRef.current.length),
+        offset: 0,
+      });
+      setItems(page.items);
+      setTotal(page.total);
+      flash(
+        page.items
+          .filter((t) => t.id !== skip && before.has(t.id) && before.get(t.id) !== t.category_id)
+          .map((t) => t.id),
+      );
+    } catch (err) {
+      setLoadError(messageFor(err));
+    }
+  }
+
   async function handleRecategorize(transactionId: number, categoryId: number | null) {
     const before = itemsRef.current.find((candidate) => candidate.id === transactionId);
     const previousCategoryId = before?.category_id ?? null;
@@ -362,11 +422,16 @@ export function TransactionsPage() {
       });
       setItems((current) => current.map((t) => (t.id === transactionId ? updated : t)));
       setPatchError(null);
+      flash([transactionId]);
       setNotice(
         updated.backfilled > 0
           ? { transactionId, previousCategoryId, count: updated.backfilled, origin: "correction" }
           : null,
       );
+      // The rule learnt from this correction refiled other lines: the ones on
+      // screen are fetched again in silence and each one that changed lights
+      // up in turn, so the reader sees what the correction touched.
+      if (updated.backfilled > 0) void refreshVisible(transactionId);
     } catch (err) {
       setPatchError(messageFor(err));
     }
@@ -391,6 +456,21 @@ export function TransactionsPage() {
       setPatchError(null);
       setTransferTotal((count) => count + (isTransfer ? 1 : -1));
       if (isTransfer && !includeTransfers) {
+        // The row leaves to the right before the list closes over it.
+        const row = listBody.current?.querySelector<HTMLElement>(
+          `[data-flip-key="${transactionId}"]`,
+        );
+        if (row && !reducedMotion && row.animate) {
+          await row
+            .animate(
+              [
+                { opacity: 1, transform: "none" },
+                { opacity: 0, transform: "translateX(28px)" },
+              ],
+              { duration: 220, easing: "cubic-bezier(0.2, 0, 0, 1)", fill: "forwards" },
+            )
+            .finished.catch(() => undefined);
+        }
         setItems((current) => current.filter((t) => t.id !== transactionId));
         setTotal((count) => Math.max(0, count - 1));
         return;
@@ -695,7 +775,7 @@ export function TransactionsPage() {
                       </th>
                     </tr>
                   </thead>
-                  <tbody className="yd-transactions__body" role="rowgroup">
+                  <tbody className="yd-transactions__body" role="rowgroup" ref={listBody}>
                     {groupByDay(items).map((day, index) => (
                       // The day AND its first row: a row that arrives out of the
                       // server's order (typed in while paging) can open a second
@@ -704,6 +784,7 @@ export function TransactionsPage() {
                       <Fragment key={`${day.date}:${day.rows[0].id}`}>
                         <tr
                           className={`yd-transactions__daygroup${index === 0 ? " yd-transactions__daygroup--first" : ""}`}
+                          data-flip-key={`day:${day.date}:${day.rows[0].id}`}
                         >
                           {/* Real table structure, not a styled data row: a
                               `<th colspan>` is announced as the heading of the
@@ -728,6 +809,8 @@ export function TransactionsPage() {
                             onRecategorize={(id, catId) => void handleRecategorize(id, catId)}
                             onEdit={setEditing}
                             onOpen={(transaction) => setOpenId(transaction.id)}
+                            flashToken={flashes[transaction.id]}
+                            isNew={newBatch !== null && transaction.import_batch_id === newBatch}
                           />
                         ))}
                       </Fragment>

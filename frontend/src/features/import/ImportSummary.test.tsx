@@ -1,4 +1,5 @@
-import { render } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
+import { MemoryRouter } from "react-router";
 import { describe, expect, it } from "vitest";
 
 import type { ImportBatch } from "../../lib/types";
@@ -19,12 +20,14 @@ const batch = (counts: Partial<ImportBatch>): ImportBatch => ({
 /** The sentence as read, with the non-breaking spaces flattened. */
 function report(counts: Partial<ImportBatch> = {}): string {
   const { container } = render(
-    <ImportSummary
-      summary={null}
-      batch={batch(counts)}
-      isBusy={false}
-      onCancelImport={() => {}}
-    />,
+    <MemoryRouter>
+      <ImportSummary
+        summary={null}
+        batch={batch(counts)}
+        isBusy={false}
+        onCancelImport={() => {}}
+      />
+    </MemoryRouter>,
   );
   return (container.querySelector(".yd-summary__report")?.textContent ?? "").replace(
     / /g,
@@ -51,5 +54,35 @@ describe("ImportSummary — the completion line", () => {
     expect(report({ rows_imported: 0, rows_duplicate: 0, rows_failed: 0 })).toBe(
       "0 ligne importée dans « releve.csv ».",
     );
+  });
+});
+
+// The import ends on its own lines: they are a click away, every period
+// included, and the list marks them « nouveau » (TransactionsPage `?lot=`).
+describe("ImportSummary — the way to the imported lines", () => {
+  it("leads to the operations this import brought", () => {
+    render(
+      <MemoryRouter>
+        <ImportSummary summary={null} batch={batch({ id: 42 })} isBusy={false} onCancelImport={() => {}} />
+      </MemoryRouter>,
+    );
+    expect(screen.getByRole("link", { name: "Voir les 320 opérations importées" })).toHaveAttribute(
+      "href",
+      "/transactions?periode=all&lot=42",
+    );
+  });
+
+  it("names a single operation in the singular", () => {
+    render(
+      <MemoryRouter>
+        <ImportSummary
+          summary={null}
+          batch={batch({ rows_imported: 1 })}
+          isBusy={false}
+          onCancelImport={() => {}}
+        />
+      </MemoryRouter>,
+    );
+    expect(screen.getByRole("link", { name: "Voir l'opération importée" })).toBeInTheDocument();
   });
 });

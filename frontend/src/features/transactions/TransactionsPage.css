@@ -910,3 +910,75 @@
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+/* A row a correction touched: an accent light that fades out (900ms). The
+   one corrected and, one after the other, the ones its rule refiled. */
+.yd-transactions__row--flash {
+  animation: yd-transactions-flash 900ms ease-out;
+}
+
+@keyframes yd-transactions-flash {
+  from {
+    background-color: color-mix(in srgb, var(--yd-accent) 24%, transparent);
+  }
+  to {
+    background-color: transparent;
+  }
+}
+
+/* The lines an import just brought, for three seconds: an accent edge and
+   « nouveau » after the label, both fading out (TransactionsPage `?lot=`). */
+.yd-transactions__row--new .yd-transactions__cell--label {
+  animation: yd-transactions-new-edge 3s ease-out both;
+}
+
+.yd-transactions__new {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 0 6px;
+  border-radius: var(--yd-radius-pill);
+  background: color-mix(in srgb, var(--yd-accent) 18%, transparent);
+  color: var(--yd-accent-strong);
+  font-size: 0.68rem;
+  font-weight: 600;
+  vertical-align: 1px;
+  animation: yd-transactions-new-tag 3s ease-out both;
+}
+
+@keyframes yd-transactions-new-edge {
+  0%,
+  70% {
+    box-shadow: inset 3px 0 0 var(--yd-accent);
+    background-color: color-mix(in srgb, var(--yd-accent) 10%, transparent);
+  }
+  100% {
+    box-shadow: inset 3px 0 0 transparent;
+    background-color: transparent;
+  }
+}
+
+@keyframes yd-transactions-new-tag {
+  0%,
+  75% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+/* Motion off: no fading light; « nouveau » simply stands for its three
+   seconds and goes with the mark. */
+@media (prefers-reduced-motion: reduce) {
+  .yd-transactions__row--flash,
+  .yd-transactions__row--new .yd-transactions__cell--label,
+  .yd-transactions__new {
+    animation: none;
+  }
+}
+
+:root[data-motion="off"] .yd-transactions__row--flash,
+:root[data-motion="off"] .yd-transactions__row--new .yd-transactions__cell--label,
+:root[data-motion="off"] .yd-transactions__new {
+  animation: none;
+}

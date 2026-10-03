@@ -320,3 +320,18 @@ def test_export_never_writes_a_cell_a_spreadsheet_would_execute(client, imported
     assert "'=HYPERLINK" in row
     assert row.endswith("'@SUM(A1)")
     assert ";-10,00;" in row
+
+
+def test_each_imported_line_names_the_import_it_came_from(client, imported):
+    # The import's summary leads to its own lines (« Voir les opérations
+    # importées »), and the list marks them « nouveau »: each line says which
+    # batch brought it, and a line typed by hand says none.
+    headers, account_id = imported
+    batch = client.get("/api/imports", headers=headers).json()[0]
+    items = client.get("/api/transactions", headers=headers).json()["items"]
+    assert {item["import_batch_id"] for item in items} == {batch["id"]}
+
+    typed = client.post("/api/transactions", headers=headers, json={
+        "account_id": account_id, "date": "2025-03-08", "amount_cents": -1250,
+        "label_raw": "Boulangerie du coin"}).json()
+    assert typed["import_batch_id"] is None

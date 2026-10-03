@@ -1,5 +1,5 @@
 import { motion } from "motion/react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { useReducedMotion } from "../../design/motion/useReducedMotion";
 import { SIGNATURE_EASE } from "../../design/motion/variants";
@@ -76,51 +76,67 @@ export function PeriodSelector({ period, today = new Date() }: PeriodSelectorPro
     period.setRange(next.from, next.to);
   };
 
+  // On a phone the months and the presets share one strip that slides
+  // sideways, which can leave the selected chip out of sight. The strip is slid
+  // to it — the strip only: a scrollIntoView would also scroll the page when
+  // the selector sits below the fold. On a wide screen nothing overflows and
+  // the call does nothing.
+  const strip = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const element = strip.current;
+    const selected = element?.querySelector<HTMLElement>('[aria-selected="true"]');
+    if (!element || !selected) return;
+    const left = selected.offsetLeft - (element.clientWidth - selected.offsetWidth) / 2;
+    element.scrollTo?.({ left: Math.max(0, left), behavior: reducedMotion ? "auto" : "smooth" });
+  }, [period.preset, period.monthOffset, reducedMotion]);
+
   return (
     <div className="yd-period-selector">
-      <div className="yd-period-selector__months" role="tablist" aria-label="Mois">
-        {MONTH_OFFSETS.map((offset) => {
-          const active = period.preset === "month" && period.monthOffset === offset;
-          return (
-            <button
-              key={offset}
-              type="button"
-              role="tab"
-              aria-selected={active}
-              className="yd-period-selector__month"
-              onClick={() => period.setMonth(offset)}
-            >
-              {monthChipLabel(today, offset)}
-            </button>
-          );
-        })}
-      </div>
+      <div className="yd-period-selector__strip" ref={strip}>
+        <div className="yd-period-selector__months" role="tablist" aria-label="Mois">
+          {MONTH_OFFSETS.map((offset) => {
+            const active = period.preset === "month" && period.monthOffset === offset;
+            return (
+              <button
+                key={offset}
+                type="button"
+                role="tab"
+                aria-selected={active}
+                className="yd-period-selector__month"
+                onClick={() => period.setMonth(offset)}
+              >
+                {monthChipLabel(today, offset)}
+              </button>
+            );
+          })}
+        </div>
 
-      <div className="yd-period-selector__tabs" role="tablist" aria-label="Période">
-        {PRESET_OPTIONS.map((option) => {
-          const active = period.preset === option.value;
-          return (
-            <button
-              key={option.value}
-              type="button"
-              role="tab"
-              aria-selected={active}
-              className="yd-period-selector__tab"
-              onClick={() => period.setPreset(option.value)}
-            >
-              {active && !reducedMotion ? (
-                <motion.span
-                  layoutId="yd-period-selector-indicator"
-                  className="yd-period-selector__tab-indicator"
-                  transition={{ duration: 0.28, ease: SIGNATURE_EASE }}
-                />
-              ) : active ? (
-                <span className="yd-period-selector__tab-indicator" />
-              ) : null}
-              <span className="yd-period-selector__tab-label">{option.label}</span>
-            </button>
-          );
-        })}
+        <div className="yd-period-selector__tabs" role="tablist" aria-label="Période">
+          {PRESET_OPTIONS.map((option) => {
+            const active = period.preset === option.value;
+            return (
+              <button
+                key={option.value}
+                type="button"
+                role="tab"
+                aria-selected={active}
+                className="yd-period-selector__tab"
+                onClick={() => period.setPreset(option.value)}
+              >
+                {active && !reducedMotion ? (
+                  <motion.span
+                    layoutId="yd-period-selector-indicator"
+                    className="yd-period-selector__tab-indicator"
+                    transition={{ duration: 0.28, ease: SIGNATURE_EASE }}
+                  />
+                ) : active ? (
+                  <span className="yd-period-selector__tab-indicator" />
+                ) : null}
+                <span className="yd-period-selector__tab-label">{option.label}</span>
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {period.preset === "custom" ? (

@@ -37,6 +37,38 @@ describe("monthChipLabel", () => {
   });
 });
 
+describe("PeriodSelector on a phone", () => {
+  // Months and presets used to wrap onto three lines of a phone. They share
+  // one strip now, which slides sideways under the thumb.
+  it("keeps the months and the presets on one strip", () => {
+    const { container } = render(<PeriodSelector period={makePeriod()} today={TODAY} />);
+    const strip = container.querySelector(".yd-period-selector__strip");
+    expect(strip).not.toBeNull();
+    expect(strip).toContainElement(screen.getByRole("tablist", { name: "Mois" }));
+    expect(strip).toContainElement(screen.getByRole("tablist", { name: "Période" }));
+  });
+
+  // A strip that slides can hide the chip that is selected: the STRIP is slid
+  // to it whenever the selection changes — never the page, which a
+  // scrollIntoView would also move when the selector sits below the fold.
+  it("slides the strip, and only the strip, to the selected chip", () => {
+    const scrollTo = vi.fn();
+    const scrollIntoView = vi.fn();
+    Element.prototype.scrollTo = scrollTo;
+    Element.prototype.scrollIntoView = scrollIntoView;
+    const { container, rerender } = render(
+      <PeriodSelector period={makePeriod({ preset: "month", monthOffset: -1 })} today={TODAY} />,
+    );
+    const strip = container.querySelector(".yd-period-selector__strip");
+    expect(scrollTo.mock.contexts.at(-1)).toBe(strip);
+
+    const calls = scrollTo.mock.calls.length;
+    rerender(<PeriodSelector period={makePeriod({ preset: "year" })} today={TODAY} />);
+    expect(scrollTo.mock.calls.length).toBe(calls + 1);
+    expect(scrollIntoView).not.toHaveBeenCalled();
+  });
+});
+
 describe("PeriodSelector", () => {
   it("marks the active period preset", () => {
     render(<PeriodSelector period={makePeriod({ preset: "quarter" })} today={TODAY} />);

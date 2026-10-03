@@ -110,19 +110,66 @@
   min-width: 0;
 }
 
-/* Five tabs at 32px of horizontal padding each still wrap to three lines on a
-   phone. Tighter padding and a slightly smaller label bring them back to two,
-   which is 40px of a 812px screen returned to the data. */
-@media (max-width: 599px) {
-  .yd-period-selector__month {
-    flex: 1 1 0;
-    min-width: 0;
-    padding: var(--yd-space-2xs) var(--yd-space-xs);
+/* The months above the presets on a wide screen: two rows, as before. */
+.yd-period-selector__strip {
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-sm);
+}
+
+/* On a phone the two rows wrapped into three lines — months, then five
+   presets that did not fit. They share ONE strip now, which slides sideways
+   under the thumb: every chip 40px tall, the presets drawn as chips like the
+   months, the selected one slid into view (PeriodSelector.tsx). The edges fade
+   to say there is more to slide to. */
+@media (max-width: 639px) {
+  .yd-period-selector__strip {
+    flex-direction: row;
+    gap: 6px;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scroll-snap-type: x proximity;
+    scrollbar-width: none;
+    padding-block: 2px;
+    -webkit-mask-image: linear-gradient(90deg, transparent, black 10px, black calc(100% - 24px), transparent);
+    mask-image: linear-gradient(90deg, transparent, black 10px, black calc(100% - 24px), transparent);
   }
 
+  .yd-period-selector__strip::-webkit-scrollbar {
+    display: none;
+  }
+
+  .yd-period-selector__months,
+  .yd-period-selector__tabs {
+    flex: none;
+    flex-wrap: nowrap;
+    gap: 6px;
+    border-bottom: 0;
+    padding-bottom: 0;
+  }
+
+  .yd-period-selector__month,
   .yd-period-selector__tab {
-    padding: var(--yd-space-xs) var(--yd-space-xs);
-    font-size: 0.8rem;
+    flex: none;
+    min-height: 40px;
+    padding: 0 var(--yd-space-md);
+    border: 1px solid var(--yd-border-control);
+    border-radius: 999px;
+    background: var(--yd-surface);
+    font-size: 0.85rem;
+    white-space: nowrap;
+    scroll-snap-align: center;
+  }
+
+  .yd-period-selector__tab[aria-selected="true"] {
+    color: var(--yd-accent-strong);
+    background: color-mix(in srgb, var(--yd-accent) 15%, transparent);
+    border-color: color-mix(in srgb, var(--yd-accent) 45%, transparent);
+  }
+
+  /* The underline belongs to a row of tabs; a chip says it with its tint. */
+  .yd-period-selector__tab-indicator {
+    display: none;
   }
 
   .yd-period-selector__range {
@@ -136,6 +183,7 @@
 
   .yd-period-selector__field input {
     width: 100%;
+    min-height: 44px;
   }
 }
 

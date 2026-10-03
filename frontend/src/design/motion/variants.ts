@@ -8,6 +8,19 @@ import type { Variants } from "motion/react";
  */
 export const SIGNATURE_EASE = [0.16, 1, 0.3, 1] as const;
 
+/**
+ * How something LEAVES: fast out of the way, at about 60 % of the time its
+ * entry took. A screen, a row or a sheet that took as long to go as to come
+ * would make the reader wait for what they already dismissed.
+ */
+export const EXIT_EASE = [0.2, 0, 0, 1] as const;
+
+/**
+ * A figure rolling from one value to another: quick off the mark, a long
+ * settle onto the true value, so the last digits read before they stop.
+ */
+export const QUART_OUT = [0.25, 1, 0.5, 1] as const;
+
 export const fadeInUp: Variants = {
   hidden: { opacity: 0, y: 14 },
   visible: { opacity: 1, y: 0, transition: { duration: 0.34, ease: SIGNATURE_EASE } },

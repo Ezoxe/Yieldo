@@ -52,3 +52,20 @@ describe("session store", () => {
     expect(useSession.getState().status).toBe("authenticated");
   });
 });
+
+describe("session store and the figure memory", () => {
+  // What this session showed is kept so a figure can move from what the
+  // reader last saw — and it leaves with the session, never to the next
+  // person on the machine.
+  it("forgets every remembered figure and chart on logout", async () => {
+    const { figureMemory, chartMemory } = await import("../../design/motion/sessionMemory");
+    figureMemory.remember("overview.net", 184_237);
+    chartMemory.remember("cashflow", "abc");
+    fetchMock.mockResolvedValue(new Response(null, { status: 204 }));
+
+    await useSession.getState().logout();
+
+    expect(figureMemory.recall("overview.net")).toBeUndefined();
+    expect(chartMemory.recall("cashflow")).toBeUndefined();
+  });
+});

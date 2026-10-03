@@ -1,5 +1,6 @@
 import { create } from "zustand";
 
+import { forgetSessionMemory } from "../../design/motion/sessionMemory";
 import { api, onTokenRefreshed, onUnauthorized, setAccessToken } from "../../lib/api";
 import type { User } from "../../lib/types";
 
@@ -55,6 +56,10 @@ export function applySession(session: { access_token: string; user: User }): voi
 
 function clearSession(): void {
   setAccessToken(null);
+  // The figures this session showed, kept so they could move from what the
+  // reader last saw: they go with the session, never to the next person on
+  // the machine.
+  forgetSessionMemory();
   useSession.setState({ user: null, accessToken: null, status: "anonymous", isAuthenticated: false });
 }
 

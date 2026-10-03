@@ -1,0 +1,44 @@
+/* « +212,25 € depuis votre dernier passage » — see DeltaPill.tsx. */
+.yd-delta-pill {
+  display: inline-flex;
+  align-self: flex-start;
+  align-items: center;
+  padding: 2px 9px;
+  border-radius: var(--yd-radius-pill);
+  border: 1px solid transparent;
+  font-size: 0.76rem;
+  font-weight: 600;
+  line-height: 1.5;
+  /* After the figure's 640ms roll has mostly settled: the words name the
+     change the eye has just watched. */
+  animation: yd-delta-pill-in 300ms var(--yd-ease) 380ms both;
+}
+
+.yd-delta-pill--good {
+  color: var(--yd-positive);
+  border-color: color-mix(in srgb, var(--yd-positive) 24%, transparent);
+  background: color-mix(in srgb, var(--yd-positive) 10%, transparent);
+}
+
+.yd-delta-pill--bad {
+  color: var(--yd-negative);
+  border-color: color-mix(in srgb, var(--yd-negative) 24%, transparent);
+  background: color-mix(in srgb, var(--yd-negative) 10%, transparent);
+}
+
+@keyframes yd-delta-pill-in {
+  from {
+    opacity: 0;
+    translate: 0 4px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .yd-delta-pill {
+    animation: none;
+  }
+}
+
+:root[data-motion="off"] .yd-delta-pill {
+  animation: none;
+}

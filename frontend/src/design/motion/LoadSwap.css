@@ -1,0 +1,10 @@
+/* The leaving skeleton is taken out of flow by `popLayout` and positioned
+   against this box, so it fades out exactly where it stood. */
+.yd-load-swap {
+  position: relative;
+  min-width: 0;
+}
+
+.yd-load-swap__layer {
+  min-width: 0;
+}

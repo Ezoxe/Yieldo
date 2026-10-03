@@ -19,9 +19,9 @@ import { UniverseScene } from "./scenes/UniverseScene";
 import "./UniversePage.css";
 
 const SPAN = {
-  month: { base: 1, md: 3, lg: 6 },
-  average: { base: 1, md: 3, lg: 6 },
-  wide: { base: 1, md: 6, lg: 12 },
+  month: { md: 3, lg: 6 },
+  average: { md: 3, lg: 6 },
+  wide: { md: 6, lg: 12 },
 } satisfies Record<string, BentoSpan>;
 
 const GENERIC_ERROR = "Une erreur inattendue est survenue.";

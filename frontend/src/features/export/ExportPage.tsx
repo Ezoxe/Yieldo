@@ -23,9 +23,9 @@ import type {
 import "./ExportPage.css";
 
 const SPAN = {
-  scope: { base: 1, md: 6, lg: 5 },
-  templates: { base: 1, md: 6, lg: 7 },
-  full: { base: 1, md: 6, lg: 12 },
+  scope: { md: 6, lg: 5 },
+  templates: { md: 6, lg: 7 },
+  full: { md: 6, lg: 12 },
 } satisfies Record<string, BentoSpan>;
 
 /** The modules a first arrival ticks: the ledger-backed ones, which are the

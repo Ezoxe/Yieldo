@@ -3,8 +3,12 @@ import type { CSSProperties, ElementType, HTMLAttributes } from "react";
 import "./Bento.css";
 
 export interface BentoSpan {
-  /** Columns spanned below 768px, where the grid is 1 column wide. */
-  base?: number;
+  /**
+   * Columns spanned below 768px, where the grid is 2 columns wide. Full width
+   * unless a cell says otherwise: on a phone only the small figure tiles share
+   * a row, two by two, instead of each taking a whole screen of its own.
+   */
+  sm?: number;
   /** Columns spanned from 768px, where the grid is 6 columns wide. */
   md?: number;
   /** Columns spanned from 1200px, where the grid is 12 columns wide. */
@@ -47,7 +51,7 @@ export function BentoCell({
 }: BentoCellProps) {
   const md = span?.md ?? 6;
   const spanStyle = {
-    "--yd-cell-span-base": span?.base ?? 1,
+    "--yd-cell-span-sm": span?.sm ?? 2,
     "--yd-cell-span-md": md,
     "--yd-cell-span-lg": span?.lg ?? md,
     "--yd-cell-rows": rows,

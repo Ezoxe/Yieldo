@@ -179,8 +179,8 @@ function blockingPredecessor(goals: GoalProgress[], index: number): string | nul
  * the room it needs to show a range that crosses zero.
  */
 const SPAN = {
-  capacity: { base: 1, md: 6, lg: 12 },
-  goals: { base: 1, md: 3, lg: 4 },
+  capacity: { md: 6, lg: 12 },
+  goals: { md: 3, lg: 4 },
 } satisfies Record<string, BentoSpan>;
 
 export function GoalsPage() {

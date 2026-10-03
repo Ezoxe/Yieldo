@@ -121,7 +121,7 @@ export function BrokersPage() {
       </PageHead>
 
       <BentoGrid>
-        <BentoCell span={{ base: 1, md: 6, lg: 7 }}>
+        <BentoCell span={{ md: 6, lg: 7 }}>
           <PanelHead icon={BrokersIcon} subtitle={`${venues.data?.length ?? 0} ${plural(venues.data?.length ?? 0, "connexion", "connexions")}`}>
             Connexions enregistrées
           </PanelHead>
@@ -210,7 +210,7 @@ export function BrokersPage() {
           )}
         </BentoCell>
 
-        <BentoCell span={{ base: 1, md: 6, lg: 5 }}>
+        <BentoCell span={{ md: 6, lg: 5 }}>
           <PanelHead icon={SandboxIcon}>Connecter un courtier</PanelHead>
           <div className="yd-invest-form">
             <label className="yd-invest-field">

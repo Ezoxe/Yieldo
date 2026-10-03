@@ -57,9 +57,9 @@ function messageFor(err: unknown): string {
  * and left the four-line alerts cell beside it half empty.
  */
 const SPAN = {
-  cost: { base: 1, md: 6, lg: 7 },
-  alerts: { base: 1, md: 6, lg: 5 },
-  list: { base: 1, md: 6, lg: 12 },
+  cost: { md: 6, lg: 7 },
+  alerts: { md: 6, lg: 5 },
+  list: { md: 6, lg: 12 },
 } satisfies Record<string, BentoSpan>;
 
 interface Split {

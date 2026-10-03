@@ -199,7 +199,7 @@ export function SessionPage() {
 
       {day && report ? (
         <BentoGrid>
-          <BentoCell span={{ base: 1, md: 6, lg: 12 }}>
+          <BentoCell span={{ md: 6, lg: 12 }}>
             <PanelHead
               icon={SandboxIcon}
               subtitle={
@@ -291,7 +291,7 @@ export function SessionPage() {
             </div>
           </BentoCell>
 
-          <BentoCell span={{ base: 1, md: 6, lg: 7 }}>
+          <BentoCell span={{ md: 6, lg: 7 }}>
             <PanelHead icon={SandboxIcon} subtitle="Capital et liquidités, pas par pas">
               Le capital
             </PanelHead>
@@ -302,7 +302,7 @@ export function SessionPage() {
             )}
           </BentoCell>
 
-          <BentoCell span={{ base: 1, md: 6, lg: 5 }}>
+          <BentoCell span={{ md: 6, lg: 5 }}>
             <PanelHead
               icon={DecisionsIcon}
               subtitle={`${report.decisions} ${plural(report.decisions, "décision", "décisions")}`}
@@ -323,7 +323,7 @@ export function SessionPage() {
           </BentoCell>
 
           {day.symbols.map((symbol) => (
-            <BentoCell key={symbol} span={{ base: 1, md: 6, lg: instrumentSpan(day.symbols.length) }}>
+            <BentoCell key={symbol} span={{ md: 6, lg: instrumentSpan(day.symbols.length) }}>
               <PanelHead
                 icon={DecisionsIcon}
                 subtitle="Le cours synthétique, les achats et les ventes"

@@ -1,12 +1,18 @@
 /* Bento grid — hierarchy comes from area, not from font weight.
-   Columns: 1 below 768px, 6 from 768px, 12 from 1200px. Each cell declares its
+   Columns: 2 below 768px, 6 from 768px, 12 from 1200px. Each cell declares its
    span per breakpoint through custom properties, so the media queries below can
-   override it; an inline `grid-column` could not be overridden at all. */
+   override it; an inline `grid-column` could not be overridden at all.
+
+   Two on a phone, not one: a cell spans both unless it says `sm: 1`, so every
+   panel is still full width, and the three figure tiles of a dashboard sit
+   side by side instead of each taking a whole screen of its own. The gaps and
+   the padding are the phone's own too — the desktop's 24px of padding on both
+   sides of a 358px card was an eighth of the screen spent on margins. */
 .yd-bento {
   display: grid;
-  grid-template-columns: repeat(1, 1fr);
-  gap: var(--yd-space-md);
-  grid-auto-rows: minmax(120px, auto);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--yd-space-sm);
+  grid-auto-rows: minmax(88px, auto);
   /* Every cell in a row is as tall as the tallest of them. This is the whole
      of the alignment fix: cells used to size to their own content, so two
      panels side by side ended on two different lines and the grid read as a
@@ -17,7 +23,7 @@
 }
 
 .yd-bento__cell {
-  grid-column: span var(--yd-cell-span-base, 1);
+  grid-column: span var(--yd-cell-span-sm, 2);
   grid-row: span var(--yd-cell-rows, 1);
   /* Without this a long unbroken figure sets the track's minimum width and
      pushes the whole grid past the viewport. */
@@ -49,7 +55,7 @@
   backdrop-filter: blur(16px) saturate(var(--yd-glass-saturate));
   -webkit-backdrop-filter: blur(16px) saturate(var(--yd-glass-saturate));
   box-shadow: var(--yd-shadow);
-  padding: var(--yd-space-lg);
+  padding: var(--yd-space-md);
   transition:
     border-color var(--yd-motion-base) var(--yd-ease),
     box-shadow var(--yd-motion-base) var(--yd-ease),
@@ -163,7 +169,7 @@
   content: "";
   position: absolute;
   top: -1px;
-  left: var(--yd-space-lg);
+  left: var(--yd-space-md);
   height: 1px;
   width: var(--yd-frame-thread-width, 64px);
   border-radius: 1px;
@@ -325,13 +331,43 @@
   outline-offset: 2px;
 }
 
+/* A phone's panel head. The desktop badge is 36px, which pushed titles such as
+   « Les 30 prochains jours » onto two lines beside a « Voir l'avenir » link;
+   28px keeps the mark and gives the words the room. The panel's own controls
+   drop under the title when the row cannot hold both, rather than squeezing
+   the title into a column of single words. */
+@media (max-width: 767px) {
+  .yd-panel__head {
+    flex-wrap: wrap;
+    row-gap: var(--yd-space-xs);
+  }
+
+  .yd-panel__head > .yd-icon-badge {
+    width: 1.75rem;
+    height: 1.75rem;
+    border-radius: 9px;
+    font-size: 0.95rem;
+  }
+
+  .yd-panel__actions {
+    flex-wrap: wrap;
+  }
+}
+
 @media (min-width: 768px) {
   .yd-bento {
     grid-template-columns: repeat(6, 1fr);
+    gap: var(--yd-space-md);
+    grid-auto-rows: minmax(120px, auto);
   }
 
   .yd-bento__cell {
     grid-column: span var(--yd-cell-span-md, 6);
+    padding: var(--yd-space-lg);
+  }
+
+  .yd-bento__cell::after {
+    left: var(--yd-space-lg);
   }
 }
 

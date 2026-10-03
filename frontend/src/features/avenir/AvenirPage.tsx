@@ -44,10 +44,10 @@ const ZOOMS: { value: Zoom; label: string }[] = [
 ];
 
 const SPAN = {
-  tile: { base: 1, md: 6, lg: 4 },
-  full: { base: 1, md: 6, lg: 12 },
-  wide: { base: 1, md: 6, lg: 7 },
-  side: { base: 1, md: 6, lg: 5 },
+  tile: { md: 6, lg: 4 },
+  full: { md: 6, lg: 12 },
+  wide: { md: 6, lg: 7 },
+  side: { md: 6, lg: 5 },
 } satisfies Record<string, BentoSpan>;
 
 function messageFor(err: unknown): string {

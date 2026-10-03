@@ -36,9 +36,9 @@ describe("BentoGrid", () => {
 
 describe("BentoCell spans", () => {
   it("declares its span as custom properties, not as grid-column", () => {
-    const { container } = render(<BentoCell span={{ base: 1, md: 3, lg: 4 }} rows={2} />);
+    const { container } = render(<BentoCell span={{ sm: 1, md: 3, lg: 4 }} rows={2} />);
     const cell = container.firstChild as HTMLElement;
-    expect(cell.style.getPropertyValue("--yd-cell-span-base")).toBe("1");
+    expect(cell.style.getPropertyValue("--yd-cell-span-sm")).toBe("1");
     expect(cell.style.getPropertyValue("--yd-cell-span-md")).toBe("3");
     expect(cell.style.getPropertyValue("--yd-cell-span-lg")).toBe("4");
     expect(cell.style.getPropertyValue("--yd-cell-rows")).toBe("2");
@@ -46,10 +46,10 @@ describe("BentoCell spans", () => {
     expect(cell.style.gridColumn).toBe("");
   });
 
-  it("defaults to full width on mobile, half the 6-column grid otherwise", () => {
+  it("defaults to the full two-column phone row, half the 6-column grid otherwise", () => {
     const { container } = render(<BentoCell />);
     const cell = container.firstChild as HTMLElement;
-    expect(cell.style.getPropertyValue("--yd-cell-span-base")).toBe("1");
+    expect(cell.style.getPropertyValue("--yd-cell-span-sm")).toBe("2");
     expect(cell.style.getPropertyValue("--yd-cell-span-md")).toBe("6");
     expect(cell.style.getPropertyValue("--yd-cell-span-lg")).toBe("6");
     expect(cell.style.getPropertyValue("--yd-cell-rows")).toBe("1");
@@ -89,8 +89,13 @@ describe("BentoCell interactivity", () => {
 // jsdom applies no stylesheets, so these read Bento.css as text — every rule
 // below is a defect that a mounted test cannot see.
 describe("Bento.css", () => {
-  it("steps 1 -> 6 -> 12 columns", () => {
-    expect(css).toMatch(/\.yd-bento \{[^}]*grid-template-columns:\s*repeat\(1, 1fr\)/);
+  // Two on a phone, so the small figure tiles can sit side by side instead of
+  // each taking a screen of its own; a cell spans both unless it says `sm: 1`.
+  it("steps 2 -> 6 -> 12 columns", () => {
+    expect(css).toMatch(
+      /\.yd-bento \{[^}]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/,
+    );
+    expect(css).toMatch(/\.yd-bento__cell \{[^}]*grid-column:\s*span var\(--yd-cell-span-sm, 2\)/);
     expect(css).toMatch(
       /@media \(min-width: 768px\) \{[\s\S]*?grid-template-columns:\s*repeat\(6, 1fr\)/,
     );

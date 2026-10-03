@@ -151,7 +151,7 @@ export function ModelPage() {
       </PageHead>
 
       <BentoGrid>
-        <BentoCell span={{ base: 1, md: 6, lg: 7 }}>
+        <BentoCell span={{ md: 6, lg: 7 }}>
           <PanelHead icon={DecisionModelIcon}>Le fournisseur</PanelHead>
           <div className="yd-invest-form">
             <fieldset className="yd-invest-field" style={{ border: 0, padding: 0, margin: 0 }}>
@@ -354,7 +354,7 @@ export function ModelPage() {
           </div>
         </BentoCell>
 
-        <BentoCell span={{ base: 1, md: 6, lg: 5 }}>
+        <BentoCell span={{ md: 6, lg: 5 }}>
           <PanelHead icon={DecisionModelIcon}>Monter un modèle chez soi</PanelHead>
           <p className="yd-note">
             Le décodage contraint est ce qui garantit une réponse typée. vLLM l'expose par

@@ -20,9 +20,9 @@ import type { Alert, AlertCondition, AlertReport } from "../../lib/types";
 import "./AlertsPage.css";
 
 const SPAN = {
-  alerts: { base: 1, md: 6, lg: 7 },
-  threshold: { base: 1, md: 6, lg: 5 },
-  full: { base: 1, md: 6, lg: 12 },
+  alerts: { md: 6, lg: 7 },
+  threshold: { md: 6, lg: 5 },
+  full: { md: 6, lg: 12 },
 } satisfies Record<string, BentoSpan>;
 
 const MONTHS_FR = [

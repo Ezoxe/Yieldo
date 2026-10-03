@@ -98,10 +98,10 @@ function MeasureTile({
  * when the data arrives.
  */
 const SPAN = {
-  full: { base: 1, md: 6, lg: 12 },
-  form: { base: 1, md: 6, lg: 5 },
-  verdict: { base: 1, md: 6, lg: 7 },
-  half: { base: 1, md: 6, lg: 6 },
+  full: { md: 6, lg: 12 },
+  form: { md: 6, lg: 5 },
+  verdict: { md: 6, lg: 7 },
+  half: { md: 6, lg: 6 },
 } satisfies Record<string, BentoSpan>;
 
 export function FeasibilityPage() {

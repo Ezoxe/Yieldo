@@ -300,10 +300,10 @@ function anomalyScopeSentence(report: AnomalyReport): string {
  * is sparse, so a later cell never backfills a gap an earlier one left.
  */
 const SPAN = {
-  basket: { base: 1, md: 6, lg: 12 },
-  index: { base: 1, md: 6, lg: 5 },
-  lines: { base: 1, md: 6, lg: 7 },
-  anomalies: { base: 1, md: 6, lg: 12 },
+  basket: { md: 6, lg: 12 },
+  index: { md: 6, lg: 5 },
+  lines: { md: 6, lg: 7 },
+  anomalies: { md: 6, lg: 12 },
 } satisfies Record<string, BentoSpan>;
 
 interface LoadErrors {

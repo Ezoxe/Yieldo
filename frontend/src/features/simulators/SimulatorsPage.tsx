@@ -24,7 +24,7 @@ const TABS = [
 type TabKey = (typeof TABS)[number]["key"];
 
 const SPAN = {
-  full: { base: 1, md: 6, lg: 12 },
+  full: { md: 6, lg: 12 },
 } satisfies Record<string, BentoSpan>;
 
 /** The URL's `?onglet=`, or the first tab. An unrecognised value falls back

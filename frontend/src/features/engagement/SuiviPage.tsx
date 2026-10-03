@@ -31,10 +31,10 @@ import "./SuiviPage.css";
  * it are the part worth reading.
  */
 const SPAN = {
-  full: { base: 1, md: 6, lg: 12 },
-  score: { base: 1, md: 2, lg: 4 },
-  components: { base: 1, md: 4, lg: 8 },
-  half: { base: 1, md: 6, lg: 6 },
+  full: { md: 6, lg: 12 },
+  score: { md: 2, lg: 4 },
+  components: { md: 4, lg: 8 },
+  half: { md: 6, lg: 6 },
 } satisfies Record<string, BentoSpan>;
 
 export function SuiviPage() {

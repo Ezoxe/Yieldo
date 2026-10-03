@@ -47,14 +47,14 @@ import { WeightsPanel } from "./WeightsPanel";
  * number itself.
  */
 const SPAN = {
-  full: { base: 1, md: 6, lg: 12 },
-  total: { base: 1, md: 3, lg: 5 },
-  market: { base: 1, md: 3, lg: 7 },
-  half: { base: 1, md: 6, lg: 6 },
+  full: { md: 6, lg: 12 },
+  total: { md: 3, lg: 5 },
+  market: { md: 3, lg: 7 },
+  half: { md: 6, lg: 6 },
   // The empty screen drops the value cell entirely (see below), so the two
   // panels that DO have something to say share the row instead.
-  emptySteps: { base: 1, md: 6, lg: 7 },
-  emptyMarket: { base: 1, md: 6, lg: 5 },
+  emptySteps: { md: 6, lg: 7 },
+  emptyMarket: { md: 6, lg: 5 },
 } satisfies Record<string, BentoSpan>;
 
 interface PatrimoineData {

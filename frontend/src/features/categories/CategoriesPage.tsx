@@ -50,8 +50,8 @@ export function parseBudget(input: string): number | null | undefined {
 }
 
 const SPAN = {
-  tree: { base: 1, md: 6, lg: 8 },
-  add: { base: 1, md: 6, lg: 4 },
+  tree: { md: 6, lg: 8 },
+  add: { md: 6, lg: 4 },
 } satisfies Record<string, BentoSpan>;
 
 interface RowProps {

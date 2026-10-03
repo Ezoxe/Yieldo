@@ -203,16 +203,16 @@ const SPAN = {
   // The ring and the list it explains, side by side from 1200px. A ring with
   // nothing beside it is a shape; a list with no ring is a table. Together
   // they answer "how much, and where" in one glance.
-  donut: { base: 1, md: 6, lg: 5 },
-  split: { base: 1, md: 6, lg: 7 },
+  donut: { md: 6, lg: 5 },
+  split: { md: 6, lg: 7 },
   // Full width each, one under the other. Paired 7/5 they held 535px of budget
   // rows beside 56px of suggestions, which stretched "Sans budget" to 646px for
   // a row of chips -- 511px of nothing, the largest void on the application.
   // The suggestions are a band of "fixer un seuil pour X" buttons and read as
   // one; the list needs the width more than it needs a neighbour.
-  lines: { base: 1, md: 6, lg: 12 },
-  unbudgeted: { base: 1, md: 6, lg: 12 },
-  empty: { base: 1, md: 6, lg: 12 },
+  lines: { md: 6, lg: 12 },
+  unbudgeted: { md: 6, lg: 12 },
+  empty: { md: 6, lg: 12 },
 } satisfies Record<string, BentoSpan>;
 
 interface BudgetInputProps {
@@ -508,7 +508,7 @@ export function BudgetsPage() {
             Budgets par catégorie
           </PanelHead>
           {report.lines.length === 0 ? (
-            // Named, not placed: `SPAN.unbudgeted` is `{ base: 1, md: 6 }`, so
+            // Named, not placed: `SPAN.unbudgeted` is `{ md: 6 }`, so
             // "Sans budget" is only to the right of this panel from 1200px up.
             // At 375 and at 768 it is stacked underneath.
             <p className="yd-budgets__none">

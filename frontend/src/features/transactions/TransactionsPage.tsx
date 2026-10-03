@@ -71,8 +71,8 @@ const GENERIC_ERROR = "Une erreur inattendue est survenue.";
  * Full width lets the period tabs and the three controls share one 60px band.
  */
 const SPAN = {
-  filters: { base: 1, md: 6, lg: 12 },
-  list: { base: 1, md: 6, lg: 12 },
+  filters: { md: 6, lg: 12 },
+  list: { md: 6, lg: 12 },
 } satisfies Record<string, BentoSpan>;
 
 /** The list stands three tracks tall; the filter band, one. */

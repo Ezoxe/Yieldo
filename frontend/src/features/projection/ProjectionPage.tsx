@@ -40,10 +40,10 @@ import {
  * are what the whole page is conditional on, so they are read first.
  */
 const SPAN = {
-  full: { base: 1, md: 6, lg: 12 },
-  assumptions: { base: 1, md: 6, lg: 7 },
-  start: { base: 1, md: 6, lg: 5 },
-  half: { base: 1, md: 6, lg: 6 },
+  full: { md: 6, lg: 12 },
+  assumptions: { md: 6, lg: 7 },
+  start: { md: 6, lg: 5 },
+  half: { md: 6, lg: 6 },
 } satisfies Record<string, BentoSpan>;
 
 /**

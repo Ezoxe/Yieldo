@@ -82,7 +82,7 @@ export function OversightPage() {
       ) : null}
 
       <BentoGrid>
-        <BentoCell span={{ base: 1, md: 6, lg: 5 }}>
+        <BentoCell span={{ md: 6, lg: 5 }}>
           <PanelHead icon={DecisionsIcon}>Rejouer une décision</PanelHead>
           {/* A form, so Enter in the field replays too. */}
           <form
@@ -167,7 +167,7 @@ export function OversightPage() {
           </form>
         </BentoCell>
 
-        <BentoCell span={{ base: 1, md: 6, lg: 7 }}>
+        <BentoCell span={{ md: 6, lg: 7 }}>
           <PanelHead icon={OversightIcon}
                      subtitle={`${chain?.events ?? 0} ${plural(chain?.events ?? 0, "entrée", "entrées")}, ${chain?.intact ? "chaîne intacte" : "chaîne rompue"}`}>
             Le journal
@@ -199,7 +199,7 @@ export function OversightPage() {
           </div>
         </BentoCell>
 
-        <BentoCell span={{ base: 1, md: 6, lg: 12 }}>
+        <BentoCell span={{ md: 6, lg: 12 }}>
           <PanelHead icon={OversightIcon}>Faire contrôler le pilote par une autre IA</PanelHead>
           <p className="yd-note">
             La clé d'accès de Réglages ouvre les routes ci-dessous en lecture, plus l'arrêt

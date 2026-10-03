@@ -127,20 +127,20 @@ interface LoadErrors {
 const SPAN = {
   // Full width. The net balance is the only figure on this page that answers
   // "how am I doing", so it gets the whole top band rather than half of it.
-  hero: { base: 1, md: 6, lg: 12 },
+  hero: { md: 6, lg: 12 },
   // 7 of 12, three rows tall, with the three component figures stacked in the
   // remaining 5 columns beside it.
-  cashflow: { base: 1, md: 6, lg: 7 },
-  stat: { base: 1, md: 2, lg: 5 },
+  cashflow: { md: 6, lg: 7 },
+  stat: { md: 2, lg: 5 },
   // Full width, under the cash-flow band. Three figures and a sentence: this
   // is a horizontal reading, not a tile, and wedging it into 5 columns would
   // break "produced − set aside = left" into three storeys that no longer read
   // as a subtraction.
-  setAside: { base: 1, md: 6, lg: 12 },
+  setAside: { md: 6, lg: 12 },
   // Full width too: a list of one-line sentences, read before the charts.
-  changed: { base: 1, md: 6, lg: 12 },
-  treemap: { base: 1, md: 6, lg: 5 },
-  waterfall: { base: 1, md: 6, lg: 7 },
+  changed: { md: 6, lg: 12 },
+  treemap: { md: 6, lg: 5 },
+  waterfall: { md: 6, lg: 7 },
   // Full width, and not the 5 columns the plan sketched: this is a 53-week
   // strip drawn at a fixed 16px cell, so anything under ~850px clips the back
   // half of the year off the right edge. Its natural aspect is ~7:1 -- a wide
@@ -151,9 +151,9 @@ const SPAN = {
   // as a handful of specks adrift in an empty card; given 440 it reads as a
   // wall calendar, and the seven columns beside it carry the operations those
   // squares stand for.
-  calendar: { base: 1, md: 6, lg: 5 },
-  recent: { base: 1, md: 6, lg: 7 },
-  emptyState: { base: 1, md: 6, lg: 12 },
+  calendar: { md: 6, lg: 5 },
+  recent: { md: 6, lg: 7 },
+  emptyState: { md: 6, lg: 12 },
 } satisfies Record<string, BentoSpan>;
 
 /** The top band. Two rows is a floor on the hero's height, not a ceiling. */

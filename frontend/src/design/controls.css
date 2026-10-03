@@ -70,3 +70,27 @@
   accent-color: var(--yd-accent);
   cursor: pointer;
 }
+
+/* No field zooms the page on a phone.
+ *
+ * iOS zooms the whole page into any field whose text is under 16px the moment
+ * it takes focus, and does not zoom back out: the reader types a ceiling into
+ * Budgets and is left looking at a third of the screen. Measured on 390px:
+ * eighty-seven fields on Export, twenty-one on Mandat, nine in Réglages. Zero
+ * specificity, and `max()` so a field that is already larger stays larger. */
+@media (max-width: 899px) {
+  :where(input, select, textarea) {
+    font-size: max(16px, 1em);
+  }
+}
+
+/* A target a thumb can hit, for a control that sits on its own — a row's
+ * « Modifier », an icon button in a list. Opt-in rather than global: an
+ * inline link inside a sentence must stay the height of the line it is in.
+ * Coarse pointers only; a mouse needs no 44px square to aim at. */
+@media (pointer: coarse) {
+  .yd-tap {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}

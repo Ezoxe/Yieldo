@@ -53,8 +53,8 @@ const DENSITY_OPTIONS: { value: DensityPreference; label: string }[] = [
  * database; apparence, connexions and the way out are the half that does not.
  */
 const SPAN = {
-  half: { base: 1, md: 6, lg: 6 },
-  full: { base: 1, md: 6, lg: 12 },
+  half: { md: 6, lg: 6 },
+  full: { md: 6, lg: 12 },
 } satisfies Record<string, BentoSpan>;
 
 // Le compte, l'apparence, un interrupteur d'animation, et la déconnexion. Les

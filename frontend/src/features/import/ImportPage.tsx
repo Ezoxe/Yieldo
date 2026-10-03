@@ -44,17 +44,17 @@ const STEPS: { key: WizardStep; label: string }[] = [
  * the row the user is checking into a horizontal scroll.
  */
 const SPAN = {
-  account: { base: 1, md: 6, lg: 5 },
-  drop: { base: 1, md: 6, lg: 7 },
+  account: { md: 6, lg: 5 },
+  drop: { md: 6, lg: 7 },
   // Full width, under the two cells that start a new import: a list of one row
   // per past batch, four counts and an action is a band, not a column.
-  history: { base: 1, md: 6, lg: 12 },
-  newAccount: { base: 1, md: 6, lg: 12 },
-  dialect: { base: 1, md: 6, lg: 4 },
-  tagger: { base: 1, md: 6, lg: 8 },
-  summary: { base: 1, md: 6, lg: 12 },
-  preview: { base: 1, md: 6, lg: 12 },
-  done: { base: 1, md: 6, lg: 12 },
+  history: { md: 6, lg: 12 },
+  newAccount: { md: 6, lg: 12 },
+  dialect: { md: 6, lg: 4 },
+  tagger: { md: 6, lg: 8 },
+  summary: { md: 6, lg: 12 },
+  preview: { md: 6, lg: 12 },
+  done: { md: 6, lg: 12 },
 } satisfies Record<string, BentoSpan>;
 
 /** What clicking "Valider l'import" is about to write, in the user's terms. */

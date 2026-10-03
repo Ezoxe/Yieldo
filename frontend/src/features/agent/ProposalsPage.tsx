@@ -21,9 +21,9 @@ function messageFor(err: unknown): string {
 }
 
 const SPAN = {
-  ask: { base: 1, md: 6, lg: 12 },
-  run: { base: 1, md: 6, lg: 12 },
-  queue: { base: 1, md: 6, lg: 12 },
+  ask: { md: 6, lg: 12 },
+  run: { md: 6, lg: 12 },
+  queue: { md: 6, lg: 12 },
 } satisfies Record<string, BentoSpan>;
 
 export const PROPOSAL_KIND_LABELS: Record<ProposalKind, string> = {

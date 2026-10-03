@@ -29,8 +29,8 @@ import {
 import "./ConnectionsPage.css";
 
 const SPAN = {
-  market: { base: 1, md: 6, lg: 7 },
-  model: { base: 1, md: 6, lg: 5 },
+  market: { md: 6, lg: 7 },
+  model: { md: 6, lg: 5 },
 } satisfies Record<string, BentoSpan>;
 
 /** The sentence this whole screen is built around, and the reason a key field

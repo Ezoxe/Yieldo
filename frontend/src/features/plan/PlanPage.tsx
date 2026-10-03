@@ -31,10 +31,10 @@ function messageFor(err: unknown): string {
 }
 
 const SPAN = {
-  intro: { base: 1, md: 6, lg: 12 },
-  form: { base: 1, md: 6, lg: 5 },
-  lines: { base: 1, md: 6, lg: 7 },
-  preview: { base: 1, md: 6, lg: 12 },
+  intro: { md: 6, lg: 12 },
+  form: { md: 6, lg: 5 },
+  lines: { md: 6, lg: 7 },
+  preview: { md: 6, lg: 12 },
 } satisfies Record<string, BentoSpan>;
 
 export const PERIODICITY_LABELS: Record<PlanPeriodicity, string> = {

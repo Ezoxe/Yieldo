@@ -21,7 +21,7 @@ import { ReasoningTrace, ThinkingIndicator } from "./ReasoningTrace";
 import "./AssistantPage.css";
 
 const SPAN = {
-  full: { base: 1, md: 6, lg: 12 },
+  full: { md: 6, lg: 12 },
 } satisfies Record<string, BentoSpan>;
 
 /** The phrasings the parser understands, offered before anything has been

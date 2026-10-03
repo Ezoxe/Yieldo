@@ -115,9 +115,9 @@ function shortfallSentence(plan: PayoffPlan): string {
  * two — it holds two panels side by side plus everything qualifying them.
  */
 const SPAN = {
-  debts: { base: 1, md: 6, lg: 5 },
-  plan: { base: 1, md: 6, lg: 7 },
-  chart: { base: 1, md: 6, lg: 12 },
+  debts: { md: 6, lg: 5 },
+  plan: { md: 6, lg: 7 },
+  chart: { md: 6, lg: 12 },
 } satisfies Record<string, BentoSpan>;
 
 interface LoadErrors {

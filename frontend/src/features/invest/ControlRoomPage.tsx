@@ -292,7 +292,7 @@ export function ControlRoomPage() {
       ) : null}
 
       <BentoGrid>
-        <BentoCell span={{ base: 1, md: 6, lg: 4 }}>
+        <BentoCell span={{ md: 6, lg: 4 }}>
           <PanelHead icon={SandboxIcon} subtitle={`En ${MODE_LABELS[data.mode].toLowerCase()}`}>
             Le compte
           </PanelHead>
@@ -335,7 +335,7 @@ export function ControlRoomPage() {
           </div>
         </BentoCell>
 
-        <BentoCell span={{ base: 1, md: 6, lg: 8 }}>
+        <BentoCell span={{ md: 6, lg: 8 }}>
           <PanelHead
             icon={DecisionsIcon}
             subtitle={`${data.examined} ${plural(data.examined, "instrument examiné", "instruments examinés")}`}
@@ -365,7 +365,7 @@ export function ControlRoomPage() {
           </p>
         </BentoCell>
 
-        <BentoCell span={{ base: 1, md: 6, lg: 12 }}>
+        <BentoCell span={{ md: 6, lg: 12 }}>
           <PanelHead icon={BrokersIcon} subtitle={`${data.positions.length} ${plural(data.positions.length, "ligne", "lignes")}`}>
             Les positions
           </PanelHead>
@@ -427,7 +427,7 @@ export function ControlRoomPage() {
           )}
         </BentoCell>
 
-        <BentoCell span={{ base: 1, md: 6, lg: 5 }}>
+        <BentoCell span={{ md: 6, lg: 5 }}>
           <PanelHead
             icon={DecisionModelIcon}
             subtitle={`${data.calibration.observations} ${plural(data.calibration.observations, "décision probabilisée", "décisions probabilisées")}`}
@@ -453,7 +453,7 @@ export function ControlRoomPage() {
           )}
         </BentoCell>
 
-        <BentoCell span={{ base: 1, md: 6, lg: 7 }}>
+        <BentoCell span={{ md: 6, lg: 7 }}>
           <PanelHead
             icon={DecisionsIcon}
             subtitle={
@@ -519,7 +519,7 @@ export function ControlRoomPage() {
           )}
         </BentoCell>
 
-        <BentoCell span={{ base: 1, md: 6, lg: 12 }}>
+        <BentoCell span={{ md: 6, lg: 12 }}>
           <PanelHead
             icon={OversightIcon}
             subtitle="Les plus récentes"

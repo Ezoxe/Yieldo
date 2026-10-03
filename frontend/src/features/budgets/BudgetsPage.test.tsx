@@ -288,7 +288,7 @@ describe("BudgetsPage", () => {
     await screen.findAllByText("Courses");
   });
 
-  // `SPAN.unbudgeted` is `{ base: 1, md: 6 }`: the "Sans budget" cell is only
+  // `SPAN.unbudgeted` is `{ md: 6 }`: the "Sans budget" cell is only
   // to the right of this one from 1200px up. Two of the three required widths
   // stack it underneath, where "à droite" sends the reader the wrong way.
   it("points at the other panel by name rather than by a position it only has at 1200px", async () => {

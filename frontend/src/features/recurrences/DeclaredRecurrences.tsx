@@ -39,9 +39,9 @@ function messageFor(err: unknown): string {
 }
 
 const SPAN = {
-  totals: { base: 1, md: 6, lg: 4 } satisfies BentoSpan,
-  calendar: { base: 1, md: 6, lg: 8 } satisfies BentoSpan,
-  list: { base: 1, md: 6, lg: 12 } satisfies BentoSpan,
+  totals: { md: 6, lg: 4 } satisfies BentoSpan,
+  calendar: { md: 6, lg: 8 } satisfies BentoSpan,
+  list: { md: 6, lg: 12 } satisfies BentoSpan,
 };
 
 const MONTHS = [

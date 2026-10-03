@@ -262,7 +262,7 @@ export function MandatePage() {
       ) : null}
 
       <BentoGrid>
-        <BentoCell span={{ base: 1, md: 6, lg: 7 }}>
+        <BentoCell span={{ md: 6, lg: 7 }}>
           <PanelHead icon={MandateIcon}>Les limites</PanelHead>
           <div className="yd-invest-form">
             <label className="yd-invest-field">
@@ -357,7 +357,7 @@ export function MandatePage() {
           </div>
         </BentoCell>
 
-        <BentoCell span={{ base: 1, md: 6, lg: 5 }}>
+        <BentoCell span={{ md: 6, lg: 5 }}>
           <PanelHead
             icon={OversightIcon}
             actions={
@@ -425,7 +425,7 @@ export function MandatePage() {
           </div>
         </BentoCell>
 
-        <BentoCell span={{ base: 1, md: 6, lg: 12 }}>
+        <BentoCell span={{ md: 6, lg: 12 }}>
           <PanelHead icon={MandateIcon}>Les règles que le modèle ne peut pas contourner</PanelHead>
           <ul className="yd-rules">
             {current.declared_rules.map((rule) => (
@@ -446,7 +446,7 @@ export function MandatePage() {
       {error ? <p className="yd-note yd-note--negative" role="alert">{error}</p> : null}
 
       <BentoGrid>
-        <BentoCell span={{ base: 1, md: 6, lg: 12 }}>
+        <BentoCell span={{ md: 6, lg: 12 }}>
           <PanelHead icon={HaltIcon}>Armer l'exécution réelle</PanelHead>
           {current.armed && armedMinutes !== null ? (
             <>

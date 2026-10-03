@@ -354,8 +354,10 @@
     gap: var(--yd-space-sm);
   }
 
+  /* 12px of gutter: the cards carry their own 16px of padding now, and the
+     two together still leave a 390px phone 342px of figure. */
   .yd-shell__main {
-    padding: 20px 16px 16px;
+    padding: 12px 12px 16px;
   }
 }
 

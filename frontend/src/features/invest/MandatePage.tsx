@@ -140,15 +140,19 @@ export function MandatePage() {
     if (policy.data && draft === null) setDraft(toDraft(policy.data));
   }, [policy.data, draft]);
 
-  if (policy.isPending || draft === null) return <PageSkeleton />;
+  // The refusal first: a policy that failed to load leaves no draft behind,
+  // and testing « no draft » first would keep the skeleton up for ever.
   if (policy.error) {
     return (
       <div className="yd-invest-page">
         <PageHead icon={MandateIcon} title="Mandat" />
-        <p className="yd-note yd-note--negative">{policy.error.detail}</p>
+        <p className="yd-note yd-note--negative" role="alert">
+          {policy.error.detail}
+        </p>
       </div>
     );
   }
+  if (policy.isPending || draft === null) return <PageSkeleton />;
 
   const current = policy.data;
   const armedMinutes = remainingMinutes(current.armed_until);

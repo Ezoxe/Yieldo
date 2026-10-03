@@ -258,3 +258,20 @@ describe("Mandat — les profils de risque", () => {
     expect(screen.getByText(/réglage de départ conseillé/)).toBeInTheDocument();
   });
 });
+
+describe("un mandat qui ne se charge pas", () => {
+  // The refusal used to be unreachable: with no policy there is no draft,
+  // and « no draft » was tested first — the screen sat on its skeleton for
+  // ever, saying nothing. The cause now reaches the reader.
+  it("dit pourquoi au lieu d'attendre indéfiniment", async () => {
+    setupFetch({}, {
+      "GET /api/invest/policy": () =>
+        json({ detail: "Le mandat n'a pas pu être lu : base indisponible." }, 500),
+    });
+    renderPage();
+    expect(
+      await screen.findByText("Le mandat n'a pas pu être lu : base indisponible."),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1, name: "Mandat" })).toBeInTheDocument();
+  });
+});

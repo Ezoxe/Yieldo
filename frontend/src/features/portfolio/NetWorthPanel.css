@@ -88,3 +88,17 @@
 .yd-networth__alert {
   color: var(--yd-negative-text);
 }
+
+/* « voir » is a word in a 0.74rem line: on a touch screen the whole Dettes
+   term — its label and its figure — is the link's target. */
+@media (pointer: coarse) {
+  .yd-networth__term {
+    position: relative;
+  }
+
+  .yd-networth__link::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+  }
+}

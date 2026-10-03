@@ -725,10 +725,20 @@
 }
 
 /* Each line of « Où va l'argent » opens its category's page: on a touch
-   screen the whole row is a thumb's height. */
+   screen the whole row is a thumb's height, and the whole row is the link's
+   target — not its 21px line of text. Nothing else in the row is
+   interactive. (The link clips its own text; its `::after` belongs to the
+   row, so the clipping does not reach it.) */
 @media (pointer: coarse) {
   .yd-split__row {
+    position: relative;
     min-height: 44px;
+  }
+
+  .yd-split__name::after {
+    content: "";
+    position: absolute;
+    inset: 0;
   }
 }
 

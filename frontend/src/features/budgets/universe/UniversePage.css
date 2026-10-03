@@ -188,3 +188,18 @@
 .yd-skeleton--universe-panel {
   height: 180px;
 }
+
+/* A part opens its own page: on a touch screen the whole part is the link's
+   target, not the line of its name. Its pill and figures are not
+   interactive. */
+@media (pointer: coarse) {
+  .yd-universe__part {
+    position: relative;
+  }
+
+  .yd-universe__part-name::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+  }
+}

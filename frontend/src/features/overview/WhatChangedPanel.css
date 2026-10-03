@@ -97,3 +97,17 @@
   outline-offset: 2px;
   border-radius: 4px;
 }
+
+/* On a touch screen the whole alert row is the link's target, not its line
+   of text: nothing else in the row is interactive. */
+@media (pointer: coarse) {
+  .yd-changed__alert {
+    position: relative;
+  }
+
+  .yd-changed__title::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+  }
+}

@@ -109,7 +109,7 @@ describe("AppShell", () => {
     expect(tabs.getByRole("link", { name: "Budgets" })).toHaveAttribute("aria-current", "page");
     expect(tabs.getByRole("button", { name: "Plus" })).toHaveAttribute(
       "aria-controls",
-      "yd-sidebar-drawer",
+      "yd-more-sheet",
     );
   });
 
@@ -247,116 +247,64 @@ describe("AppShell", () => {
     expect(screen.getByText("Maxime")).toBeInTheDocument();
   });
 
-  describe("mobile drawer", () => {
-    // The static sidebar (`.yd-shell__sidebar--static`) is always mounted and
-    // only hidden by a CSS media query, which jsdom does not apply (no CSS
-    // engine here — see vitest.config.ts). So once the drawer opens, its own
-    // identically-labeled <nav> makes TWO "Navigation principale" landmarks
-    // queryable at once. Every assertion below accounts for that instead of
-    // assuming a single nav exists while the drawer is open.
-
+  // The phone's « Plus » used to open the desktop sidebar as a left drawer,
+  // 1 168px of list for 21 entries on an 844px screen. It is a sheet now: every
+  // destination as a tile, within reach of the thumb, without scrolling.
+  describe("the « Plus » sheet", () => {
     beforeEach(() => {
-      // The drawer's slide-in and the scrim's fade run through Motion in JS
-      // (see AppShell.tsx / variants.ts), and jsdom has no real animation
-      // clock, so an unmount driven by an exit animation would not be
-      // synchronous here. Forcing the reduced-motion branch keeps these
-      // assertions deterministic while still exercising real component
-      // logic — AppShell renders plain elements (no motion.* wrapper) in
-      // that branch, but the same drawerOpen state, handlers, and markup.
+      // An exit animation never finishes in jsdom (no animation clock), so the
+      // motion-off branch, which unmounts at once, keeps these deterministic.
       mockReducedMotion(true);
     });
 
-    function getToggle() {
-      return screen.getByRole("button", { name: "Menu" });
+    function more() {
+      return within(screen.getByRole("navigation", { name: "Navigation rapide" })).getByRole(
+        "button",
+        { name: "Plus" },
+      );
     }
 
-    function getNavs() {
-      return screen.getAllByRole("navigation", { name: NAV_LABEL });
-    }
-
-    it("opens from the toggle button and closes again", async () => {
+    it("opens from the tab bar and says so", async () => {
       const user = userEvent.setup();
       renderShell("/");
+      expect(more()).toHaveAttribute("aria-expanded", "false");
 
-      expect(getNavs()).toHaveLength(1);
-
-      await user.click(getToggle());
-      expect(getNavs()).toHaveLength(2);
-
-      await user.click(getToggle());
-      expect(getNavs()).toHaveLength(1);
-    });
-
-    it("tracks the open state with aria-expanded on the toggle", async () => {
-      const user = userEvent.setup();
-      renderShell("/");
-      const toggle = getToggle();
-
-      expect(toggle).toHaveAttribute("aria-expanded", "false");
-
-      await user.click(toggle);
-      expect(toggle).toHaveAttribute("aria-expanded", "true");
-
-      await user.click(toggle);
-      expect(toggle).toHaveAttribute("aria-expanded", "false");
+      await user.click(more());
+      expect(screen.getByRole("dialog", { name: "Plus" })).toBeInTheDocument();
+      expect(more()).toHaveAttribute("aria-expanded", "true");
     });
 
     it("closes on Escape", async () => {
       const user = userEvent.setup();
       renderShell("/");
-
-      await user.click(getToggle());
-      expect(getNavs()).toHaveLength(2);
+      await user.click(more());
 
       await user.keyboard("{Escape}");
-      expect(getNavs()).toHaveLength(1);
-      expect(getToggle()).toHaveAttribute("aria-expanded", "false");
+      expect(screen.queryByRole("dialog", { name: "Plus" })).not.toBeInTheDocument();
+      expect(more()).toHaveAttribute("aria-expanded", "false");
     });
 
-    it("closes when the scrim is clicked", async () => {
-      const user = userEvent.setup();
-      const { container } = renderShell("/");
-
-      await user.click(getToggle());
-      const scrim = container.querySelector(".yd-shell__scrim");
-      expect(scrim).not.toBeNull();
-
-      await user.click(scrim as Element);
-      expect(getNavs()).toHaveLength(1);
-      expect(getToggle()).toHaveAttribute("aria-expanded", "false");
-    });
-
-    it("keeps navigation reachable while the drawer is open", async () => {
+    it("takes the reader where they tapped, and gets out of the way", async () => {
       const user = userEvent.setup();
       renderShell("/transactions");
+      await user.click(more());
 
-      await user.click(getToggle());
-      const [, drawerNav] = getNavs();
-
-      // The drawer's own copy of the active link should reflect the route,
-      // and clicking it should both navigate and close the drawer (the
-      // drawer's onNavigate wires to closeDrawer).
-      expect(within(drawerNav).getByRole("link", { name: "Transactions" })).toHaveAttribute(
+      const sheet = within(screen.getByRole("dialog", { name: "Plus" }));
+      expect(sheet.getByRole("link", { name: "Transactions" })).toHaveAttribute(
         "aria-current",
         "page",
       );
+      await user.click(sheet.getByRole("link", { name: "Analyse" }));
 
-      await user.click(within(drawerNav).getByRole("link", { name: "Vue d'ensemble" }));
-
-      expect(screen.getByRole("main")).toHaveTextContent("Écran vue d'ensemble");
-      expect(getNavs()).toHaveLength(1);
+      expect(screen.getByRole("main")).toHaveTextContent("Écran analyse");
+      expect(screen.queryByRole("dialog", { name: "Plus" })).not.toBeInTheDocument();
     });
 
-    it("also opens via the toggle when motion is not reduced", async () => {
-      // Mounting is synchronous regardless of the Motion animation applied
-      // to it (only the visual transition is deferred), so this exercises
-      // the animated branch without waiting on an exit animation.
-      mockReducedMotion(false);
+    it("leaves the page behind it out of the keyboard's reach while open", async () => {
       const user = userEvent.setup();
-      renderShell("/");
-
-      await user.click(getToggle());
-      expect(getNavs()).toHaveLength(2);
+      const { container } = renderShell("/");
+      await user.click(more());
+      expect(container.querySelector(".yd-shell__body")).toHaveAttribute("inert");
     });
   });
 });
@@ -398,11 +346,6 @@ describe("AppShell.css", () => {
     expect(surfaceOf(active)).not.toBe(surfaceOf(sidebar));
   });
 
-  it("the drawer stays legible over the scrim with its own raised surface", () => {
-    expect(ruleBody(".yd-shell__sidebar--drawer")).toMatch(
-      /background:\s*var\(--yd-surface-raised\)\s*;/,
-    );
-  });
 });
 
 /**

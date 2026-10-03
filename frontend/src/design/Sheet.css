@@ -48,6 +48,19 @@
   cursor: grab;
 }
 
+/* No printed title: the handle alone, the close button in the corner. */
+.yd-sheet__head--bare {
+  position: relative;
+  min-height: 54px;
+  padding-bottom: 0;
+}
+
+.yd-sheet__head--bare .yd-sheet__close {
+  position: absolute;
+  top: 6px;
+  right: var(--yd-space-md);
+}
+
 .yd-sheet__handle {
   display: block;
   width: 36px;

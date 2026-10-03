@@ -9,8 +9,8 @@
    viewport. Anything that must read above it needs its own positioned stacking
    context — the alternative, pushing the background to a negative z-index,
    puts it under the shell's own opaque background where nothing can see it.
-   The menu toggle, the drawer and its scrim already carry z-indexes of their
-   own (30/40/35) and are above the layer already. */
+   The sheets and drawers are rendered into the document body with z-indexes
+   of their own (60/70) and are above the layer already. */
 .yd-shell__body {
   position: relative;
   z-index: 1;
@@ -33,23 +33,6 @@
      than pushing the page taller. */
   overflow-y: auto;
   overscroll-behavior: contain;
-}
-
-.yd-shell__menu-toggle {
-  display: none;
-  align-items: center;
-  gap: 8px;
-  position: fixed;
-  top: 12px;
-  left: 12px;
-  z-index: 30;
-  border: 1px solid var(--yd-border-control);
-  border-radius: var(--yd-radius-sm);
-  background: var(--yd-surface-strong);
-  color: var(--yd-text);
-  padding: 8px 12px;
-  font: inherit;
-  cursor: pointer;
 }
 
 /* Chrome, not data. The plan reserves backdrop-filter for floating surfaces and
@@ -189,28 +172,6 @@
   border-left: 2px solid var(--yd-accent);
 }
 
-.yd-shell__drawer-wrap {
-  position: fixed;
-  inset: 0 auto 0 0;
-  z-index: 40;
-}
-
-/* The drawer floats over the page rather than over the atmosphere, so it takes
-   the raised surface instead of the sidebar's: at --yd-surface's alpha the
-   transactions table showed straight through the nav labels. */
-.yd-shell__sidebar--drawer {
-  height: 100%;
-  background: var(--yd-surface-raised);
-  box-shadow: var(--yd-shadow);
-}
-
-.yd-shell__scrim {
-  position: fixed;
-  inset: 0;
-  z-index: 35;
-  background: var(--yd-scrim);
-}
-
 .yd-shell__body {
   flex: 1;
   display: flex;
@@ -242,6 +203,33 @@
   position: sticky;
   top: 0;
   z-index: 20;
+}
+
+/* The screen's title in the phone header (see useCompactTitle). Absent on a
+   wide screen, where the sidebar already says where the reader is; on a phone
+   it fades in once the page's own h1 has gone under the header, and out again
+   when the h1 comes back. */
+.yd-shell__title {
+  display: none;
+  margin: 0 auto 0 0;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--yd-text);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  opacity: 0;
+  translate: 0 4px;
+  transition:
+    opacity var(--yd-motion-fast) var(--yd-ease),
+    translate var(--yd-motion-base) var(--yd-ease);
+}
+
+.yd-shell__title[data-visible="true"] {
+  opacity: 1;
+  translate: 0 0;
 }
 
 /* The way into the assistant, on every screen, and now the only control in
@@ -332,83 +320,46 @@
 }
 
 @media (max-width: 899px) {
-  /* The drawer is opened from the tab bar's « Plus » (BottomTabs) wherever
-     the sidebar is hidden. The fixed hamburger in the top-left corner used to
-     be that door and stays in the markup for the tests and the accessible
-     name, but one way in is enough; the header keeps the inset it was
-     measured for, so nothing else moves. */
-  .yd-shell__menu-toggle {
-    display: none;
-  }
-
   .yd-shell__sidebar--static {
     display: none;
   }
 
+  /* The compact header: the screen's title on the left once its h1 has
+     scrolled away, the search and the account on the right in 44px squares.
+     The import and the assistant leave it — the assistant is a tab, the
+     import is the first thing in the « Plus » sheet. */
   .yd-shell__header {
-    /* Clears the fixed menu toggle in the top-left corner. 12px of inset, the
-       button itself, and a gap — measured, not guessed: at 92px the toggle's
-       own right edge landed at 103px and the reader's name was painted under
-       it on every screen. */
-    padding-left: 116px;
-    gap: var(--yd-space-sm);
+    justify-content: flex-end;
+    gap: var(--yd-space-xs);
+    min-height: 56px;
+    padding: 6px 12px;
+  }
+
+  .yd-shell__title {
+    display: block;
+  }
+
+  .yd-shell__import,
+  .yd-shell__assistant {
+    display: none;
+  }
+
+  .yd-shell__header .yd-user-menu {
+    order: 3;
+  }
+
+  /* Two thumb-sized squares: they were 32px and 34px. */
+  .yd-shell__header .yd-search__trigger,
+  .yd-shell__header .yd-user-menu__trigger {
+    min-width: 44px;
+    min-height: 44px;
+    justify-content: center;
   }
 
   /* 12px of gutter: the cards carry their own 16px of padding now, and the
      two together still leave a 390px phone 342px of figure. */
   .yd-shell__main {
     padding: 12px 12px 16px;
-  }
-}
-
-/* A phone header holds three things on one 375px line: the way out to the nav,
-   the reading every figure is in, and the assistant. The reader's own name is
-   the fourth, and the only one of the four that is not a control — so it is
-   the one that goes, and the hamburger loses its word. Both were overlapping
-   the menu button rather than fitting beside it. */
-@media (max-width: 599px) {
-  /* The word goes, the glyph stays, the accessible name keeps the word:
-     the phone header already holds the menu, the reading and the assistant. */
-  .yd-shell__import-label {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip-path: inset(50%);
-    white-space: nowrap;
-  }
-
-  .yd-shell__import {
-    padding: 7px;
-  }
-
-  .yd-shell__menu-toggle {
-    padding: 8px;
-    /* A finger-sized square once the word is gone. */
-    min-width: 38px;
-    min-height: 38px;
-    justify-content: center;
-  }
-
-  .yd-shell__menu-label {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    padding: 0;
-    margin: -1px;
-    overflow: hidden;
-    clip-path: inset(50%);
-    white-space: nowrap;
-  }
-
-  .yd-shell__header {
-    padding-left: 62px;
-    padding-right: var(--yd-space-md);
-    gap: var(--yd-space-xs);
-  }
-
-  .yd-shell__assistant {
-    padding: 7px 12px 7px 10px;
   }
 }
 

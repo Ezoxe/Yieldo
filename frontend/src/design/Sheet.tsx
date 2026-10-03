@@ -91,30 +91,46 @@ export function Sheet({
 
   if (typeof document === "undefined") return null;
 
+  const closeButton = (
+    <button
+      type="button"
+      className="yd-sheet__close"
+      aria-label="Fermer"
+      onClick={() => close.current()}
+      onPointerDown={(event) => event.stopPropagation()}
+    >
+      <CloseIcon />
+    </button>
+  );
+
+  // A sheet without a printed title keeps a head that is only the handle, with
+  // the close button pinned to its corner: a row holding nothing but a button
+  // cost the « Plus » sheet 56px it needed to fit on one screen.
   const head = (
     <div
-      className="yd-sheet__head"
+      className={`yd-sheet__head${hideTitle ? " yd-sheet__head--bare" : ""}`}
       onPointerDown={reduced ? undefined : (event: PointerEvent) => drag.start(event)}
     >
       <span className="yd-sheet__handle" aria-hidden="true" />
-      <div className="yd-sheet__titles">
-        {leading}
-        <div className="yd-sheet__heading">
-          <h2 id={headingId} className={hideTitle ? "sr-only" : "yd-sheet__title"}>
+      {hideTitle ? (
+        <>
+          <h2 id={headingId} className="sr-only">
             {title}
           </h2>
-          {subtitle ? <p className="yd-sheet__subtitle">{subtitle}</p> : null}
+          {closeButton}
+        </>
+      ) : (
+        <div className="yd-sheet__titles">
+          {leading}
+          <div className="yd-sheet__heading">
+            <h2 id={headingId} className="yd-sheet__title">
+              {title}
+            </h2>
+            {subtitle ? <p className="yd-sheet__subtitle">{subtitle}</p> : null}
+          </div>
+          {closeButton}
         </div>
-        <button
-          type="button"
-          className="yd-sheet__close"
-          aria-label="Fermer"
-          onClick={() => close.current()}
-          onPointerDown={(event) => event.stopPropagation()}
-        >
-          <CloseIcon />
-        </button>
-      </div>
+      )}
     </div>
   );
 

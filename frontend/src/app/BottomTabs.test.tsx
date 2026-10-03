@@ -46,12 +46,12 @@ describe("BottomTabs", () => {
     expect(screen.getByRole("link", { name: "Vue d'ensemble" })).not.toHaveAttribute("aria-current");
   });
 
-  it("hands « Plus » to the drawer, and says whether it is open", async () => {
+  it("hands « Plus » to the sheet, and says whether it is open", async () => {
     const user = userEvent.setup();
     const onMore = renderTabs();
     const more = screen.getByRole("button", { name: "Plus" });
     expect(more).toHaveAttribute("aria-expanded", "false");
-    expect(more).toHaveAttribute("aria-controls", "yd-sidebar-drawer");
+    expect(more).toHaveAttribute("aria-controls", "yd-more-sheet");
     await user.click(more);
     expect(onMore).toHaveBeenCalledTimes(1);
   });

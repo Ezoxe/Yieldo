@@ -1,5 +1,5 @@
-import { AnimatePresence, motion } from "motion/react";
-import { Fragment, useEffect, useId, useState } from "react";
+import { motion } from "motion/react";
+import { useEffect, useId, useState } from "react";
 import { Link, NavLink, Outlet, useLocation } from "react-router";
 
 import { AISpotlightProvider } from "../design/ai/AISpotlight";
@@ -7,7 +7,7 @@ import { AtmosphericBackground } from "../design/atmosphere/AtmosphericBackgroun
 import { useCardSpotlight } from "../design/bento/useCardSpotlight";
 import { Shibi } from "../design/shibi/Shibi";
 import { useShibiVisible } from "../design/shibi/shibiPreference";
-import { AssistantIcon, ImportIcon, MenuIcon } from "../design/icons";
+import { AssistantIcon, ImportIcon } from "../design/icons";
 import { AssistantDrawer } from "../features/assistant/AssistantDrawer";
 import { useProposalCount } from "../features/agent/useProposalCount";
 import { useAlertCount } from "../features/alerts/useAlertCount";
@@ -16,9 +16,10 @@ import { GlobalSearch } from "../features/search/GlobalSearch";
 import { useLedgerMode } from "../features/plan/useLedgerMode";
 import { BottomTabs } from "./BottomTabs";
 import { EnvironmentSwitcher } from "./EnvironmentSwitcher";
+import { MoreSheet } from "./MoreSheet";
 import { environmentFor, type Environment, type NavSection } from "./navigation";
+import { useCompactTitle } from "./useCompactTitle";
 import { UserMenu } from "./UserMenu";
-import { slideOver } from "../design/motion/variants";
 import { useReducedMotion } from "../design/motion/useReducedMotion";
 import "./AppShell.css";
 
@@ -33,20 +34,15 @@ const BADGE_WORD: Record<string, string> = {
 };
 
 interface SidebarNavProps {
-  id?: string;
   className: string;
-  onNavigate?: () => void;
   /**
    * The environment whose sections this nav draws. Passed in rather than read
-   * from the location here: the static sidebar and the mobile drawer are both
-   * mounted at once, and two readings of the same URL is one reading too many.
+   * from the location here: the sidebar, the phone tabs and the « Plus » sheet
+   * all draw from it, and two readings of the same URL is one reading too many.
    */
   environment: Environment;
-  /**
-   * Unique per rendered nav. The static sidebar and the mobile drawer are both
-   * mounted at once (the first is only hidden by a media query), and a shared
-   * `layoutId` would make Motion animate the indicator BETWEEN the two navs.
-   */
+  /** Unique per rendered nav, so Motion's `layoutId` never animates the
+   *  indicator between two navs that happen to be mounted at once. */
   indicatorId: string;
   /** No sliding indicator when motion is reduced — the pill is painted by CSS
    *  either way, so the active entry is never left unmarked. */
@@ -60,16 +56,14 @@ interface SidebarNavProps {
   badges?: Record<string, number>;
 }
 
-function SidebarNav({
-  id, className, onNavigate, environment, indicatorId, animated, badges,
-}: SidebarNavProps) {
+function SidebarNav({ className, environment, indicatorId, animated, badges }: SidebarNavProps) {
   const sections: NavSection[] = environment.sections;
   return (
-    <nav id={id} className={className} aria-label="Navigation principale">
+    <nav className={className} aria-label="Navigation principale">
       {/* Where the brand block was. It still says « Yieldo » first — see
           EnvironmentSwitcher on why the product name does not give way to the
           control that changes environment. */}
-      <EnvironmentSwitcher current={environment} onNavigate={onNavigate} />
+      <EnvironmentSwitcher current={environment} />
 
       {sections.map((section, index) => (
         <div className="yd-shell__nav-section" key={section.title ?? `section-${index}`}>
@@ -81,7 +75,7 @@ function SidebarNav({
           <ul>
             {section.items.map((item) => (
               <li key={item.to}>
-                <NavLink to={item.to} end={item.end} onClick={onNavigate}>
+                <NavLink to={item.to} end={item.end}>
                   {({ isActive }) => (
                     <>
                       {/* The travelling indicator: one element, moved by Motion
@@ -124,10 +118,11 @@ interface AppShellProps {
 }
 
 export function AppShell({ userName }: AppShellProps) {
-  const [drawerOpen, setDrawerOpen] = useState(false);
+  // « Plus » on a phone or a tablet — every destination the tab bar has no
+  // room for, in a sheet (see MoreSheet).
+  const [moreOpen, setMoreOpen] = useState(false);
   // The assistant panel, reachable from every screen. Separate state from the
-  // mobile nav drawer above: the two are different surfaces and can be open at
-  // once without either closing the other.
+  // « Plus » sheet: the two are different surfaces.
   const [assistantOpen, setAssistantOpen] = useState(false);
 
   // The reading, fetched once for the whole session. Every screen below is
@@ -147,9 +142,11 @@ export function AppShell({ userName }: AppShellProps) {
   const location = useLocation();
   const navId = useId();
   // Which half of the application the current URL belongs to. One reading,
-  // passed to both navs and to the phone tabs, so the sidebar, the drawer and
-  // the tab bar can never disagree about where the reader is.
+  // passed to the sidebar, the phone tabs and the « Plus » sheet, so the three
+  // can never disagree about where the reader is.
   const environment = environmentFor(location.pathname);
+  // The screen's title in the phone header, once its own h1 has scrolled away.
+  const compactTitle = useCompactTitle(location.pathname);
 
   // How many changes the AI is waiting on a decision for. Refetched on every
   // navigation rather than polled: a proposal appears when the household asks
@@ -166,18 +163,7 @@ export function AppShell({ userName }: AppShellProps) {
     void refreshAlerts();
   }, [refreshProposals, refreshAlerts, location.pathname]);
 
-  const closeDrawer = () => setDrawerOpen(false);
-
-  // Escape is the standard way to dismiss a dialog-like overlay; without this,
-  // keyboard users stuck behind the scrim have no way out but the mouse.
-  useEffect(() => {
-    if (!drawerOpen) return;
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") closeDrawer();
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [drawerOpen]);
+  const badges = { "/propositions": pendingProposals, "/alertes": alertCount };
 
   return (
     <AISpotlightProvider>
@@ -186,85 +172,17 @@ export function AppShell({ userName }: AppShellProps) {
           above it with its own stacking context (see AppShell.css). */}
       <AtmosphericBackground />
 
-      <button
-        type="button"
-        className="yd-shell__menu-toggle"
-        aria-expanded={drawerOpen}
-        aria-controls="yd-sidebar-drawer"
-        onClick={() => setDrawerOpen((open) => !open)}
-      >
-        <MenuIcon />
-        {/* Hidden below 600px, where the header has to hold the reading and
-            the assistant on the same 375px line — the hamburger is the one
-            glyph a phone reader does not need a word for. The accessible name
-            is untouched: the span is only ever visually hidden. */}
-        <span className="yd-shell__menu-label">Menu</span>
-      </button>
-
       <SidebarNav
         className="yd-shell__sidebar yd-shell__sidebar--static"
         environment={environment}
         indicatorId={`${navId}-static`}
         animated={!reducedMotion}
-        badges={{ "/propositions": pendingProposals, "/alertes": alertCount }}
+        badges={badges}
       />
 
-      <AnimatePresence>
-        {drawerOpen ? (
-          reducedMotion ? (
-            // `prefers-reduced-motion` (or the CSS media block in GlassCard.css)
-            // can't reach Motion's JS-driven animations, so when motion is
-            // reduced the drawer is rendered as plain elements instead of
-            // motion.* components: it still opens and closes, just without
-            // the slide/fade transition.
-            <Fragment key="drawer-instant">
-              <div className="yd-shell__scrim" onClick={closeDrawer} aria-hidden="true" />
-              <div className="yd-shell__drawer-wrap">
-                <SidebarNav
-                  id="yd-sidebar-drawer"
-                  className="yd-shell__sidebar yd-shell__sidebar--drawer"
-                  onNavigate={closeDrawer}
-                  environment={environment}
-                  indicatorId={`${navId}-drawer`}
-                  animated={false}
-                  badges={{ "/propositions": pendingProposals, "/alertes": alertCount }}
-                />
-              </div>
-            </Fragment>
-          ) : (
-            <Fragment key="drawer-animated">
-              <motion.div
-                className="yd-shell__scrim"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                onClick={closeDrawer}
-                aria-hidden="true"
-              />
-              <motion.div
-                className="yd-shell__drawer-wrap"
-                variants={slideOver}
-                initial="hidden"
-                animate="visible"
-                exit="exit"
-              >
-                <SidebarNav
-                  id="yd-sidebar-drawer"
-                  className="yd-shell__sidebar yd-shell__sidebar--drawer"
-                  onNavigate={closeDrawer}
-                  environment={environment}
-                  indicatorId={`${navId}-drawer`}
-                  animated
-                  badges={{ "/propositions": pendingProposals, "/alertes": alertCount }}
-                />
-              </motion.div>
-            </Fragment>
-          )
-        ) : null}
-      </AnimatePresence>
-
-      {/* Focus must not wander behind the scrim while the drawer is open. */}
-      <div className="yd-shell__body" inert={drawerOpen || undefined}>
+      {/* Focus must not wander behind the « Plus » sheet while it is open. The
+          sheet itself is rendered into the body, outside this element. */}
+      <div className="yd-shell__body" inert={moreOpen || undefined}>
         {/* The header carries the reader's name and the one control that DOES
             something. The name is a menu button: Réglages, the theme and the
             exit sit behind it. The theme SELECT used to sit here as a permanent
@@ -272,6 +190,18 @@ export function AppShell({ userName }: AppShellProps) {
             not earn the most valuable strip of the page — but a row inside a
             menu that is closed eleven months out of twelve costs nothing. */}
         <header className="yd-shell__header">
+          {/* The phone header's left slot: the screen's own title, while its h1
+              is scrolled out of view (see useCompactTitle). Never on a wide
+              screen, where the sidebar says where the reader is. Hidden from
+              assistive technology — the h1 itself is the screen's name, and a
+              second copy in a landmark would be read twice. */}
+          <p
+            className="yd-shell__title"
+            data-visible={compactTitle ? "true" : "false"}
+            aria-hidden="true"
+          >
+            {compactTitle}
+          </p>
           <UserMenu userName={userName} />
           {/* The reading, when it is not the plain one. The three-way control
               that used to sit here is a choice made a few times a year and now
@@ -332,14 +262,21 @@ export function AppShell({ userName }: AppShellProps) {
           )}
         </main>
         {/* Inside the body, so it is inert with the rest of the content while
-            the drawer is open — a tab bar that stayed live under the scrim
-            would let a thumb change screens behind it. */}
+            the « Plus » sheet is open — a tab bar that stayed live under the
+            scrim would let a thumb change screens behind it. */}
         <BottomTabs
           environment={environment}
-          onMore={() => setDrawerOpen(true)}
-          moreOpen={drawerOpen}
+          onMore={() => setMoreOpen(true)}
+          moreOpen={moreOpen}
         />
       </div>
+
+      <MoreSheet
+        open={moreOpen}
+        onClose={() => setMoreOpen(false)}
+        environment={environment}
+        badges={badges}
+      />
 
       <AssistantDrawer open={assistantOpen} onClose={() => setAssistantOpen(false)} />
     </div>

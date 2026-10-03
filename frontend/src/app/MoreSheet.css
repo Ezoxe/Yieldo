@@ -1,0 +1,145 @@
+/* « Plus » — see app/MoreSheet.tsx. Every height here is measured against an
+   844px phone: the whole map has to fit without scrolling the sheet. */
+
+.yd-more .yd-sheet__body {
+  gap: var(--yd-space-sm);
+}
+
+/* Two halves of the application, one segmented control. */
+.yd-more__envs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--yd-border-control);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--yd-text) 4%, transparent);
+}
+
+.yd-more__env {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  border-radius: 10px;
+  color: var(--yd-text-muted);
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.yd-more__env[aria-current="true"] {
+  background: var(--yd-surface-raised);
+  color: var(--yd-accent-strong);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--yd-accent) 40%, transparent);
+}
+
+.yd-more__env:focus-visible,
+.yd-more__import:focus-visible,
+.yd-more__tile:focus-visible {
+  outline: 2px solid var(--yd-accent);
+  outline-offset: 2px;
+}
+
+/* The one action of the sheet: a statement in hand needs its door within
+   reach, and the header's import button has no room on a phone. */
+.yd-more__import {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--yd-accent) 45%, transparent);
+  background: color-mix(in srgb, var(--yd-accent) 14%, transparent);
+  color: var(--yd-accent-strong);
+  font-size: 0.95rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.yd-more__section {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.yd-more__heading {
+  margin: 0;
+  padding-inline: 4px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--yd-text-muted);
+}
+
+/* Four to a row: twenty-one destinations in six rows. */
+.yd-more__grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.yd-more__tile {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-height: 64px;
+  padding: 6px 4px;
+  border-radius: 14px;
+  border: 1px solid var(--yd-border);
+  background: color-mix(in srgb, var(--yd-text) 3%, transparent);
+  color: var(--yd-text);
+  text-decoration: none;
+  text-align: center;
+}
+
+.yd-more__tile .yd-icon {
+  font-size: 1.35rem;
+  color: var(--yd-text-muted);
+}
+
+.yd-more__label {
+  font-size: 0.7rem;
+  line-height: 1.2;
+  /* Two lines at most: « Plan prévisionnel », « Modèle de décision ». */
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+
+.yd-more__tile[aria-current="page"] {
+  border-color: color-mix(in srgb, var(--yd-accent) 50%, transparent);
+  background: color-mix(in srgb, var(--yd-accent) 14%, transparent);
+  color: var(--yd-accent-strong);
+}
+
+.yd-more__tile[aria-current="page"] .yd-icon {
+  color: var(--yd-accent);
+}
+
+.yd-more__badge {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  min-width: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--yd-accent);
+  color: var(--yd-bg);
+  font-size: 0.66rem;
+  font-weight: 700;
+  line-height: 18px;
+  text-align: center;
+}

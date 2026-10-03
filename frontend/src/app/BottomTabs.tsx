@@ -18,7 +18,7 @@ import "./BottomTabs.css";
 interface BottomTabsProps {
   /** Which half of the application the reader is in. */
   environment: Environment;
-  /** Opens the sidebar drawer — the same one the hamburger opens. */
+  /** Opens the « Plus » sheet — every destination the tabs have no room for. */
   onMore: () => void;
   moreOpen: boolean;
 }
@@ -65,11 +65,11 @@ const TABS: Record<EnvironmentId, Tab[]> = {
 /**
  * Five tabs at the bottom of a phone screen.
  *
- * The drawer holds the whole environment under its headings, which is a map,
- * not a place to tap between the four screens a household opens every day.
- * Those four get a thumb-reach tab each; « Plus » opens the drawer for the
+ * The « Plus » sheet holds the whole environment under its headings, which is
+ * a map, not a place to tap between the four screens a household opens every
+ * day. Those four get a thumb-reach tab each; « Plus » opens the sheet for the
  * rest. The bar is only drawn where the sidebar is hidden (see BottomTabs.css,
- * same breakpoint as the shell's drawer), so on a desktop nothing changes.
+ * same breakpoint as the shell's), so on a desktop nothing changes.
  */
 export function BottomTabs({ environment, onMore, moreOpen }: BottomTabsProps) {
   return (
@@ -90,7 +90,7 @@ export function BottomTabs({ environment, onMore, moreOpen }: BottomTabsProps) {
         type="button"
         className="yd-tabs__tab yd-tabs__tab--more"
         aria-expanded={moreOpen}
-        aria-controls="yd-sidebar-drawer"
+        aria-controls="yd-more-sheet"
         onClick={onMore}
       >
         <MenuIcon />

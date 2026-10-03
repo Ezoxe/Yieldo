@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router";
+import { Link } from "../../app/links";
 
 import { NetWorthChart, MIN_NET_WORTH_POINTS } from "../../charts/NetWorthChart";
 import { InfoTip } from "../../design/InfoTip";

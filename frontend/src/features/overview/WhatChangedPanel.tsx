@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router";
+import { Link } from "../../app/links";
 
 import { PanelHead } from "../../design/bento/PanelHead";
 import { AlertsIcon } from "../../design/icons";

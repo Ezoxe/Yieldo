@@ -1,4 +1,4 @@
-import { Link } from "react-router";
+import { Link } from "../../app/links";
 
 import { EmptyState } from "../../design/EmptyState";
 import { ListIcon } from "../../design/icons";

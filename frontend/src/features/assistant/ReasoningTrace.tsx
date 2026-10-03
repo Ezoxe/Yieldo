@@ -1,6 +1,6 @@
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useState } from "react";
-import { Link } from "react-router";
+import { Link } from "../../app/links";
 
 import { CheckIcon, ChevronIcon } from "../../design/icons";
 import { useReducedMotion } from "../../design/motion/useReducedMotion";

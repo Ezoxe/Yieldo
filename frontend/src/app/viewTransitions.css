@@ -1,0 +1,120 @@
+/* Screen transitions — the « Fluide » hand-over between two screens.
+ *
+ * Every in-app link asks for a View Transition (app/links.tsx) and writes on
+ * the document root which way it goes: `data-vt-dir="1"` deeper into the same
+ * family (/budgets → /budgets/12), "-1" back up, "0" sideways. The browser
+ * snapshots the old screen, swaps in the new one, and runs what is below:
+ *
+ *   - the chrome — sidebar, header, tab bar — is identical on both sides and
+ *     does not cross-fade (root: no animation);
+ *   - the screen (`.yd-shell__main`, named `yd-main`) leaves in 140ms and the
+ *     new one arrives in 260ms, at the same time: nothing waits for anything;
+ *   - deeper screens arrive from the right and leave to the left, the way back
+ *     the other way round; sideways, a 6px rise;
+ *   - an element named on both sides — a budget's name and its universe's
+ *     title — travels from one place to the other (its group's morph).
+ *
+ * The old screen is a picture, so it cannot misbehave while it leaves. Motion
+ * off asks for no transition at all (links.tsx), and the blocks at the end
+ * stop anything that would still run.
+ */
+.yd-shell__main {
+  view-transition-name: yd-main;
+}
+
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+
+/* The screen's own box does not stretch between two page heights: each
+   picture keeps its size, anchored at the top. */
+::view-transition-group(yd-main) {
+  animation: none;
+}
+
+::view-transition-old(yd-main) {
+  animation: yd-vt-out 140ms cubic-bezier(0.2, 0, 0, 1) both;
+}
+
+::view-transition-new(yd-main) {
+  animation: yd-vt-in 260ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+:root[data-vt-dir="1"]::view-transition-old(yd-main) {
+  animation-name: yd-vt-out-to-left;
+}
+
+:root[data-vt-dir="1"]::view-transition-new(yd-main) {
+  animation-name: yd-vt-in-from-right;
+}
+
+:root[data-vt-dir="-1"]::view-transition-old(yd-main) {
+  animation-name: yd-vt-out-to-right;
+}
+
+:root[data-vt-dir="-1"]::view-transition-new(yd-main) {
+  animation-name: yd-vt-in-from-left;
+}
+
+/* A named element travelling between the two screens. */
+::view-transition-group(*) {
+  animation-duration: 380ms;
+  animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes yd-vt-out {
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes yd-vt-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+@keyframes yd-vt-out-to-left {
+  to {
+    opacity: 0;
+    transform: translateX(-14px);
+  }
+}
+
+@keyframes yd-vt-in-from-right {
+  from {
+    opacity: 0;
+    transform: translateX(14px);
+  }
+}
+
+@keyframes yd-vt-out-to-right {
+  to {
+    opacity: 0;
+    transform: translateX(14px);
+  }
+}
+
+@keyframes yd-vt-in-from-left {
+  from {
+    opacity: 0;
+    transform: translateX(-14px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
+  }
+}
+
+:root[data-motion="off"]::view-transition-group(*),
+:root[data-motion="off"]::view-transition-old(*),
+:root[data-motion="off"]::view-transition-new(*) {
+  animation: none !important;
+}

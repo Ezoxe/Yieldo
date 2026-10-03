@@ -1,4 +1,4 @@
-import { Link } from "react-router";
+import { Link } from "../../app/links";
 
 import { LEDGER_MODE_LABELS, LEDGER_MODE_NOTES, useLedgerMode } from "./useLedgerMode";
 import "./LedgerModeBadge.css";

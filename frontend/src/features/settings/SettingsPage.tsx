@@ -1,5 +1,6 @@
 import { motion } from "motion/react";
-import { Link, useNavigate } from "react-router";
+import { useNavigate } from "react-router";
+import { Link } from "../../app/links";
 
 import { useDensity } from "../../app/DensityProvider";
 import { useTheme } from "../../app/ThemeProvider";

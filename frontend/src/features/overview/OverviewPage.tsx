@@ -1,6 +1,6 @@
 import { motion } from "motion/react";
 import { useEffect, useState, type ReactNode } from "react";
-import { Link } from "react-router";
+import { Link } from "../../app/links";
 
 import { CashflowChart } from "../../charts/CashflowChart";
 import { buildCategoryTreemapItems, CategoryTreemap } from "../../charts/CategoryTreemap";

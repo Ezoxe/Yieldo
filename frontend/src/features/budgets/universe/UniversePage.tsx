@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
-import { Link, useNavigate, useParams, useSearchParams } from "react-router";
+import { useLocation, useNavigate, useParams, useSearchParams } from "react-router";
+import { Link } from "../../../app/links";
 
 import { BentoCell, type BentoSpan } from "../../../design/bento/BentoCell";
 import { BentoGrid } from "../../../design/bento/BentoGrid";
@@ -49,6 +50,9 @@ export function leadSentence(detail: BudgetDetail): string {
  */
 export function UniversePage() {
   const { categoryId } = useParams();
+  // The name the budget list handed over with the navigation: the title is
+  // there at once, and is the end point of the name's travel from its row.
+  const handedName = (useLocation().state as { categoryName?: string } | null)?.categoryName;
   const [params, setParams] = useSearchParams();
   const navigate = useNavigate();
   const id = Number(categoryId);
@@ -141,7 +145,8 @@ export function UniversePage() {
     <section className="yd-universe">
       <PageHead
         icon={BudgetsIcon}
-        title={detail?.category.name ?? "Catégorie"}
+        title={detail?.category.name ?? handedName ?? "Catégorie"}
+        titleTransitionName={`yd-budget-${id}`}
         className="yd-universe__head"
         actions={
           <div className="yd-universe__actions">

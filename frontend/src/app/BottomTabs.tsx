@@ -1,4 +1,7 @@
-import { NavLink } from "react-router";
+import { motion } from "motion/react";
+
+import { useReducedMotion } from "../design/motion/useReducedMotion";
+import { NavLink } from "./links";
 
 import {
   AssistantIcon,
@@ -72,6 +75,7 @@ const TABS: Record<EnvironmentId, Tab[]> = {
  * same breakpoint as the shell's), so on a desktop nothing changes.
  */
 export function BottomTabs({ environment, onMore, moreOpen }: BottomTabsProps) {
+  const reduced = useReducedMotion();
   return (
     <nav className="yd-tabs" aria-label="Navigation rapide">
       {TABS[environment.id].map((tab) => (
@@ -82,8 +86,23 @@ export function BottomTabs({ environment, onMore, moreOpen }: BottomTabsProps) {
           className="yd-tabs__tab"
           aria-label={tab.label}
         >
-          <tab.icon />
-          <span>{tab.short}</span>
+          {({ isActive }) => (
+            <>
+              {/* The pill under the active tab, moved by Motion from the tab
+                  that was active to the one that is — the thumb sees where it
+                  went. Static with motion off; same paint either way. */}
+              {isActive ? (
+                <motion.span
+                  className="yd-tabs__indicator"
+                  layoutId={reduced ? undefined : "yd-tabs-indicator"}
+                  transition={{ type: "spring", stiffness: 520, damping: 42 }}
+                  aria-hidden="true"
+                />
+              ) : null}
+              <tab.icon />
+              <span>{tab.short}</span>
+            </>
+          )}
         </NavLink>
       ))}
       <button

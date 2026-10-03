@@ -1,4 +1,4 @@
-import { Link } from "react-router";
+import { Link } from "../../../app/links";
 
 import { CategoryMonthsChart } from "../../../charts/CategoryMonthsChart";
 import { BentoCell, type BentoSpan } from "../../../design/bento/BentoCell";

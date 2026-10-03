@@ -1,6 +1,6 @@
 import { motion } from "motion/react";
 import { Suspense, lazy, useCallback, useState, type ComponentType, type ReactNode } from "react";
-import { Link } from "react-router";
+import { Link } from "../../app/links";
 
 import { AtmosphericBackground } from "../../design/atmosphere/AtmosphericBackground";
 import { BentoCell } from "../../design/bento/BentoCell";

@@ -75,6 +75,14 @@
   color: var(--yd-accent);
 }
 
+/* The environment's sections, in one box so they can slide in together when
+   the environment changes (AppShell.tsx). Same gap the sidebar had. */
+.yd-shell__nav-sections {
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-md);
+}
+
 .yd-shell__nav-section {
   display: flex;
   flex-direction: column;

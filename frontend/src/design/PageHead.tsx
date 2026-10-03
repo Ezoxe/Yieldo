@@ -32,6 +32,12 @@ interface PageHeadProps {
   shortLead?: ReactNode;
   /** Controls belonging to the screen as a whole, pinned to the far edge. */
   actions?: ReactNode;
+  /**
+   * A View Transition name for the title, when the same words stood somewhere
+   * on the screen the reader came from — a budget's name in its list — so they
+   * travel from there to here (app/viewTransitions.css).
+   */
+  titleTransitionName?: string;
   className?: string;
 }
 
@@ -56,6 +62,7 @@ export function PageHead({
   children,
   shortLead,
   actions,
+  titleTransitionName,
   className = "",
 }: PageHeadProps) {
   // The same breakpoint PageHead.css uses for the phone layout.
@@ -68,7 +75,9 @@ export function PageHead({
     <div className={`yd-page-head ${className}`.trim()}>
       <IconBadge icon={icon} tone={tone} className="yd-page-head__mark" />
       <div className="yd-page-head__text">
-        <h1>{title}</h1>
+        <h1 style={titleTransitionName ? { viewTransitionName: titleTransitionName } : undefined}>
+          {title}
+        </h1>
         {lead ? (
           <div className="yd-page-head__lead" data-expanded={clamp.expanded} ref={leadRef}>
             {lead}

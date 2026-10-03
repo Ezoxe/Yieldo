@@ -1,4 +1,4 @@
-import { Link } from "react-router";
+import { Link } from "../../app/links";
 
 import { EmptyState, frenchDate } from "../../design/EmptyState";
 import { formatCents } from "../../design/theme";

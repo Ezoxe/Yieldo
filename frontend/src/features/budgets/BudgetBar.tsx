@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Link } from "react-router";
+import { Link } from "../../app/links";
 
 import { AlertsIcon, AnomalyIcon, CheckIcon, EditIcon, type IconComponent } from "../../design/icons";
 import { categoryTargetId } from "../../design/ai/targets";
@@ -224,7 +224,19 @@ export function BudgetBar({ line, onSaved, history, detailHref }: BudgetBarProps
     <div className={`yd-budget yd-budget--${line.status}`} data-ai-target={categoryTargetId(line.name)}>
       <div className="yd-budget__head">
         {detailHref ? (
-          <Link to={detailHref} className="yd-budget__name yd-budgets__link">
+          // The name travels to the universe's title (View Transition), and
+          // goes with the navigation so that title is there at once, before
+          // the universe's own data has landed. Named on the click, not in
+          // the markup: twenty names in a list would be twenty pictures lifted
+          // out of the leaving screen, nineteen of them fading over the new one.
+          <Link
+            to={detailHref}
+            state={{ categoryName: line.name }}
+            className="yd-budget__name yd-budgets__link"
+            onClick={(event) => {
+              event.currentTarget.style.viewTransitionName = `yd-budget-${line.category_id}`;
+            }}
+          >
             {line.name}
           </Link>
         ) : (

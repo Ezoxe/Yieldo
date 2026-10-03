@@ -27,6 +27,8 @@
 }
 
 .yd-tabs__tab {
+  position: relative;
+  isolation: isolate;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -49,6 +51,22 @@
 .yd-tabs__tab svg {
   width: 22px;
   height: 22px;
+  transition: translate var(--yd-motion-base) var(--yd-ease);
+}
+
+/* The active tab's icon stands a pixel taller: it has been picked up. */
+.yd-tabs__tab[aria-current="page"] svg {
+  translate: 0 -1px;
+}
+
+/* The pill behind the active tab (BottomTabs.tsx). */
+.yd-tabs__indicator {
+  position: absolute;
+  inset: 2px 6px;
+  z-index: -1;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--yd-accent) 14%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--yd-accent) 30%, transparent);
 }
 
 .yd-tabs__tab span {
@@ -66,4 +84,10 @@
 .yd-tabs__tab:focus-visible {
   outline: 2px solid var(--yd-accent);
   outline-offset: -2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .yd-tabs__tab svg {
+    transition: none;
+  }
 }

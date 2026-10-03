@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Link } from "react-router";
+import { Link } from "../../app/links";
 
 import { SCREENS, type NavItem } from "../../app/navigation";
 import {

@@ -3,10 +3,12 @@ import { Navigate, createBrowserRouter } from "react-router";
 
 import { PageSkeleton } from "../design/PageSkeleton";
 import { loadOrReload } from "./lazyScreen";
+import { registerScreenPreload } from "./screenPreload";
 import { LoginPage } from "../features/auth/LoginPage";
 import { RegisterPage } from "../features/auth/RegisterPage";
 import { RequireAuth } from "../features/auth/RequireAuth";
 import { AppShellRoute, HomeRoute } from "./HomeRoute";
+import { RootLayout } from "./RootLayout";
 
 /**
  * One screen, loaded when it is first asked for.
@@ -24,14 +26,38 @@ function screen<M extends Record<string, unknown>>(
   load: () => Promise<M>,
   pick: (module: M) => ComponentType,
 ) {
+  // Set once the chunk is here — by a first visit or by the idle preload
+  // (app/screenPreload.ts) — so the screen then renders at once, with no
+  // Suspense in between: the screen transition photographs the screen, not
+  // its skeleton.
+  let ready: ComponentType | null = null;
   // `loadOrReload`: a chunk missing after a deploy reloads the tab once
   // instead of showing the router's error page.
-  const Component = lazy(() => loadOrReload(load).then((module) => ({ default: pick(module) })));
-  return (
-    <Suspense fallback={<PageSkeleton />}>
-      <Component />
-    </Suspense>
+  const Lazy = lazy(() =>
+    loadOrReload(load).then((module) => {
+      ready = pick(module);
+      return { default: ready };
+    }),
   );
+  registerScreenPreload(() =>
+    load().then(
+      (module) => {
+        ready = pick(module);
+      },
+      // The navigation will fetch it again and surface THAT failure.
+      () => undefined,
+    ),
+  );
+  function Screen() {
+    const Ready = ready;
+    if (Ready) return <Ready />;
+    return (
+      <Suspense fallback={<PageSkeleton />}>
+        <Lazy />
+      </Suspense>
+    );
+  }
+  return <Screen />;
 }
 
 const overview = screen(() => import("../features/overview/OverviewPage"), (m) => m.OverviewPage);
@@ -132,76 +158,82 @@ const devRoutes = import.meta.env.DEV
   : [];
 
 export const router = createBrowserRouter([
-  { path: "/connexion", element: <LoginPage /> },
-  { path: "/inscription", element: <RegisterPage /> },
   {
-    // Deliberately not behind RequireAuth: an anonymous visitor here gets the
-    // public landing page instead of a redirect to /connexion. HomeRoute is the
-    // gate, and the index child below only ever renders through AppShell's
-    // <Outlet />, which HomeRoute returns for an authenticated session alone.
-    path: "/",
-    element: <HomeRoute />,
-    children: [{ index: true, element: overview }],
-  },
-  {
-    // Every other authenticated route keeps the phase-1 guard.
-    element: <RequireAuth />,
+    // Scroll restoration for every screen, public or not (RootLayout).
+    element: <RootLayout />,
     children: [
+      { path: "/connexion", element: <LoginPage /> },
+      { path: "/inscription", element: <RegisterPage /> },
       {
-        element: <AppShellRoute />,
+        // Deliberately not behind RequireAuth: an anonymous visitor here gets the
+        // public landing page instead of a redirect to /connexion. HomeRoute is the
+        // gate, and the index child below only ever renders through AppShell's
+        // <Outlet />, which HomeRoute returns for an authenticated session alone.
+        path: "/",
+        element: <HomeRoute />,
+        children: [{ index: true, element: overview }],
+      },
+      {
+        // Every other authenticated route keeps the phase-1 guard.
+        element: <RequireAuth />,
         children: [
-          { path: "transactions", element: transactions },
-          { path: "budgets", element: budgets },
-          { path: "budgets/:categoryId", element: universe },
-          { path: "recurrences", element: recurrences },
-          { path: "plan", element: plan },
-          { path: "avenir", element: avenir },
-          // Trésorerie became Avenir: old bookmarks and links land on it.
-          { path: "tresorerie", element: <Navigate to="/avenir" replace /> },
-          { path: "analyse", element: analysis },
-          { path: "dettes", element: debts },
-          { path: "objectifs", element: goals },
-          { path: "suivi", element: suivi },
-          { path: "alertes", element: alerts },
-          { path: "patrimoine", element: patrimoine },
-          { path: "projection", element: projection },
-          { path: "faisabilite", element: feasibility },
-          { path: "assistant", element: assistant },
-          { path: "propositions", element: proposals },
-          { path: "export", element: exportPage },
-          { path: "simulateurs", element: simulators },
-          { path: "categories", element: categories },
-          { path: "import", element: importPage },
-          { path: "reglages", element: settings },
-          // The mascot's model sheet. Deliberately absent from the sidebar:
-          // it is a reference for whoever works on Yieldo next, reached from
-          // the switch in Reglages that turns him off, not a screen a
-          // household visits to read its own figures.
-          { path: "reglages/shibi", element: shibiSheet },
-          // Réglages -> Connexions. A route of its own rather than a section
-          // of /reglages: every French refusal in `market/client.py` and
-          // `llm/client.py` points the reader at "Réglages -> Connexions",
-          // and a URL they can be sent to is what makes that sentence
-          // actionable.
-          //
-          // The screen now LIVES in the Investissement environment, at
-          // /invest/connexions: the market-data keys feed the indicators a
-          // trading decision is taken on, and they belong beside the brokers
-          // rather than beside the household's password. This path stays
-          // registered because those French refusals name it, and a sentence
-          // pointing at a 404 is worse than no sentence.
-          { path: "reglages/connexions", element: connections },
+          {
+            element: <AppShellRoute />,
+            children: [
+              { path: "transactions", element: transactions },
+              { path: "budgets", element: budgets },
+              { path: "budgets/:categoryId", element: universe },
+              { path: "recurrences", element: recurrences },
+              { path: "plan", element: plan },
+              { path: "avenir", element: avenir },
+              // Trésorerie became Avenir: old bookmarks and links land on it.
+              { path: "tresorerie", element: <Navigate to="/avenir" replace /> },
+              { path: "analyse", element: analysis },
+              { path: "dettes", element: debts },
+              { path: "objectifs", element: goals },
+              { path: "suivi", element: suivi },
+              { path: "alertes", element: alerts },
+              { path: "patrimoine", element: patrimoine },
+              { path: "projection", element: projection },
+              { path: "faisabilite", element: feasibility },
+              { path: "assistant", element: assistant },
+              { path: "propositions", element: proposals },
+              { path: "export", element: exportPage },
+              { path: "simulateurs", element: simulators },
+              { path: "categories", element: categories },
+              { path: "import", element: importPage },
+              { path: "reglages", element: settings },
+              // The mascot's model sheet. Deliberately absent from the sidebar:
+              // it is a reference for whoever works on Yieldo next, reached from
+              // the switch in Reglages that turns him off, not a screen a
+              // household visits to read its own figures.
+              { path: "reglages/shibi", element: shibiSheet },
+              // Réglages -> Connexions. A route of its own rather than a section
+              // of /reglages: every French refusal in `market/client.py` and
+              // `llm/client.py` points the reader at "Réglages -> Connexions",
+              // and a URL they can be sent to is what makes that sentence
+              // actionable.
+              //
+              // The screen now LIVES in the Investissement environment, at
+              // /invest/connexions: the market-data keys feed the indicators a
+              // trading decision is taken on, and they belong beside the brokers
+              // rather than beside the household's password. This path stays
+              // registered because those French refusals name it, and a sentence
+              // pointing at a 404 is worse than no sentence.
+              { path: "reglages/connexions", element: connections },
 
-          // --- Investissement ---
-          { path: "invest", element: controlRoom },
-          { path: "invest/decisions", element: investDecisions },
-          { path: "invest/mandat", element: mandate },
-          { path: "invest/modele", element: decisionModel },
-          { path: "invest/courtiers", element: brokers },
-          { path: "invest/connexions", element: connections },
-          { path: "invest/supervision", element: oversight },
-          { path: "invest/journee", element: tradingDay },
-          ...devRoutes,
+              // --- Investissement ---
+              { path: "invest", element: controlRoom },
+              { path: "invest/decisions", element: investDecisions },
+              { path: "invest/mandat", element: mandate },
+              { path: "invest/modele", element: decisionModel },
+              { path: "invest/courtiers", element: brokers },
+              { path: "invest/connexions", element: connections },
+              { path: "invest/supervision", element: oversight },
+              { path: "invest/journee", element: tradingDay },
+              ...devRoutes,
+            ],
+          },
         ],
       },
     ],

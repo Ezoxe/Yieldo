@@ -5,7 +5,9 @@ import { AnimatedNumber } from "./AnimatedNumber";
 import { useMotionPreference } from "./motionPreference";
 import { figureMemory, forgetSessionMemory } from "./sessionMemory";
 
-const animate = vi.hoisted(() => vi.fn(() => ({ stop: vi.fn() })));
+const animate = vi.hoisted(() =>
+  vi.fn<(...args: unknown[]) => { stop: () => void }>(() => ({ stop: vi.fn() })),
+);
 vi.mock("motion", async (importOriginal) => ({
   ...(await importOriginal<typeof import("motion")>()),
   animate,

@@ -5,7 +5,9 @@ import { useMotionPreference } from "./motionPreference";
 import { forgetSessionMemory } from "./sessionMemory";
 import { ratioTone, useAnimatedRatio } from "./useAnimatedRatio";
 
-const animate = vi.hoisted(() => vi.fn(() => ({ stop: vi.fn() })));
+const animate = vi.hoisted(() =>
+  vi.fn<(...args: unknown[]) => { stop: () => void }>(() => ({ stop: vi.fn() })),
+);
 vi.mock("motion", async (importOriginal) => ({
   ...(await importOriginal<typeof import("motion")>()),
   animate,

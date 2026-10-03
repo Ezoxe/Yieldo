@@ -1,6 +1,7 @@
-import { motion } from "motion/react";
+import { AnimatePresence, motion, type Variants } from "motion/react";
 import { useEffect, useId, useState } from "react";
-import { Link, NavLink, Outlet, useLocation } from "react-router";
+import { Outlet, useLocation } from "react-router";
+import { Link, NavLink } from "./links";
 
 import { AISpotlightProvider } from "../design/ai/AISpotlight";
 import { AtmosphericBackground } from "../design/atmosphere/AtmosphericBackground";
@@ -18,9 +19,12 @@ import { BottomTabs } from "./BottomTabs";
 import { EnvironmentSwitcher } from "./EnvironmentSwitcher";
 import { MoreSheet } from "./MoreSheet";
 import { environmentFor, type Environment, type NavSection } from "./navigation";
+import { preloadScreens } from "./screenPreload";
 import { useCompactTitle } from "./useCompactTitle";
+import "./viewTransitions.css";
 import { UserMenu } from "./UserMenu";
 import { useReducedMotion } from "../design/motion/useReducedMotion";
+import { EXIT_EASE, SIGNATURE_EASE } from "../design/motion/variants";
 import "./AppShell.css";
 
 /**
@@ -56,6 +60,19 @@ interface SidebarNavProps {
   badges?: Record<string, number>;
 }
 
+/** The sidebar's sections when the environment changes: the old ones leave
+ *  in 100ms, the new ones arrive from the right with a 25ms cascade. */
+const ENVIRONMENT_SWAP: Variants = {
+  enter: {},
+  center: { transition: { staggerChildren: 0.025 } },
+  leave: { opacity: 0, x: -10, transition: { duration: 0.1, ease: EXIT_EASE } },
+};
+
+const ENVIRONMENT_SECTION: Variants = {
+  enter: { opacity: 0, x: 10 },
+  center: { opacity: 1, x: 0, transition: { duration: 0.24, ease: SIGNATURE_EASE } },
+};
+
 function SidebarNav({ className, environment, indicatorId, animated, badges }: SidebarNavProps) {
   const sections: NavSection[] = environment.sections;
   return (
@@ -65,50 +82,70 @@ function SidebarNav({ className, environment, indicatorId, animated, badges }: S
           control that changes environment. */}
       <EnvironmentSwitcher current={environment} />
 
-      {sections.map((section, index) => (
-        <div className="yd-shell__nav-section" key={section.title ?? `section-${index}`}>
-          {section.title ? (
-            <p className="yd-shell__nav-heading" aria-hidden="true">
-              {section.title}
-            </p>
-          ) : null}
-          <ul>
-            {section.items.map((item) => (
-              <li key={item.to}>
-                <NavLink to={item.to} end={item.end}>
-                  {({ isActive }) => (
-                    <>
-                      {/* The travelling indicator: one element, moved by Motion
-                          from the entry that was active to the one that is. */}
-                      {isActive && animated ? (
-                        <motion.span
-                          className="yd-shell__nav-indicator"
-                          layoutId={indicatorId}
-                          transition={{ type: "spring", stiffness: 520, damping: 42 }}
-                          aria-hidden="true"
-                        />
-                      ) : null}
-                      <item.icon />
-                      {/* The link's whole accessible name, and its whole text
-                          content — the icon beside it is `aria-hidden`. */}
-                      {item.label}
-                      {/* The space is for the accessible name: without it the
-                          link reads « Alertes2 en cours ». A flex container
-                          does not draw it. */}
-                      {(badges?.[item.to] ?? 0) > 0 ? " " : null}
-                      {(badges?.[item.to] ?? 0) > 0 ? (
-                        <span className="yd-shell__nav-badge">
-                          {badges?.[item.to]} {BADGE_WORD[item.to] ?? "en attente"}
-                        </span>
-                      ) : null}
-                    </>
-                  )}
-                </NavLink>
-              </li>
-            ))}
-          </ul>
-        </div>
-      ))}
+      {/* The entries of the other half of the application slide in when the
+          environment changes, one after the other, instead of the whole list
+          being swapped in one frame. Keyed on the environment so a plain
+          navigation inside one half does not replay it; nothing moves on the
+          first render. */}
+      <AnimatePresence mode="wait" initial={false}>
+        <motion.div
+          key={environment.id}
+          className="yd-shell__nav-sections"
+          variants={animated ? ENVIRONMENT_SWAP : undefined}
+          initial="enter"
+          animate="center"
+          exit="leave"
+        >
+          {sections.map((section, index) => (
+            <motion.div
+              className="yd-shell__nav-section"
+              key={section.title ?? `section-${index}`}
+              variants={animated ? ENVIRONMENT_SECTION : undefined}
+            >
+              {section.title ? (
+                <p className="yd-shell__nav-heading" aria-hidden="true">
+                  {section.title}
+                </p>
+              ) : null}
+              <ul>
+                {section.items.map((item) => (
+                  <li key={item.to}>
+                    <NavLink to={item.to} end={item.end}>
+                      {({ isActive }) => (
+                        <>
+                          {/* The travelling indicator: one element, moved by Motion
+                              from the entry that was active to the one that is. */}
+                          {isActive && animated ? (
+                            <motion.span
+                              className="yd-shell__nav-indicator"
+                              layoutId={indicatorId}
+                              transition={{ type: "spring", stiffness: 520, damping: 42 }}
+                              aria-hidden="true"
+                            />
+                          ) : null}
+                          <item.icon />
+                          {/* The link's whole accessible name, and its whole text
+                              content — the icon beside it is `aria-hidden`. */}
+                          {item.label}
+                          {/* The space is for the accessible name: without it the
+                              link reads « Alertes2 en cours ». A flex container
+                              does not draw it. */}
+                          {(badges?.[item.to] ?? 0) > 0 ? " " : null}
+                          {(badges?.[item.to] ?? 0) > 0 ? (
+                            <span className="yd-shell__nav-badge">
+                              {badges?.[item.to]} {BADGE_WORD[item.to] ?? "en attente"}
+                            </span>
+                          ) : null}
+                        </>
+                      )}
+                    </NavLink>
+                  </li>
+                ))}
+              </ul>
+            </motion.div>
+          ))}
+        </motion.div>
+      </AnimatePresence>
     </nav>
   );
 }
@@ -164,6 +201,16 @@ export function AppShell({ userName }: AppShellProps) {
   }, [refreshProposals, refreshAlerts, location.pathname]);
 
   const badges = { "/propositions": pendingProposals, "/alertes": alertCount };
+
+  // Every screen's code, once the browser has nothing better to do: a first
+  // visit then renders the screen at once (see app/screenPreload.ts).
+  useEffect(() => {
+    const idle =
+      window.requestIdleCallback ?? ((callback: () => void) => window.setTimeout(callback, 1500));
+    const cancel = window.cancelIdleCallback ?? window.clearTimeout;
+    const handle = idle(() => void preloadScreens());
+    return () => cancel(handle);
+  }, []);
 
   return (
     <AISpotlightProvider>
@@ -238,28 +285,16 @@ export function AppShell({ userName }: AppShellProps) {
           </button>
         </header>
         <main className="yd-shell__main">
-          {/* The screen arrives rather than appearing: a short rise and fade,
-              keyed on the path so it replays on every route change. No exit
-              animation and no AnimatePresence — waiting for the old screen to
-              leave before showing the new one would add latency to every
-              navigation for the sake of a symmetry nobody asked for. */}
-          {reducedMotion ? (
-            // Keyed on the mode for the same reason the animated branch is:
-            // changing the reading changes what every figure on the screen
-            // means, and a screen that kept its old numbers would be showing
-            // the previous mode's answer under the new mode's label.
-            <Outlet key={ledgerMode} />
-          ) : (
-            <motion.div
-              key={`${location.pathname}|${ledgerMode}`}
-              className="yd-shell__route"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.32, ease: [0.16, 1, 0.3, 1] }}
-            >
-              <Outlet />
-            </motion.div>
-          )}
+          {/* Keyed on the path and the reading: a new screen mounts fresh,
+              and changing the reading changes what every figure means — a
+              screen that kept its old numbers would show the previous mode's
+              answer under the new mode's label. The hand-over between two
+              screens is a View Transition asked for by every in-app link
+              (app/links.tsx, app/viewTransitions.css): the old screen leaves
+              as a picture while this one arrives. */}
+          <div key={`${location.pathname}|${ledgerMode}`} className="yd-shell__route">
+            <Outlet />
+          </div>
         </main>
         {/* Inside the body, so it is inert with the rest of the content while
             the « Plus » sheet is open — a tab bar that stayed live under the

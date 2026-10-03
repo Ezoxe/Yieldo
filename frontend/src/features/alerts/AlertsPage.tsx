@@ -1,6 +1,6 @@
 import { motion } from "motion/react";
 import { useEffect, useState } from "react";
-import { Link } from "react-router";
+import { Link } from "../../app/links";
 
 import { BentoCell, type BentoSpan } from "../../design/bento/BentoCell";
 import { BentoGrid } from "../../design/bento/BentoGrid";

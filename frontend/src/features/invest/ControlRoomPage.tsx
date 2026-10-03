@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "react-router";
+import { Link } from "../../app/links";
 
 import { BentoCell } from "../../design/bento/BentoCell";
 import { BentoGrid } from "../../design/bento/BentoGrid";

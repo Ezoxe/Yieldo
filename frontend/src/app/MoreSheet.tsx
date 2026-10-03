@@ -1,4 +1,4 @@
-import { Link, NavLink } from "react-router";
+import { Link, NavLink } from "./links";
 
 import { ImportIcon } from "../design/icons";
 import { Sheet } from "../design/Sheet";

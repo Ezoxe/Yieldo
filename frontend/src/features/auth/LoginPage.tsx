@@ -1,6 +1,7 @@
 import { motion } from "motion/react";
 import { useState, type FormEvent } from "react";
-import { Link, useNavigate } from "react-router";
+import { useNavigate } from "react-router";
+import { Link } from "../../app/links";
 
 import { AtmosphericBackground } from "../../design/atmosphere/AtmosphericBackground";
 import { fadeInUp } from "../../design/motion/variants";

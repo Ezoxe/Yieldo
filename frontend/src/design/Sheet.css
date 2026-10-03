@@ -1,0 +1,119 @@
+/* The bottom sheet. See design/Sheet.tsx for when a phone uses one. */
+
+.yd-sheet {
+  position: fixed;
+  inset: 0;
+  /* Above the drawer (60) and the tab bar (25): the frontmost thing on the
+     screen while it is open. */
+  z-index: 70;
+}
+
+.yd-sheet__scrim {
+  position: absolute;
+  inset: 0;
+  background: var(--yd-scrim);
+}
+
+/* Full width on a phone; on a tablet a column of reading width, centred, so
+   a sheet never stretches a list of tiles across 800px. */
+.yd-sheet__panel {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: min(100%, 560px);
+  margin-inline: auto;
+  max-height: 92dvh;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--yd-surface-strong);
+  background-image: var(--yd-surface-veil);
+  border: 1px solid var(--yd-border-strong);
+  border-bottom: 0;
+  border-radius: 20px 20px 0 0;
+  box-shadow: var(--yd-shadow-pop);
+  /* The home indicator of a notched phone sits over the last 34px. */
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.yd-sheet__panel:focus-visible {
+  outline: none;
+}
+
+/* The part a thumb drags. `touch-action: none` hands the gesture to the
+   sheet instead of to the page's own scroll. */
+.yd-sheet__head {
+  padding: 8px var(--yd-space-md) var(--yd-space-sm);
+  touch-action: none;
+  cursor: grab;
+}
+
+.yd-sheet__handle {
+  display: block;
+  width: 36px;
+  height: 4px;
+  margin: 0 auto 10px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--yd-text) 26%, transparent);
+}
+
+.yd-sheet__titles {
+  display: flex;
+  align-items: center;
+  gap: var(--yd-space-sm);
+}
+
+.yd-sheet__heading {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.yd-sheet__title {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.35;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--yd-text);
+  overflow-wrap: anywhere;
+}
+
+.yd-sheet__subtitle {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--yd-text-muted);
+}
+
+.yd-sheet__close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  flex: 0 0 auto;
+  border: 1px solid var(--yd-border-control);
+  border-radius: var(--yd-radius-sm);
+  background: transparent;
+  color: var(--yd-text-muted);
+  cursor: pointer;
+}
+
+.yd-sheet__close:focus-visible {
+  outline: 2px solid var(--yd-accent);
+  outline-offset: 2px;
+}
+
+/* The body scrolls, the page under the scrim does not. */
+.yd-sheet__body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: var(--yd-space-2xs) var(--yd-space-md) var(--yd-space-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-md);
+}

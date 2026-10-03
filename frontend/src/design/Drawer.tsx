@@ -1,11 +1,13 @@
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useRef, type ReactNode } from "react";
 
+import { useMediaQuery } from "../lib/useMediaQuery";
 import { CloseIcon } from "./icons/set";
 import { IconBadge } from "./icons/IconBadge";
 import type { IconComponent } from "./icons/Icon";
 import { useReducedMotion } from "./motion/useReducedMotion";
 import { SIGNATURE_EASE } from "./motion/variants";
+import { Sheet } from "./Sheet";
 import "./Drawer.css";
 
 interface DrawerProps {
@@ -31,9 +33,14 @@ interface DrawerProps {
  * click on the scrim. Focus moves into the panel on open and returns to
  * whatever opened it on close, so a keyboard user is not dropped at the top of
  * the document.
+ *
+ * On a phone the same head and body rise from the bottom as a `Sheet`: a 440px
+ * panel from the right covers a phone edge to edge and leaves its close button
+ * in the top corner, out of thumb reach.
  */
 export function Drawer({ open, onClose, title, icon, subtitle, children }: DrawerProps) {
   const reduced = useReducedMotion();
+  const phone = useMediaQuery("(max-width: 639px)");
   const panel = useRef<HTMLDivElement>(null);
   // Where focus was before the drawer took it. Restored on close — without
   // this, dismissing the panel drops a keyboard user back at the top of the
@@ -41,7 +48,8 @@ export function Drawer({ open, onClose, title, icon, subtitle, children }: Drawe
   const opener = useRef<Element | null>(null);
 
   useEffect(() => {
-    if (!open) return;
+    // The sheet manages its own focus and Escape on a phone.
+    if (!open || phone) return;
     opener.current = document.activeElement;
     panel.current?.focus();
 
@@ -53,7 +61,21 @@ export function Drawer({ open, onClose, title, icon, subtitle, children }: Drawe
       window.removeEventListener("keydown", onKeyDown);
       (opener.current as HTMLElement | null)?.focus?.();
     };
-  }, [open, onClose]);
+  }, [open, onClose, phone]);
+
+  if (phone) {
+    return (
+      <Sheet
+        open={open}
+        onClose={onClose}
+        title={title}
+        subtitle={subtitle}
+        leading={icon ? <IconBadge icon={icon} /> : null}
+      >
+        {children}
+      </Sheet>
+    );
+  }
 
   const body = (
     <>

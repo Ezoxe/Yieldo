@@ -789,6 +789,9 @@ const PREVIEW_GOALS: {
   { id: 1, name: "Fonds d'urgence", target_cents: 900_000, saved_cents: 412_000, due_on: "2027-06-30", priority: 1 },
   { id: 2, name: "Remplacement voiture", target_cents: 1_200_000, saved_cents: 180_000, due_on: null, priority: 2 },
   { id: 3, name: "Voyage Japon", target_cents: 450_000, saved_cents: 96_000, due_on: "2027-04-01", priority: 3 },
+  // Fully funded, so the preview shows the reached state: the bar closes,
+  // turns positive, and its check draws itself.
+  { id: 4, name: "Vélo électrique", target_cents: 180_000, saved_cents: 180_000, due_on: null, priority: 4 },
 ];
 
 // `satisfies` against the wire type: the stub used to omit `due_on`,
@@ -799,7 +802,9 @@ const PREVIEW_GOALS: {
 function goalsPayload(): GoalReport {
   const goals = PREVIEW_GOALS;
   return {
-    goals: goals.map((goal, i): GoalProgress => ({
+    goals: goals.map((goal, i): GoalProgress => {
+      const funded = goal.saved_cents >= goal.target_cents;
+      return {
       goal_id: goal.id,
       name: goal.name,
       target_cents: goal.target_cents,
@@ -817,9 +822,9 @@ function goalsPayload(): GoalReport {
           projected_on: reached ? null : `2027-0${1 + Math.floor(percent / 40)}-01`,
         };
       }),
-      funding_starts_in_months: i * 9,
-      months_to_completion: 12 + i * 9,
-      projected_completion_on: `2027-0${1 + i}-01`,
+      funding_starts_in_months: funded ? 0 : i * 9,
+      months_to_completion: funded ? 0 : 12 + i * 9,
+      projected_completion_on: funded ? "2026-09-30" : `2027-0${1 + i}-01`,
       projection_unavailable_reason: null,
       account_id: null,
       measured: false,
@@ -829,7 +834,8 @@ function goalsPayload(): GoalReport {
       // Voyage Japon lands in March 2027 for an April deadline: on track too,
       // and the middle goal has no deadline at all — the three states.
       on_track: goal.due_on === null ? null : true,
-    })),
+      };
+    }),
     capacity: rate(11, 42_000),
     months_observed: 11,
     history: HISTORY,

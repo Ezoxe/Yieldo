@@ -22,6 +22,15 @@
   view-transition-name: yd-main;
 }
 
+/* A theme change (ThemeProvider) is ONE picture of the whole page, revealed
+ * in a circle from where it was asked for: while `data-vt="theme"` stands,
+ * nothing travels on its own — not the screen, not a budget's title (whose
+ * name is written inline, hence `!important`). The circle itself is drawn on
+ * `::view-transition-new(root)` from script; the old picture stays under it. */
+:root[data-vt="theme"] * {
+  view-transition-name: none !important;
+}
+
 ::view-transition-old(root),
 ::view-transition-new(root) {
   animation: none;

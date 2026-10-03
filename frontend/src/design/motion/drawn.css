@@ -1,0 +1,27 @@
+/* A stroke that draws itself: the check of a save (SaveFeedback), of a goal
+ * reached (GoalsPage). Its dash is longer than any 24×24 icon path, offset by
+ * the same length and run back to zero. `--yd-drawn-delay` lets the caller
+ * wait for what the check confirms. Motion off: the whole stroke at once. */
+.yd-drawn path {
+  stroke-dasharray: 32;
+  stroke-dashoffset: 32;
+  animation: yd-drawn 340ms var(--yd-ease) var(--yd-drawn-delay, 0ms) forwards;
+}
+
+@keyframes yd-drawn {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .yd-drawn path {
+    animation: none;
+    stroke-dashoffset: 0;
+  }
+}
+
+:root[data-motion="off"] .yd-drawn path {
+  animation: none;
+  stroke-dashoffset: 0;
+}

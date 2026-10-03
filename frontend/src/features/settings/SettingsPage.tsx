@@ -3,6 +3,7 @@ import { useNavigate } from "react-router";
 import { Link } from "../../app/links";
 
 import { useDensity } from "../../app/DensityProvider";
+import { revealOrigin } from "../../app/revealOrigin";
 import { useTheme } from "../../app/ThemeProvider";
 import { BentoCell, type BentoSpan } from "../../design/bento/BentoCell";
 import { BentoGrid } from "../../design/bento/BentoGrid";
@@ -131,7 +132,9 @@ export function SettingsPage() {
             <select
               id="settings-theme"
               value={theme}
-              onChange={(event) => setTheme(event.target.value as ThemePreference)}
+              onChange={(event) =>
+                setTheme(event.target.value as ThemePreference, revealOrigin(event))
+              }
             >
               {THEME_OPTIONS.map((option) => (
                 <option key={option.value} value={option.value}>

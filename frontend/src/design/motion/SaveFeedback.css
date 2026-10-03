@@ -3,16 +3,14 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  color: var(--yd-positive);
+  /* The button's own text colour: a green word on an indigo button would be
+     a confirmation nobody can read. The check and the word say it. */
   animation: yd-save-done-in 220ms var(--yd-ease);
 }
 
-/* The check draws itself: its stroke is longer than the path, offset by the
-   same length, and run back to zero. */
-.yd-save-check path {
-  stroke-dasharray: 32;
-  stroke-dashoffset: 32;
-  animation: yd-save-check-draw 340ms var(--yd-ease) 80ms forwards;
+/* The check draws itself (drawn.css), just after the word arrives. */
+.yd-save-check {
+  --yd-drawn-delay: 80ms;
 }
 
 @keyframes yd-save-done-in {
@@ -22,29 +20,13 @@
   }
 }
 
-@keyframes yd-save-check-draw {
-  to {
-    stroke-dashoffset: 0;
-  }
-}
-
-/* Motion off: the word and the whole check, at once. */
+/* Motion off: the word at once (and the whole check, drawn.css). */
 @media (prefers-reduced-motion: reduce) {
   .yd-save-done {
     animation: none;
-  }
-
-  .yd-save-check path {
-    animation: none;
-    stroke-dashoffset: 0;
   }
 }
 
 :root[data-motion="off"] .yd-save-done {
   animation: none;
-}
-
-:root[data-motion="off"] .yd-save-check path {
-  animation: none;
-  stroke-dashoffset: 0;
 }

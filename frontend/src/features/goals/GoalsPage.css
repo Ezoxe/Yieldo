@@ -386,12 +386,36 @@
   border-radius: inherit;
   background: var(--yd-accent);
   /* `width`, not `transform: scaleX()`: this fill sits inside a cell rendered
-     as a motion.* element, whose inline `transform: none` would kill it. */
-  transition: width var(--yd-motion-slow) var(--yd-ease);
+     as a motion.* element, whose inline `transform: none` would kill it. The
+     width is driven frame by frame (GoalTrack); a CSS transition on it would
+     drag every frame behind the last. Only the colour eases, when the bar of
+     a goal reached closes. */
+  transition: background-color 320ms var(--yd-ease);
 }
 
 .yd-goal__fill--complete {
   background: var(--yd-positive);
+}
+
+.yd-goal__remaining--reached {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.yd-goal__check {
+  flex: none;
+  color: var(--yd-positive);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .yd-goal__fill {
+    transition: none;
+  }
+}
+
+:root[data-motion="off"] .yd-goal__fill {
+  transition: none;
 }
 
 .yd-goal__remaining,

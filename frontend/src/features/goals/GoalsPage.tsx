@@ -6,7 +6,14 @@ import { BentoCell, type BentoSpan } from "../../design/bento/BentoCell";
 import { BentoGrid } from "../../design/bento/BentoGrid";
 import { PanelHead } from "../../design/bento/PanelHead";
 import { EmptyState, frenchDate, historySentence } from "../../design/EmptyState";
-import { ArchiveIcon, EditIcon, GoalsIcon, PlusIcon, SavingsIcon } from "../../design/icons";
+import {
+  ArchiveIcon,
+  CheckIcon,
+  EditIcon,
+  GoalsIcon,
+  PlusIcon,
+  SavingsIcon,
+} from "../../design/icons";
 import { PageHead } from "../../design/PageHead";
 import { useReducedMotion } from "../../design/motion/useReducedMotion";
 import { entryProps, staggerProps } from "../../design/motion/variants";
@@ -18,7 +25,8 @@ import type { GoalProgress, GoalReport, MeasuredRate } from "../../lib/types";
 import { GoalForm } from "./GoalForm";
 import "./GoalsPage.css";
 import { LoadSwap } from "../../design/motion/LoadSwap";
-import { AnimatedFill } from "../../design/motion/AnimatedFill";
+import { useAnimatedRatio } from "../../design/motion/useAnimatedRatio";
+import "../../design/motion/drawn.css";
 
 const GENERIC_ERROR = "Une erreur inattendue est survenue.";
 
@@ -104,6 +112,64 @@ function zeroLabelFits(zeroPercent: number): boolean {
 }
 
 /** "1er", "2e", "3e" — the position in the funding queue. */
+/**
+ * A goal's bar and the line under it.
+ *
+ * The bar fills from what the reader last saw of this goal — empty the first
+ * time, once — and sits still when nothing was saved (session memory, under
+ * `goal.<id>`). A goal reached is a moment: the bar closes, and only then
+ * turns positive while a check draws itself beside « Objectif atteint. ». Seen
+ * again unchanged, it is simply reached: positive, the check already there.
+ *
+ * The track sits in a grid row with a definite inline size (GoalsPage.css): a
+ * percentage width inside an auto-width flex column resolves against nothing
+ * and renders at ZERO. Its role and values state the true figure, never a
+ * passing one.
+ */
+function GoalTrack({ goal, complete }: { goal: GoalProgress; complete: boolean }) {
+  const ratio = Number.isFinite(goal.progress_ratio) ? goal.progress_ratio : 0;
+  const level = useAnimatedRatio(`goal.${goal.goal_id}`, ratio);
+  // Whether the bar travelled while this card was on screen — the check is
+  // drawn only for a goal reached under the reader's eyes.
+  const [travelled, setTravelled] = useState(false);
+  if (!level.settled && !travelled) setTravelled(true);
+  const closed = complete && level.settled;
+  const shown = Math.round(Math.max(0, Math.min(1, level.ratio)) * 1000) / 10;
+
+  return (
+    <>
+      <div
+        className="yd-goal__track"
+        role="progressbar"
+        aria-label={`Progression de ${goal.name}`}
+        aria-valuenow={progressPercent(goal.progress_ratio)}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuetext={`${formatCents(goal.saved_cents)} épargnés sur ${formatCents(goal.target_cents)}, soit ${ratioLabel(goal.progress_ratio)}`}
+      >
+        <div
+          className={`yd-goal__fill${closed ? " yd-goal__fill--complete" : ""}`}
+          data-testid={`yd-goal-fill-${goal.goal_id}`}
+          style={{ width: `${shown}%` }}
+        />
+      </div>
+
+      {complete ? (
+        <p className="yd-goal__remaining yd-goal__remaining--reached">
+          {closed ? (
+            <CheckIcon className={`yd-goal__check${travelled ? " yd-drawn" : ""}`} />
+          ) : null}
+          Objectif atteint.
+        </p>
+      ) : (
+        <p className="yd-goal__remaining">
+          {`Il reste ${formatCents(goal.remaining_cents)} à mettre de côté.`}
+        </p>
+      )}
+    </>
+  );
+}
+
 function ordinal(rank: number): string {
   return rank === 1 ? "1er" : `${rank}e`;
 }
@@ -378,33 +444,7 @@ export function GoalsPage() {
           <span className="yd-goal__ratio">{ratioLabel(goal.progress_ratio)}</span>
         </p>
 
-        {/* The track sits in a grid row with a definite inline size (see
-            GoalsPage.css). A percentage width inside an auto-width flex column
-            resolves against nothing and renders at ZERO. */}
-        <div
-          className="yd-goal__track"
-          role="progressbar"
-          aria-label={`Progression de ${goal.name}`}
-          aria-valuenow={progressPercent(goal.progress_ratio)}
-          aria-valuemin={0}
-          aria-valuemax={100}
-          aria-valuetext={`${formatCents(goal.saved_cents)} épargnés sur ${formatCents(goal.target_cents)}, soit ${ratioLabel(goal.progress_ratio)}`}
-        >
-          {/* Fills from what the reader last saw of this goal — empty the
-              first time, once — and sits still when nothing was saved. */}
-          <AnimatedFill
-            ratio={goal.progress_ratio}
-            memoryKey={`goal.${goal.goal_id}`}
-            className={`yd-goal__fill${complete ? " yd-goal__fill--complete" : ""}`}
-            data-testid={`yd-goal-fill-${goal.goal_id}`}
-          />
-        </div>
-
-        <p className="yd-goal__remaining">
-          {complete
-            ? "Objectif atteint."
-            : `Il reste ${formatCents(goal.remaining_cents)} à mettre de côté.`}
-        </p>
+        <GoalTrack goal={goal} complete={complete} />
 
         <ul className="yd-goal__milestones">
           {goal.milestones.map((milestone) => (

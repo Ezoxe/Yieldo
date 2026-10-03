@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 
 import { CheckIcon } from "../icons";
+import "./drawn.css";
 import "./SaveFeedback.css";
 
 /** How long the button says « Enregistré » before it is a button again. */
@@ -58,7 +59,7 @@ export function SaveLabel({
   if (justSaved) {
     return (
       <span className="yd-save-done">
-        <CheckIcon className="yd-save-check" />
+        <CheckIcon className="yd-save-check yd-drawn" />
         {savedLabel}
       </span>
     );

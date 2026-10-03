@@ -3,6 +3,7 @@ import { useNavigate } from "react-router";
 
 import { AccountIcon, SettingsIcon, SignOutIcon, ThemeIcon } from "../design/icons";
 import { useSession } from "../features/auth/session";
+import { revealOrigin } from "./revealOrigin";
 import { useTheme } from "./ThemeProvider";
 import "./UserMenu.css";
 
@@ -146,7 +147,7 @@ export function UserMenu({ userName }: UserMenuProps) {
                 role="menuitemradio"
                 aria-checked={preference === option.value}
                 className="yd-user-menu__item yd-user-menu__item--radio"
-                onClick={() => setPreference(option.value)}
+                onClick={(event) => setPreference(option.value, revealOrigin(event))}
               >
                 {option.label}
               </button>

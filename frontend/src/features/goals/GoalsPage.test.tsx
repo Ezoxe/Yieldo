@@ -7,6 +7,7 @@ import { ThemeProvider } from "../../app/ThemeProvider";
 import type { GoalProgress, GoalReport, Milestone } from "../../lib/types";
 import { GoalsPage, bandMarkers, fillWidth, progressPercent, ratioLabel } from "./GoalsPage";
 import { useMotionPreference } from "../../design/motion/motionPreference";
+import { forgetSessionMemory } from "../../design/motion/sessionMemory";
 
 // -- The engine's own sentences, verbatim ------------------------------------
 //
@@ -326,6 +327,37 @@ describe("GoalsPage — the goal cards", () => {
     useMotionPreference.setState({ disabled: false });
   });
 
+  // The moment a goal is reached on screen: the bar fills, and only once it
+  // has closed does it turn positive and the check draw itself.
+  it("closes the bar of a goal reached, then turns it positive and draws the check", async () => {
+    forgetSessionMemory();
+    const reachedGoal: GoalProgress = {
+      ...PROGRESS,
+      saved_cents: 600_000,
+      remaining_cents: 0,
+      progress_ratio: 1,
+      milestones: PROGRESS.milestones.map((m) => ({
+        ...m,
+        reached: true,
+        months_away: null,
+        projected_on: null,
+      })),
+      months_to_completion: 0,
+      projected_completion_on: "2026-08-30",
+    };
+    setupFetch(report({ goals: [reachedGoal] }));
+    renderPage();
+
+    const sentence = await screen.findByText(/Objectif atteint/);
+    const fill = screen.getByTestId("yd-goal-fill-1");
+    expect(fill).not.toHaveClass("yd-goal__fill--complete");
+    expect(sentence.querySelector(".yd-goal__check")).toBeNull();
+
+    await waitFor(() => expect(fill).toHaveClass("yd-goal__fill--complete"), { timeout: 2000 });
+    expect(fill).toHaveStyle({ width: "100%" });
+    expect(sentence.querySelector(".yd-goal__check")).toHaveClass("yd-drawn");
+  });
+
   it("caps the bar at 100 % while the text still reports the overfunding", async () => {
     useMotionPreference.setState({ disabled: true });
     const over: GoalProgress = {
@@ -347,8 +379,14 @@ describe("GoalsPage — the goal cards", () => {
     setupFetch(report({ goals: [over] }));
     renderPage();
 
-    await screen.findByText(/Objectif atteint/);
+    const reached = await screen.findByText(/Objectif atteint/);
     expect(screen.getByTestId("yd-goal-fill-1")).toHaveStyle({ width: "100%" });
+    // Reached: the bar is closed and positive, and a check stands beside the
+    // sentence — already drawn, since nothing travelled with motion off.
+    expect(screen.getByTestId("yd-goal-fill-1")).toHaveClass("yd-goal__fill--complete");
+    const check = reached.querySelector(".yd-goal__check");
+    expect(check).not.toBeNull();
+    expect(check).not.toHaveClass("yd-drawn");
     useMotionPreference.setState({ disabled: false });
     expect(screen.getByText(/150 %/)).toBeInTheDocument();
     // `projected_completion_on` is TODAY on a goal already funded, not a

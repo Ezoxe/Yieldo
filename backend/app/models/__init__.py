@@ -8,6 +8,7 @@ from app.models.api_key import MARKET_PROVIDERS, ApiKey
 from app.models.category import CATEGORY_KINDS, Category
 from app.models.challenge import CHALLENGE_STATES, Challenge
 from app.models.chat_message import ChatMessage
+from app.models.connector_action import ConnectorAction
 from app.models.connector_key import ConnectorKey
 from app.models.debt import DEBT_KINDS, Debt
 from app.models.decision_settings import DecisionSettings
@@ -69,7 +70,7 @@ __all__ = [
     "TRANSACTION_CATEGORY_SOURCES", "VENUE_LABELS", "VENUE_MODES",
     "Account", "AgentKey", "AgentProposal", "AgentRun", "AgentStep", "AlertSettings",
     "AllocationTarget", "ApiKey", "Category", "CategoryRule",
-    "Challenge", "ConnectorKey",
+    "Challenge", "ConnectorAction", "ConnectorKey",
     "ChatMessage", "ColumnProfile", "Debt", "DecisionSettings", "DeclaredRecurrence",
     "Goal", "HealthSnapshot", "ImportBatch", "InstanceSettings", "Instrument",
     "InvestmentAccount", "LlmSettings",

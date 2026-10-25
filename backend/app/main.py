@@ -20,6 +20,7 @@ from app.api import cashflow as cashflow_routes
 from app.api import categories as category_routes
 from app.api import chat as chat_routes
 from app.api import connections as connections_routes
+from app.api import connector as connector_routes
 from app.api import connector_keys as connector_key_routes
 from app.api import debts as debt_routes
 from app.api import engagement as engagement_routes
@@ -89,6 +90,7 @@ api.include_router(auth_routes.router)
 api.include_router(admin_routes.router)
 api.include_router(agent_key_routes.router)
 api.include_router(connector_key_routes.router)
+api.include_router(connector_routes.router)
 api.include_router(account_routes.router)
 api.include_router(import_routes.router)
 api.include_router(transaction_routes.router)

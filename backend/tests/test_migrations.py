@@ -1716,7 +1716,8 @@ def test_the_investment_migration_is_the_single_head(migration_db):
 
     script = ScriptDirectory.from_config(migration_db.config)
     assert len(script.get_heads()) == 1
-    assert script.get_current_head() == CONNECTOR_KEYS_REVISION
+    assert script.get_current_head() == CONNECTOR_ACTIONS_REVISION
+    assert CONNECTOR_KEYS_REVISION in {rev.revision for rev in script.walk_revisions()}
     assert LIBRARY_REVISION in {rev.revision for rev in script.walk_revisions()}
     assert BOULANGER_REVISION in {rev.revision for rev in script.walk_revisions()}
     assert PLANNED_EVENTS_REVISION in {rev.revision for rev in script.walk_revisions()}
@@ -2427,3 +2428,27 @@ def test_the_connector_keys_table_matches_the_model_and_downgrades(migration_db)
     tables = {row[0] for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
     conn.close()
     assert "connector_keys" not in tables
+
+
+# ---------------------------------------------------------------------------
+# b2d4f6a8c0e2 -- what the connector did, for Réglages → Connexions
+# ---------------------------------------------------------------------------
+
+CONNECTOR_ACTIONS_REVISION = "b2d4f6a8c0e2"
+
+
+def test_the_connector_actions_table_matches_the_model_and_downgrades(migration_db):
+    command.upgrade(migration_db.config, CONNECTOR_ACTIONS_REVISION)
+    conn = _connect(migration_db)
+    columns = _table_columns(conn, "connector_actions")
+    indexes = _index_names(conn, "connector_actions")
+    conn.close()
+    reference_columns, reference_indexes = _reference_schema("connector_actions")
+    assert columns == reference_columns
+    assert indexes == reference_indexes
+
+    command.downgrade(migration_db.config, CONNECTOR_KEYS_REVISION)
+    conn = _connect(migration_db)
+    tables = {row[0] for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+    conn.close()
+    assert "connector_actions" not in tables

@@ -15,18 +15,22 @@ from fastapi import HTTPException, Request
 from sqlalchemy.orm import Session
 
 from app.models import TradingAccount, TradingVenue, User
-from app.security import agent_keys
+from app.security import agent_keys, connector_keys
 from app.trading import service
 from app.trading.venues import factory
 from app.trading.venues.base import VenueAdapter
 
 
 def actor_of(request: Request) -> str:
-    """`"agent"` when the bearer is an access key, `"session"` otherwise."""
+    """`"agent"` for an access key, `"connector"` for the EZLink connector's
+    key, `"session"` otherwise."""
     header = request.headers.get("Authorization", "")
     scheme, _, token = header.partition(" ")
-    if scheme.lower() == "bearer" and token and agent_keys.looks_like_agent_key(token):
-        return "agent"
+    if scheme.lower() == "bearer" and token:
+        if agent_keys.looks_like_agent_key(token):
+            return "agent"
+        if connector_keys.looks_like_connector_key(token):
+            return "connector"
     return "session"
 
 

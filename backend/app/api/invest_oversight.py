@@ -406,7 +406,7 @@ def halt(
     policy.halted = True
     policy.halted_reason = payload.reason.strip()
     policy.halted_at = now
-    policy.halted_by = "supervision" if actor == "agent" else "household"
+    policy.halted_by = "household" if actor == "session" else "supervision"
     # A halt disarms: a live arming that outlived the cord being pulled would be
     # an open door behind a closed one.
     policy.armed_until = None

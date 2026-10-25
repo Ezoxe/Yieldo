@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.db import get_db
 from app.models import User
-from app.security import agent_keys
+from app.security import agent_keys, connector_keys
 from app.security.tokens import TokenError, decode_claims
 
 
@@ -51,6 +51,32 @@ def _session_user(token: str, db: Session) -> User:
     return user
 
 
+def _connector_user(token: str, db: Session) -> User:
+    key = connector_keys.find(db, token)
+    if key is None:
+        raise _unauthorized()
+    user = db.get(User, key.user_id)
+    if user is None or not user.is_active:
+        raise _unauthorized()
+    key.last_used_at = datetime.now(UTC)
+    db.commit()
+    return user
+
+
+def get_connector_user(request: Request, db: Session = Depends(get_db)) -> User:
+    """The account behind a connector call, proved by a `ycn_` key and nothing
+    else. `/api/connector` is EZLink's door: a browser session or an agent key
+    knocking there is a client that took a wrong turn, and it is told so."""
+    token = _bearer(request)
+    if not connector_keys.looks_like_connector_key(token):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Cette surface est réservée au connecteur Yieldo Finance (clé ycn_).",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    return _connector_user(token, db)
+
+
 def get_current_user(request: Request, db: Session = Depends(get_db)) -> User:
     """The account behind the request, however it proved itself.
 
@@ -65,6 +91,9 @@ def get_current_user(request: Request, db: Session = Depends(get_db)) -> User:
     own credentials — take `get_session_user` below instead.
     """
     token = _bearer(request)
+
+    if connector_keys.looks_like_connector_key(token):
+        return _connector_user(token, db)
 
     if agent_keys.looks_like_agent_key(token):
         key = agent_keys.find(db, token)
@@ -100,7 +129,7 @@ def get_session_user(request: Request, db: Session = Depends(get_db)) -> User:
     import, every correction — takes `get_current_user`.
     """
     token = _bearer(request)
-    if agent_keys.looks_like_agent_key(token):
+    if agent_keys.looks_like_agent_key(token) or connector_keys.looks_like_connector_key(token):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Cette opération demande une session : une clé d'accès ne peut pas la faire",

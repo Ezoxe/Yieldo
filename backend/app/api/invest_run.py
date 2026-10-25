@@ -108,7 +108,7 @@ def run(
                    "La journée.",
         )
 
-    if mode == "live" and actor_of(request) == "agent":
+    if mode == "live" and actor_of(request) != "session":
         raise HTTPException(
             status_code=403,
             detail="Une clé d'accès peut lire le pilotage et l'arrêter, pas lancer un tour "

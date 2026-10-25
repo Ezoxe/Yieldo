@@ -64,8 +64,9 @@ class TradeAuditEvent(Base):
     # The event, as data. Never a sentence: the screen words it, from the kind
     # and the payload, so one event cannot be described two ways.
     payload: Mapped[dict] = mapped_column(JSON, nullable=False)
-    # Who caused it: "session" (the browser), "agent" (an access key), or
-    # "system" (the pipeline itself). The three have different authority and an
+    # Who caused it: "session" (the browser), "agent" (an access key),
+    # "connector" (the EZLink connector's key), or "system" (the pipeline
+    # itself). They have different authority and an
     # audit that cannot tell them apart cannot answer the one question it will
     # be asked.
     actor: Mapped[str] = mapped_column(String(12), nullable=False)

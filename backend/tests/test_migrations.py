@@ -1716,7 +1716,8 @@ def test_the_investment_migration_is_the_single_head(migration_db):
 
     script = ScriptDirectory.from_config(migration_db.config)
     assert len(script.get_heads()) == 1
-    assert script.get_current_head() == LIBRARY_REVISION
+    assert script.get_current_head() == CONNECTOR_KEYS_REVISION
+    assert LIBRARY_REVISION in {rev.revision for rev in script.walk_revisions()}
     assert BOULANGER_REVISION in {rev.revision for rev in script.walk_revisions()}
     assert PLANNED_EVENTS_REVISION in {rev.revision for rev in script.walk_revisions()}
     assert INSTANCE_SETTINGS_REVISION in {rev.revision for rev in script.walk_revisions()}
@@ -2402,3 +2403,27 @@ def test_the_library_migration_downgrades_to_the_old_rules_and_their_filing(migr
     conn.close()
 
     assert after == before
+
+
+# ---------------------------------------------------------------------------
+# a1c3e5f7b9d1 -- the connector key EZLink's Yieldo agent holds
+# ---------------------------------------------------------------------------
+
+CONNECTOR_KEYS_REVISION = "a1c3e5f7b9d1"
+
+
+def test_the_connector_keys_table_matches_the_model_and_downgrades(migration_db):
+    command.upgrade(migration_db.config, CONNECTOR_KEYS_REVISION)
+    conn = _connect(migration_db)
+    columns = _table_columns(conn, "connector_keys")
+    indexes = _index_names(conn, "connector_keys")
+    conn.close()
+    reference_columns, reference_indexes = _reference_schema("connector_keys")
+    assert columns == reference_columns
+    assert indexes == reference_indexes
+
+    command.downgrade(migration_db.config, LIBRARY_REVISION)
+    conn = _connect(migration_db)
+    tables = {row[0] for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+    conn.close()
+    assert "connector_keys" not in tables

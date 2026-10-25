@@ -21,18 +21,3 @@ services:
     volumes:
       - ./data:/app/data
 
-  # Agent EZLink du connecteur « Yieldo Finance ». Désactivé par défaut : il ne démarre qu'avec
-  # `docker compose --profile ezlink up -d`, une fois ./ezlink/ préparé (agent.yaml, certs/,
-  # yieldo_key). Il ouvre lui-même la connexion vers EZLink : aucun port n'est publié, et la clé
-  # ycn_ ne quitte jamais cette machine. Voir README, « Claude par EZLink : Yieldo Finance ».
-  ezlink-agent:
-    profiles: ["ezlink"]
-    build:
-      context: ${EZLINK_REPO:-https://github.com/Ezoxe/EZLink.git#main}
-      dockerfile: deploy/agent-yieldo/Dockerfile
-    container_name: ${YIELDO_CONTAINER_NAME:-yieldo}-ezlink-agent
-    restart: unless-stopped
-    depends_on:
-      - yieldo
-    volumes:
-      - ./ezlink:/etc/ezlink:ro

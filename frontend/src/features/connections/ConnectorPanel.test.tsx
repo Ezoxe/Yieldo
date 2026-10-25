@@ -68,6 +68,7 @@ describe("ConnectorPanel", () => {
 
     expect(await screen.findByLabelText("Clé du connecteur")).toHaveTextContent(TOKEN);
     expect(screen.getByText(KEY_FILE)).toBeInTheDocument();
+    expect(KEY_FILE).toBe("data/yieldo_key");
     expect(screen.getByText(/ne sera plus affichée/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Remplacer la clé" })).toBeInTheDocument();
   });

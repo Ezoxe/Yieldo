@@ -5,8 +5,8 @@ import { api } from "../../lib/api";
 import { messageFor } from "../../lib/refusal";
 import type { ConnectorAction, ConnectorKeyCreated, ConnectorKeyStatus } from "../../lib/types";
 
-/** Where the operator pastes the key on the agent's machine. */
-export const KEY_FILE = "/etc/ezlink/yieldo_key";
+/** Where the key goes on the EZLink machine, relative to its `deploy/gateway` folder. */
+export const KEY_FILE = "data/yieldo_key";
 
 const MOMENT = new Intl.DateTimeFormat("fr-FR", { dateStyle: "long", timeStyle: "short" });
 
@@ -143,8 +143,9 @@ export function ConnectorPanel() {
                 </button>
               </div>
               <p className="yd-conn__hint" role="status">
-                Collez-la dans le fichier de clé de l'agent EZLink (<code>{KEY_FILE}</code>)&nbsp;:
-                elle ne sera plus affichée.
+                Copiez-la maintenant&nbsp;: elle ne sera plus affichée. Sur la machine d'EZLink,
+                elle va dans le fichier <code>{KEY_FILE}</code> du dossier de la passerelle (voir
+                le README, « Claude par EZLink »).
               </p>
             </div>
           ) : null}

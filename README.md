@@ -223,26 +223,26 @@ Avec [EZLink](https://github.com/Ezoxe/EZLink), Claude (claude.ai, Claude Code) 
   - Pour un relevé, il le prépare seulement : il apparaît dans Imports sous « Préparé par Claude », et c'est toi qui confirmes les colonnes.
 - **Ce qu'il a fait.** Réglages → Connexions → Yieldo Finance liste ses écritures, avec celles passées par Discord.
 
-Mise en place :
+Mise en place : Hermes n'intervient pas, et rien ne s'installe à côté de Yieldo. EZLink appelle Yieldo directement, à son adresse sur ton réseau local.
 
-1. Dans Réglages → Connexions → Yieldo Finance, crée la clé. Elle s'affiche une seule fois.
-2. Sur la machine EZLink, crée l'agent : `ezlink agent add yieldo-1`.
-3. À côté de ce `docker-compose.yml`, prépare le dossier `ezlink/` avec :
-   - `agent.yaml`, d'après `deploy/agent-yieldo/agent.yaml.example` du dépôt EZLink ;
-   - `certs/`, avec les certificats de l'agent ;
-   - `yieldo_key`, qui contient la clé et rien d'autre.
-4. Lance l'agent :
+1. Dans Réglages → Connexions → Yieldo Finance, crée la clé et copie-la. Elle commence par `ycn_` et ne s'affiche qu'une fois.
+2. Sur la machine d'EZLink, dans le dossier `deploy/gateway` de la passerelle, range la clé et l'adresse de Yieldo, puis redémarre. Ces commandes sont détaillées dans le README d'EZLink, section « Connecteur Yieldo Finance » :
 
    ```bash
-   docker compose --profile ezlink up -d
+   read -rs YIELDO_KEY && printf '%s' "$YIELDO_KEY" > data/yieldo_key && unset YIELDO_KEY
+   chown 10001:10001 data/yieldo_key && chmod 600 data/yieldo_key
+   echo 'EZLINK_YIELDO_URL=http://<IP-de-Yieldo>:8080' >> .env
+   docker compose up -d
    ```
 
-5. Dans claude.ai, ajoute le connecteur `https://ezlink.<ton-domaine>/finance/mcp`.
+3. Dans claude.ai, ajoute le connecteur `https://ezlink.<ton-domaine>/finance/mcp`.
 
 Pour couper Claude sans rien désinstaller :
 
 - **Révoquer** dans Réglages → Connexions coupe la clé tout de suite.
 - **`/finance off`** sur Discord coupe le connecteur côté EZLink.
+
+EZLink et Yieldo doivent se joindre sur le réseau local : Yieldo publie son port (8080 par défaut) sur toutes ses adresses, et EZLink l'appelle en HTTP sur ce réseau.
 
 ## Dépannage
 

@@ -41,5 +41,3 @@ test-results/
 # `e2e/shoot-invest.mjs` against a seeded instance, not a build artefact.
 e2e/screenshots-invest/
 
-# EZLink agent of the Yieldo Finance connector: its key and certificates never go to Git.
-/ezlink/

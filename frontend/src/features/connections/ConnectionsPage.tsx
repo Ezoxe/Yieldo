@@ -6,7 +6,7 @@ import { BentoCell, type BentoSpan } from "../../design/bento/BentoCell";
 import { BentoGrid } from "../../design/bento/BentoGrid";
 import { PanelHead } from "../../design/bento/PanelHead";
 import { Method } from "../../design/Method";
-import { AssistantIcon, ConnectionsIcon } from "../../design/icons";
+import { AssistantIcon, ConnectionsIcon, KeyIcon } from "../../design/icons";
 import { PageHead } from "../../design/PageHead";
 import { SaveLabel } from "../../design/motion/SaveFeedback";
 import { useReducedMotion } from "../../design/motion/useReducedMotion";
@@ -28,10 +28,12 @@ import {
   PROVIDER_SIGNUP,
 } from "./providers";
 import "./ConnectionsPage.css";
+import { ConnectorPanel } from "./ConnectorPanel";
 
 const SPAN = {
   market: { md: 6, lg: 7 },
   model: { md: 6, lg: 5 },
+  connector: { md: 6, lg: 12 },
 } satisfies Record<string, BentoSpan>;
 
 /** The sentence this whole screen is built around, and the reason a key field
@@ -635,6 +637,15 @@ export function ConnectionsPage() {
           )}
         </BentoCell>
 
+        <BentoCell
+          as={motion.div}
+          span={SPAN.connector}
+          className="yd-panel"
+          {...entryProps(reduced)}
+        >
+          <PanelHead icon={KeyIcon}>Yieldo Finance (connecteur EZLink)</PanelHead>
+          <ConnectorPanel />
+        </BentoCell>
       </BentoGrid>
     </section>
   );

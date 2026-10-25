@@ -232,6 +232,30 @@ export interface ImportPreview {
   mapping_fixed: boolean;
 }
 
+/** `GET /connector-key` — whether the Yieldo Finance key exists, never the key. */
+export interface ConnectorKeyStatus {
+  exists: boolean;
+  created_at: string | null;
+  last_used_at: string | null;
+}
+
+/** `POST /connector-key` — the only moment the key is in the clear. */
+export interface ConnectorKeyCreated {
+  key: string;
+  created_at: string;
+}
+
+/** `GET /connector-key/actions` — one write the connector made or tried. */
+export interface ConnectorAction {
+  id: number;
+  tool: string;
+  title: string;
+  tier: "read" | "write" | "approve";
+  approval_id: string | null;
+  status_code: number;
+  created_at: string;
+}
+
 /** A statement the Yieldo Finance connector prepared (`GET /imports/pending`). */
 export interface PendingImport {
   id: number;

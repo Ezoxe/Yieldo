@@ -362,3 +362,117 @@
 :root[data-motion="off"] .yd-conn__action {
   transition: none;
 }
+
+/* « Yieldo Finance » — the connector key, shown once, and its log. */
+.yd-connector {
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-xs);
+  min-width: 0;
+}
+
+.yd-connector__reveal {
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-2xs);
+  padding: var(--yd-space-sm);
+  border: 1px solid color-mix(in srgb, var(--yd-warning) 45%, transparent);
+  border-radius: var(--yd-radius-sm);
+  background: color-mix(in srgb, var(--yd-warning) 8%, transparent);
+}
+
+.yd-connector__key-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--yd-space-xs);
+  min-width: 0;
+}
+
+/* The key is 84 characters with no space: it breaks anywhere rather than
+   pushing the card wider than a phone. */
+.yd-connector__key {
+  flex: 1 1 20rem;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  padding: var(--yd-space-2xs) var(--yd-space-xs);
+  border-radius: var(--yd-radius-sm);
+  background: var(--yd-surface-strong);
+  color: var(--yd-text);
+  font-family: var(--yd-font-mono, ui-monospace, monospace);
+  font-size: 0.8rem;
+}
+
+.yd-connector__key-row .yd-conn__action {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--yd-space-2xs);
+}
+
+.yd-connector__log {
+  margin-top: var(--yd-space-sm);
+  min-width: 0;
+}
+
+.yd-connector__log-title {
+  margin: 0 0 var(--yd-space-xs);
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--yd-text);
+}
+
+.yd-connector__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-2xs);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.yd-connector__item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--yd-space-2xs) var(--yd-space-sm);
+  padding: var(--yd-space-xs) var(--yd-space-sm);
+  border: 1px solid var(--yd-border);
+  border-radius: var(--yd-radius-sm);
+  background: var(--yd-surface-raised);
+}
+
+.yd-connector__what {
+  flex: 1 1 18rem;
+  min-width: 0;
+  font-size: 0.85rem;
+  color: var(--yd-text);
+}
+
+.yd-connector__when {
+  font-size: 0.78rem;
+  color: var(--yd-text-muted);
+}
+
+.yd-connector__pill {
+  padding: 1px var(--yd-space-xs);
+  border: 1px solid var(--yd-border-control);
+  border-radius: 999px;
+  font-size: 0.74rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.yd-connector__pill--positive {
+  color: var(--yd-positive-text, var(--yd-positive));
+  border-color: color-mix(in srgb, var(--yd-positive) 40%, transparent);
+}
+
+.yd-connector__pill--negative {
+  color: var(--yd-negative-text, var(--yd-negative));
+  border-color: color-mix(in srgb, var(--yd-negative) 40%, transparent);
+}
+
+.yd-connector__pill--accent {
+  color: var(--yd-accent-text, var(--yd-accent));
+  border-color: color-mix(in srgb, var(--yd-accent) 40%, transparent);
+}

@@ -33,6 +33,10 @@ function mockApi(options: MockOptions = {}) {
     if (path === "/assistant/llm-settings") {
       return Promise.resolve((options.llm ?? LLM_UNSET) as never);
     }
+    if (path === "/connector-key") {
+      return Promise.resolve({ exists: false, created_at: null, last_used_at: null } as never);
+    }
+    if (path === "/connector-key/actions") return Promise.resolve([] as never);
     throw new Error(`unexpected path ${path}`);
   });
   vi.spyOn(api, "post").mockImplementation((path: string, body?: unknown) => {
@@ -374,6 +378,8 @@ describe("ConnectionsPage — the state of the whole installation", () => {
   it("shows a load failure as an alert rather than an empty screen", async () => {
     vi.spyOn(api, "get").mockRejectedValue(new ApiError(503, "Service indisponible."));
     renderPage();
-    expect(await screen.findByRole("alert")).toHaveTextContent("Service indisponible.");
+    // The page's own alert, and the connector card's: both say why.
+    const alerts = await screen.findAllByRole("alert");
+    expect(alerts[0]).toHaveTextContent("Service indisponible.");
   });
 });

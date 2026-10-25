@@ -1345,6 +1345,37 @@ const ROUTES: Record<string, (params: Params) => unknown> = {
   "/api/alerts/count": () => ({ count: ALERTS_REPORT.alerts.length }),
   "/api/recurrences/dismissals": () => DISMISSALS,
   "/api/imports/profiles": () => COLUMN_PROFILES,
+  "/api/invest/venues": () => [
+    {
+      id: 1, venue: "internal", label: "Bac à sable", mode: "paper", price_source: "synthetic",
+      slippage_bps: 10, enabled: true, configured: true, requires_credentials: false,
+      sandbox_step: 0, created_at: "2026-09-21T10:00:00Z", last_used_at: null,
+      last_check_at: "2026-09-21T10:00:00Z", last_check_ok: true, last_check_message: "Carnet simulé prêt.",
+    },
+    {
+      id: 2, venue: "alpaca", label: "Alpaca réel", mode: "live", price_source: "venue",
+      slippage_bps: 0, enabled: true, configured: true, requires_credentials: true,
+      sandbox_step: 0, created_at: "2026-10-20T19:00:00Z", last_used_at: null,
+      last_check_at: "2026-10-25T08:00:00Z", last_check_ok: true,
+      last_check_message: "Compte Alpaca réel joignable : statut « ACTIVE », devise USD.",
+    },
+  ],
+  "/api/invest/avoirs": () => [
+    {
+      venue_id: 2, venue: "alpaca", label: "Alpaca réel", mode: "live", ok: true, message: null,
+      cash: [{ currency: "USD", amount_cents: 152035 }],
+      assets: [
+        { symbol: "AAPL", quantity: "3.5", value_cents: 80570, currency: "USD" },
+        { symbol: "VTI", quantity: "10", value_cents: 265000, currency: "USD" },
+      ],
+      fetched_at: "2026-10-25T20:00:00Z",
+    },
+    {
+      venue_id: 3, venue: "kraken", label: "Kraken", mode: "live", ok: false,
+      message: "Kraken a refusé la clé (HTTP 401) : vérifiez-la dans Courtiers.",
+      cash: [], assets: [], fetched_at: "2026-10-25T20:00:00Z",
+    },
+  ],
   "/api/imports/pending": () => [
     {
       id: 1, account_id: 1, account_name: "Compte courant", filename: "releve-octobre-2026.csv",

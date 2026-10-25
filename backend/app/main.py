@@ -28,6 +28,7 @@ from app.api import export as export_routes
 from app.api import feasibility as feasibility_routes
 from app.api import goals as goal_routes
 from app.api import imports as import_routes
+from app.api import invest_holdings as invest_holdings_routes
 from app.api import invest_model as invest_model_routes
 from app.api import invest_oversight as invest_oversight_routes
 from app.api import invest_policy as invest_policy_routes
@@ -127,6 +128,7 @@ api.include_router(invest_venue_routes.router)
 api.include_router(invest_policy_routes.router)
 api.include_router(invest_model_routes.router)
 api.include_router(invest_oversight_routes.router)
+api.include_router(invest_holdings_routes.router)
 api.include_router(invest_session_routes.router)
 api.include_router(invest_run_routes.router)
 

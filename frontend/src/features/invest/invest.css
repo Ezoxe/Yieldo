@@ -877,3 +877,45 @@
   line-height: 1.4;
   color: var(--yd-text-muted);
 }
+
+/* « Ce que vous détenez » — one card per broker, read on demand. */
+.yd-holdings {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--yd-space-sm);
+  min-width: 0;
+}
+
+.yd-holdings__card {
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  gap: var(--yd-space-xs);
+  padding: var(--yd-space-sm) var(--yd-space-md);
+  border: 1px solid var(--yd-border);
+  border-radius: var(--yd-radius-sm);
+  background: var(--yd-surface-raised);
+  min-width: 0;
+}
+
+.yd-holdings__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--yd-space-xs) var(--yd-space-sm);
+}
+
+.yd-holdings__when {
+  margin-left: auto;
+  font-size: 0.78rem;
+  color: var(--yd-text-muted);
+}
+
+.yd-holdings__cash {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--yd-space-xs);
+  font-size: 0.88rem;
+}

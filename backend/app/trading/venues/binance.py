@@ -36,6 +36,15 @@ from app.trading.venues.base import (
     VenueOrderResult,
     venue_error,
 )
+from app.trading.venues.holdings import (
+    FIAT,
+    CashBalance,
+    HeldAsset,
+    VenueHoldings,
+    cents_of,
+    decimal_text,
+    quantity_text,
+)
 from app.trading.venues.http import request
 
 NAME = "binance"
@@ -130,6 +139,29 @@ class BinanceVenue:
             bid_cents=to_cents(body["bidPrice"]),
             ask_cents=to_cents(body["askPrice"]),
         )
+
+    def holdings(self) -> VenueHoldings:
+        """Every non-zero balance, free and locked together: fiat as cash, the
+        rest as assets. Binance reports quantities only."""
+        body = parse_json(
+            request(
+                "GET", f"{self.base_url}/api/v3/account?{self._signed({})}",
+                headers={"X-MBX-APIKEY": self._key}, label=LABEL,
+            )
+        )
+        cash, assets = [], []
+        for balance in sorted(body.get("balances") or [], key=lambda row: str(row.get("asset"))):
+            free = decimal_text(balance.get("free")) or 0
+            locked = decimal_text(balance.get("locked")) or 0
+            quantity = free + locked
+            if quantity == 0:
+                continue
+            code = str(balance.get("asset"))
+            if code in FIAT:
+                cash.append(CashBalance(code, cents_of(quantity)))
+            else:
+                assets.append(HeldAsset(code, quantity_text(quantity), None, None))
+        return VenueHoldings(cash=tuple(cash), assets=tuple(assets))
 
     def place_order(
         self, *, symbol: str, side: str, quantity: Quantity, order_type: str,

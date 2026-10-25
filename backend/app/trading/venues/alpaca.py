@@ -26,6 +26,14 @@ from app.trading.venues.base import (
     VenueOrderResult,
     venue_error,
 )
+from app.trading.venues.holdings import (
+    CashBalance,
+    HeldAsset,
+    VenueHoldings,
+    cents_of,
+    decimal_text,
+    quantity_text,
+)
 from app.trading.venues.http import request
 
 NAME = "alpaca"
@@ -116,6 +124,34 @@ class AlpacaVenue:
                 f"aucun cours coté pour « {symbol} » en ce moment",
             )
         return Quote(symbol=symbol, bid_cents=bid, ask_cents=ask)
+
+    def holdings(self) -> VenueHoldings:
+        """Cash and open positions, each position with Alpaca's own market value.
+        Two GETs; no order route is touched."""
+        account = parse_json(
+            request("GET", f"{self.base_url}/v2/account", headers=self._headers(), label=LABEL)
+        )
+        currency = str(account.get("currency") or "USD")
+        cash = decimal_text(account.get("cash"))
+        positions = parse_json(
+            request("GET", f"{self.base_url}/v2/positions", headers=self._headers(), label=LABEL)
+        )
+        assets = []
+        for position in positions if isinstance(positions, list) else []:
+            quantity = decimal_text(position.get("qty"))
+            if quantity is None or quantity == 0:
+                continue
+            value = decimal_text(position.get("market_value"))
+            assets.append(HeldAsset(
+                symbol=str(position.get("symbol")),
+                quantity=quantity_text(quantity),
+                value_cents=None if value is None else cents_of(value),
+                currency=currency,
+            ))
+        return VenueHoldings(
+            cash=() if cash is None else (CashBalance(currency, cents_of(cash)),),
+            assets=tuple(sorted(assets, key=lambda asset: asset.symbol)),
+        )
 
     def place_order(
         self, *, symbol: str, side: str, quantity: Quantity, order_type: str,

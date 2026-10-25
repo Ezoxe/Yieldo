@@ -2667,6 +2667,19 @@ export type InvestMode = "paper" | "live";
 export type InvestAutonomy = "observer" | "paper" | "live";
 export type DecisionOutcome = "skipped" | "held" | "refused" | "ordered" | "failed";
 
+/** `GET /invest/avoirs` — one broker's answer to « what does this account hold ». */
+export interface InvestVenueHoldings {
+  venue_id: number;
+  venue: string;
+  label: string;
+  mode: InvestMode;
+  ok: boolean;
+  message: string | null;
+  cash: { currency: string; amount_cents: number }[];
+  assets: { symbol: string; quantity: string; value_cents: number | null; currency: string | null }[];
+  fetched_at: string;
+}
+
 export interface InvestVenue {
   id: number;
   venue: string;

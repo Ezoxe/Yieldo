@@ -12,6 +12,7 @@ import { useApiQuery, useInvalidate } from "../../lib/useApiQuery";
 import type { InvestMode, InvestVenue, InvestVenueCheck } from "../../lib/types";
 import { plural } from "../../lib/plural";
 import { formatDateTime } from "./format";
+import { HoldingsPanel } from "./HoldingsPanel";
 import { MODE_LABELS, PRICE_SOURCE_LABELS, VENUE_LABELS, labelFor } from "./vocabulary";
 import "./invest.css";
 
@@ -306,6 +307,11 @@ export function BrokersPage() {
               </p>
             ) : null}
           </div>
+        </BentoCell>
+
+        <BentoCell span={{ md: 6, lg: 12 }}>
+          <PanelHead icon={BrokersIcon}>Ce que vous détenez</PanelHead>
+          <HoldingsPanel />
         </BentoCell>
       </BentoGrid>
     </div>

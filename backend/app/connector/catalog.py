@@ -141,6 +141,9 @@ READ = _tools("read", [
     ("yieldo_invest_decision", "GET", "/invest/decisions/{decision_id}",
      "Une décision avec les chiffres exacts montrés au modèle."),
     ("yieldo_invest_ordres", "GET", "/invest/orders", "Les ordres passés."),
+    ("yieldo_invest_avoirs", "GET", "/invest/avoirs",
+     "Ce que le foyer détient réellement chez ses courtiers : liquidités et positions, lues "
+     "en direct, sans passer d'ordre."),
     ("yieldo_invest_vue", "GET", "/invest/overview",
      "La vue d'ensemble : P&L, calibration, entonnoir."),
     ("yieldo_avenir_scenario", "POST", "/outlook/scenario",

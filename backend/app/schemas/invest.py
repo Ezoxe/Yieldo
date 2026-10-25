@@ -513,3 +513,34 @@ class JournalOut(BaseModel):
 
 DecisionDetailOut.model_rebuild()
 OverviewOut.model_rebuild()
+
+
+class CashBalanceOut(BaseModel):
+    currency: str
+    amount_cents: int
+
+
+class HeldAssetOut(BaseModel):
+    symbol: str
+    # The broker's own decimal, as text: a fraction of a bitcoin is not rounded.
+    quantity: str
+    value_cents: int | None
+    currency: str | None
+
+
+class VenueHoldingsOut(BaseModel):
+    """What one broker says the household holds, read at `fetched_at`.
+
+    `ok` is False when the broker could not be read; `message` then says why,
+    in the venue's own words, and the lists are empty -- never a zero standing
+    in for an answer that did not come."""
+
+    venue_id: int
+    venue: str
+    label: str
+    mode: str
+    ok: bool
+    message: str | None
+    cash: list[CashBalanceOut]
+    assets: list[HeldAssetOut]
+    fetched_at: datetime

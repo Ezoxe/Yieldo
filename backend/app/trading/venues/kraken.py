@@ -35,6 +35,15 @@ from app.trading.venues.base import (
     VenueOrderResult,
     venue_error,
 )
+from app.trading.venues.holdings import (
+    KRAKEN_FIAT,
+    CashBalance,
+    HeldAsset,
+    VenueHoldings,
+    cents_of,
+    decimal_text,
+    quantity_text,
+)
 from app.trading.venues.http import request
 
 NAME = "kraken"
@@ -155,6 +164,21 @@ class KrakenVenue:
             bid_cents=to_cents(ticker["b"][0]),
             ask_cents=to_cents(ticker["a"][0]),
         )
+
+    def holdings(self) -> VenueHoldings:
+        """Every non-zero balance: fiat as cash, the rest as assets. Kraken
+        reports quantities only, so an asset carries no value."""
+        balances = self._private("/0/private/Balance", {})
+        cash, assets = [], []
+        for code, raw in sorted(balances.items()):
+            quantity = decimal_text(raw)
+            if quantity is None or quantity == 0:
+                continue
+            if code in KRAKEN_FIAT:
+                cash.append(CashBalance(KRAKEN_FIAT[code], cents_of(quantity)))
+            else:
+                assets.append(HeldAsset(code, quantity_text(quantity), None, None))
+        return VenueHoldings(cash=tuple(cash), assets=tuple(assets))
 
     def place_order(
         self, *, symbol: str, side: str, quantity: Quantity, order_type: str,

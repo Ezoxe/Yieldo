@@ -40,6 +40,7 @@ from app.api import portfolio as portfolio_routes
 from app.api import projection as projection_routes
 from app.api import recurrences as recurrence_routes
 from app.api import reports as report_routes
+from app.api import rules as rule_routes
 from app.api import search as search_routes
 from app.api import simulators as simulator_routes
 from app.api import transactions as transaction_routes
@@ -92,6 +93,7 @@ api.include_router(account_routes.router)
 api.include_router(import_routes.router)
 api.include_router(transaction_routes.router)
 api.include_router(category_routes.router)
+api.include_router(rule_routes.router)
 api.include_router(analysis_routes.router)
 api.include_router(analytics_routes.router)
 api.include_router(budget_routes.router)

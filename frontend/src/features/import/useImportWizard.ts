@@ -167,6 +167,7 @@ export interface UseImportWizardResult {
   batch: ImportBatch | null;
   actions: {
     selectFile: (file: File) => Promise<void>;
+    selectFileFor: (accountId: number, file: File) => Promise<void>;
     selectAccount: (accountId: number) => void;
     setRole: (columnIndex: number, role: ColumnRole) => void;
     setDialectField: (field: keyof CsvDialect, value: string | number) => Promise<void>;
@@ -279,6 +280,18 @@ export function useImportWizard(): UseImportWizardResult {
       setIsBusy(false);
     }
   }, []);
+
+  // A prepared import arrives with its own account: the account is chosen and
+  // the file analysed in one gesture, so the snapshot is updated before
+  // `selectFile` reads it rather than after the next render.
+  const selectFileFor = useCallback(
+    async (nextAccountId: number, nextFile: File) => {
+      setAccountId(nextAccountId);
+      snapshot.current = { ...snapshot.current, accountId: nextAccountId };
+      await selectFile(nextFile);
+    },
+    [selectFile],
+  );
 
   const setRole = useCallback((columnIndex: number, role: ColumnRole) => {
     setMapping((current) => {
@@ -496,6 +509,7 @@ export function useImportWizard(): UseImportWizardResult {
     batch,
     actions: {
       selectFile,
+      selectFileFor,
       selectAccount,
       setRole,
       setDialectField,

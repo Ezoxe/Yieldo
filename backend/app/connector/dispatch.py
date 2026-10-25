@@ -9,31 +9,19 @@ but the mapping of arguments.
 `CUSTOM_TOOLS` holds the tools that have no route of their own.
 """
 
-from collections.abc import Awaitable, Callable
-from dataclasses import dataclass
 from functools import cache
 from typing import Any
 from urllib.parse import quote
 
 import httpx
 from fastapi import HTTPException
-from sqlalchemy.orm import Session
 
 from app.connector.catalog import CATALOG, CUSTOM, ToolDef
+from app.connector.custom import CustomTool
+from app.connector.prepared_import import PREPARE_IMPORT
 from app.connector.schema import WHOLE_BODY, ArgumentPlan, plan_for
-from app.models import User
 
-CustomRun = Callable[[Session, User, dict[str, Any]], Awaitable[tuple[int, Any]]]
-
-
-@dataclass(frozen=True)
-class CustomTool:
-    schema: dict[str, Any]
-    required: tuple[str, ...]
-    run: CustomRun
-
-
-CUSTOM_TOOLS: dict[str, CustomTool] = {}
+CUSTOM_TOOLS: dict[str, CustomTool] = {"yieldo_import_preparer": PREPARE_IMPORT}
 
 
 def tool_named(name: str) -> ToolDef:

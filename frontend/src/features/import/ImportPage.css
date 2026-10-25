@@ -1175,3 +1175,48 @@
   outline: 2px solid var(--yd-accent);
   outline-offset: 2px;
 }
+
+/* « Préparé par Claude » : the history's own rows, with the action that
+   matters first. « Ouvrir » is the one thing to do with a prepared statement,
+   so it carries the accent; « Écarter » keeps the history's quiet button. */
+.yd-prepared__actions {
+  display: flex;
+  gap: var(--yd-space-xs);
+  margin-left: auto;
+}
+
+.yd-prepared__open {
+  border: 1px solid var(--yd-accent);
+  border-radius: var(--yd-radius-sm);
+  padding: var(--yd-space-2xs) var(--yd-space-sm);
+  background: color-mix(in srgb, var(--yd-accent) 14%, transparent);
+  color: var(--yd-text);
+  font: inherit;
+  font-size: 0.84rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.yd-prepared__open:hover {
+  background: color-mix(in srgb, var(--yd-accent) 24%, transparent);
+}
+
+.yd-prepared__open:focus-visible {
+  outline: 2px solid var(--yd-accent);
+  outline-offset: 2px;
+}
+
+.yd-prepared__open:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.yd-prepared__actions .yd-import-history__rollback {
+  margin-left: 0;
+}
+
+@media (max-width: 599px) {
+  .yd-prepared__actions {
+    margin-left: 0;
+  }
+}

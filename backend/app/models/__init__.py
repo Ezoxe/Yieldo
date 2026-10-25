@@ -26,6 +26,7 @@ from app.models.investment_account import INVESTMENT_ACCOUNT_KINDS, InvestmentAc
 from app.models.llm_settings import LlmSettings
 from app.models.lot import Lot
 from app.models.net_worth_snapshot import NetWorthSnapshot
+from app.models.pending_import import PendingImport
 from app.models.plan_line import (
     PLAN_KINDS,
     PLAN_ORIGINS,
@@ -75,7 +76,8 @@ __all__ = [
     "Goal", "HealthSnapshot", "ImportBatch", "InstanceSettings", "Instrument",
     "InvestmentAccount", "LlmSettings",
     "NetWorthSnapshot",
-    "Lot", "PlanLine", "PlanSettings", "PlannedEvent", "Position", "PriceIndexPoint",
+    "Lot", "PendingImport", "PlanLine",
+    "PlanSettings", "PlannedEvent", "Position", "PriceIndexPoint",
     "PricePoint", "QuotaWindow",
     "RecurrenceCheckin", "RecurrenceDismissal", "Scenario",
     "TradeAuditEvent", "TradeDecision", "TradeOrder",

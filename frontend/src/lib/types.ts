@@ -232,6 +232,16 @@ export interface ImportPreview {
   mapping_fixed: boolean;
 }
 
+/** A statement the Yieldo Finance connector prepared (`GET /imports/pending`). */
+export interface PendingImport {
+  id: number;
+  account_id: number;
+  account_name: string;
+  filename: string;
+  rows: number;
+  created_at: string;
+}
+
 export interface ImportBatch {
   id: number;
   account_id: number;

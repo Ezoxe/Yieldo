@@ -1716,7 +1716,8 @@ def test_the_investment_migration_is_the_single_head(migration_db):
 
     script = ScriptDirectory.from_config(migration_db.config)
     assert len(script.get_heads()) == 1
-    assert script.get_current_head() == CONNECTOR_ACTIONS_REVISION
+    assert script.get_current_head() == PENDING_IMPORTS_REVISION
+    assert CONNECTOR_ACTIONS_REVISION in {rev.revision for rev in script.walk_revisions()}
     assert CONNECTOR_KEYS_REVISION in {rev.revision for rev in script.walk_revisions()}
     assert LIBRARY_REVISION in {rev.revision for rev in script.walk_revisions()}
     assert BOULANGER_REVISION in {rev.revision for rev in script.walk_revisions()}
@@ -2452,3 +2453,27 @@ def test_the_connector_actions_table_matches_the_model_and_downgrades(migration_
     tables = {row[0] for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
     conn.close()
     assert "connector_actions" not in tables
+
+
+# ---------------------------------------------------------------------------
+# c3e5a7b9d1f3 -- statements the connector prepared for the household
+# ---------------------------------------------------------------------------
+
+PENDING_IMPORTS_REVISION = "c3e5a7b9d1f3"
+
+
+def test_the_pending_imports_table_matches_the_model_and_downgrades(migration_db):
+    command.upgrade(migration_db.config, PENDING_IMPORTS_REVISION)
+    conn = _connect(migration_db)
+    columns = _table_columns(conn, "pending_imports")
+    indexes = _index_names(conn, "pending_imports")
+    conn.close()
+    reference_columns, reference_indexes = _reference_schema("pending_imports")
+    assert columns == reference_columns
+    assert indexes == reference_indexes
+
+    command.downgrade(migration_db.config, CONNECTOR_ACTIONS_REVISION)
+    conn = _connect(migration_db)
+    tables = {row[0] for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+    conn.close()
+    assert "pending_imports" not in tables

@@ -1345,6 +1345,33 @@ const ROUTES: Record<string, (params: Params) => unknown> = {
   "/api/alerts/count": () => ({ count: ALERTS_REPORT.alerts.length }),
   "/api/recurrences/dismissals": () => DISMISSALS,
   "/api/imports/profiles": () => COLUMN_PROFILES,
+  "/api/imports/pending": () => [
+    {
+      id: 1, account_id: 1, account_name: "Compte courant", filename: "releve-octobre-2026.csv",
+      rows: 47, created_at: "2026-10-25T08:41:00Z",
+    },
+  ],
+  "/api/connector-key": () => ({
+    exists: true, created_at: "2026-10-20T19:02:00Z", last_used_at: "2026-10-25T08:41:00Z",
+  }),
+  "/api/connector-key/actions": () => [
+    {
+      id: 3, tool: "yieldo_supprimer_transaction", title: "Supprimer une transaction.",
+      tier: "approve", approval_id: "apv_7f3c", status_code: 204,
+      created_at: "2026-10-25T08:44:00Z",
+    },
+    {
+      id: 2, tool: "yieldo_import_preparer",
+      title: "Préparer l'import d'un relevé CSV : il est analysé et rangé dans Imports, où le "
+        + "foyer confirme les colonnes. Rien n'est importé avant.",
+      tier: "write", approval_id: null, status_code: 201, created_at: "2026-10-25T08:41:00Z",
+    },
+    {
+      id: 1, tool: "yieldo_corriger_transaction",
+      title: "Catégoriser ou corriger une transaction (catégorie, note, virement).",
+      tier: "write", approval_id: null, status_code: 404, created_at: "2026-10-24T21:15:00Z",
+    },
+  ],
   "/api/feasibility/context": feasibilityContext,
   "/api/feasibility/scenarios": () => [],
   "/api/recurrences/declared": () => DECLARED,

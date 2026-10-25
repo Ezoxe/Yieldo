@@ -8,13 +8,19 @@ import { entryProps, staggerProps } from "../../design/motion/variants";
 import { useReducedMotion } from "../../design/motion/useReducedMotion";
 import { ApiError, api } from "../../lib/api";
 import { plural } from "../../lib/plural";
-import type { Account, Category, ImportSummary as ImportSummaryData } from "../../lib/types";
+import type {
+  Account,
+  Category,
+  ImportSummary as ImportSummaryData,
+  PendingImport,
+} from "../../lib/types";
 import { ColumnTagger } from "./ColumnTagger";
 import { DialectPanel } from "./DialectPanel";
 import { DropZone } from "./DropZone";
 import { ImportHistory } from "./ImportHistory";
 import "./ImportPage.css";
 import { ImportSummary } from "./ImportSummary";
+import { PreparedImports } from "./PreparedImports";
 import { PreviewTable } from "./PreviewTable";
 import { useImportWizard, type UseImportWizardResult, type WizardStep } from "./useImportWizard";
 import { BudgetsIcon, ImportIcon, ListIcon } from "../../design/icons";
@@ -345,10 +351,11 @@ function WizardActionBar({ label, counts, note, primary, secondary }: WizardActi
 interface FileStepProps extends StepProps {
   accounts: Account[];
   onCreateAccount: (input: NewAccountInput) => Promise<void>;
+  onOpenPrepared: (item: PendingImport, file: File) => Promise<void>;
   reduced: boolean;
 }
 
-function FileStep({ wizard, accounts, onCreateAccount, reduced }: FileStepProps) {
+function FileStep({ wizard, accounts, onCreateAccount, onOpenPrepared, reduced }: FileStepProps) {
   const { accountId, isBusy, errors, file, actions } = wizard;
   const [showNewAccountForm, setShowNewAccountForm] = useState(false);
 
@@ -437,6 +444,13 @@ function FileStep({ wizard, accounts, onCreateAccount, reduced }: FileStepProps)
           only sometimes wants to check or undo what they already did. It sits
           inside the step's stage, which is keyed on the step -- so coming back
           from a commit remounts it and the new batch is already listed. */}
+      <PreparedImports
+        onOpen={onOpenPrepared}
+        span={SPAN.history}
+        reduced={reduced}
+        disabled={isBusy}
+      />
+
       <BentoCell as={motion.div} span={SPAN.history} className="yd-panel" {...entryProps(reduced)}>
         <ImportHistory />
       </BentoCell>
@@ -660,6 +674,28 @@ export function ImportPage() {
     actions.selectAccount(created.id);
   }
 
+  // The prepared import being walked through the wizard. Once its batch is
+  // committed it has done its work, and it leaves « Préparé par Claude ».
+  const [openedPendingId, setOpenedPendingId] = useState<number | null>(null);
+
+  async function handleOpenPrepared(item: PendingImport, file: File): Promise<void> {
+    setOpenedPendingId(item.id);
+    await actions.selectFileFor(item.account_id, file);
+  }
+
+  useEffect(() => {
+    if (step !== "done" || openedPendingId === null || wizard.batch === null) return;
+    const pendingId = openedPendingId;
+    setOpenedPendingId(null);
+    api.delete(`/imports/pending/${pendingId}`).catch((err) => {
+      setLoadError(
+        err instanceof ApiError
+          ? `L'import est fait, mais le relevé préparé n'a pas pu être retiré : ${err.detail}`
+          : "L'import est fait, mais le relevé préparé n'a pas pu être retiré.",
+      );
+    });
+  }, [step, openedPendingId, wizard.batch]);
+
   const activeIndex = stepIndex(step);
 
   return (
@@ -715,6 +751,7 @@ export function ImportPage() {
             wizard={wizard}
             accounts={accounts}
             onCreateAccount={handleCreateAccount}
+            onOpenPrepared={handleOpenPrepared}
             reduced={reducedMotion}
           />
         ) : null}

@@ -28,6 +28,7 @@ from app.models import (
     ImportBatch,
     InvestmentAccount,
     Lot,
+    PendingImport,
     PlanLine,
     PlannedEvent,
     Position,
@@ -213,6 +214,8 @@ DESCRIBERS: dict[str, Describer] = {
     "yieldo_modifier_compte": changing(Account, "account_id", "le compte", named),
     "yieldo_supprimer_compte": deleting(Account, "account_id", "le compte", named),
     "yieldo_annuler_import": deleting(ImportBatch, "batch_id", "l'import", batch_label),
+    "yieldo_ecarter_import_prepare": deleting(
+        PendingImport, "pending_id", "le relevé préparé", lambda row: f"« {row.filename} »"),
     "yieldo_creer_profil_import": creating("Enregistrer un profil d'import"),
     "yieldo_supprimer_profil_import": deleting(
         ColumnProfile, "profile_id", "le profil d'import", named),

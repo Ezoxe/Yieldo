@@ -142,6 +142,16 @@ export async function downloadFile(
   URL.revokeObjectURL(url);
 }
 
+/**
+ * A file the backend serves, read as bytes rather than saved: the Imports
+ * screen hands a prepared statement to its own wizard, exactly as if it had
+ * been dropped there.
+ */
+export async function fetchFile(path: string): Promise<Blob> {
+  const response = await send("GET", path, {});
+  return response.blob();
+}
+
 export const api = {
   get: <T>(path: string, params?: Record<string, QueryValue>) =>
     request<T>("GET", path, { params }),

@@ -87,3 +87,15 @@ class LastImportOut(BaseModel):
     imported_at: datetime
     filename: str
     rows_imported: int
+
+
+class PendingImportOut(BaseModel):
+    """A statement the connector prepared, waiting for the household to
+    confirm its columns."""
+
+    id: int
+    account_id: int
+    account_name: str
+    filename: str
+    rows: int
+    created_at: datetime

@@ -20,11 +20,12 @@ from app.importers.service import (
     rollback_import,
 )
 from app.importers.statement import FIXED_DIALECT, FIXED_MAPPING, to_csv
-from app.models import Account, ColumnProfile, ImportBatch, User
+from app.models import Account, ColumnProfile, ImportBatch, PendingImport, User
 from app.schemas.imports import (
     BatchOut,
     CommitIn,
     LastImportOut,
+    PendingImportOut,
     PreviewOut,
     ProfileIn,
     ProfileOut,
@@ -367,4 +368,52 @@ def delete_profile(profile_id: int, user: User = Depends(get_current_user),
     if profile is None:
         raise HTTPException(status_code=404, detail="Profil introuvable")
     db.delete(profile)
+    db.commit()
+
+
+# -- Prepared by the connector -----------------------------------------------------
+
+
+def _owned_pending(db: Session, user: User, pending_id: int) -> PendingImport:
+    pending = (
+        db.query(PendingImport)
+        .filter(PendingImport.id == pending_id, PendingImport.user_id == user.id)
+        .first()
+    )
+    if pending is None:
+        raise HTTPException(status_code=404, detail="Import préparé introuvable")
+    return pending
+
+
+@router.get("/pending", response_model=list[PendingImportOut])
+def list_pending(user: User = Depends(get_current_user),
+                 db: Session = Depends(get_db)) -> list[PendingImportOut]:
+    """What the connector prepared, newest first -- « Préparé par Claude »."""
+    rows = (
+        db.query(PendingImport, Account)
+        .join(Account, Account.id == PendingImport.account_id)
+        .filter(PendingImport.user_id == user.id)
+        .order_by(PendingImport.created_at.desc(), PendingImport.id.desc())
+        .all()
+    )
+    return [
+        PendingImportOut(id=pending.id, account_id=pending.account_id, account_name=account.name,
+                         filename=pending.filename, rows=pending.rows,
+                         created_at=pending.created_at)
+        for pending, account in rows
+    ]
+
+
+@router.get("/pending/{pending_id}/file")
+def pending_file(pending_id: int, user: User = Depends(get_current_user),
+                 db: Session = Depends(get_db)) -> Response:
+    """The file itself, handed to the wizard as if the household had dropped it."""
+    pending = _owned_pending(db, user, pending_id)
+    return Response(content=pending.content, media_type="text/csv")
+
+
+@router.delete("/pending/{pending_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_pending(pending_id: int, user: User = Depends(get_current_user),
+                   db: Session = Depends(get_db)) -> None:
+    db.delete(_owned_pending(db, user, pending_id))
     db.commit()

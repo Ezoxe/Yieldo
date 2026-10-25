@@ -59,6 +59,8 @@ READ = _tools("read", [
     ("yieldo_lire_imports", "GET", "/imports",
      "Les relevés importés, du plus récent au plus ancien."),
     ("yieldo_lire_dernier_import", "GET", "/imports/last", "Le dernier import et sa date."),
+    ("yieldo_lire_imports_prepares", "GET", "/imports/pending",
+     "Les relevés préparés par le connecteur, en attente du foyer."),
     ("yieldo_lire_profils_import", "GET", "/imports/profiles",
      "Les profils de colonnes enregistrés."),
     ("yieldo_lire_transactions", "GET", "/transactions",
@@ -192,6 +194,9 @@ WRITE = _tools("write", [
      "Rejouer une décision du modèle sur ses entrées enregistrées."),
     ("yieldo_invest_arreter", "POST", "/invest/oversight/halt",
      "Arrêter le pilotage de l'investissement (le relancer demande le foyer)."),
+    ("yieldo_import_preparer", "POST", CUSTOM,
+     "Préparer l'import d'un relevé CSV : il est analysé et rangé dans Imports, où le foyer "
+     "confirme les colonnes. Rien n'est importé avant."),
 ])
 
 APPROVE = _tools("approve", [
@@ -200,6 +205,8 @@ APPROVE = _tools("approve", [
      "Modifier un compte, son solde d'ouverture compris."),
     ("yieldo_supprimer_compte", "DELETE", "/accounts/{account_id}", "Supprimer un compte."),
     ("yieldo_annuler_import", "DELETE", "/imports/{batch_id}", "Annuler un import et ses lignes."),
+    ("yieldo_ecarter_import_prepare", "DELETE", "/imports/pending/{pending_id}",
+     "Écarter un relevé préparé, sans l'importer."),
     ("yieldo_creer_profil_import", "POST", "/imports/profiles",
      "Enregistrer un profil de colonnes."),
     ("yieldo_supprimer_profil_import", "DELETE", "/imports/profiles/{profile_id}",

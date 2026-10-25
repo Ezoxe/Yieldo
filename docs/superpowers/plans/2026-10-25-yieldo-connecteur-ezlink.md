@@ -144,7 +144,15 @@ Never (`NEVER`): every `/auth/*` write, `/admin/settings`, `/access-key*`, `/con
 
 ## Part B — EZLink
 
-Starts only once the other session working in `E:\Projet\Github\EZLink` has committed (its working tree carries uncommitted turbo / room / team changes to `policy/catalog.py`, `policy/config.py`, `policy/engine.py`, `db.py`).
+Built on EZLink `7b0e734` (« salle d'échange, équipe notée, turbo et tools directs »), which landed after Part A. Checked against it on 2026-10-25; Part B must hold these five constraints that commit introduced:
+
+1. **Turbo never validates a finance call.** Under turbo, `PolicyEngine` turns `approve` into an automatic `allow` with no `approval_id`, and Yieldo refuses an `approve` tool without one (403). A finance call is therefore excluded from turbo (`decision.auto` never set for `yieldo_*`): deleting a household's ledger lines is not the kind of action turbo was made for. Test: turbo active, `yieldo_supprimer_transaction` still goes to Discord.
+2. **`ToolSpec` now has `action_arg`** and `READONLY_EXTRA`; the specs built from Yieldo's catalogue fill them (`action_arg` unused, none read-only-extra).
+3. **Personas and missions (`team.py`) never see a `yieldo_*` tool.** The finance tools are visible only to a principal of the finance connector; a mission run by a persona goes through the IA side and is refused there.
+4. **The room (`/admin/room`) shows finance calls with their arguments**, which carry amounts and labels: kept 30 days (`room_retention_days`), owner-only. Accepted, but `contenu` of `yieldo_import_preparer` is replaced by its length before it reaches the room or Discord.
+5. **`http_fetch` on the Hermes agent stays away from Yieldo.** The connector key lives only on the Yieldo agent's machine; Hermes's `direct.web` allow-list must not list Yieldo's host, and the README says so.
+
+The worktree `E:\Projet\Github\EZLink-finance` (branch `feat/yieldo-finance`) is fast-forwarded to `7b0e734` before work starts.
 
 ### Task B1: protocol and agent backend `yieldo`
 

@@ -211,6 +211,39 @@ heures. Yieldo la stocke chiffrée (Fernet, dérivée de `SECRET_KEY`, qui n'est
 dans la base), mais rien ne protège une clé partie ailleurs. Si vous doutez :
 « Renouveler maintenant », et l'ancienne est morte à la requête suivante.
 
+## Claude par EZLink : Yieldo Finance
+
+Avec [EZLink](https://github.com/Ezoxe/EZLink), Claude (claude.ai, Claude Code) agit sur Yieldo par un connecteur MCP, « Yieldo Finance ». Il est distinct du connecteur de l'IA locale, et il n'y a plus de clé à recopier tous les jours.
+
+- **Ce qu'il peut faire.**
+  - Il lit tout : comptes, transactions, budgets, Avenir, portefeuille, supervision de l'investissement.
+  - Il corrige ou crée directement : catégories, règles, plan, récurrences, objectifs, dettes.
+  - Il attend ton clic sur Discord avant toute suppression, et avant de toucher à un compte, au portefeuille ou à la lecture des chiffres.
+- **Ce qu'il ne peut jamais faire.** Toucher à tes identifiants, aux clés, aux brokers ou au mandat, armer l'investissement réel ou importer un relevé.
+  - Pour un relevé, il le prépare seulement : il apparaît dans Imports sous « Préparé par Claude », et c'est toi qui confirmes les colonnes.
+- **Ce qu'il a fait.** Réglages → Connexions → Yieldo Finance liste ses écritures, avec celles passées par Discord.
+
+Mise en place :
+
+1. Dans Réglages → Connexions → Yieldo Finance, crée la clé. Elle s'affiche une seule fois.
+2. Sur la machine EZLink, crée l'agent : `ezlink agent add yieldo-1`.
+3. À côté de ce `docker-compose.yml`, prépare le dossier `ezlink/` avec :
+   - `agent.yaml`, d'après `deploy/agent-yieldo/agent.yaml.example` du dépôt EZLink ;
+   - `certs/`, avec les certificats de l'agent ;
+   - `yieldo_key`, qui contient la clé et rien d'autre.
+4. Lance l'agent :
+
+   ```bash
+   docker compose --profile ezlink up -d
+   ```
+
+5. Dans claude.ai, ajoute le connecteur `https://ezlink.<ton-domaine>/finance/mcp`.
+
+Pour couper Claude sans rien désinstaller :
+
+- **Révoquer** dans Réglages → Connexions coupe la clé tout de suite.
+- **`/finance off`** sur Discord coupe le connecteur côté EZLink.
+
 ## Dépannage
 
 **Le port habituel est occupé.**
